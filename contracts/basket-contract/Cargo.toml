@@ -37,7 +37,7 @@ schemars = "0.7"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 snafu = { version = "0.6.3" }
 cw20 = { version = "0.2" }
-basket-math = { path = "../basket-math" }
+basket-math = { path = "../../libraries/basket-math" }
 
 [dev-dependencies]
 terra-cosmwasm = { version = "1.2.2" }
