@@ -1,3 +1,6 @@
+use std::convert;
+use std::str::FromStr;
+
 #[derive(Copy, Clone, Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct FPDecimal(pub i128);
 
@@ -6,6 +9,22 @@ pub enum Sign {
     Positive,
     Negative,
     NoSign,
+}
+
+impl<T> convert::From<T> for FPDecimal
+where
+    T: Into<i128>,
+{
+    fn from(x: T) -> FPDecimal {
+        FPDecimal(x.into() * FPDecimal::ONE)
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl convert::From<FPDecimal> for f32 {
+    fn from(x: FPDecimal) -> f32 {
+        f32::from_str(&x.to_string()).unwrap()
+    }
 }
 
 impl FPDecimal {
@@ -35,16 +54,16 @@ impl FPDecimal {
         FPDecimal(FPDecimal::MIN)
     }
 
-    // converts integer into decimal
-    pub fn from<T>(item: T) -> FPDecimal
-    where
-        T: Into<i128>,
-    {
-        FPDecimal(item.into() * FPDecimal::ONE)
+    pub const fn e() -> FPDecimal {
+        FPDecimal(FPDecimal::E)
     }
 
     pub fn _int(x: i128) -> i128 {
         x / FPDecimal::ONE * FPDecimal::ONE
+    }
+
+    pub fn int(&self) -> FPDecimal {
+        FPDecimal(FPDecimal::_int(self.0))
     }
 
     pub fn _sign(x: i128) -> i128 {
@@ -63,10 +82,6 @@ impl FPDecimal {
         } else {
             Sign::Positive
         }
-    }
-
-    pub fn int(&self) -> FPDecimal {
-        FPDecimal(FPDecimal::_int(self.0))
     }
 
     pub fn _fraction(x: i128) -> i128 {

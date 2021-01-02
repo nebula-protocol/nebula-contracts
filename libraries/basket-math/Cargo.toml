@@ -14,3 +14,4 @@ backtraces = ["cosmwasm-std/backtraces"]
 cosmwasm-std = { version = "0.10.1", features = ["iterator"] }
 
 [dev-dependencies]
+plotters = "^0.3.0"
