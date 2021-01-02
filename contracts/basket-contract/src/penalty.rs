@@ -1,5 +1,4 @@
-use crate::FPDecimal;
-use crate::{dot, sum};
+use basket_math::{dot, sum, FPDecimal};
 
 /// Calculate error for basket's current inventory and its target weight allocation.
 pub fn compute_err(

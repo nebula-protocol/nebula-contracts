@@ -83,6 +83,7 @@ dependencies = [
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw20",
+ "plotters",
  "schemars",
  "serde",
  "snafu",
@@ -94,7 +95,11 @@ name = "basket-math"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "cosmwasm-storage",
  "plotters",
+ "schemars",
+ "serde",
+ "terra-cosmwasm",
 ]
 
 [[package]]

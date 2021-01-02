@@ -7,6 +7,9 @@ use crate::state::PenaltyParams;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
+    /// Basket name (title)
+    pub name: String,
+
     /// Contract owner
     pub owner: HumanAddr,
 

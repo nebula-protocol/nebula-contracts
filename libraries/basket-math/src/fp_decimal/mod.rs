@@ -1,8 +1,9 @@
 use std::convert;
 use std::str::FromStr;
 
-#[derive(Copy, Clone, Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct FPDecimal(pub i128);
+use schemars::JsonSchema;
+#[derive(Copy, Clone, Default, Debug, PartialEq, Eq, PartialOrd, Ord, JsonSchema)]
+pub struct FPDecimal(#[schemars(with = "String")] pub i128);
 
 #[derive(PartialEq)]
 pub enum Sign {
@@ -99,3 +100,4 @@ mod exp;
 mod from_str;
 mod hyper;
 mod log;
+mod serde; // cosmwasm serialization

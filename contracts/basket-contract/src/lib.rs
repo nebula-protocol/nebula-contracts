@@ -1,6 +1,12 @@
-// pub mod contract;
+pub mod contract;
 pub mod msg;
 pub mod state;
+
+#[macro_use]
+pub mod test_helper;
+
+mod penalty;
+mod util;
 
 #[cfg(target_arch = "wasm32")]
 mod wasm {
