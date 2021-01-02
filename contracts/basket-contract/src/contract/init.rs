@@ -1,26 +1,18 @@
 use crate::state::{save_config, save_target, BasketConfig};
 use crate::{msg::InitMsg, state::PenaltyParams};
-use cosmwasm_std::{
-    log, Api, CanonicalAddr, Env, Extern, InitResponse, Querier, StdResult, Storage,
-};
+use cosmwasm_std::{log, Api, Env, Extern, InitResponse, Querier, StdResult, Storage};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     _env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
-    let assets: Vec<CanonicalAddr> = msg
-        .assets
-        .iter()
-        .map(|x| deps.api.canonical_address(&x).unwrap())
-        .collect();
-
     let cfg = BasketConfig {
         name: msg.name.clone(),
-        owner: deps.api.canonical_address(&msg.owner)?,
-        basket_token: deps.api.canonical_address(&msg.basket_token)?,
-        oracle: deps.api.canonical_address(&msg.oracle)?,
-        assets,
+        owner: msg.owner.clone(),
+        basket_token: msg.basket_token.clone(),
+        oracle: msg.oracle.clone(),
+        assets: msg.assets,
         penalty_params: msg.penalty_params,
     };
 
@@ -51,11 +43,11 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 #[cfg(test)]
 mod tests {
 
-    use crate::{q, test_helper::prelude::*};
+    use crate::{q, test_helper::*};
 
     #[test]
     fn proper_initialization() {
-        let (deps, init_res) = init_contract();
+        let (deps, init_res) = mock_init();
         assert_eq!(0, init_res.messages.len());
 
         // make sure target was saved

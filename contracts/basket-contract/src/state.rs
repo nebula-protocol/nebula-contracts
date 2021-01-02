@@ -2,7 +2,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use basket_math::FPDecimal;
-use cosmwasm_std::{CanonicalAddr, StdResult, Storage};
+use cosmwasm_std::{HumanAddr, StdResult, Storage};
 use cosmwasm_storage::{singleton, singleton_read};
 
 pub static CONFIG_KEY: &[u8] = b"config";
@@ -11,10 +11,10 @@ pub static TARGET_KEY: &[u8] = b"target";
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct BasketConfig {
     pub name: String,
-    pub owner: CanonicalAddr,
-    pub basket_token: CanonicalAddr,
-    pub oracle: CanonicalAddr,
-    pub assets: Vec<CanonicalAddr>,
+    pub owner: HumanAddr,
+    pub basket_token: HumanAddr,
+    pub oracle: HumanAddr,
+    pub assets: Vec<HumanAddr>,
     pub penalty_params: PenaltyParams,
 }
 

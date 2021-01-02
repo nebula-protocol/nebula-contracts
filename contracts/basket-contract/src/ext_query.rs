@@ -1,0 +1,65 @@
+use basket_math::FPDecimal;
+use cosmwasm_std::{
+    to_binary, Api, Decimal, Extern, HumanAddr, Querier, QueryRequest, StdResult, Storage, Uint128,
+    WasmQuery,
+};
+use cw20::BalanceResponse as Cw20BalanceResponse;
+use serde::{Deserialize, Serialize};
+use std::str::FromStr;
+
+/// QueryMsgs to external contracts
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExtQueryMsg {
+    Price {
+        base_asset: String,
+        quote_asset: String,
+    },
+    Balance {
+        address: HumanAddr,
+    },
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct PriceResponse {
+    pub rate: Decimal,
+    pub last_updated_base: u64,
+    pub last_updated_quote: u64,
+}
+
+/// EXTERNAL QUERY
+/// -- Queries the oracle contract for the current asset price
+pub fn query_price<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    oracle_address: &HumanAddr,
+    asset_address: &HumanAddr,
+) -> StdResult<FPDecimal> {
+    // perform query
+    let res: PriceResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+        contract_addr: oracle_address.clone(),
+        msg: to_binary(&ExtQueryMsg::Price {
+            base_asset: asset_address.to_string(),
+            quote_asset: "uusd".to_string(),
+        })?,
+    }))?;
+
+    // transform Decimal -> FPDecimal
+    Ok(FPDecimal::from_str(res.rate.to_string().as_str())?)
+}
+
+/// EXTERNAL QUERY
+/// -- Queries the token_address contract for the current balance of account
+pub fn query_cw20_balance<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    asset_address: &HumanAddr,
+    account_address: &HumanAddr,
+) -> StdResult<Uint128> {
+    let res: Cw20BalanceResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+        contract_addr: asset_address.clone(),
+        msg: to_binary(&ExtQueryMsg::Balance {
+            address: account_address.clone(),
+        })?,
+    }))?;
+
+    Ok(res.balance)
+}

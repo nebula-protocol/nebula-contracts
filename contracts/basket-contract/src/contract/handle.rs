@@ -5,7 +5,7 @@ use cosmwasm_std::{
 
 use cw20::Cw20ReceiveMsg;
 
-use super::load_ext::{load_balance, load_price};
+use crate::ext_query::{query_cw20_balance, query_price};
 use crate::msg::{Cw20HookMsg, HandleMsg};
 use crate::penalty::{compute_penalty, compute_score};
 use crate::state::{read_config, read_target, PenaltyParams};
@@ -60,7 +60,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
     // only callable from Basket Token
     let cfg = read_config(&deps.storage)?;
-    if cfg.basket_token != deps.api.canonical_address(&env.message.sender)? {
+    if cfg.basket_token != env.message.sender {
         return Err(StdError::unauthorized());
     }
 
@@ -97,21 +97,20 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     let inventory: Vec<Uint128> = cfg
         .assets
         .iter()
-        .map(|asset| load_balance(&asset, &env.contract.address).unwrap())
+        .map(|asset| query_cw20_balance(&deps, &asset, &env.contract.address).unwrap())
         .collect();
     let inv = to_fpdec_vec(&inventory);
     let c = to_fpdec_vec(&asset_amounts);
 
     // get current prices of each token via oracle
-    let prices: Vec<Uint128> = cfg
+    let prices: Vec<FPDecimal> = cfg
         .assets
         .iter()
-        .map(|asset| load_price(&cfg.oracle, &asset).unwrap())
+        .map(|asset| query_price(&deps, &cfg.oracle, &asset).unwrap())
         .collect();
-    let p = to_fpdec_vec(&prices);
 
     // compute penalty
-    let score = compute_score(&inv, &c, &target, &p);
+    let score = compute_score(&inv, &c, &target, &prices);
     let PenaltyParams {
         a_pos,
         s_pos,
@@ -121,7 +120,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     let penalty = compute_penalty(score, a_pos, s_pos, a_neg, s_neg);
 
     // computer number of new tokens
-    let new_minted = penalty * dot(&c, &p) / dot(&inv, &p);
+    let new_minted = penalty * dot(&c, &prices) / dot(&inv, &prices);
 
     if let Some(minimum) = min_tokens {
         if new_minted.0 < minimum.u128() as i128 {
@@ -156,7 +155,60 @@ pub fn try_unstage_asset<S: Storage, A: Api, Q: Querier>(
 #[cfg(test)]
 mod tests {
 
-    use crate::test_helper::prelude::*;
+    use crate::test_helper::*;
     #[test]
-    fn mint() {}
+    fn mint() {
+        let (mut deps, _init_res) = mock_init();
+
+        // Asset :: Curr. Price (UST) :: Balance (µ-unit), (+ proposed)
+        // --
+        // mAAPL ::  135.18   :: 20_053_159   (+ 5_239_222)
+        // mGOOG :: 1780.03   :: 3_710_128
+        // mMSFT ::  222.42   :: 8_281_228    (+ 2_332_111)
+        // mNFLX ::  540.82   :: 24_212_221   (+ 0_222_272)
+
+        deps.querier.with_oracle_prices(&[
+            (&"uusd".to_string(), &Decimal::one()),
+            (&"mAAPL".to_string(), &Decimal::from_str("135.18").unwrap()),
+            (&"mGOOG".to_string(), &Decimal::from_str("1780.03").unwrap()),
+            (&"mMSFT".to_string(), &Decimal::from_str("222.42").unwrap()),
+            (&"mNFLX".to_string(), &Decimal::from_str("540.82").unwrap()),
+        ]);
+
+        deps.querier.with_token_balances(&[
+            (
+                &h("mAAPL"),
+                &[(&h(MOCK_CONTRACT_ADDR), &Uint128::from(20_053_159u128))],
+            ),
+            (
+                &h("mGOOG"),
+                &[(&h(MOCK_CONTRACT_ADDR), &Uint128::from(3_710_128u128))],
+            ),
+            (
+                &h("mMSFT"),
+                &[(&h(MOCK_CONTRACT_ADDR), &Uint128::from(8_281_228u128))],
+            ),
+            (
+                &h("mNFLX"),
+                &[(&h(MOCK_CONTRACT_ADDR), &Uint128::from(24_212_221u128))],
+            ),
+        ]);
+
+        let msg = HandleMsg::Mint {
+            asset_amounts: vec![
+                Uint128(1_239_222), // mAAPL
+                Uint128::zero(),    // mGOOG
+                Uint128(2_332_111), // mMSFT
+                Uint128(222_272),   // mNFLX
+            ],
+            min_tokens: None,
+        };
+
+        let env = mock_env(consts::owner(), &[]);
+        let res = handle(&mut deps, env, msg).unwrap();
+        for log in res.log.iter() {
+            println!("{}: {}", log.key, log.value);
+        }
+        assert_eq!(1, res.messages.len());
+    }
 }

@@ -1,7 +1,7 @@
 pub mod contract;
+pub mod ext_query;
 pub mod msg;
 pub mod state;
-
 #[macro_use]
 pub mod test_helper;
 
