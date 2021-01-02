@@ -59,6 +59,9 @@ dependencies = [
 [[package]]
 name = "basket-math"
 version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+]
 
 [[package]]
 name = "basket-token"

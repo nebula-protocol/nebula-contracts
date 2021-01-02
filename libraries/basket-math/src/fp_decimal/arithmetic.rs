@@ -31,8 +31,8 @@ impl FPDecimal {
         let y1: i128 = FPDecimal::_int(y) / FPDecimal::ONE;
         let mut y2: i128 = FPDecimal::_fraction(y);
         let mut x1y1 = x1 * y1;
-        let FPDecimal_x1y1 = x1y1 * FPDecimal::ONE;
-        x1y1 = FPDecimal_x1y1;
+        let dec_x1y1 = x1y1 * FPDecimal::ONE;
+        x1y1 = dec_x1y1;
         let x2y1 = x2 * y1;
         let x1y2 = x1 * y2;
         x2 = x2 / FPDecimal::MUL_PRECISION;
@@ -70,14 +70,6 @@ impl FPDecimal {
     pub fn reciprocal(x: i128) -> i128 {
         assert!(x != 0);
         FPDecimal::ONE * FPDecimal::ONE / x
-    }
-
-    pub fn _int(x: i128) -> i128 {
-        x / FPDecimal::ONE * FPDecimal::ONE
-    }
-
-    pub fn _fraction(x: i128) -> i128 {
-        x - FPDecimal::_int(x)
     }
 
     pub fn abs(&self) -> FPDecimal {

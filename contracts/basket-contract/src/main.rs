@@ -1,10 +1,12 @@
-use basket_math;
+use basket_math::FPDecimal;
+use std::str::FromStr;
 
 fn main() {
-    let penalty_params = PenaltyParams {
-        alpha_plus: Fixed::ONE,            // 1
-        alpha_minus: Fixed::ONE / 2 / 100, // 0.005
-        sigma_plus: Fixed::ONE,            // 1
-        sigma_minus: Fixed::ONE / 2,       // 0.5
-    };
+    println!(
+        "{}",
+        FPDecimal::from_str("-123.12301293012931").unwrap()
+            * FPDecimal::from_str("-1232329.294230499").unwrap()
+            / FPDecimal::from_str("-28281.2102392039111").unwrap()
+            * FPDecimal::from_str("213.123123019230").unwrap()
+    );
 }

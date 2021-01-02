@@ -39,7 +39,7 @@ impl FPDecimal {
             m = m * m2 / FPDecimal::ONE;
             r = r + 2 * m / i;
             i += 2;
-            if i >= 3 + 2 * FPDecimal::DIGITS {
+            if i >= 3 + 2 * FPDecimal::DIGITS as i128 {
                 break;
             }
         }
@@ -48,5 +48,16 @@ impl FPDecimal {
 
     pub fn ln(&self) -> FPDecimal {
         FPDecimal(FPDecimal::_ln(self.0))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use crate::FPDecimal;
+
+    #[test]
+    fn test_ln() {
+        assert_eq!(FPDecimal::_ln(FPDecimal::E), FPDecimal::ONE);
     }
 }

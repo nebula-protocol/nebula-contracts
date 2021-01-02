@@ -29,7 +29,7 @@ impl FPDecimal {
         }
         let mut tr = FPDecimal::ONE;
         let mut d = tr;
-        for i in 1..(2 * FPDecimal::DIGITS + 1) {
+        for i in 1..((2 * FPDecimal::DIGITS + 1) as i128) {
             d = (d * x) / (FPDecimal::ONE * i);
             tr += d;
         }
