@@ -1,0 +1,8 @@
+[workspace]
+
+members = [
+  "basket-contract",
+  "basket-math",
+  "basket-token",
+  "terra-wasm-utils"
+]
