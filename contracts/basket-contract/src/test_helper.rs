@@ -7,6 +7,7 @@ pub use basket_math::*;
 pub use cosmwasm_std::testing::{mock_env, MOCK_CONTRACT_ADDR};
 pub use cosmwasm_std::*;
 pub use cw20::BalanceResponse as Cw20BalanceResponse;
+use cw20::TokenInfoResponse;
 use std::collections::HashMap;
 pub use std::str::FromStr;
 use terra_cosmwasm::*;
@@ -27,10 +28,10 @@ macro_rules! q {
 }
 
 pub struct CustomMockQuerier {
-    base: MockQuerier<TerraQueryWrapper>,
-    token_querier: TokenQuerier,   // token balances
-    oracle_querier: OracleQuerier, // token registered prices
-    canonical_length: usize,
+    pub base: MockQuerier<TerraQueryWrapper>,
+    pub token_querier: TokenQuerier,   // token balances
+    pub oracle_querier: OracleQuerier, // token registered prices
+    pub canonical_length: usize,
 }
 
 impl Querier for CustomMockQuerier {
@@ -65,8 +66,8 @@ impl CustomMockQuerier {
                     ExtQueryMsg::Price {
                         base_asset,
                         quote_asset,
-                    } => match self.oracle_querier.price.get(&base_asset) {
-                        Some(base_price) => match self.oracle_querier.price.get(&quote_asset) {
+                    } => match self.oracle_querier.assets.get(&base_asset) {
+                        Some(base_price) => match self.oracle_querier.assets.get(&quote_asset) {
                             Some(quote_price) => Ok(to_binary(&PriceResponse {
                                 rate: decimal_division(*base_price, *quote_price),
                                 last_updated_base: 1000u64,
@@ -83,8 +84,8 @@ impl CustomMockQuerier {
                         }),
                     },
                     ExtQueryMsg::Balance { address } => {
-                        let balances = match self.token_querier.balances.get(contract_addr) {
-                            Some(balances) => balances,
+                        let token_data = match self.token_querier.tokens.get(contract_addr) {
+                            Some(v) => v,
                             None => {
                                 return Err(SystemError::InvalidRequest {
                                     error: format!(
@@ -95,7 +96,7 @@ impl CustomMockQuerier {
                                 })
                             }
                         };
-                        let balance = match balances.get(&address) {
+                        let balance = match token_data.balances.get(&address) {
                             Some(v) => v,
                             None => {
                                 return Err(SystemError::InvalidRequest {
@@ -106,6 +107,21 @@ impl CustomMockQuerier {
                         };
                         Ok(to_binary(&Cw20BalanceResponse { balance: *balance }))
                     }
+                    ExtQueryMsg::TokenInfo {} => {
+                        let token_data = match self.token_querier.tokens.get(contract_addr) {
+                            Some(v) => v,
+                            None => {
+                                return Err(SystemError::InvalidRequest {
+                                    error: format!(
+                                        "No token info exists for the contract {}",
+                                        contract_addr
+                                    ),
+                                    request: msg.as_slice().into(),
+                                })
+                            }
+                        };
+                        Ok(to_binary(&token_data.info))
+                    }
                 }
             }
             _ => self.base.handle_query(request),
@@ -113,56 +129,61 @@ impl CustomMockQuerier {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
+pub struct TokenData {
+    info: TokenInfoResponse,
+    balances: HashMap<HumanAddr, Uint128>,
+}
+
+pub fn token_data(
+    name: &str,
+    symbol: &str,
+    decimals: u8,
+    total_supply: u128,
+    balances: &[(&str, u128)],
+) -> TokenData {
+    let mut balances_map: HashMap<HumanAddr, Uint128> = HashMap::new();
+    for &(account_addr, balance) in balances.iter() {
+        balances_map.insert(account_addr.into(), Uint128(balance));
+    }
+
+    TokenData {
+        info: TokenInfoResponse {
+            name: name.to_string(),
+            symbol: symbol.to_string(),
+            decimals,
+            total_supply: Uint128(total_supply.into()),
+        },
+        balances: balances_map,
+    }
+}
+
+#[derive(Default)]
 pub struct TokenQuerier {
     // this lets us iterate over all pairs that match the first string
-    balances: HashMap<HumanAddr, HashMap<HumanAddr, Uint128>>,
+    pub tokens: HashMap<HumanAddr, TokenData>,
 }
 
 impl TokenQuerier {
-    pub fn new(balances: &[(&HumanAddr, &[(&HumanAddr, &Uint128)])]) -> Self {
+    pub fn new() -> Self {
         TokenQuerier {
-            balances: balances_to_map(balances),
+            tokens: HashMap::new(),
         }
     }
-}
-
-pub(crate) fn balances_to_map(
-    balances: &[(&HumanAddr, &[(&HumanAddr, &Uint128)])],
-) -> HashMap<HumanAddr, HashMap<HumanAddr, Uint128>> {
-    let mut balances_map: HashMap<HumanAddr, HashMap<HumanAddr, Uint128>> = HashMap::new();
-    for (contract_addr, balances) in balances.iter() {
-        let mut contract_balances_map: HashMap<HumanAddr, Uint128> = HashMap::new();
-        for (addr, balance) in balances.iter() {
-            contract_balances_map.insert(HumanAddr::from(addr), **balance);
-        }
-
-        balances_map.insert(HumanAddr::from(contract_addr), contract_balances_map);
-    }
-    balances_map
 }
 
 #[derive(Clone, Default)]
 pub struct OracleQuerier {
     // this lets us iterate over all pairs that match the first string
-    price: HashMap<String, Decimal>,
+    pub assets: HashMap<String, Decimal>,
 }
 
 impl OracleQuerier {
-    pub fn new(price: &[(&String, &Decimal)]) -> Self {
+    pub fn new() -> Self {
         OracleQuerier {
-            price: price_to_map(price),
+            assets: HashMap::new(),
         }
     }
-}
-
-pub(crate) fn price_to_map(price: &[(&String, &Decimal)]) -> HashMap<String, Decimal> {
-    let mut price_map: HashMap<String, Decimal> = HashMap::new();
-    for (base_quote, oracle_price) in price.iter() {
-        price_map.insert((*base_quote).clone(), **oracle_price);
-    }
-
-    price_map
 }
 
 impl CustomMockQuerier {
@@ -180,13 +201,56 @@ impl CustomMockQuerier {
     }
 
     // configure the mint whitelist mock querier
-    pub fn with_token_balances(&mut self, balances: &[(&HumanAddr, &[(&HumanAddr, &Uint128)])]) {
-        self.token_querier = TokenQuerier::new(balances);
+    pub fn reset_token_querier(&mut self) -> &Self {
+        self.token_querier = TokenQuerier::new();
+        self
+    }
+
+    pub fn set_token<T>(&mut self, token_address: T, data: TokenData) -> &Self
+    where
+        T: Into<HumanAddr>,
+    {
+        self.token_querier.tokens.insert(token_address.into(), data);
+        self
+    }
+
+    pub fn set_token_balance<T>(
+        &mut self,
+        token_address: T,
+        account_address: T,
+        balance: u128,
+    ) -> &Self
+    where
+        T: Into<HumanAddr>,
+    {
+        if let Some(token) = self.token_querier.tokens.get_mut(&token_address.into()) {
+            token
+                .balances
+                .insert(account_address.into(), Uint128(balance));
+        }
+        self
     }
 
     // configure the oracle price mock querier
-    pub fn with_oracle_prices(&mut self, oracle_prices: &[(&String, &Decimal)]) {
-        self.oracle_querier = OracleQuerier::new(oracle_prices);
+    pub fn reset_oracle_querier(&mut self) -> &Self {
+        self.oracle_querier = OracleQuerier::new();
+        self
+    }
+
+    pub fn set_oracle_price(&mut self, asset_address: String, price: Decimal) -> &Self {
+        self.oracle_querier.assets.insert(asset_address, price);
+        self
+    }
+
+    pub fn set_oracle_prices<T, U>(&mut self, price_data: T) -> &Self
+    where
+        T: IntoIterator<Item = (U, Decimal)>,
+        U: ToString,
+    {
+        for (asset, price) in price_data.into_iter() {
+            self.set_oracle_price(asset.to_string(), price);
+        }
+        self
     }
 }
 

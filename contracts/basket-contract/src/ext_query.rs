@@ -3,7 +3,7 @@ use cosmwasm_std::{
     to_binary, Api, Decimal, Extern, HumanAddr, Querier, QueryRequest, StdResult, Storage, Uint128,
     WasmQuery,
 };
-use cw20::BalanceResponse as Cw20BalanceResponse;
+use cw20::{BalanceResponse as Cw20BalanceResponse, TokenInfoResponse as Cw20TokenInfoResponse};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
@@ -11,13 +11,16 @@ use std::str::FromStr;
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ExtQueryMsg {
+    // Oracle
     Price {
         base_asset: String,
         quote_asset: String,
     },
+    // Cw20
     Balance {
         address: HumanAddr,
     },
+    TokenInfo {},
 }
 
 #[derive(Serialize, Deserialize)]
@@ -62,4 +65,18 @@ pub fn query_cw20_balance<S: Storage, A: Api, Q: Querier>(
     }))?;
 
     Ok(res.balance)
+}
+
+/// EXTERNAL QUERY
+/// -- Queries the token_address contract for the current total supply
+pub fn query_cw20_token_supply<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    asset_address: &HumanAddr,
+) -> StdResult<Uint128> {
+    let res: Cw20TokenInfoResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+        contract_addr: asset_address.clone(),
+        msg: to_binary(&ExtQueryMsg::TokenInfo {})?,
+    }))?;
+
+    Ok(res.total_supply)
 }

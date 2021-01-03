@@ -167,32 +167,56 @@ mod tests {
         // mMSFT ::  222.42   :: 8_281_228    (+ 2_332_111)
         // mNFLX ::  540.82   :: 24_212_221   (+ 0_222_272)
 
-        deps.querier.with_oracle_prices(&[
-            (&"uusd".to_string(), &Decimal::one()),
-            (&"mAAPL".to_string(), &Decimal::from_str("1").unwrap()),
-            (&"mGOOG".to_string(), &Decimal::from_str("1").unwrap()),
-            (&"mMSFT".to_string(), &Decimal::from_str("1").unwrap()),
-            (&"mNFLX".to_string(), &Decimal::from_str("1").unwrap()),
+        deps.querier.reset_oracle_querier();
+        deps.querier.set_oracle_prices(vec![
+            ("uusd", Decimal::one()),
+            ("mAAPL", Decimal::from_str("1").unwrap()),
+            ("mGOOG", Decimal::from_str("1").unwrap()),
+            ("mMSFT", Decimal::from_str("1").unwrap()),
+            ("mNFLX", Decimal::from_str("1").unwrap()),
         ]);
 
-        deps.querier.with_token_balances(&[
-            (
-                &h("mAAPL"),
-                &[(&h(MOCK_CONTRACT_ADDR), &Uint128::from(1u128))],
+        deps.querier.reset_token_querier();
+        deps.querier.set_token(
+            "mAAPL",
+            token_data(
+                "Mirrored Apple",
+                "mAAPL",
+                6,
+                100_000_000,
+                &[(MOCK_CONTRACT_ADDR, 1_000_000)],
             ),
-            (
-                &h("mGOOG"),
-                &[(&h(MOCK_CONTRACT_ADDR), &Uint128::from(1u128))],
+        );
+        deps.querier.set_token(
+            "mGOOG",
+            token_data(
+                "Mirrored Google",
+                "mGOOG",
+                6,
+                100_000_000,
+                &[(MOCK_CONTRACT_ADDR, 1_000_000)],
             ),
-            (
-                &h("mMSFT"),
-                &[(&h(MOCK_CONTRACT_ADDR), &Uint128::from(1u128))],
+        );
+        deps.querier.set_token(
+            "mMSFT",
+            token_data(
+                "Mirrored Microsoft",
+                "mMSFT",
+                6,
+                100_000_000,
+                &[(MOCK_CONTRACT_ADDR, 1_000_000)],
             ),
-            (
-                &h("mNFLX"),
-                &[(&h(MOCK_CONTRACT_ADDR), &Uint128::from(1u128))],
+        );
+        deps.querier.set_token(
+            "mNFLX",
+            token_data(
+                "Mirrored Netflix",
+                "mNFLX",
+                6,
+                100_000_000,
+                &[(MOCK_CONTRACT_ADDR, 1_000_000)],
             ),
-        ]);
+        );
 
         let msg = HandleMsg::Mint {
             asset_amounts: vec![
