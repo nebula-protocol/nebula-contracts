@@ -135,15 +135,19 @@ pub struct TokenData {
     balances: HashMap<HumanAddr, Uint128>,
 }
 
-pub fn token_data(
+pub fn token_data<T, U>(
     name: &str,
     symbol: &str,
     decimals: u8,
     total_supply: u128,
-    balances: &[(&str, u128)],
-) -> TokenData {
+    balances: T,
+) -> TokenData
+where
+    T: IntoIterator<Item = (U, u128)>,
+    U: Into<HumanAddr>,
+{
     let mut balances_map: HashMap<HumanAddr, Uint128> = HashMap::new();
-    for &(account_addr, balance) in balances.iter() {
+    for (account_addr, balance) in balances.into_iter() {
         balances_map.insert(account_addr.into(), Uint128(balance));
     }
 
@@ -152,7 +156,7 @@ pub fn token_data(
             name: name.to_string(),
             symbol: symbol.to_string(),
             decimals,
-            total_supply: Uint128(total_supply.into()),
+            total_supply: Uint128(total_supply),
         },
         balances: balances_map,
     }
@@ -283,19 +287,19 @@ pub mod consts {
     }
 
     pub fn owner() -> HumanAddr {
-        h("owner0000")
+        h("owner")
     }
     pub fn basket_token() -> HumanAddr {
-        h("token0000")
+        h("basket")
     }
     pub fn oracle() -> HumanAddr {
-        h("oracle0000")
+        h("oracle")
     }
     pub fn assets() -> Vec<HumanAddr> {
         vec![h("mAAPL"), h("mGOOG"), h("mMSFT"), h("mNFLX")]
     }
     pub fn target() -> Vec<u32> {
-        vec![1, 1, 2, 1]
+        vec![20, 10, 65, 5]
     }
     pub fn penalty_params() -> PenaltyParams {
         PenaltyParams {

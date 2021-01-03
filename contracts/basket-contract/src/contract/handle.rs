@@ -5,14 +5,15 @@ use cosmwasm_std::{
 
 use cw20::Cw20ReceiveMsg;
 
-use crate::ext_query::{query_cw20_balance, query_price};
 use crate::msg::{Cw20HookMsg, HandleMsg};
 use crate::penalty::{compute_penalty, compute_score};
 use crate::state::{read_config, read_target, PenaltyParams};
 use crate::util::to_fpdec_vec;
-use basket_math::{dot, sum, FPDecimal};
-
-use std::str::FromStr;
+use crate::{
+    ext_query::{query_cw20_balance, query_price},
+    test_helper::query_cw20_token_supply,
+};
+use basket_math::{dot, FPDecimal};
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -119,14 +120,21 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     } = cfg.penalty_params;
     let penalty = compute_penalty(score, a_pos, s_pos, a_neg, s_neg);
 
-    // computer number of new tokens
-    let new_minted = penalty * dot(&c, &prices) / dot(&inv, &prices);
+    let basket_token_supply = query_cw20_token_supply(&deps, &cfg.basket_token)?;
+    println!("current supply: {}", basket_token_supply);
 
-    if let Some(minimum) = min_tokens {
-        if new_minted.0 < minimum.u128() as i128 {
+    // compute number of new tokens
+    let mint_subtotal = penalty * dot(&c, &prices) / dot(&inv, &prices)
+        * FPDecimal::from(basket_token_supply.u128() as i128);
+
+    let mint_roundoff = mint_subtotal.fraction(); // fraction part is truncated
+    let mint_total = Uint128((mint_subtotal.int().0 / FPDecimal::ONE) as u128);
+
+    if let Some(m) = min_tokens {
+        if mint_total < m {
             return Err(StdError::generic_err(format!(
-                "minted tokens {} less than minimum {}",
-                new_minted.0, minimum
+                "transaction aborted: transaction would mint {}, which is less than min_tokens specified: {}",
+                mint_total.0, m
             )));
         }
     }
@@ -137,7 +145,8 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         log: vec![
             log("score", score),
             log("penalty", penalty),
-            log("new_minted", new_minted),
+            log("mint_total", mint_total),
+            log("mint_roundoff", mint_roundoff),
         ],
         data: None,
     })
@@ -160,31 +169,41 @@ mod tests {
     fn mint() {
         let (mut deps, _init_res) = mock_init();
 
-        // Asset :: Curr. Price (UST) :: Balance (µ-unit), (+ proposed)
+        // Asset :: UST Price :: Balance (µ)      (+ proposed)   :: %
         // --
-        // mAAPL ::  135.18   :: 20_053_159   (+ 5_239_222)
-        // mGOOG :: 1780.03   :: 3_710_128
-        // mMSFT ::  222.42   :: 8_281_228    (+ 2_332_111)
-        // mNFLX ::  540.82   :: 24_212_221   (+ 0_222_272)
+        // mAAPL ::  135.18   ::  7_290_053_159  (+ 125_000_000) :: 0.20367359382 -> 0.20391741720
+        // mGOOG :: 1780.03   ::    319_710_128                  :: 0.11761841035 -> 0.11577407690
+        // mMSFT ::  222.42   :: 14_219_281_228  (+ 149_000_000) :: 0.65364669475 -> 0.65013907200
+        // mNFLX ::  540.82   ::    224_212_221  (+  50_090_272) :: 0.02506130106 -> 0.03016943389
 
         deps.querier.reset_oracle_querier();
         deps.querier.set_oracle_prices(vec![
             ("uusd", Decimal::one()),
-            ("mAAPL", Decimal::from_str("1").unwrap()),
-            ("mGOOG", Decimal::from_str("1").unwrap()),
-            ("mMSFT", Decimal::from_str("1").unwrap()),
-            ("mNFLX", Decimal::from_str("1").unwrap()),
+            ("mAAPL", Decimal::from_str("135.18").unwrap()),
+            ("mGOOG", Decimal::from_str("1780.03").unwrap()),
+            ("mMSFT", Decimal::from_str("222.42").unwrap()),
+            ("mNFLX", Decimal::from_str("540.82").unwrap()),
         ]);
 
         deps.querier.reset_token_querier();
+        deps.querier.set_token(
+            "basket",
+            token_data::<Vec<(&str, u128)>, &str>(
+                "Basket Protocol - 1",
+                "BASKET",
+                6,
+                1_000_000_000,
+                vec![],
+            ),
+        );
         deps.querier.set_token(
             "mAAPL",
             token_data(
                 "Mirrored Apple",
                 "mAAPL",
                 6,
-                100_000_000,
-                &[(MOCK_CONTRACT_ADDR, 1_000_000)],
+                1_000_000_000,
+                vec![(MOCK_CONTRACT_ADDR, 7_290_053_159)],
             ),
         );
         deps.querier.set_token(
@@ -193,8 +212,8 @@ mod tests {
                 "Mirrored Google",
                 "mGOOG",
                 6,
-                100_000_000,
-                &[(MOCK_CONTRACT_ADDR, 1_000_000)],
+                1_000_000_000,
+                vec![(MOCK_CONTRACT_ADDR, 14_219_281_228)],
             ),
         );
         deps.querier.set_token(
@@ -203,8 +222,8 @@ mod tests {
                 "Mirrored Microsoft",
                 "mMSFT",
                 6,
-                100_000_000,
-                &[(MOCK_CONTRACT_ADDR, 1_000_000)],
+                1_000_000_000,
+                vec![(MOCK_CONTRACT_ADDR, 224_212_221)],
             ),
         );
         deps.querier.set_token(
@@ -213,17 +232,17 @@ mod tests {
                 "Mirrored Netflix",
                 "mNFLX",
                 6,
-                100_000_000,
-                &[(MOCK_CONTRACT_ADDR, 1_000_000)],
+                1_000_000_000,
+                vec![(MOCK_CONTRACT_ADDR, 224_212_221)],
             ),
         );
 
         let msg = HandleMsg::Mint {
             asset_amounts: vec![
-                Uint128::zero(),      // mAAPL
+                Uint128(125_000_000), // mAAPL
                 Uint128::zero(),      // mGOOG
-                Uint128::from(1u128), // mMSFT
-                Uint128::zero(),      // mNFLX
+                Uint128(149_000_000), // mMSFT
+                Uint128(50_090_272),  // mNFLX
             ],
             min_tokens: None,
         };
