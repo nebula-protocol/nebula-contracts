@@ -13,7 +13,7 @@ use crate::{
     ext_query::{query_cw20_balance, query_price},
     test_helper::query_cw20_token_supply,
 };
-use basket_math::{dot, FPDecimal};
+use basket_math::{dot, sum, FPDecimal};
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -74,8 +74,9 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     num_tokens: Uint128,
     asset_weights: Option<Vec<u32>>,
 ) -> StdResult<HandleResponse> {
-    // only works if burning Basket tokens
     let cfg = read_config(&deps.storage)?;
+
+    // require that origin contract from Receive Hook is the associated Basket Token
     if *sent_asset != cfg.basket_token {
         return Err(StdError::unauthorized());
     }
@@ -88,7 +89,83 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         )));
     }
 
-    Ok(HandleResponse::default())
+    let inv: Vec<Uint128> = cfg
+        .assets
+        .iter()
+        .map(|asset| query_cw20_balance(&deps, &asset, &env.contract.address).unwrap())
+        .collect();
+
+    let inv = to_fpdec_vec(&inv);
+    let basket_token_supply = query_cw20_token_supply(&deps, &cfg.basket_token)?;
+
+    let m_div_n =
+        FPDecimal::from(num_tokens.0 as i128) / FPDecimal::from(basket_token_supply.0 as i128);
+
+    let redeem_subtotals: Vec<FPDecimal> = match &asset_weights {
+        Some(weights) => {
+            let weights_sum = weights
+                .iter()
+                .fold(FPDecimal::zero(), |acc, &el| acc + FPDecimal::from(el));
+            let r = weights // normalize weights vector
+                .iter()
+                .map(|&x| FPDecimal::from(x) / weights_sum)
+                .collect();
+            let prices: Vec<FPDecimal> = cfg
+                .assets
+                .iter()
+                .map(|asset| query_price(&deps, &cfg.oracle, &asset).unwrap())
+                .collect();
+            let prod = dot(&inv, &prices) / dot(&r, &prices);
+            let b: Vec<FPDecimal> = r
+                .iter()
+                .map(|&x| FPDecimal::one().mul(-1) * m_div_n * prod * x)
+                .collect();
+
+            // compute penalty
+            let score = compute_score(&inv, &b, &prices, &read_target(&deps.storage)?);
+            let PenaltyParams {
+                a_pos,
+                s_pos,
+                a_neg,
+                s_neg,
+            } = cfg.penalty_params;
+            let penalty = compute_penalty(score, a_pos, s_pos, a_neg, s_neg);
+            b.iter().map(|&x| penalty * x).collect()
+        }
+        None => inv.iter().map(|&x| m_div_n * x).collect(),
+    };
+
+    // convert reward into Uint128 -- truncate decimal as roundoff
+    let redeem_totals: Vec<Uint128> = redeem_subtotals
+        .iter()
+        .map(|&x| Uint128((x.int().0 / FPDecimal::ONE) as u128))
+        .collect();
+    let redeem_roundoffs: Vec<FPDecimal> = redeem_subtotals.iter().map(|&x| x.fraction()).collect();
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![
+            log("action", "receive:burn"),
+            log("sender", sender),
+            log("sent_asset", sent_asset),
+            log("sent_tokens", sent_amount),
+            log("num_tokens", num_tokens),
+            log(
+                "asset_weights",
+                match &asset_weights {
+                    Some(v) => format!(
+                        "[{}]",
+                        v.iter()
+                            .map(|&x| x.to_string())
+                            .collect::<Vec<String>>()
+                            .join(", ")
+                    ),
+                    None => "".to_string(),
+                },
+            ),
+        ],
+        data: None,
+    })
 }
 
 pub fn try_receive_stage_asset<S: Storage, A: Api, Q: Querier>(
@@ -115,15 +192,16 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     asset_amounts: Vec<Uint128>,
     min_tokens: Option<Uint128>,
 ) -> StdResult<HandleResponse> {
-    // get current balances of each token (inventory)
     let cfg = read_config(&deps.storage)?;
     let target = read_target(&deps.storage)?;
-    let inventory: Vec<Uint128> = cfg
+
+    // get current balances of each token (inventory)
+    let inv: Vec<Uint128> = cfg
         .assets
         .iter()
         .map(|asset| query_cw20_balance(&deps, &asset, &env.contract.address).unwrap())
         .collect();
-    let inv = to_fpdec_vec(&inventory);
+    let inv = to_fpdec_vec(&inv);
     let c = to_fpdec_vec(&asset_amounts);
 
     // get current prices of each token via oracle
@@ -190,8 +268,8 @@ mod tests {
     fn mint() {
         let (mut deps, _init_res) = mock_init();
 
-        // Asset :: UST Price :: Balance (µ)      (+ proposed)   :: %
-        // --
+        // Asset :: UST Price :: Balance (µ)     (+ proposed   ) :: %
+        // ---
         // mAAPL ::  135.18   ::  7_290_053_159  (+ 125_000_000) :: 0.20367359382 -> 0.20391741720
         // mGOOG :: 1780.03   ::    319_710_128                  :: 0.11761841035 -> 0.11577407690
         // mMSFT ::  222.42   :: 14_219_281_228  (+ 149_000_000) :: 0.65364669475 -> 0.65013907200
