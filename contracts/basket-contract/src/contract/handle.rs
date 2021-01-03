@@ -36,12 +36,24 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
     env: Env,
     cw20_msg: Cw20ReceiveMsg,
 ) -> HandleResult {
+    let sender = cw20_msg.sender;
+    let sent_amount = cw20_msg.amount;
+    let sent_asset = env.message.sender.clone();
+
     if let Some(msg) = cw20_msg.msg {
         match from_binary(&msg)? {
             Cw20HookMsg::Burn {
                 num_tokens,
                 asset_weights,
-            } => try_receive_burn(deps, env, num_tokens, asset_weights),
+            } => try_receive_burn(
+                deps,
+                env,
+                &sender,
+                &sent_asset,
+                sent_amount,
+                num_tokens,
+                asset_weights,
+            ),
             Cw20HookMsg::StageAsset { asset, amount } => {
                 try_receive_stage_asset(deps, env, asset, amount)
             }
@@ -56,13 +68,24 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
 pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
+    sender: &HumanAddr,
+    sent_asset: &HumanAddr,
+    sent_amount: Uint128,
     num_tokens: Uint128,
     asset_weights: Option<Vec<u32>>,
 ) -> StdResult<HandleResponse> {
-    // only callable from Basket Token
+    // only works if burning Basket tokens
     let cfg = read_config(&deps.storage)?;
-    if cfg.basket_token != env.message.sender {
+    if *sent_asset != cfg.basket_token {
         return Err(StdError::unauthorized());
+    }
+
+    // check if (num_tokens) to be burnt <= sent_amount
+    if num_tokens > sent_amount {
+        return Err(StdError::generic_err(format!(
+            "Num of tokens to burn ({}) exceeds amount sent ({})",
+            num_tokens, sent_amount
+        )));
     }
 
     Ok(HandleResponse::default())
@@ -119,9 +142,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         s_neg,
     } = cfg.penalty_params;
     let penalty = compute_penalty(score, a_pos, s_pos, a_neg, s_neg);
-
     let basket_token_supply = query_cw20_token_supply(&deps, &cfg.basket_token)?;
-    println!("current supply: {}", basket_token_supply);
 
     // compute number of new tokens
     let mint_subtotal = penalty * dot(&c, &prices) / dot(&inv, &prices)
