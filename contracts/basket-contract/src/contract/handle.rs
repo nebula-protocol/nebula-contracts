@@ -110,7 +110,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         .collect();
 
     // compute penalty
-    let score = compute_score(&inv, &c, &target, &prices);
+    let score = compute_score(&inv, &c, &prices, &target);
     let PenaltyParams {
         a_pos,
         s_pos,
@@ -169,37 +169,37 @@ mod tests {
 
         deps.querier.with_oracle_prices(&[
             (&"uusd".to_string(), &Decimal::one()),
-            (&"mAAPL".to_string(), &Decimal::from_str("135.18").unwrap()),
-            (&"mGOOG".to_string(), &Decimal::from_str("1780.03").unwrap()),
-            (&"mMSFT".to_string(), &Decimal::from_str("222.42").unwrap()),
-            (&"mNFLX".to_string(), &Decimal::from_str("540.82").unwrap()),
+            (&"mAAPL".to_string(), &Decimal::from_str("1").unwrap()),
+            (&"mGOOG".to_string(), &Decimal::from_str("1").unwrap()),
+            (&"mMSFT".to_string(), &Decimal::from_str("1").unwrap()),
+            (&"mNFLX".to_string(), &Decimal::from_str("1").unwrap()),
         ]);
 
         deps.querier.with_token_balances(&[
             (
                 &h("mAAPL"),
-                &[(&h(MOCK_CONTRACT_ADDR), &Uint128::from(20_053_159u128))],
+                &[(&h(MOCK_CONTRACT_ADDR), &Uint128::from(1u128))],
             ),
             (
                 &h("mGOOG"),
-                &[(&h(MOCK_CONTRACT_ADDR), &Uint128::from(3_710_128u128))],
+                &[(&h(MOCK_CONTRACT_ADDR), &Uint128::from(1u128))],
             ),
             (
                 &h("mMSFT"),
-                &[(&h(MOCK_CONTRACT_ADDR), &Uint128::from(8_281_228u128))],
+                &[(&h(MOCK_CONTRACT_ADDR), &Uint128::from(1u128))],
             ),
             (
                 &h("mNFLX"),
-                &[(&h(MOCK_CONTRACT_ADDR), &Uint128::from(24_212_221u128))],
+                &[(&h(MOCK_CONTRACT_ADDR), &Uint128::from(1u128))],
             ),
         ]);
 
         let msg = HandleMsg::Mint {
             asset_amounts: vec![
-                Uint128(1_239_222), // mAAPL
-                Uint128::zero(),    // mGOOG
-                Uint128(2_332_111), // mMSFT
-                Uint128(222_272),   // mNFLX
+                Uint128::zero(),      // mAAPL
+                Uint128::zero(),      // mGOOG
+                Uint128::from(1u128), // mMSFT
+                Uint128::zero(),      // mNFLX
             ],
             min_tokens: None,
         };

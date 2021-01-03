@@ -1,11 +1,25 @@
 use basket_math::{dot, sum, FPDecimal};
 
+pub fn pvec<T>(v: &Vec<T>) -> String
+where
+    T: ToString,
+{
+    let str_vec = v.iter().map(|fp| fp.to_string()).collect::<Vec<String>>();
+    format!("[{}]", str_vec.join(", "))
+}
+
 /// Calculate error for basket's current inventory and its target weight allocation.
 pub fn compute_err(
     inv: &Vec<FPDecimal>,
     p: &Vec<FPDecimal>,
     target: &Vec<u32>, // not normalized
 ) -> Vec<FPDecimal> {
+    println!(
+        "compute_err(inv: {}, p: {}, target: {})",
+        pvec(&inv),
+        pvec(&p),
+        pvec(&target)
+    );
     // w: Vec<FPDecimal> = normalized target vector (target / sum(target))
     let target_sum = target
         .iter()
@@ -14,6 +28,8 @@ pub fn compute_err(
         .iter()
         .map(|&x| FPDecimal::from(x) / target_sum)
         .collect();
+    println!("\tw = normalize(target) = target / sum(target)");
+    println!("\t  = {}", pvec(&w));
 
     // u: Vec<FPDecimal> = (w.elementMul(p))/w.dot(p)
     let mut u = Vec::<FPDecimal>::new();
@@ -21,15 +37,23 @@ pub fn compute_err(
     for i in 0..inv.len() {
         u.push(w[i] * p[i] / denom)
     }
+    println!("\tu = w.mul(p) / w.dot(p)");
+    println!("\t  = {}", pvec(&u));
 
-    // err: Vec<Decimal> = inv.dot(p) * u - inv.elementMul(p)
-    let mut err = Vec::<FPDecimal>::new();
+    // e: Vec<Decimal> = inv.dot(p) * u - inv.elementMul(p)
+    let mut e = Vec::<FPDecimal>::new();
+    let mut inv_mul_p = Vec::<FPDecimal>::new(); // for debug
     let prod = dot(inv, &p);
     for i in 0..inv.len() {
-        err.push(prod * u[i] - inv[i] * p[i]);
+        e.push(prod * u[i] - inv[i] * p[i]);
+        inv_mul_p.push(inv[i] * p[i]);
     }
-
-    err
+    println!("\tinv.dot(p) = {}", prod);
+    println!("\tinv.mul(p) = {}", pvec(&inv_mul_p));
+    println!("\te = (inv.dot(p) * u) - inv.mul(p)");
+    println!("\t  = {}", pvec(&e));
+    println!("return compute_err -> {}", pvec(&e));
+    e
 }
 
 pub fn compute_diff(
@@ -38,20 +62,33 @@ pub fn compute_diff(
     p: &Vec<FPDecimal>,
     target: &Vec<u32>,
 ) -> Vec<FPDecimal> {
-    // abs(err(inv, p, target)) - abs(err(inv + delta, p, target))
+    println!(
+        "compute_diff(inv: {}, c: {}, p:{}, target: {})",
+        pvec(&inv),
+        pvec(&c),
+        pvec(&p),
+        pvec(&target)
+    );
+
+    // abs(err(inv + c, p, target)) - abs(err(inv, p, target))
     let mut inv_p = Vec::<FPDecimal>::new();
     for i in 0..inv.len() {
         inv_p.push(inv[i] + c[i])
     }
-
-    let err1 = compute_err(inv, &p, &target);
-    let err2 = compute_err(&inv_p, &p, &target);
+    println!("\tinv + c = {}", pvec(&inv_p));
+    let err = compute_err(inv, &p, &target);
+    let err_p = compute_err(&inv_p, &p, &target);
+    println!("\terr(inv + c, p, target) = {}", pvec(&err_p));
+    println!("\terr(inv, p, target) = {}", pvec(&err));
 
     let mut diff = Vec::<FPDecimal>::new();
-    for i in 0..err1.len() {
-        diff.push(err1[i].abs() - err2[i].abs())
+    for i in 0..err.len() {
+        diff.push(err_p[i].abs() - err[i].abs())
     }
 
+    println!("\tdiff = |err(inv + c, p, target)| - |err(inv, p, target)|");
+    println!("\t     = {}", pvec(&diff));
+    println!("return compute_diff -> {}", pvec(&diff));
     diff
 }
 
@@ -61,15 +98,26 @@ pub fn compute_diff(
 pub fn compute_score(
     inv: &Vec<FPDecimal>,
     c: &Vec<FPDecimal>,
-    target: &Vec<u32>,
     p: &Vec<FPDecimal>,
+    target: &Vec<u32>,
 ) -> FPDecimal {
+    println!(
+        "compute_score(inv: {}, c: {}, p: {}, target: {})",
+        pvec(&inv),
+        pvec(&c),
+        pvec(&p),
+        pvec(&target)
+    );
     // compute X (score)
     // X: Decimal = sum(diff) / dot(delta, prices)
     // diff: Vec<Decimal> = |err(inventory + delta, prices, target)| - |err(inventory, weight, target)|
     let diff = compute_diff(inv, c, p, target);
     let score: FPDecimal = sum(&diff) / dot(c, &p);
-
+    println!("\tsum(diff) = {}", sum(&diff));
+    println!("\tc.dot(p) = {}", dot(c, &p));
+    println!("\tscore = sum(diff) / c.dot(p)");
+    println!("\t      = {}", score);
+    println!("return: compute_score -> {}", score);
     return score;
 }
 
