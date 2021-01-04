@@ -217,7 +217,7 @@ pub fn try_receive_stage_asset<S: Storage, A: Api, Q: Querier>(
             log("action", "receive:stage_asset"),
             log("sender", sender),
             log("asset", sent_asset),
-            log("amount", sent_amount),
+            log("staged_amount", sent_amount),
         ],
         data: None,
     })
@@ -308,7 +308,12 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         let staged = read_staged_asset(&deps.storage, &env.message.sender, asset).unwrap();
         println!("asset {} amount {} staged {}", asset, amount, staged);
         if *amount > staged {
-            return Err(error::insufficient_staged(asset, *amount, staged));
+            return Err(error::insufficient_staged(
+                &env.message.sender,
+                asset,
+                *amount,
+                staged,
+            ));
         }
         unstage_asset(&mut deps.storage, &env.message.sender, &asset, *amount)?;
     }
@@ -394,7 +399,12 @@ pub fn try_unstage_asset<S: Storage, A: Api, Q: Querier>(
     let to_unstage = match amount {
         Some(amt) => {
             if *amt > curr_staged {
-                return Err(error::insufficient_staged(asset, *amt, curr_staged));
+                return Err(error::insufficient_staged(
+                    &env.message.sender,
+                    asset,
+                    *amt,
+                    curr_staged,
+                ));
             }
             *amt
         }

@@ -18,10 +18,15 @@ pub fn not_component_asset(asset: &HumanAddr) -> StdError {
     ))
 }
 
-pub fn insufficient_staged(asset: &HumanAddr, requested: Uint128, staged: Uint128) -> StdError {
+pub fn insufficient_staged(
+    account: &HumanAddr,
+    asset: &HumanAddr,
+    requested: Uint128,
+    staged: Uint128,
+) -> StdError {
     StdError::generic_err(format!(
-        "insufficient amount of asset {} to unstage: {} (staged) < {} (requested)",
-        asset, staged, requested
+        "account {} - insufficient amount of asset {} to unstage: {} (staged) < {} (requested)",
+        account, asset, staged, requested
     ))
 }
 
