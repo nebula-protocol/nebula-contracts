@@ -10,7 +10,7 @@ pub struct InitMsg {
     /// Basket name (title)
     pub name: String,
 
-    /// Contract owner
+    /// Basket's permissioned owner
     pub owner: HumanAddr,
 
     /// Basket token CW20 address
@@ -33,15 +33,21 @@ pub struct InitMsg {
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
     Receive(Cw20ReceiveMsg),
+
+    /// Withdraws asset from staging
     UnstageAsset {
         asset: HumanAddr,
         amount: Uint128,
     },
+
+    /// Can be called by the owner to reset the basket weight target
     ResetTarget {
         target: Vec<u32>,
     },
+
+    /// Mints new assets
     Mint {
-        /// Asset amounts deposited for minting
+        /// Asset amounts deposited for minting (must be staged)
         asset_amounts: Vec<Uint128>,
         /// Minimum tokens to receive
         min_tokens: Option<Uint128>,
@@ -51,12 +57,14 @@ pub enum HandleMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Cw20HookMsg {
-    StageAsset {
-        asset: HumanAddr,
-        amount: Uint128,
-    },
+    /// After received, registers the received amount and prepares it to be used for minting
+    StageAsset {},
+
+    /// Burns assets
     Burn {
+        /// number of tokens wanting to burn
         num_tokens: Uint128,
+        /// optional proposed set of weights to use
         asset_weights: Option<Vec<u32>>,
     },
 }
