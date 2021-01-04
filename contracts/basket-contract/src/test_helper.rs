@@ -59,9 +59,10 @@ pub fn decimal_division(a: Decimal, b: Decimal) -> Decimal {
 impl CustomMockQuerier {
     pub fn handle_query(&self, request: &QueryRequest<TerraQueryWrapper>) -> QuerierResult {
         match &request {
-            QueryRequest::Custom(TerraQueryWrapper { route, query_data }) => {
-                panic!("Tried to access Terra query -- not implemented")
-            }
+            QueryRequest::Custom(TerraQueryWrapper {
+                route: _,
+                query_data: _,
+            }) => panic!("Tried to access Terra query -- not implemented"),
             QueryRequest::Wasm(WasmQuery::Smart { contract_addr, msg }) => {
                 match from_binary(&msg).unwrap() {
                     ExtQueryMsg::Price {

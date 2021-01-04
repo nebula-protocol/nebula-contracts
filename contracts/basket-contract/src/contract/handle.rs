@@ -5,7 +5,6 @@ use cosmwasm_std::{
 
 use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
 
-use crate::penalty::{compute_penalty, compute_score};
 use crate::state::{read_config, read_target, stage_asset, unstage_asset, PenaltyParams};
 use crate::util::{fpdec_to_int, int_to_fpdec, vec_to_string};
 use crate::{
@@ -16,7 +15,11 @@ use crate::{
     msg::{Cw20HookMsg, HandleMsg},
     state::read_staged_asset,
 };
-use basket_math::{dot, sum, FPDecimal};
+use crate::{
+    penalty::{compute_penalty, compute_score},
+    state::save_target,
+};
+use basket_math::{dot, FPDecimal};
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -203,7 +206,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
 
 pub fn try_receive_stage_asset<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    env: Env,
+    _env: Env,
     sender: &HumanAddr,
     sent_asset: &HumanAddr,
     sent_amount: Uint128,
@@ -234,11 +237,28 @@ pub fn try_receive_stage_asset<S: Storage, A: Api, Q: Querier>(
 
 /// May be called by the Basket contract owner to reset the target
 pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+    deps: &mut Extern<S, A, Q>,
     env: Env,
     target: &Vec<u32>,
 ) -> StdResult<HandleResponse> {
-    Ok(HandleResponse::default())
+    let cfg = read_config(&deps.storage)?;
+
+    if env.message.sender != cfg.owner {
+        return Err(StdError::unauthorized());
+    }
+
+    let prev_target = read_target(&deps.storage)?;
+    save_target(&mut deps.storage, target)?;
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![
+            log("action", "reset_target"),
+            log("prev_target", vec_to_string(&prev_target)),
+            log("new_target", vec_to_string(&target)),
+        ],
+        data: None,
+    })
 }
 
 pub fn try_mint<S: Storage, A: Api, Q: Querier>(
