@@ -1,5 +1,8 @@
-use crate::state::{save_config, save_target, BasketConfig};
 use crate::{error, msg::InitMsg, state::PenaltyParams};
+use crate::{
+    state::{save_config, save_target, BasketConfig},
+    util::vec_to_string,
+};
 use cosmwasm_std::{log, Api, Env, Extern, InitResponse, Querier, StdResult, Storage};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
@@ -18,9 +21,9 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     let cfg = BasketConfig {
         name: msg.name.clone(),
         owner: msg.owner.clone(),
-        basket_token: msg.basket_token.clone(),
+        basket_token: msg.basket_token,
         oracle: msg.oracle.clone(),
-        assets: msg.assets,
+        assets: msg.assets.clone(),
         penalty_params: msg.penalty_params,
     };
 
@@ -37,8 +40,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         log: vec![
             log("name", msg.name),
             log("owner", msg.owner),
-            log("basket_token", msg.basket_token),
-            log("oracle", msg.oracle),
+            log("assets", vec_to_string(&msg.assets)),
             log(
                 "penalty_params",
                 format!("({}, {}, {}, {})", a_pos, a_neg, s_pos, s_neg),
@@ -58,7 +60,7 @@ mod tests {
         assert_eq!(0, init_res.messages.len());
 
         // make sure target was saved
-        let value = q!(&deps, TargetResponse, QueryMsg::GetTarget {});
+        let value = q!(&deps, TargetResponse, QueryMsg::Target {});
         assert_eq!(vec![20, 10, 65, 5], value.target);
     }
 }

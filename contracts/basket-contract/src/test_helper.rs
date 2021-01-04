@@ -332,7 +332,7 @@ pub fn mock_init() -> (
         name: consts::name().to_string(),
         assets: consts::assets(),
         owner: consts::owner(),
-        basket_token: consts::basket_token(),
+        basket_token: Some(consts::basket_token()),
         target: consts::target(),
         oracle: consts::oracle(),
         penalty_params: consts::penalty_params(),

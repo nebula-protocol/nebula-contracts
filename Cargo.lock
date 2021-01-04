@@ -102,6 +102,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "basket-dummy-oracle"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "schemars",
+ "serde",
+ "snafu",
+]
+
+[[package]]
 name = "basket-math"
 version = "0.1.0"
 dependencies = [

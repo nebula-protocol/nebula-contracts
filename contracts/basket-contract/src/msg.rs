@@ -14,7 +14,7 @@ pub struct InitMsg {
     pub owner: HumanAddr,
 
     /// Basket token CW20 address
-    pub basket_token: HumanAddr,
+    pub basket_token: Option<HumanAddr>,
 
     /// Asset addresses
     pub assets: Vec<HumanAddr>,
@@ -38,6 +38,11 @@ pub enum HandleMsg {
     UnstageAsset {
         asset: HumanAddr,
         amount: Option<Uint128>,
+    },
+
+    /// Called to set basket token after initialization
+    _SetBasketToken {
+        basket_token: HumanAddr,
     },
 
     /// Can be called by the owner to reset the basket weight target

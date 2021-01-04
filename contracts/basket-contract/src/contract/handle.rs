@@ -7,7 +7,9 @@ use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
 
 use crate::error;
 use crate::ext_query::{query_cw20_balance, query_cw20_token_supply, query_price};
-use crate::state::{read_config, read_target, stage_asset, unstage_asset, PenaltyParams};
+use crate::state::{
+    read_config, read_target, save_config, stage_asset, unstage_asset, PenaltyParams,
+};
 use crate::util::{fpdec_to_int, int_to_fpdec, vec_to_string};
 use crate::{
     msg::{Cw20HookMsg, HandleMsg},
@@ -32,6 +34,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         } => try_mint(deps, env, &asset_amounts, &min_tokens),
         HandleMsg::UnstageAsset { amount, asset } => try_unstage_asset(deps, env, &asset, &amount),
         HandleMsg::ResetTarget { target } => try_reset_target(deps, env, &target),
+        HandleMsg::_SetBasketToken { basket_token } => {
+            try_set_basket_token(deps, env, &basket_token)
+        }
     }
 }
 
@@ -67,16 +72,20 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     asset_weights: Option<Vec<u32>>,
 ) -> StdResult<HandleResponse> {
     let cfg = read_config(&deps.storage)?;
+    let basket_token = cfg
+        .basket_token
+        .clone()
+        .ok_or_else(|| error::basket_token_not_set())?;
 
     // require that origin contract from Receive Hook is the associated Basket Token
-    if *sent_asset != cfg.basket_token {
+    if *sent_asset != basket_token {
         return Err(StdError::unauthorized());
     }
 
     let burn_amount = sent_amount.clone();
 
     let burn_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: cfg.basket_token.clone(),
+        contract_addr: basket_token.clone(),
         msg: to_binary(&Cw20HandleMsg::Burn {
             amount: burn_amount.clone(),
         })
@@ -92,7 +101,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         })
         .collect();
 
-    let basket_token_supply = query_cw20_token_supply(&deps, &cfg.basket_token)?;
+    let basket_token_supply = query_cw20_token_supply(&deps, &basket_token)?;
 
     let m_div_n = int_to_fpdec(burn_amount) / int_to_fpdec(basket_token_supply);
 
@@ -191,6 +200,9 @@ pub fn try_receive_stage_asset<S: Storage, A: Api, Q: Querier>(
     sent_amount: Uint128,
 ) -> StdResult<HandleResponse> {
     let cfg = read_config(&deps.storage)?;
+    if let None = cfg.basket_token {
+        return Err(error::basket_token_not_set());
+    }
 
     // if sent asset is not a component asset of basket, reject
     if !cfg.assets.iter().any(|asset| asset == sent_asset) {
@@ -218,6 +230,9 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     target: &Vec<u32>,
 ) -> StdResult<HandleResponse> {
     let cfg = read_config(&deps.storage)?;
+    if let None = cfg.basket_token {
+        return Err(error::basket_token_not_set());
+    }
 
     // check permission
     if env.message.sender != cfg.owner {
@@ -243,6 +258,38 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     })
 }
 
+/// May be called by the Basket contract owner to set the basket token for first time
+pub fn try_set_basket_token<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    basket_token: &HumanAddr,
+) -> StdResult<HandleResponse> {
+    let cfg = read_config(&deps.storage)?;
+
+    // check permission
+    if env.message.sender != cfg.owner {
+        return Err(StdError::unauthorized());
+    }
+
+    // check if already set
+    if let Some(token) = cfg.basket_token {
+        return Err(error::basket_token_already_set(&token));
+    }
+
+    let mut new_cfg = cfg.clone();
+    new_cfg.basket_token = Some(basket_token.clone());
+    save_config(&mut deps.storage, &new_cfg)?;
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![
+            log("action", "_set_basket_token"),
+            log("basket_token", &basket_token),
+        ],
+        data: None,
+    })
+}
+
 pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -251,6 +298,10 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
     let cfg = read_config(&deps.storage)?;
     let target = read_target(&deps.storage)?;
+    let basket_token = cfg
+        .basket_token
+        .clone()
+        .ok_or_else(|| error::basket_token_not_set())?;
 
     // ensure that all tokens in asset_amounts have been staged beforehand
     for (asset, amount) in cfg.assets.iter().zip(asset_amounts) {
@@ -288,7 +339,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         s_neg,
     } = cfg.penalty_params;
     let penalty = compute_penalty(score, a_pos, s_pos, a_neg, s_neg);
-    let basket_token_supply = query_cw20_token_supply(&deps, &cfg.basket_token)?;
+    let basket_token_supply = query_cw20_token_supply(&deps, &basket_token)?;
 
     // compute number of new tokens
     let mint_subtotal =
@@ -303,7 +354,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     }
 
     let mint_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: cfg.basket_token.clone(),
+        contract_addr: basket_token.clone(),
         msg: to_binary(&Cw20HandleMsg::Mint {
             amount: mint_total,
             recipient: env.message.sender.clone(),

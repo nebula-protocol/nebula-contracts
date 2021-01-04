@@ -18,7 +18,7 @@ pub static PREFIX_STAGING: &[u8] = b"staging";
 pub struct BasketConfig {
     pub name: String,
     pub owner: HumanAddr,
-    pub basket_token: HumanAddr,
+    pub basket_token: Option<HumanAddr>,
     pub oracle: HumanAddr,
     pub assets: Vec<HumanAddr>,
     pub penalty_params: PenaltyParams,

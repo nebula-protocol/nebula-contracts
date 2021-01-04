@@ -31,3 +31,11 @@ pub fn below_min_tokens(would_mint: Uint128, min_tokens: Uint128) -> StdError {
         would_mint, min_tokens
     ))
 }
+
+pub fn basket_token_not_set() -> StdError {
+    StdError::generic_err("associated basket token has not yet been set")
+}
+
+pub fn basket_token_already_set(address: &HumanAddr) -> StdError {
+    StdError::generic_err(format!("basket token has not yet been set to {}", address))
+}

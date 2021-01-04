@@ -1,1 +1,2 @@
 835705ec3f23d0dafac5a360dcacad6a4a0db4e373d5fdeb2a9beb9a81f29a17  basket_contract.wasm
+85c8772cb34a4c84e98e1b7edb79b3700bb470f6eadfbbf7f2ced57b871d0b40  basket_dummy_oracle.wasm
