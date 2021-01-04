@@ -4,7 +4,7 @@ pub use crate::msg::*;
 pub use crate::penalty::*;
 pub use crate::state::*;
 pub use basket_math::*;
-pub use cosmwasm_std::testing::{mock_env, MOCK_CONTRACT_ADDR};
+pub use cosmwasm_std::testing::{mock_env, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 pub use cosmwasm_std::*;
 pub use cw20;
 pub use cw20::BalanceResponse as Cw20BalanceResponse;
@@ -12,7 +12,6 @@ use cw20::TokenInfoResponse;
 use std::collections::HashMap;
 pub use std::str::FromStr;
 use terra_cosmwasm::*;
-use testing::{MockApi, MockQuerier, MockStorage};
 
 /// Convenience function for creating inline HumanAddr
 pub fn h(s: &str) -> HumanAddr {

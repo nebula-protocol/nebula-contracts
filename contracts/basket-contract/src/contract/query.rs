@@ -1,10 +1,7 @@
 use cosmwasm_std::{to_binary, Api, Binary, Extern, HumanAddr, Querier, StdResult, Storage};
 
-use crate::state::{read_config, read_target};
-use crate::{
-    msg::{ConfigResponse, QueryMsg, StagedAmountResponse, TargetResponse},
-    test_helper::read_staged_asset,
-};
+use crate::msg::{ConfigResponse, QueryMsg, StagedAmountResponse, TargetResponse};
+use crate::state::{read_config, read_staged_asset, read_target};
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,

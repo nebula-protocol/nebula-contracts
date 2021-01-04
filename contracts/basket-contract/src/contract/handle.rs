@@ -6,12 +6,9 @@ use cosmwasm_std::{
 use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
 
 use crate::error;
+use crate::ext_query::{query_cw20_balance, query_cw20_token_supply, query_price};
 use crate::state::{read_config, read_target, stage_asset, unstage_asset, PenaltyParams};
 use crate::util::{fpdec_to_int, int_to_fpdec, vec_to_string};
-use crate::{
-    ext_query::{query_cw20_balance, query_price},
-    test_helper::query_cw20_token_supply,
-};
 use crate::{
     msg::{Cw20HookMsg, HandleMsg},
     state::read_staged_asset,

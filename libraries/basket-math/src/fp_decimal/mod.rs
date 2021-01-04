@@ -1,4 +1,6 @@
 use std::convert;
+
+#[cfg(not(target_arch = "wasm32"))]
 use std::str::FromStr;
 
 use schemars::JsonSchema;

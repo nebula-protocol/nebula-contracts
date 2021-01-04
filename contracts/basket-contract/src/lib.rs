@@ -4,6 +4,7 @@ pub mod ext_query;
 pub mod msg;
 pub mod state;
 #[macro_use]
+#[cfg(test)]
 pub mod test_helper;
 
 mod penalty;
