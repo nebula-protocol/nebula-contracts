@@ -7,12 +7,13 @@ pub fn compute_err(
     p: &Vec<FPDecimal>,
     target: &Vec<u32>, // not normalized
 ) -> Vec<FPDecimal> {
-    println!(
-        "compute_err(inv: {}, p: {}, target: {})",
-        vec_to_string(&inv),
-        vec_to_string(&p),
-        vec_to_string(&target)
-    );
+    //println!(
+    //     "compute_err(inv: {}, p: {}, target: {})",
+    //     vec_to_string(&inv),
+    //     vec_to_string(&p),
+    //     vec_to_string(&target)
+    // );
+
     // w: Vec<FPDecimal> = normalized target vector (target / sum(target))
     let target_sum = target
         .iter()
@@ -21,8 +22,8 @@ pub fn compute_err(
         .iter()
         .map(|&x| FPDecimal::from(x) / target_sum)
         .collect();
-    println!("\tw = normalize(target) = target / sum(target)");
-    println!("\t  = {}", vec_to_string(&w));
+    //println!("\tw = normalize(target) = target / sum(target)");
+    //println!("\t  = {}", vec_to_string(&w));
 
     // u: Vec<FPDecimal> = (w.elementMul(p))/w.dot(p)
     let mut u = Vec::<FPDecimal>::new();
@@ -30,8 +31,8 @@ pub fn compute_err(
     for i in 0..inv.len() {
         u.push(w[i] * p[i] / denom)
     }
-    println!("\tu = w.mul(p) / w.dot(p)");
-    println!("\t  = {}", vec_to_string(&u));
+    //println!("\tu = w.mul(p) / w.dot(p)");
+    //println!("\t  = {}", vec_to_string(&u));
 
     // e: Vec<Decimal> = inv.dot(p) * u - inv.elementMul(p)
     let mut e = Vec::<FPDecimal>::new();
@@ -41,11 +42,11 @@ pub fn compute_err(
         e.push(prod * u[i] - inv[i] * p[i]);
         inv_mul_p.push(inv[i] * p[i]);
     }
-    println!("\tinv.dot(p) = {}", prod);
-    println!("\tinv.mul(p) = {}", vec_to_string(&inv_mul_p));
-    println!("\te = (inv.dot(p) * u) - inv.mul(p)");
-    println!("\t  = {}", vec_to_string(&e));
-    println!("return compute_err -> {}", vec_to_string(&e));
+    //println!("\tinv.dot(p) = {}", prod);
+    //println!("\tinv.mul(p) = {}", vec_to_string(&inv_mul_p));
+    //println!("\te = (inv.dot(p) * u) - inv.mul(p)");
+    //println!("\t  = {}", vec_to_string(&e));
+    //println!("return compute_err -> {}", vec_to_string(&e));
     e
 }
 
@@ -55,33 +56,33 @@ pub fn compute_diff(
     p: &Vec<FPDecimal>,
     target: &Vec<u32>,
 ) -> Vec<FPDecimal> {
-    println!(
-        "compute_diff(inv: {}, c: {}, p:{}, target: {})",
-        vec_to_string(&inv),
-        vec_to_string(&c),
-        vec_to_string(&p),
-        vec_to_string(&target)
-    );
+    //println!(
+    //     "compute_diff(inv: {}, c: {}, p:{}, target: {})",
+    //     vec_to_string(&inv),
+    //     vec_to_string(&c),
+    //     vec_to_string(&p),
+    //     vec_to_string(&target)
+    // );
 
     // abs(err(inv + c, p, target)) - abs(err(inv, p, target))
     let mut inv_p = Vec::<FPDecimal>::new();
     for i in 0..inv.len() {
         inv_p.push(inv[i] + c[i])
     }
-    println!("\tinv + c = {}", vec_to_string(&inv_p));
+    //println!("\tinv + c = {}", vec_to_string(&inv_p));
     let err = compute_err(inv, &p, &target);
     let err_p = compute_err(&inv_p, &p, &target);
-    println!("\terr(inv + c, p, target) = {}", vec_to_string(&err_p));
-    println!("\terr(inv, p, target) = {}", vec_to_string(&err));
+    //println!("\terr(inv + c, p, target) = {}", vec_to_string(&err_p));
+    //println!("\terr(inv, p, target) = {}", vec_to_string(&err));
 
     let mut diff = Vec::<FPDecimal>::new();
     for i in 0..err.len() {
         diff.push(err_p[i].abs() - err[i].abs())
     }
 
-    println!("\tdiff = |err(inv + c, p, target)| - |err(inv, p, target)|");
-    println!("\t     = {}", vec_to_string(&diff));
-    println!("return compute_diff -> {}", vec_to_string(&diff));
+    //println!("\tdiff = |err(inv + c, p, target)| - |err(inv, p, target)|");
+    //println!("\t     = {}", vec_to_string(&diff));
+    //println!("return compute_diff -> {}", vec_to_string(&diff));
     diff
 }
 
@@ -94,23 +95,24 @@ pub fn compute_score(
     p: &Vec<FPDecimal>,
     target: &Vec<u32>,
 ) -> FPDecimal {
-    println!(
-        "compute_score(inv: {}, c: {}, p: {}, target: {})",
-        vec_to_string(&inv),
-        vec_to_string(&c),
-        vec_to_string(&p),
-        vec_to_string(&target)
-    );
+    //println!(
+    //     "compute_score(inv: {}, c: {}, p: {}, target: {})",
+    //     vec_to_string(&inv),
+    //     vec_to_string(&c),
+    //     vec_to_string(&p),
+    //     vec_to_string(&target)
+    // );
+
     // compute X (score)
     // X: Decimal = sum(diff) / dot(delta, prices)
     // diff: Vec<Decimal> = |err(inventory + delta, prices, target)| - |err(inventory, weight, target)|
     let diff = compute_diff(inv, c, p, target);
     let score: FPDecimal = sum(&diff) / dot(c, &p);
-    println!("\tsum(diff) = {}", sum(&diff));
-    println!("\tc.dot(p) = {}", dot(c, &p));
-    println!("\tscore = sum(diff) / c.dot(p)");
-    println!("\t      = {}", score);
-    println!("return: compute_score -> {}", score);
+    //println!("\tsum(diff) = {}", sum(&diff));
+    //println!("\tc.dot(p) = {}", dot(c, &p));
+    //println!("\tscore = sum(diff) / c.dot(p)");
+    //println!("\t      = {}", score);
+    //println!("return: compute_score -> {}", score);
     return score;
 }
 

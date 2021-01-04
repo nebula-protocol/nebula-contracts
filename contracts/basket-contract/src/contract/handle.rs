@@ -306,7 +306,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     // ensure that all tokens in asset_amounts have been staged beforehand
     for (asset, amount) in cfg.assets.iter().zip(asset_amounts) {
         let staged = read_staged_asset(&deps.storage, &env.message.sender, asset).unwrap();
-        println!("asset {} amount {} staged {}", asset, amount, staged);
+        //println!("asset {} amount {} staged {}", asset, amount, staged);
         if *amount > staged {
             return Err(error::insufficient_staged(
                 &env.message.sender,
@@ -503,7 +503,7 @@ mod tests {
         let res = handle(&mut deps, env, mint_msg).unwrap();
 
         for log in res.log.iter() {
-            println!("{}: {}", log.key, log.value);
+            //println!("{}: {}", log.key, log.value);
         }
         assert_eq!(1, res.messages.len());
     }
@@ -531,7 +531,7 @@ mod tests {
         let env = mock_env(consts::basket_token(), &[]);
         let res = handle(&mut deps, env, msg).unwrap();
         for log in res.log.iter() {
-            println!("{}: {}", log.key, log.value);
+            //println!("{}: {}", log.key, log.value);
         }
         assert_eq!(5, res.messages.len());
     }

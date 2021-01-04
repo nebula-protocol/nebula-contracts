@@ -6,10 +6,15 @@ import {
   isTxError,
   Wallet,
   StdFee,
+  LCDClient,
 } from "@terra-money/terra.js";
 
 import * as fs from "fs";
 
+// const terra = new LCDClient({
+//   URL: "https://tequila-lcd.terra.dev",
+//   chainID: "tequila-0004",
+// });
 const terra = new LocalTerra();
 terra.config.gasPrices = {
   uluna: 1,
