@@ -1,12 +1,5 @@
+use crate::util::vec_to_string;
 use basket_math::{dot, sum, FPDecimal};
-
-pub fn pvec<T>(v: &Vec<T>) -> String
-where
-    T: ToString,
-{
-    let str_vec = v.iter().map(|fp| fp.to_string()).collect::<Vec<String>>();
-    format!("[{}]", str_vec.join(", "))
-}
 
 /// Calculate error for basket's current inventory and its target weight allocation.
 pub fn compute_err(
@@ -16,9 +9,9 @@ pub fn compute_err(
 ) -> Vec<FPDecimal> {
     println!(
         "compute_err(inv: {}, p: {}, target: {})",
-        pvec(&inv),
-        pvec(&p),
-        pvec(&target)
+        vec_to_string(&inv),
+        vec_to_string(&p),
+        vec_to_string(&target)
     );
     // w: Vec<FPDecimal> = normalized target vector (target / sum(target))
     let target_sum = target
@@ -29,7 +22,7 @@ pub fn compute_err(
         .map(|&x| FPDecimal::from(x) / target_sum)
         .collect();
     println!("\tw = normalize(target) = target / sum(target)");
-    println!("\t  = {}", pvec(&w));
+    println!("\t  = {}", vec_to_string(&w));
 
     // u: Vec<FPDecimal> = (w.elementMul(p))/w.dot(p)
     let mut u = Vec::<FPDecimal>::new();
@@ -38,7 +31,7 @@ pub fn compute_err(
         u.push(w[i] * p[i] / denom)
     }
     println!("\tu = w.mul(p) / w.dot(p)");
-    println!("\t  = {}", pvec(&u));
+    println!("\t  = {}", vec_to_string(&u));
 
     // e: Vec<Decimal> = inv.dot(p) * u - inv.elementMul(p)
     let mut e = Vec::<FPDecimal>::new();
@@ -49,10 +42,10 @@ pub fn compute_err(
         inv_mul_p.push(inv[i] * p[i]);
     }
     println!("\tinv.dot(p) = {}", prod);
-    println!("\tinv.mul(p) = {}", pvec(&inv_mul_p));
+    println!("\tinv.mul(p) = {}", vec_to_string(&inv_mul_p));
     println!("\te = (inv.dot(p) * u) - inv.mul(p)");
-    println!("\t  = {}", pvec(&e));
-    println!("return compute_err -> {}", pvec(&e));
+    println!("\t  = {}", vec_to_string(&e));
+    println!("return compute_err -> {}", vec_to_string(&e));
     e
 }
 
@@ -64,10 +57,10 @@ pub fn compute_diff(
 ) -> Vec<FPDecimal> {
     println!(
         "compute_diff(inv: {}, c: {}, p:{}, target: {})",
-        pvec(&inv),
-        pvec(&c),
-        pvec(&p),
-        pvec(&target)
+        vec_to_string(&inv),
+        vec_to_string(&c),
+        vec_to_string(&p),
+        vec_to_string(&target)
     );
 
     // abs(err(inv + c, p, target)) - abs(err(inv, p, target))
@@ -75,11 +68,11 @@ pub fn compute_diff(
     for i in 0..inv.len() {
         inv_p.push(inv[i] + c[i])
     }
-    println!("\tinv + c = {}", pvec(&inv_p));
+    println!("\tinv + c = {}", vec_to_string(&inv_p));
     let err = compute_err(inv, &p, &target);
     let err_p = compute_err(&inv_p, &p, &target);
-    println!("\terr(inv + c, p, target) = {}", pvec(&err_p));
-    println!("\terr(inv, p, target) = {}", pvec(&err));
+    println!("\terr(inv + c, p, target) = {}", vec_to_string(&err_p));
+    println!("\terr(inv, p, target) = {}", vec_to_string(&err));
 
     let mut diff = Vec::<FPDecimal>::new();
     for i in 0..err.len() {
@@ -87,8 +80,8 @@ pub fn compute_diff(
     }
 
     println!("\tdiff = |err(inv + c, p, target)| - |err(inv, p, target)|");
-    println!("\t     = {}", pvec(&diff));
-    println!("return compute_diff -> {}", pvec(&diff));
+    println!("\t     = {}", vec_to_string(&diff));
+    println!("return compute_diff -> {}", vec_to_string(&diff));
     diff
 }
 
@@ -103,10 +96,10 @@ pub fn compute_score(
 ) -> FPDecimal {
     println!(
         "compute_score(inv: {}, c: {}, p: {}, target: {})",
-        pvec(&inv),
-        pvec(&c),
-        pvec(&p),
-        pvec(&target)
+        vec_to_string(&inv),
+        vec_to_string(&c),
+        vec_to_string(&p),
+        vec_to_string(&target)
     );
     // compute X (score)
     // X: Decimal = sum(diff) / dot(delta, prices)

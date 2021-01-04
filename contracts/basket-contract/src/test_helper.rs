@@ -6,6 +6,7 @@ pub use crate::state::*;
 pub use basket_math::*;
 pub use cosmwasm_std::testing::{mock_env, MOCK_CONTRACT_ADDR};
 pub use cosmwasm_std::*;
+pub use cw20;
 pub use cw20::BalanceResponse as Cw20BalanceResponse;
 use cw20::TokenInfoResponse;
 use std::collections::HashMap;
@@ -205,12 +206,12 @@ impl CustomMockQuerier {
     }
 
     // configure the mint whitelist mock querier
-    pub fn reset_token_querier(&mut self) -> &Self {
+    pub fn reset_token_querier(&mut self) -> &mut Self {
         self.token_querier = TokenQuerier::new();
         self
     }
 
-    pub fn set_token<T>(&mut self, token_address: T, data: TokenData) -> &Self
+    pub fn set_token<T>(&mut self, token_address: T, data: TokenData) -> &mut Self
     where
         T: Into<HumanAddr>,
     {
@@ -218,14 +219,25 @@ impl CustomMockQuerier {
         self
     }
 
-    pub fn set_token_balance<T>(
-        &mut self,
-        token_address: T,
-        account_address: T,
-        balance: u128,
-    ) -> &Self
+    pub fn set_token_supply<T>(&mut self, token_address: T, supply: u128) -> &mut Self
     where
         T: Into<HumanAddr>,
+    {
+        if let Some(token) = self.token_querier.tokens.get_mut(&token_address.into()) {
+            token.info.total_supply = Uint128(supply);
+        }
+        self
+    }
+
+    pub fn set_token_balance<T, U>(
+        &mut self,
+        token_address: T,
+        account_address: U,
+        balance: u128,
+    ) -> &mut Self
+    where
+        T: Into<HumanAddr>,
+        U: Into<HumanAddr>,
     {
         if let Some(token) = self.token_querier.tokens.get_mut(&token_address.into()) {
             token
@@ -236,17 +248,17 @@ impl CustomMockQuerier {
     }
 
     // configure the oracle price mock querier
-    pub fn reset_oracle_querier(&mut self) -> &Self {
+    pub fn reset_oracle_querier(&mut self) -> &mut Self {
         self.oracle_querier = OracleQuerier::new();
         self
     }
 
-    pub fn set_oracle_price(&mut self, asset_address: String, price: Decimal) -> &Self {
+    pub fn set_oracle_price(&mut self, asset_address: String, price: Decimal) -> &mut Self {
         self.oracle_querier.assets.insert(asset_address, price);
         self
     }
 
-    pub fn set_oracle_prices<T, U>(&mut self, price_data: T) -> &Self
+    pub fn set_oracle_prices<T, U>(&mut self, price_data: T) -> &mut Self
     where
         T: IntoIterator<Item = (U, Decimal)>,
         U: ToString,
@@ -329,4 +341,68 @@ pub fn mock_init() -> (
     let env = mock_env(consts::oracle().as_str(), &[]);
     let res = init(&mut deps, env.clone(), msg).unwrap();
     (deps, res)
+}
+
+/// sets up mock queriers with basic setup
+pub fn mock_querier_setup(deps: &mut Extern<MockStorage, MockApi, CustomMockQuerier>) {
+    deps.querier
+        .reset_token_querier()
+        .set_token(
+            consts::basket_token(),
+            token_data::<Vec<(&str, u128)>, &str>(
+                "Basket Token",
+                "BASKET",
+                6,
+                1_000_000_000,
+                vec![],
+            ),
+        )
+        .set_token(
+            "mAAPL",
+            token_data(
+                "Mirrored Apple",
+                "mAAPL",
+                6,
+                1_000_000_000_000,
+                vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
+            ),
+        )
+        .set_token(
+            "mGOOG",
+            token_data(
+                "Mirrored Google",
+                "mGOOG",
+                6,
+                1_000_000_000_000,
+                vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
+            ),
+        )
+        .set_token(
+            "mMSFT",
+            token_data(
+                "Mirrored Microsoft",
+                "mMSFT",
+                6,
+                1_000_000_000_000,
+                vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
+            ),
+        )
+        .set_token(
+            "mNFLX",
+            token_data(
+                "Mirrored Netflix",
+                "mNFLX",
+                6,
+                1_000_000_000_000,
+                vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
+            ),
+        );
+
+    deps.querier.reset_oracle_querier().set_oracle_prices(vec![
+        ("uusd", Decimal::one()),
+        ("mAAPL", Decimal::from_str("1.0").unwrap()),
+        ("mGOOG", Decimal::from_str("1.0").unwrap()),
+        ("mMSFT", Decimal::from_str("1.0").unwrap()),
+        ("mNFLX", Decimal::from_str("1.0").unwrap()),
+    ]);
 }
