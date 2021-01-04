@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "InitMsg",
+  "title": "BasketConfig",
   "type": "object",
   "required": [
     "assets",
@@ -8,61 +8,29 @@
     "name",
     "oracle",
     "owner",
-    "penalty_params",
-    "target"
+    "penalty_params"
   ],
   "properties": {
     "assets": {
-      "description": "Asset addresses",
       "type": "array",
       "items": {
         "$ref": "#/definitions/HumanAddr"
       }
     },
     "basket_token": {
-      "description": "Basket token CW20 address",
-      "allOf": [
-        {
-          "$ref": "#/definitions/HumanAddr"
-        }
-      ]
+      "$ref": "#/definitions/HumanAddr"
     },
     "name": {
-      "description": "Basket name (title)",
       "type": "string"
     },
     "oracle": {
-      "description": "Oracle address",
-      "allOf": [
-        {
-          "$ref": "#/definitions/HumanAddr"
-        }
-      ]
+      "$ref": "#/definitions/HumanAddr"
     },
     "owner": {
-      "description": "Basket's permissioned owner",
-      "allOf": [
-        {
-          "$ref": "#/definitions/HumanAddr"
-        }
-      ]
+      "$ref": "#/definitions/HumanAddr"
     },
     "penalty_params": {
-      "description": "Penalty function params",
-      "allOf": [
-        {
-          "$ref": "#/definitions/PenaltyParams"
-        }
-      ]
-    },
-    "target": {
-      "description": "Target weight vector (not normalized)",
-      "type": "array",
-      "items": {
-        "type": "integer",
-        "format": "uint32",
-        "minimum": 0.0
-      }
+      "$ref": "#/definitions/PenaltyParams"
     }
   },
   "definitions": {

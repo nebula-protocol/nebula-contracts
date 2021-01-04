@@ -5,13 +5,52 @@
     {
       "type": "object",
       "required": [
-        "get_count"
+        "config"
       ],
       "properties": {
-        "get_count": {
+        "config": {
           "type": "object"
         }
       }
+    },
+    {
+      "type": "object",
+      "required": [
+        "target"
+      ],
+      "properties": {
+        "target": {
+          "type": "object"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "staged_amount"
+      ],
+      "properties": {
+        "staged_amount": {
+          "type": "object",
+          "required": [
+            "account",
+            "asset"
+          ],
+          "properties": {
+            "account": {
+              "$ref": "#/definitions/HumanAddr"
+            },
+            "asset": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        }
+      }
     }
-  ]
+  ],
+  "definitions": {
+    "HumanAddr": {
+      "type": "string"
+    }
+  }
 }

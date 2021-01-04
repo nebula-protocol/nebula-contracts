@@ -5,33 +5,141 @@
     {
       "type": "object",
       "required": [
-        "increment"
+        "receive"
       ],
       "properties": {
-        "increment": {
-          "type": "object"
+        "receive": {
+          "$ref": "#/definitions/Cw20ReceiveMsg"
         }
       }
     },
     {
+      "description": "Withdraws asset from staging",
       "type": "object",
       "required": [
-        "reset"
+        "unstage_asset"
       ],
       "properties": {
-        "reset": {
+        "unstage_asset": {
           "type": "object",
           "required": [
-            "count"
+            "asset"
           ],
           "properties": {
-            "count": {
-              "type": "integer",
-              "format": "int32"
+            "amount": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Uint128"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "asset": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Can be called by the owner to reset the basket weight target",
+      "type": "object",
+      "required": [
+        "reset_target"
+      ],
+      "properties": {
+        "reset_target": {
+          "type": "object",
+          "required": [
+            "target"
+          ],
+          "properties": {
+            "target": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "description": "Mints new assets",
+      "type": "object",
+      "required": [
+        "mint"
+      ],
+      "properties": {
+        "mint": {
+          "type": "object",
+          "required": [
+            "asset_amounts"
+          ],
+          "properties": {
+            "asset_amounts": {
+              "description": "Asset amounts deposited for minting (must be staged)",
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Uint128"
+              }
+            },
+            "min_tokens": {
+              "description": "Minimum tokens to receive",
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Uint128"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           }
         }
       }
     }
-  ]
+  ],
+  "definitions": {
+    "Binary": {
+      "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>",
+      "type": "string"
+    },
+    "Cw20ReceiveMsg": {
+      "description": "Cw20ReceiveMsg should be de/serialized under `Receive()` variant in a HandleMsg",
+      "type": "object",
+      "required": [
+        "amount",
+        "sender"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "msg": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Binary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sender": {
+          "$ref": "#/definitions/HumanAddr"
+        }
+      }
+    },
+    "HumanAddr": {
+      "type": "string"
+    },
+    "Uint128": {
+      "type": "string"
+    }
+  }
 }

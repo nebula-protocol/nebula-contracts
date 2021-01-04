@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PenaltyParams",
+  "type": "object",
+  "required": [
+    "a_neg",
+    "a_pos",
+    "s_neg",
+    "s_pos"
+  ],
+  "properties": {
+    "a_neg": {
+      "$ref": "#/definitions/FPDecimal"
+    },
+    "a_pos": {
+      "$ref": "#/definitions/FPDecimal"
+    },
+    "s_neg": {
+      "$ref": "#/definitions/FPDecimal"
+    },
+    "s_pos": {
+      "$ref": "#/definitions/FPDecimal"
+    }
+  },
+  "definitions": {
+    "FPDecimal": {
+      "type": "string"
+    }
+  }
+}
