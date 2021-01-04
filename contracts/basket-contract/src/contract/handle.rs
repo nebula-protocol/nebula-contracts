@@ -16,10 +16,10 @@ use crate::{
     state::read_staged_asset,
 };
 use crate::{
-    penalty::{compute_penalty, compute_score},
+    penalty::{compute_diff, compute_penalty, compute_score},
     state::save_target,
 };
-use basket_math::{dot, FPDecimal};
+use basket_math::{dot, sum, FPDecimal};
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -48,18 +48,9 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
 
     if let Some(msg) = cw20_msg.msg {
         match from_binary(&msg)? {
-            Cw20HookMsg::Burn {
-                num_tokens,
-                asset_weights,
-            } => try_receive_burn(
-                deps,
-                env,
-                &sender,
-                &sent_asset,
-                sent_amount,
-                num_tokens,
-                asset_weights,
-            ),
+            Cw20HookMsg::Burn { asset_weights } => {
+                try_receive_burn(deps, env, &sender, &sent_asset, sent_amount, asset_weights)
+            }
             Cw20HookMsg::StageAsset {} => {
                 try_receive_stage_asset(deps, env, &sender, &sent_asset, sent_amount)
             }
@@ -77,7 +68,6 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     sender: &HumanAddr,
     sent_asset: &HumanAddr,
     sent_amount: Uint128,
-    num_tokens: Uint128,
     asset_weights: Option<Vec<u32>>,
 ) -> StdResult<HandleResponse> {
     let cfg = read_config(&deps.storage)?;
@@ -87,17 +77,14 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::unauthorized());
     }
 
-    // check if (num_tokens) to be burnt <= sent_amount
-    if num_tokens > sent_amount {
-        return Err(StdError::generic_err(format!(
-            "num of tokens to burn ({}) exceeds amount sent ({})",
-            num_tokens, sent_amount
-        )));
-    }
+    let burn_amount = sent_amount.clone();
 
     let burn_msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: cfg.basket_token.clone(),
-        msg: to_binary(&Cw20HandleMsg::Burn { amount: num_tokens }).unwrap(),
+        msg: to_binary(&Cw20HandleMsg::Burn {
+            amount: burn_amount.clone(),
+        })
+        .unwrap(),
         send: vec![],
     });
 
@@ -111,7 +98,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
 
     let basket_token_supply = query_cw20_token_supply(&deps, &cfg.basket_token)?;
 
-    let m_div_n = int_to_fpdec(num_tokens) / int_to_fpdec(basket_token_supply);
+    let m_div_n = int_to_fpdec(burn_amount) / int_to_fpdec(basket_token_supply);
 
     let mut logs: Vec<LogAttribute> = Vec::new();
     let redeem_subtotals: Vec<FPDecimal> = match &asset_weights {
@@ -137,13 +124,13 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
                 .map(|asset| query_price(&deps, &cfg.oracle, &asset).unwrap())
                 .collect();
             let prod = dot(&inv, &prices) / dot(&r, &prices);
-            let b: Vec<FPDecimal> = r
-                .iter()
-                .map(|&x| FPDecimal::one().mul(-1) * m_div_n * prod * x)
-                .collect();
+            let b: Vec<FPDecimal> = r.iter().map(|&x| m_div_n * prod * x).collect();
+            let neg_b: Vec<FPDecimal> = b.iter().map(|&x| FPDecimal::one().mul(-1) * x).collect();
 
-            // compute penalty
-            let score = compute_score(&inv, &b, &prices, &read_target(&deps.storage)?);
+            // compute score
+            let diff = compute_diff(&inv, &neg_b, &prices, &read_target(&deps.storage)?);
+            let score = sum(&diff) / dot(&b, &prices);
+
             let PenaltyParams {
                 a_pos,
                 s_pos,
@@ -186,7 +173,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
                 log("sender", sender),
                 log("sent_asset", sent_asset),
                 log("sent_tokens", sent_amount),
-                log("tokens_burned", num_tokens),
+                log("burn_amount", burn_amount),
                 log(
                     "asset_weights",
                     match &asset_weights {
@@ -411,6 +398,9 @@ pub fn try_unstage_asset<S: Storage, A: Api, Q: Querier>(
 mod tests {
 
     use crate::test_helper::*;
+    use cw20::Cw20ReceiveMsg;
+    use pretty_assertions::assert_eq;
+
     #[test]
     fn mint() {
         let (mut deps, _init_res) = mock_init();
@@ -433,18 +423,41 @@ mod tests {
                 ("mMSFT", Decimal::from_str("222.42").unwrap()),
                 ("mNFLX", Decimal::from_str("540.82").unwrap()),
             ]);
-        let msg = HandleMsg::Mint {
-            asset_amounts: vec![
-                Uint128(125_000_000), // mAAPL
-                Uint128::zero(),      // mGOOG
-                Uint128(149_000_000), // mMSFT
-                Uint128(50_090_272),  // mNFLX
-            ],
+
+        let asset_amounts = vec![
+            Uint128(125_000_000), // mAAPL
+            Uint128::zero(),      // mGOOG
+            Uint128(149_000_000), // mMSFT
+            Uint128(50_090_272),  // mNFLX
+        ];
+        let mint_msg = HandleMsg::Mint {
+            asset_amounts: asset_amounts.clone(),
             min_tokens: None,
         };
 
-        let env = mock_env(consts::owner(), &[]);
-        let res = handle(&mut deps, env, msg).unwrap();
+        let env = mock_env(h("addr0000"), &[]);
+        let res = handle(&mut deps, env, mint_msg.clone());
+        match res {
+            Err(..) => (),
+            _ => panic!("requires staging"),
+        }
+
+        for (asset, amount) in vec!["mAAPL", "mGOOG", "mMSFT", "mNFLX"]
+            .iter()
+            .zip(asset_amounts)
+        {
+            let env = mock_env(*asset, &[]);
+            let stage_asset_msg = HandleMsg::Receive(Cw20ReceiveMsg {
+                sender: h("addr0000"),
+                amount,
+                msg: Some(to_binary(&Cw20HookMsg::StageAsset {}).unwrap()),
+            });
+            handle(&mut deps, env, stage_asset_msg).unwrap();
+        }
+
+        let env = mock_env(h("addr0000"), &[]);
+        let res = handle(&mut deps, env, mint_msg).unwrap();
+
         for log in res.log.iter() {
             println!("{}: {}", log.key, log.value);
         }
@@ -464,7 +477,6 @@ mod tests {
             msg: Some(
                 to_binary(&Cw20HookMsg::Burn {
                     asset_weights: None,
-                    num_tokens: Uint128(20_000_000),
                 })
                 .unwrap(),
             ),
@@ -477,6 +489,6 @@ mod tests {
         for log in res.log.iter() {
             println!("{}: {}", log.key, log.value);
         }
-        assert_eq!(1, res.messages.len());
+        assert_eq!(5, res.messages.len());
     }
 }

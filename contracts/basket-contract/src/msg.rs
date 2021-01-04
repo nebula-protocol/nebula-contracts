@@ -62,8 +62,6 @@ pub enum Cw20HookMsg {
 
     /// Burns assets
     Burn {
-        /// number of tokens wanting to burn
-        num_tokens: Uint128,
         /// optional proposed set of weights to use
         asset_weights: Option<Vec<u32>>,
     },
