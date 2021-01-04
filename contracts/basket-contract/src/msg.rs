@@ -3,7 +3,7 @@ use cw20::Cw20ReceiveMsg;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::state::PenaltyParams;
+use crate::state::{BasketConfig, PenaltyParams};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
@@ -70,10 +70,25 @@ pub enum Cw20HookMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    GetTarget {},
+    Config {},
+    Target {},
+    StagedAmount {
+        account: HumanAddr,
+        asset: HumanAddr,
+    },
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct ConfigResponse {
+    pub config: BasketConfig,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TargetResponse {
     pub target: Vec<u32>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct StagedAmountResponse {
+    pub staged_amount: Uint128,
 }
