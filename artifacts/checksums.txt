@@ -1,0 +1,1 @@
+835705ec3f23d0dafac5a360dcacad6a4a0db4e373d5fdeb2a9beb9a81f29a17  basket_contract.wasm
