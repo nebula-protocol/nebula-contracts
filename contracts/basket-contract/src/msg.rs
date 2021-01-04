@@ -37,7 +37,7 @@ pub enum HandleMsg {
     /// Withdraws asset from staging
     UnstageAsset {
         asset: HumanAddr,
-        amount: Uint128,
+        amount: Option<Uint128>,
     },
 
     /// Can be called by the owner to reset the basket weight target

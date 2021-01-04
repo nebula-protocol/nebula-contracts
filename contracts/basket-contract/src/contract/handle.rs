@@ -29,7 +29,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             asset_amounts,
             min_tokens,
         } => try_mint(deps, env, &asset_amounts, &min_tokens),
-        HandleMsg::UnstageAsset { amount, asset } => try_unstage_asset(deps, env, &asset, amount),
+        HandleMsg::UnstageAsset { amount, asset } => try_unstage_asset(deps, env, &asset, &amount),
         HandleMsg::ResetTarget { target } => try_reset_target(deps, env, &target),
     }
 }
@@ -253,10 +253,11 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     // ensure that all tokens in asset_amounts have been staged beforehand
     for (asset, amount) in cfg.assets.iter().zip(asset_amounts) {
         let staged = read_staged_asset(&deps.storage, &env.message.sender, asset).unwrap();
-        if *amount < staged {
+        println!("asset {} amount {} staged {}", asset, amount, staged);
+        if *amount > staged {
             return Err(StdError::generic_err(format!(
-                "insufficient asset {} staged, {} < {} (requested)",
-                asset, amount, staged
+                "insufficient amount of asset {}: {} (staged) < {} (requested)",
+                asset, staged, amount
             )));
         }
         unstage_asset(&mut deps.storage, &env.message.sender, &asset, *amount)?;
