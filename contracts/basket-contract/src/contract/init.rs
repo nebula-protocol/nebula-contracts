@@ -1,5 +1,5 @@
 use crate::state::{save_config, save_target, BasketConfig};
-use crate::{msg::InitMsg, state::PenaltyParams};
+use crate::{error, msg::InitMsg, state::PenaltyParams};
 use cosmwasm_std::{log, Api, Env, Extern, InitResponse, Querier, StdResult, Storage};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
@@ -7,6 +7,14 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     _env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
+    // make sure assets & target are same dimensions
+    if msg.target.len() != msg.assets.len() {
+        return Err(error::bad_weight_dimensions(
+            msg.target.len(),
+            msg.assets.len(),
+        ));
+    }
+
     let cfg = BasketConfig {
         name: msg.name.clone(),
         owner: msg.owner.clone(),
@@ -42,7 +50,6 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 
 #[cfg(test)]
 mod tests {
-
     use crate::{q, test_helper::*};
 
     #[test]

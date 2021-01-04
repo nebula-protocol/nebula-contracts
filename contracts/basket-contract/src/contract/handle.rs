@@ -5,6 +5,7 @@ use cosmwasm_std::{
 
 use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
 
+use crate::error;
 use crate::state::{read_config, read_target, stage_asset, unstage_asset, PenaltyParams};
 use crate::util::{fpdec_to_int, int_to_fpdec, vec_to_string};
 use crate::{
@@ -56,9 +57,7 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
             }
         }
     } else {
-        Err(StdError::generic_err(
-            "Receive Hook - missing expected .msg in body",
-        ))
+        Err(error::missing_cw20_msg())
     }
 }
 
@@ -105,11 +104,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         Some(weights) => {
             // ensure the provided weights has the same dimension as our inventory
             if weights.len() != inv.len() {
-                return Err(StdError::generic_err(format!(
-                    "# assets in asset_weights ({}) does not match basket inventory ({})",
-                    weights.len(),
-                    inv.len()
-                )));
+                return Err(error::bad_weight_dimensions(weights.len(), inv.len()));
             }
             let weights_sum = weights
                 .iter()
@@ -202,10 +197,7 @@ pub fn try_receive_stage_asset<S: Storage, A: Api, Q: Querier>(
 
     // if sent asset is not a component asset of basket, reject
     if !cfg.assets.iter().any(|asset| asset == sent_asset) {
-        return Err(StdError::generic_err(format!(
-            "asset ({}) is not a component asset of basket",
-            sent_asset
-        )));
+        return Err(error::not_component_asset(sent_asset));
     }
 
     stage_asset(&mut deps.storage, sender, sent_asset, sent_amount)?;
@@ -230,8 +222,14 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
     let cfg = read_config(&deps.storage)?;
 
+    // check permission
     if env.message.sender != cfg.owner {
         return Err(StdError::unauthorized());
+    }
+
+    // check match # of assets
+    if target.len() != cfg.assets.len() {
+        return Err(error::bad_weight_dimensions(target.len(), cfg.assets.len()));
     }
 
     let prev_target = read_target(&deps.storage)?;
@@ -262,10 +260,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         let staged = read_staged_asset(&deps.storage, &env.message.sender, asset).unwrap();
         println!("asset {} amount {} staged {}", asset, amount, staged);
         if *amount > staged {
-            return Err(StdError::generic_err(format!(
-                "insufficient amount of asset {}: {} (staged) < {} (requested)",
-                asset, staged, amount
-            )));
+            return Err(error::insufficient_staged(asset, *amount, staged));
         }
         unstage_asset(&mut deps.storage, &env.message.sender, &asset, *amount)?;
     }
@@ -304,12 +299,9 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 
     let (mint_total, mint_roundoff) = fpdec_to_int(mint_subtotal); // the fraction part is kept inside basket
 
-    if let Some(m) = min_tokens {
-        if mint_total < *m {
-            return Err(StdError::generic_err(format!(
-                "transaction aborted: transaction would mint {}, which is less than min_tokens specified: {}",
-                mint_total.0, m
-            )));
+    if let Some(min) = min_tokens {
+        if mint_total < *min {
+            return Err(error::below_min_tokens(mint_total, *min));
         }
     }
 
@@ -347,20 +339,14 @@ pub fn try_unstage_asset<S: Storage, A: Api, Q: Querier>(
 
     // if sent asset is not a component asset of basket, reject
     if !cfg.assets.iter().any(|x| asset == x) {
-        return Err(StdError::generic_err(format!(
-            "asset ({}) is not a component asset of basket",
-            asset
-        )));
+        return Err(error::not_component_asset(asset));
     }
 
     let curr_staged = read_staged_asset(&deps.storage, &env.message.sender, asset)?;
     let to_unstage = match amount {
         Some(amt) => {
             if *amt > curr_staged {
-                return Err(StdError::generic_err(format!(
-                    "can't unstage more than available: {} (requested) > {} (staged)",
-                    amt, curr_staged
-                )));
+                return Err(error::insufficient_staged(asset, *amt, curr_staged));
             }
             *amt
         }
