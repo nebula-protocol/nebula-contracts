@@ -1,30 +1,35 @@
+use crate::error;
 use basket_math::FPDecimal;
 use cosmwasm_std::{StdResult, Uint128};
 
 /// transfer token
 
 /// ensures casting u128 -> i128 does not overflow
-pub fn cast_u128_i128(x: u128) -> i128 {
-    assert!(x < (i128::MAX / 1000) as u128);
-    x as i128
+pub fn cast_u128_i128(x: u128) -> StdResult<i128> {
+    if x > (i128::MAX / 1000i128) as u128 {
+        return Err(error::i128_overflow(x));
+    }
+    Ok(x as i128)
 }
 
-pub fn cast_i128_u128(x: i128) -> u128 {
-    assert!(x >= 0);
-    x as u128
+pub fn cast_i128_u128(x: i128) -> StdResult<u128> {
+    if x < 0 {
+        return Err(error::u128_underflow(x));
+    }
+    Ok(x as u128)
 }
 
 /// converts integer amounts (for coin balances) into FPDecimal for calculation
-pub fn int_to_fpdec(amount: Uint128) -> FPDecimal {
-    FPDecimal(cast_u128_i128(amount.u128()) * FPDecimal::ONE)
+pub fn int_to_fpdec(amount: Uint128) -> StdResult<FPDecimal> {
+    Ok(FPDecimal(cast_u128_i128(amount.u128())? * FPDecimal::ONE))
 }
 
 /// converts into integer
-pub fn fpdec_to_int(dec: FPDecimal) -> (Uint128, FPDecimal) {
-    (
-        Uint128(cast_i128_u128(dec.int().0 / FPDecimal::ONE)),
+pub fn fpdec_to_int(dec: FPDecimal) -> StdResult<(Uint128, FPDecimal)> {
+    Ok((
+        Uint128(cast_i128_u128(dec.int().0 / FPDecimal::ONE)?),
         dec.fraction(),
-    )
+    ))
 }
 
 /// Prints vectors
@@ -34,14 +39,4 @@ where
 {
     let str_vec = v.iter().map(|fp| fp.to_string()).collect::<Vec<String>>();
     format!("[{}]", str_vec.join(", "))
-}
-
-/// Ensure map has no errors
-pub fn check_vec<T>(vec: Vec<StdResult<T>>) -> StdResult<Vec<T>> {
-    let result = Vec::<T>::new();
-
-    for el in vec {
-        result.push(el?)
-    }
-    return Ok(result);
 }

@@ -44,3 +44,11 @@ pub fn basket_token_not_set() -> StdError {
 pub fn basket_token_already_set(address: &HumanAddr) -> StdError {
     StdError::generic_err(format!("basket token has not yet been set to {}", address))
 }
+
+pub fn i128_overflow(x: u128) -> StdError {
+    StdError::generic_err(format!("can not convert to i128 (overflow): {}", x))
+}
+
+pub fn u128_underflow(x: i128) -> StdError {
+    StdError::generic_err(format!("can not convert to u128 (underflow): {}", x))
+}

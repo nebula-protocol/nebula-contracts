@@ -10,7 +10,7 @@ use crate::ext_query::{query_cw20_balance, query_cw20_token_supply, query_price}
 use crate::state::{
     read_config, read_target, save_config, stage_asset, unstage_asset, PenaltyParams,
 };
-use crate::util::{check_vec, fpdec_to_int, int_to_fpdec, vec_to_string};
+use crate::util::{fpdec_to_int, int_to_fpdec, vec_to_string};
 use crate::{
     msg::{Cw20HookMsg, HandleMsg},
     state::read_staged_asset,
@@ -95,17 +95,12 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     let inv: Vec<FPDecimal> = cfg
         .assets
         .iter()
-        .map(|asset| query_cw20_balance(&deps, &asset, &env.contract.address))
-        .collect::<StdResult<Vec<Uint128>>>()?
-        .iter()
-        .map(|&bal| int_to_fpdec(bal))
-        .collect();
-
-    let inv: Vec<FPDecimal> = inv.iter().map(|&bal| int_to_fpdec(bal)).collect();
+        .map(|asset| int_to_fpdec(query_cw20_balance(&deps, &asset, &env.contract.address)?))
+        .collect::<StdResult<Vec<FPDecimal>>>()?;
 
     let basket_token_supply = query_cw20_token_supply(&deps, &basket_token)?;
 
-    let m_div_n = int_to_fpdec(burn_amount) / int_to_fpdec(basket_token_supply);
+    let m_div_n = int_to_fpdec(burn_amount)? / int_to_fpdec(basket_token_supply)?;
 
     let mut logs: Vec<LogAttribute> = Vec::new();
     let redeem_subtotals: Vec<FPDecimal> = match &asset_weights {
@@ -117,16 +112,17 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
             let weights_sum = weights
                 .iter()
                 .fold(FPDecimal::zero(), |acc, &el| acc + FPDecimal::from(el));
+
             let r = weights // normalize weights vector
                 .iter()
                 .map(|&x| FPDecimal::from(x) / weights_sum)
                 .collect();
-            let prices: Vec<StdResult<FPDecimal>> = cfg
+
+            let prices: Vec<FPDecimal> = cfg
                 .assets
                 .iter()
                 .map(|asset| query_price(&deps, &cfg.oracle, &asset))
-                .collect();
-            let prices = check_vec(prices)?;
+                .collect::<StdResult<Vec<FPDecimal>>>()?;
 
             let prod = dot(&inv, &prices) / dot(&r, &prices);
             let b: Vec<FPDecimal> = r.iter().map(|&x| m_div_n * prod * x).collect();
@@ -151,23 +147,28 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     };
 
     // convert reward into Uint128 -- truncate decimal as roundoff
+    let redeem: Vec<(Uint128, FPDecimal)> = redeem_subtotals
+        .iter()
+        .map(|&x| fpdec_to_int(x))
+        .collect::<StdResult<Vec<(Uint128, FPDecimal)>>>()?;
+
     let (redeem_totals, redeem_roundoffs): (Vec<Uint128>, Vec<FPDecimal>) =
-        redeem_subtotals.iter().map(|&x| fpdec_to_int(x)).unzip();
+        redeem.iter().cloned().unzip();
 
     let transfer_msgs: Vec<CosmosMsg> = redeem_totals
         .iter()
         .zip(cfg.assets.iter())
         .map(|(amt, asset)| {
-            CosmosMsg::Wasm(WasmMsg::Execute {
+            Ok(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: asset.clone(),
                 msg: to_binary(&Cw20HandleMsg::Transfer {
                     amount: amt.clone(),
                     recipient: sender.clone(),
-                }),
+                })?,
                 send: vec![],
-            })
+            }))
         })
-        .collect();
+        .collect::<StdResult<Vec<CosmosMsg>>>()?;
 
     Ok(HandleResponse {
         messages: vec![vec![burn_msg], transfer_msgs].concat(),
@@ -320,25 +321,24 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         }
         unstage_asset(&mut deps.storage, &env.message.sender, &asset, *amount)?;
     }
-    let c = asset_amounts.iter().map(|&x| int_to_fpdec(x)).collect();
+    let c = asset_amounts
+        .iter()
+        .map(|&x| int_to_fpdec(x))
+        .collect::<StdResult<Vec<FPDecimal>>>()?;
+
     // get current balances of each token (inventory)
-    let inv: Vec<StdResult<Uint128>> = cfg
+    let inv: Vec<FPDecimal> = cfg
         .assets
         .iter()
-        .map(|asset| query_cw20_balance(&deps, &asset, &env.contract.address))
-        .collect();
-
-    let inv = check_vec(inv)?;
-    let inv = inv.iter().map(|&bal| int_to_fpdec(bal)).collect();
+        .map(|asset| int_to_fpdec(query_cw20_balance(&deps, &asset, &env.contract.address)?))
+        .collect::<StdResult<Vec<FPDecimal>>>()?;
 
     // get current prices of each token via oracle
-    let prices: Vec<StdResult<FPDecimal>> = cfg
+    let prices: Vec<FPDecimal> = cfg
         .assets
         .iter()
         .map(|asset| query_price(&deps, &cfg.oracle, &asset))
-        .collect();
-
-    let prices = check_vec(prices)?;
+        .collect::<StdResult<Vec<FPDecimal>>>()?;
 
     // compute penalty
     let score = compute_score(&inv, &c, &prices, &target);
@@ -370,14 +370,14 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 
     // compute number of new tokens
     let mint_subtotal =
-        penalty * dot(&c, &prices) / dot(&inv, &prices) * int_to_fpdec(basket_token_supply);
+        penalty * dot(&c, &prices) / dot(&inv, &prices) * int_to_fpdec(basket_token_supply)?;
 
     // return Err(StdError::generic_err(format!(
     //     "mint_subtotal {}",
     //     mint_subtotal.to_string()
     // )));
 
-    let (mint_total, mint_roundoff) = fpdec_to_int(mint_subtotal); // the fraction part is kept inside basket
+    let (mint_total, mint_roundoff) = fpdec_to_int(mint_subtotal)?; // the fraction part is kept inside basket
 
     if let Some(min) = min_tokens {
         if mint_total < *min {
@@ -558,7 +558,7 @@ mod tests {
         let env = mock_env(consts::basket_token(), &[]);
         let res = handle(&mut deps, env, msg).unwrap();
         for log in res.log.iter() {
-            //println!("{}: {}", log.key, log.value);
+            println!("{}: {}", log.key, log.value);
         }
         assert_eq!(5, res.messages.len());
     }
