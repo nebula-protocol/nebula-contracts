@@ -1,5 +1,5 @@
 use basket_math::FPDecimal;
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{StdResult, Uint128};
 
 /// transfer token
 
@@ -34,4 +34,14 @@ where
 {
     let str_vec = v.iter().map(|fp| fp.to_string()).collect::<Vec<String>>();
     format!("[{}]", str_vec.join(", "))
+}
+
+/// Ensure map has no errors
+pub fn check_vec<T>(vec: Vec<StdResult<T>>) -> StdResult<Vec<T>> {
+    let result = Vec::<T>::new();
+
+    for el in vec {
+        result.push(el?)
+    }
+    return Ok(result);
 }
