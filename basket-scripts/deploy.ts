@@ -11,14 +11,16 @@ import {
 
 import * as fs from "fs";
 
+// UNCOMMENT FOR TEQUILA
+// const lt = new LocalTerra();
 // const terra = new LCDClient({
 //   URL: "https://tequila-lcd.terra.dev",
 //   chainID: "tequila-0004",
 // });
+// const deployer: Wallet = terra.wallet(lt.wallets.test1.key);
+
+// UNCOMMENT FOR LOCALTERRA
 const terra = new LocalTerra();
-terra.config.gasPrices = {
-  uluna: 1,
-};
 const deployer: Wallet = terra.wallets.test1;
 
 async function storeContract(contractName: string): Promise<string> {
@@ -270,7 +272,7 @@ async function main() {
   });
 
   // try mint
-  console.log("[main] - mint (staging)");
+  console.log("[main] - mint (staging + mint)");
   await executeMany([
     [
       mAAPLAddress,
@@ -314,14 +316,15 @@ async function main() {
         },
       },
     ],
+    [
+      basketAddress,
+      {
+        mint: {
+          asset_amounts: ["125000000", "0", "149000000", "50000000"],
+        },
+      },
+    ],
   ]);
-
-  console.log("[mint] - mint");
-  await executeContract(basketAddress, {
-    mint: {
-      asset_amounts: ["125000000", "0", "149000000", "50000000"],
-    },
-  });
 
   console.log({
     mAAPLAddress,

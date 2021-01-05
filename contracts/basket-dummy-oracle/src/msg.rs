@@ -18,7 +18,10 @@ pub enum QueryMsg {
         quote_asset: String,
     },
 }
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+
+#[derive(Serialize, Deserialize)]
 pub struct PriceResponse {
-    pub price: Decimal,
+    pub rate: Decimal,
+    pub last_updated_base: u64,
+    pub last_updated_quote: u64,
 }
