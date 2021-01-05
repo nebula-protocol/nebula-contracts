@@ -33,18 +33,18 @@ async function storeContract(contractName: string): Promise<string> {
     msgs: [storeCode],
     fee: new StdFee(5000000, { uluna: 20000000 }),
   });
-  const storeCodeTxResult = await terra.tx.broadcast(storeCodeTx);
-  console.log(storeCodeTxResult);
+  const res = await terra.tx.broadcast(storeCodeTx);
+  console.log(`[storeContract] - TX Hash: ${res.txhash}`);
 
-  if (isTxError(storeCodeTxResult)) {
+  if (isTxError(res)) {
     throw new Error(
-      `[storeContract] TX FAILED. code: ${storeCodeTxResult.code}, codespace: ${storeCodeTxResult.codespace}, raw_log: ${storeCodeTxResult.raw_log}`
+      `[storeContract] TX FAILED. code: ${res.code}, codespace: ${res.codespace}, raw_log: ${res.raw_log}`
     );
   }
 
   const {
     store_code: { code_id },
-  } = storeCodeTxResult.logs[0].eventsByType;
+  } = res.logs[0].eventsByType;
 
   console.log(`[storeContract] - SUCCESS, code id: ${code_id[0]}`);
   return code_id[0];
@@ -65,19 +65,19 @@ async function instantiateContract(
     fee: new StdFee(5000000, { uluna: 20000000 }),
   });
 
-  const instantiateTxResult = await terra.tx.broadcast(instantiateTx);
+  const res = await terra.tx.broadcast(instantiateTx);
 
-  console.log(instantiateTxResult);
+  console.log(`[instantiateContract] - TX HASH: ${res.txhash}`);
 
-  if (isTxError(instantiateTxResult)) {
+  if (isTxError(res)) {
     throw new Error(
-      `[instantiateContract] TX FAILED - code: ${instantiateTxResult.code}, codespace: ${instantiateTxResult.codespace}, raw_log: ${instantiateTxResult.raw_log}`
+      `[instantiateContract] TX FAILED - code: ${res.code}, codespace: ${res.codespace}, raw_log: ${res.raw_log}`
     );
   }
 
   const {
     instantiate_contract: { contract_address },
-  } = instantiateTxResult.logs[0].eventsByType;
+  } = res.logs[0].eventsByType;
 
   console.log(
     `[instantiateContract] - instantiated contract address: ${contract_address[0]}`
@@ -96,7 +96,7 @@ async function instantiateTokenContract(
   if (supply) {
     initial_balances = [{ address: deployer.key.accAddress, amount: supply }];
   }
-  console.log(`[instantiateTokenContract] token symbol: ${symbol}`);
+  console.log(`[instantiateTokenContract] - token symbol: ${symbol}`);
   const initMsg = {
     name,
     symbol,
@@ -107,13 +107,12 @@ async function instantiateTokenContract(
       cap: null,
     },
   };
-  console.log(initMsg);
   return instantiateContract(tokenCodeId, initMsg);
 }
 
 async function executeMany(reqs: Array<[string, any]>): Promise<any> {
   let msgs = reqs.map(([contractAddress, executeMsg]) => {
-    console.log(`[executeMulti] contract address: ${contractAddress}`);
+    console.log(`[executeMany] - contract address: ${contractAddress}`);
     return new MsgExecuteContract(
       deployer.key.accAddress, // sender
       contractAddress, // contract account address
@@ -127,13 +126,14 @@ async function executeMany(reqs: Array<[string, any]>): Promise<any> {
   });
 
   const res = await terra.tx.broadcast(executeTx);
+  console.log(`[executeMany] - TX Hash: ${res.txhash}`);
 
-  console.log(res);
-  if (!isTxError(res)) {
-    res.logs.forEach((x) =>
-      console.log(JSON.stringify(x.eventsByType, null, 2))
-    );
-  }
+  // console.log(res);
+  // if (!isTxError(res)) {
+  //   res.logs.forEach((x) =>
+  //     console.log(JSON.stringify(x.eventsByType, null, 2))
+  //   );
+  // }
   return res;
 }
 
@@ -156,12 +156,12 @@ async function executeContract(
   });
 
   const res = await terra.tx.broadcast(executeTx);
-  console.log(res);
-  if (!isTxError(res)) {
-    res.logs.forEach((x) =>
-      console.log(JSON.stringify(x.eventsByType, null, 2))
-    );
-  }
+  console.log(`[executeContract] TX Hash: ${res.txhash}`);
+  // if (!isTxError(res)) {
+  //   res.logs.forEach((x) =>
+  //     console.log(JSON.stringify(x.eventsByType, null, 2))
+  //   );
+  // }
   return res;
 }
 
@@ -272,7 +272,7 @@ async function main() {
   });
 
   // try mint
-  console.log("[main] - mint (staging + mint)");
+  console.log("[main] - basket:stage_asset + basket:mint");
   await executeMany([
     [
       mAAPLAddress,
@@ -325,6 +325,22 @@ async function main() {
       },
     ],
   ]);
+
+  // try burn
+  console.log("[main] - basket:burn");
+  await executeContract(basketTokenAddress, {
+    send: {
+      contract: basketAddress,
+      amount: "10000000",
+      msg: Buffer.from(
+        JSON.stringify({
+          burn: {
+            asset_weights: [1, 1, 1, 9],
+          },
+        })
+      ).toString("base64"),
+    },
+  });
 
   console.log({
     mAAPLAddress,
