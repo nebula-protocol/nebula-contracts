@@ -51,12 +51,12 @@ $ cargo unit-test
 
 Provided is a small script to get set up with several dummy Mirrored assets and a test oracle. The basket and oracle will be initialized to the following starting state:
 
-| Component Asset | Price   | Basket Balance | %              | Target |
-| --------------- | ------- | -------------- | -------------- | ------ |
-| mAAPL           | 135.18  | 7290.053159    | 0.2036735938%  | 0.20   |
-| mGOOG           | 1780.03 | 319.710128     | 0.1176184104%  | 0.10   |
-| mMSFT           | 222.42  | 14219.28123    | 0.6536466948%  | 0.65   |
-| mNFLX           | 540.82  | 224.212221     | 0.02506130107% | 0.05   |
+| Asset | Price   | Basket Balance | %              | Target |
+| ----- | ------- | -------------- | -------------- | ------ |
+| mAAPL | 135.18  | 7290.053159    | 0.2036735938%  | 0.20   |
+| mGOOG | 1780.03 | 319.710128     | 0.1176184104%  | 0.10   |
+| mMSFT | 222.42  | 14219.28123    | 0.6536466948%  | 0.65   |
+| mNFLX | 540.82  | 224.212221     | 0.02506130107% | 0.05   |
 
 The script will then run a `MINT` operation, adding the following:
 

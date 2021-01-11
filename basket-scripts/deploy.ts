@@ -14,8 +14,8 @@ import * as fs from "fs";
 // UNCOMMENT FOR TEQUILA
 // const lt = new LocalTerra();
 // const terra = new LCDClient({
-//   URL: "https://tequila-lcd.terra.dev",
-//   chainID: "tequila-0004",
+//  URL: "https://tequila-lcd.terra.dev",
+//  chainID: "tequila-0004",
 // });
 // const deployer: Wallet = terra.wallet(lt.wallets.test1.key);
 
@@ -127,13 +127,12 @@ async function executeMany(reqs: Array<[string, any]>): Promise<any> {
 
   const res = await terra.tx.broadcast(executeTx);
   console.log(`[executeMany] - TX Hash: ${res.txhash}`);
-
-  // console.log(res);
-  // if (!isTxError(res)) {
-  //   res.logs.forEach((x) =>
-  //     console.log(JSON.stringify(x.eventsByType, null, 2))
-  //   );
-  // }
+  console.log(JSON.stringify(res, null, 2));
+  if (!isTxError(res)) {
+    res.logs.forEach((x) =>
+      console.log(JSON.stringify(x.eventsByType, null, 2))
+    );
+  }
   return res;
 }
 
@@ -157,11 +156,12 @@ async function executeContract(
 
   const res = await terra.tx.broadcast(executeTx);
   console.log(`[executeContract] TX Hash: ${res.txhash}`);
-  // if (!isTxError(res)) {
-  //   res.logs.forEach((x) =>
-  //     console.log(JSON.stringify(x.eventsByType, null, 2))
-  //   );
-  // }
+  console.log(JSON.stringify(res, null, 2));
+  if (!isTxError(res)) {
+    res.logs.forEach((x) =>
+      console.log(JSON.stringify(x.eventsByType, null, 2))
+    );
+  }
   return res;
 }
 

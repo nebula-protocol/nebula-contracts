@@ -130,7 +130,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
 
             // compute score
             let diff = compute_diff(&inv, &neg_b, &prices, &read_target(&deps.storage)?);
-            let score = sum(&diff) / dot(&b, &prices);
+            let score = (sum(&diff) / dot(&b, &prices)).div(2);
 
             let PenaltyParams {
                 a_pos,
@@ -341,12 +341,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         .collect::<StdResult<Vec<FPDecimal>>>()?;
 
     // compute penalty
-    let score = compute_score(&inv, &c, &prices, &target);
-
-    // return Err(StdError::generic_err(format!(
-    //     "score {}",
-    //     score.to_string()
-    // )));
+    let score = compute_score(&inv, &c, &prices, &target).div(2);
 
     let PenaltyParams {
         a_pos,
@@ -356,26 +351,11 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     } = cfg.penalty_params;
     let penalty = compute_penalty(score, a_pos, s_pos, a_neg, s_neg);
 
-    // return Err(StdError::generic_err(format!(
-    //     "penalty {}",
-    //     penalty.to_string()
-    // )));
-
     let basket_token_supply = query_cw20_token_supply(&deps, &basket_token)?;
-
-    // return Err(StdError::generic_err(format!(
-    //     "bts {}",
-    //     basket_token_supply.to_string()
-    // )));
 
     // compute number of new tokens
     let mint_subtotal =
         penalty * dot(&c, &prices) / dot(&inv, &prices) * int_to_fpdec(basket_token_supply)?;
-
-    // return Err(StdError::generic_err(format!(
-    //     "mint_subtotal {}",
-    //     mint_subtotal.to_string()
-    // )));
 
     let (mint_total, mint_roundoff) = fpdec_to_int(mint_subtotal)?; // the fraction part is kept inside basket
 
