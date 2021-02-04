@@ -9,6 +9,7 @@ import {
   CW20,
   Basket,
   executeMany,
+  getAmount,
 } from "./util";
 
 async function main() {
@@ -21,7 +22,7 @@ async function main() {
     tokenCodeId,
     "Wrapped Bitcoin",
     "wBTC",
-    "100000000" // 100 BTC
+    "400000000" // 400 BTC
   );
   const wETH = await instantiateTokenContract(
     tokenCodeId,
@@ -90,21 +91,34 @@ async function main() {
     ])
   );
 
-  // give basket starting balance
-  await executeContract(wBTC, CW20.transfer(basket, "7290059")); // 8%
-  await executeContract(wETH, CW20.transfer(basket, "7290059")); // 18%
-  await executeContract(wXRP, CW20.transfer(basket, "23292911")); // 20%
-  await executeContract(wLUNA, CW20.transfer(basket, "10102302")); // 32%
-  await executeContract(MIR, CW20.transfer(basket, "1010232")); //
+  // give basket starting balance w/ 5m in notional value
+  const total = 5000000;
+  await executeContract(
+    wBTC,
+    CW20.transfer(basket, getAmount(total * 0.08, "30000.0"))
+  ); // 8%
+  await executeContract(
+    wETH,
+    CW20.transfer(basket, getAmount(total * 0.18, "1500.0"))
+  ); // 18%
+  await executeContract(
+    wXRP,
+    CW20.transfer(basket, getAmount(total * 0.2, "0.45"))
+  ); // 20%
+  await executeContract(
+    wLUNA,
+    CW20.transfer(basket, getAmount(total * 0.32, "2.1"))
+  ); // 32%
+  await executeContract(
+    MIR,
+    CW20.transfer(basket, getAmount(total * 0.22, "5.06"))
+  ); // 22%
 
   // try mint
   console.log("[main] - basket:stage_asset + basket:mint");
   await executeMany([
-    [wBTC, CW20.send(basket, "125000000", Basket.stageAsset())],
-    [
-      basket,
-      Basket.mint(["125000000", "0", "149000000", "50000000", "10202020"]),
-    ],
+    [wBTC, CW20.send(basket, "1000000", Basket.stageAsset())],
+    [basket, Basket.mint(["1000000", "0", "0", "0", "0"])],
   ]);
 
   // try burn

@@ -110,6 +110,10 @@ export async function instantiateTokenContract(
   return instantiateContract(tokenCodeId, initMsg);
 }
 
+export function getAmount(value: number, price: string): string {
+  return ((value / Number.parseFloat(price)) * 1000000).toFixed();
+}
+
 export async function executeMany(reqs: Array<[string, any]>): Promise<any> {
   let msgs = reqs.map(([contractAddress, executeMsg]) => {
     console.log(`[executeMany] - contract address: ${contractAddress}`);
