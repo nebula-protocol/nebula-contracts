@@ -12,18 +12,21 @@ import {
 import * as fs from "fs";
 
 // UNCOMMENT FOR TEQUILA
-// const lt = new LocalTerra();
-// export const terra = new LCDClient({
-//   URL: "https://tequila-lcd.terra.dev",
-//   chainID: "tequila-0004",
-// });
-// export const deployer: Wallet = terra.wallet(lt.wallets.test1.key);
+const lt = new LocalTerra();
+export const terra = new LCDClient({
+  URL: "https://tequila-lcd.terra.dev",
+  chainID: "tequila-0004",
+});
+export const deployer: Wallet = terra.wallet(lt.wallets.test1.key);
 
 // UNCOMMENT FOR LOCALTERRA
-export const terra = new LocalTerra();
-export const deployer: Wallet = terra.wallets.test1;
+// export const terra = new LocalTerra();
+// export const deployer: Wallet = terra.wallets.test1;
 
-export async function storeContract(contractName: string): Promise<string> {
+export async function storeContract(
+  contractName: string,
+  sequence?: number
+): Promise<string> {
   console.log(`[storeContract] - ${contractName}`);
   const storeCode = new MsgStoreCode(
     deployer.key.accAddress,
@@ -32,6 +35,7 @@ export async function storeContract(contractName: string): Promise<string> {
   const storeCodeTx = await deployer.createAndSignTx({
     msgs: [storeCode],
     fee: new StdFee(5000000, { uluna: 2000000 }),
+    sequence,
   });
   const res = await terra.tx.broadcast(storeCodeTx);
   console.log(`[storeContract] - TX Hash: ${res.txhash}`);
@@ -52,7 +56,8 @@ export async function storeContract(contractName: string): Promise<string> {
 
 export async function instantiateContract(
   codeId: string,
-  initMsg: any
+  initMsg: any,
+  sequence?: number
 ): Promise<string> {
   const instantiate = new MsgInstantiateContract(
     deployer.key.accAddress,
@@ -63,6 +68,7 @@ export async function instantiateContract(
   const instantiateTx = await deployer.createAndSignTx({
     msgs: [instantiate],
     fee: new StdFee(5000000, { uluna: 2000000 }),
+    sequence,
   });
 
   const res = await terra.tx.broadcast(instantiateTx);
@@ -90,7 +96,8 @@ export async function instantiateTokenContract(
   name: string,
   symbol: string,
   supply?: string,
-  minter?: string
+  minter?: string,
+  sequence?: number
 ): Promise<string> {
   let initial_balances: Array<{ address: string; amount: string }> = [];
   if (supply) {
@@ -107,14 +114,17 @@ export async function instantiateTokenContract(
       cap: null,
     },
   };
-  return instantiateContract(tokenCodeId, initMsg);
+  return instantiateContract(tokenCodeId, initMsg, sequence);
 }
 
 export function getAmount(value: number, price: string): string {
   return ((value / Number.parseFloat(price)) * 1000000).toFixed();
 }
 
-export async function executeMany(reqs: Array<[string, any]>): Promise<any> {
+export async function executeMany(
+  reqs: Array<[string, any]>,
+  sequence?: number
+): Promise<any> {
   let msgs = reqs.map(([contractAddress, executeMsg]) => {
     console.log(`[executeMany] - contract address: ${contractAddress}`);
     return new MsgExecuteContract(
@@ -126,7 +136,8 @@ export async function executeMany(reqs: Array<[string, any]>): Promise<any> {
 
   const executeTx = await deployer.createAndSignTx({
     msgs,
-    fee: new StdFee(100000 * msgs.length, { uluna: 200000 * msgs.length }),
+    fee: new StdFee(500000 * msgs.length, { uluna: 200000 * msgs.length }),
+    sequence,
   });
 
   const res = await terra.tx.broadcast(executeTx);
@@ -142,7 +153,8 @@ export async function executeMany(reqs: Array<[string, any]>): Promise<any> {
 
 export async function executeContract(
   contractAddress: string,
-  executeMsg: any
+  executeMsg: any,
+  sequence?: number
 ): Promise<any> {
   console.log(`[executeContract] contract address: ${contractAddress}`);
   let msgs = [
@@ -156,6 +168,7 @@ export async function executeContract(
   const executeTx = await deployer.createAndSignTx({
     msgs,
     fee: new StdFee(2000000, { uluna: 3000000 }),
+    sequence,
   });
 
   const res = await terra.tx.broadcast(executeTx);
