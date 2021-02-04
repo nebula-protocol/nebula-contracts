@@ -12,16 +12,16 @@ import {
 import * as fs from "fs";
 
 // UNCOMMENT FOR TEQUILA
-const lt = new LocalTerra();
-export const terra = new LCDClient({
-  URL: "https://tequila-lcd.terra.dev",
-  chainID: "tequila-0004",
-});
-export const deployer: Wallet = terra.wallet(lt.wallets.test1.key);
+// const lt = new LocalTerra();
+// export const terra = new LCDClient({
+//   URL: "https://tequila-lcd.terra.dev",
+//   chainID: "tequila-0004",
+// });
+// export const deployer: Wallet = terra.wallet(lt.wallets.test1.key);
 
 // UNCOMMENT FOR LOCALTERRA
-// export const terra = new LocalTerra();
-// export const deployer: Wallet = terra.wallets.test1;
+export const terra = new LocalTerra();
+export const deployer: Wallet = terra.wallets.test1;
 
 export async function storeContract(contractName: string): Promise<string> {
   console.log(`[storeContract] - ${contractName}`);
@@ -31,7 +31,7 @@ export async function storeContract(contractName: string): Promise<string> {
   );
   const storeCodeTx = await deployer.createAndSignTx({
     msgs: [storeCode],
-    fee: new StdFee(5000000, { uluna: 20000000 }),
+    fee: new StdFee(5000000, { uluna: 2000000 }),
   });
   const res = await terra.tx.broadcast(storeCodeTx);
   console.log(`[storeContract] - TX Hash: ${res.txhash}`);
@@ -62,7 +62,7 @@ export async function instantiateContract(
 
   const instantiateTx = await deployer.createAndSignTx({
     msgs: [instantiate],
-    fee: new StdFee(5000000, { uluna: 20000000 }),
+    fee: new StdFee(5000000, { uluna: 2000000 }),
   });
 
   const res = await terra.tx.broadcast(instantiateTx);
@@ -126,7 +126,7 @@ export async function executeMany(reqs: Array<[string, any]>): Promise<any> {
 
   const executeTx = await deployer.createAndSignTx({
     msgs,
-    fee: new StdFee(1000000 * msgs.length, { uluna: 20000000 * msgs.length }),
+    fee: new StdFee(100000 * msgs.length, { uluna: 200000 * msgs.length }),
   });
 
   const res = await terra.tx.broadcast(executeTx);
@@ -155,7 +155,7 @@ export async function executeContract(
 
   const executeTx = await deployer.createAndSignTx({
     msgs,
-    fee: new StdFee(1000000, { uluna: 30000000 }),
+    fee: new StdFee(2000000, { uluna: 3000000 }),
   });
 
   const res = await terra.tx.broadcast(executeTx);

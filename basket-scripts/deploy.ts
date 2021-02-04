@@ -2,7 +2,6 @@ import {
   storeContract,
   instantiateTokenContract,
   instantiateContract,
-  terra,
   deployer,
   executeContract,
   Oracle,
