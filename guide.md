@@ -60,10 +60,10 @@ notice oak worry limit wrap speak medal online prefer cluster roof addict wrist 
 
 Your testing user (will perform main operations against)
 
-`terra1jv74a5jkajmdhr38rm9nz3s84c46xutl2prytc`
+`terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v`
 
 #### Mnemonic
 
 ```
-essence husband mutual devote rebuild plug fantasy lazy balance reduce mixed artefact topic cotton butter mandate bitter stable useful present walk admit churn vanish
+notice oak worry limit wrap speak medal online prefer cluster roof addict wrist behave treat actual wasp year salad speed social layer crew genius
 ```
