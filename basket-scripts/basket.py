@@ -1,3 +1,6 @@
+from terra_sdk.core.wasm import dict_to_b64
+
+
 class Oracle:
     @staticmethod
     def set_prices(prices):

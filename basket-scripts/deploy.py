@@ -21,11 +21,10 @@ from terra_sdk.core.wasm import (
     MsgStoreCode,
     MsgInstantiateContract,
     MsgExecuteContract,
-    dict_to_b64,
 )
 from terra_sdk.util.contract import get_code_id, get_contract_address, read_file_as_b64
 
-from .basket import Oracle, Basket, CW20
+from basket import Oracle, Basket, CW20
 
 # If True, use localterra. Otherwise, deploys on Tequila
 USE_LOCALTERRA = False
@@ -333,11 +332,18 @@ def deploy():
     result = execute_contract(
         deployer,
         basket_token,
-        CW20.send(basket, "1000000", Basket.burn()),
+        CW20.send(
+            basket, "10000000000", Basket.burn([1, 2, 1, 8, 7])
+        ),  # asset weights must be integers
         seq(),
-        fee=StdFee(4000000, "20000000uluna"),  # burning probably requires gas > 3000000
+        fee=StdFee(
+            4000000, "20000000uluna"
+        ),  # burning may require a lot of gas if there are a lot of assets
     )
-    print(f"stage & mint TXHASH: {burn.txhash}")
+    print(f"burn TXHASH: {result.txhash}")
+
+    ### EXAMPLE: getting event logs
+    print(result.logs[0].events_by_type)
 
     print(
         terra.wasm.contract_query(
