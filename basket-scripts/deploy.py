@@ -1,5 +1,22 @@
+"""Sample deploy script.
+
+NOTE: Normally, we can use fee estimation in Tequila, as well as rely on Wallet to auto
+fetch the sequence number from the blockchain. Here, we have manual options for sequence
+number and fee.
+
+Why manually incrementing sequence number: tequila endpoint is load-balanced so in successive
+transactions, the nodes may not have had time to catch up to each other, which may result
+in a signature (chain id, account, sequence) mismatch.
+
+Why manually setting fee: tequila node allows simulating (auto-estimating) fee up to
+3000000 gas. Some transactions such as code uploads and burning basket token (which
+incurs multiple CW20 transfers to the user may require more gas than permitted by the
+fee estimation feature).
+"""
+
 from terra_sdk.client.lcd import LCDClient
 from terra_sdk.client.localterra import LocalTerra
+from terra_sdk.core.auth import StdFee
 from terra_sdk.core.wasm import (
     MsgStoreCode,
     MsgInstantiateContract,
@@ -9,7 +26,7 @@ from terra_sdk.core.wasm import (
 from terra_sdk.util.contract import get_code_id, get_contract_address, read_file_as_b64
 
 # If True, use localterra. Otherwise, deploys on Tequila
-USE_LOCALTERRA = True
+USE_LOCALTERRA = False
 
 lt = LocalTerra()
 
@@ -17,31 +34,62 @@ if USE_LOCALTERRA:
     terra = lt
     deployer = lt.wallets["test1"]
 else:
-    terra = LCDClient("https://tequila-fcd.terra.dev", "tequila-0004")
+    gas_prices = {
+        "uluna": "0.15",
+        "usdr": "0.1018",
+        "uusd": "0.15",
+        "ukrw": "178.05",
+        "umnt": "431.6259",
+        "ueur": "0.125",
+        "ucny": "0.97",
+        "ujpy": "16",
+        "ugbp": "0.11",
+        "uinr": "11",
+        "ucad": "0.19",
+        "uchf": "0.13",
+        "uaud": "0.19",
+        "usgd": "0.2",
+    }
+
+    terra = LCDClient(
+        "https://tequila-fcd.terra.dev", "tequila-0004", gas_prices=gas_prices
+    )
     deployer = terra.wallet(lt.wallets["test1"].key)
 
+print(f"DEPLOYING WITH ACCCOUNT: {deployer.key.acc_address}")
 
-def store_contract(contract_name):
+
+def store_contract(contract_name, sequence):
     contract_bytes = read_file_as_b64(f"../artifacts/{contract_name}.wasm")
     store_code = MsgStoreCode(deployer.key.acc_address, contract_bytes)
-    store_code_tx = deployer.create_and_sign_tx(msgs=[store_code])
+    store_code_tx = deployer.create_and_sign_tx(
+        msgs=[store_code], fee=StdFee(5000000, "2000000uluna"), sequence=sequence
+    )
     result = terra.tx.broadcast(store_code_tx)
+    if result.is_tx_error():
+        print(result.raw_log)
     return get_code_id(result)
 
 
-def instantiate_contract(code_id, init_msg):
+def instantiate_contract(code_id, init_msg, sequence):
     instantiate = MsgInstantiateContract(deployer.key.acc_address, code_id, init_msg)
-    instantiate_tx = deployer.create_and_sign_tx(msgs=[instantiate])
+    instantiate_tx = deployer.create_and_sign_tx(
+        msgs=[instantiate], sequence=sequence, denoms=["uluna"]
+    )
     result = terra.tx.broadcast(instantiate_tx)
+    if result.is_tx_error():
+        print(result.raw_log)
     return get_contract_address(result)
 
 
-def execute_contract(wallet, contract_address, execute_msg):
+def execute_contract(wallet, contract_address, execute_msg, sequence, fee=None):
     execute = MsgExecuteContract(wallet.key.acc_address, contract_address, execute_msg)
-
-    execute_tx = wallet.create_and_sign_tx(msgs=[execute])
-
+    execute_tx = wallet.create_and_sign_tx(
+        msgs=[execute], sequence=sequence, denoms=["uluna"], fee=fee
+    )
     result = terra.tx.broadcast(execute_tx)
+    if result.is_tx_error():
+        print(result.raw_log)
     return result
 
 
@@ -87,9 +135,24 @@ class Basket:
         return {"burn": {"asset_weights": asset_weights}}
 
 
-token_code_id = store_contract("terraswap_token")
-oracle_code_id = store_contract("basket_dummy_oracle")
-basket_code_id = store_contract("basket_contract")
+sequence = deployer.sequence()
+
+
+def seq():
+    """Increments global sequence."""
+    global sequence
+    sequence += 1
+    return sequence - 1
+
+
+print(f"[main] - store terraswap_token")
+token_code_id = store_contract("terraswap_token", seq())
+
+print(f"[main] - store basket_dummy_oracle")
+oracle_code_id = store_contract("basket_dummy_oracle", seq())
+
+print(f"[main] - store basket_contract")
+basket_code_id = store_contract("basket_contract", seq())
 
 # wrapped bitcoin
 print(f"[main] - instantiate wBTC")
@@ -104,6 +167,7 @@ wBTC = instantiate_contract(
         ],
         "mint": None,
     },
+    seq(),
 )
 
 # wrapped ether
@@ -119,6 +183,7 @@ wETH = instantiate_contract(
         ],
         "mint": None,
     },
+    seq(),
 )
 
 # wrapped ripple
@@ -134,6 +199,7 @@ wXRP = instantiate_contract(
         ],
         "mint": None,
     },
+    seq(),
 )
 
 # wrapped luna
@@ -149,6 +215,7 @@ wLUNA = instantiate_contract(
         ],
         "mint": None,
     },
+    seq(),
 )
 
 # mirror token
@@ -164,11 +231,12 @@ MIR = instantiate_contract(
         ],
         "mint": None,
     },
+    seq(),
 )
 
 # instantiate oracle
 print(f"[main] - instantiate oracle")
-oracle = instantiate_contract(oracle_code_id, {})
+oracle = instantiate_contract(oracle_code_id, {}, seq())
 
 # instantiate basket
 print(f"[main] - instantiate basket")
@@ -187,6 +255,7 @@ basket = instantiate_contract(
         },
         "target": [10, 20, 15, 30, 25],
     },
+    seq(),
 )
 
 # instantiate basket token
@@ -202,11 +271,12 @@ basket_token = instantiate_contract(
         ],
         "mint": {"minter": basket, "cap": None},
     },
+    seq(),
 )
 
 # set basket token
 print(f"[main] - set basket token")
-execute_contract(deployer, basket, Basket.set_basket_token(basket_token))
+execute_contract(deployer, basket, Basket.set_basket_token(basket_token), seq())
 
 # set oracle prices
 print(f"[main] - set oracle prices")
@@ -222,33 +292,43 @@ execute_contract(
             [MIR, "5.06"],
         ]
     ),
+    seq(),
 )
 
 total = 5000000
 amount_wBTC = get_amount(total * 0.08, "30000.0")
-print(f"[main] - give initial balance of wBTC {amount_wBTC}")
-execute_contract(deployer, wBTC, CW20.transfer(basket, amount_wBTC))
-
 amount_wETH = get_amount(total * 0.18, "1500.0")
-print(f"[main] - give initial balance of wETH {amount_wETH}")
-execute_contract(deployer, wETH, CW20.transfer(basket, amount_wETH))
-
 amount_wXRP = get_amount(total * 0.2, "0.45")
-print(f"[main] - give initial balance of wXRP {amount_wXRP}")
-execute_contract(deployer, wXRP, CW20.transfer(basket, amount_wXRP))
-
 amount_wLUNA = get_amount(total * 0.2, "2.1")
-print(f"[main] - give initial balance of wLUNA {amount_wLUNA}")
-execute_contract(deployer, wXRP, CW20.transfer(basket, amount_wLUNA))
-
 amount_MIR = get_amount(total * 0.2, "5.06")
-print(f"[main] - give initial balance of MIR {amount_MIR}")
-execute_contract(deployer, wXRP, CW20.transfer(basket, amount_MIR))
+print(
+    f"[main] - give initial balances wBTC {amount_wBTC} wETH {amount_wETH} wXRP {amount_wXRP} wLUNA {amount_wLUNA} MIR {amount_MIR}"
+)
+initial_balances_tx = deployer.create_and_sign_tx(
+    msgs=[
+        MsgExecuteContract(
+            deployer.key.acc_address, wBTC, CW20.transfer(basket, amount_wBTC)
+        ),
+        MsgExecuteContract(
+            deployer.key.acc_address, wETH, CW20.transfer(basket, amount_wETH)
+        ),
+        MsgExecuteContract(
+            deployer.key.acc_address, wXRP, CW20.transfer(basket, amount_wXRP)
+        ),
+        MsgExecuteContract(
+            deployer.key.acc_address, wLUNA, CW20.transfer(basket, amount_wLUNA)
+        ),
+        MsgExecuteContract(
+            deployer.key.acc_address, MIR, CW20.transfer(basket, amount_MIR)
+        ),
+    ],
+    sequence=seq(),
+    fee=StdFee(4000000, "2000000uluna"),
+)
 
+result = terra.tx.broadcast(initial_balances_tx)
 
-print("[main] - basket:burn")
-execute_contract(deployer, MIR, CW20.transfer(basket, get_amount(total * 0.22, "5.06")))
-
+### EXAMPLE: how to stage and mint
 print("[main] - basket:stage_asset + basket:mint")
 stage_and_mint_tx = deployer.create_and_sign_tx(
     msgs=[
@@ -267,16 +347,39 @@ stage_and_mint_tx = deployer.create_and_sign_tx(
             basket,
             Basket.mint(["1000000", "0", "0", "4000000000", "0"]),
         ),
-    ]
+    ],
+    sequence=seq(),
+    fee=StdFee(4000000, "2000000uluna"),
 )
 
 result = terra.tx.broadcast(stage_and_mint_tx)
 
-print("[main] - basket:burn")
-burn = execute_contract(
-    deployer, basket_token, CW20.send(basket, "10000000", Basket.burn([1, 1, 1, 9, 2]))
+### EXAMPLE: how to query
+print(
+    terra.wasm.contract_query(
+        basket_token, {"balance": {"address": deployer.key.acc_address}}
+    )
 )
 
+### EXAMPLE: how to burn
+print("[main] - basket:burn")
+burn = execute_contract(
+    deployer,
+    basket_token,
+    CW20.send(basket, "1000000", Basket.burn()),
+    seq(),
+    fee=StdFee(4000000, "20000000uluna"),  # burning probably requires gas > 3000000
+)
+
+print(burn.txhash)
+
+print(
+    terra.wasm.contract_query(
+        basket_token, {"balance": {"address": deployer.key.acc_address}}
+    )
+)
+
+### EXAMPLE: how to query basket state
 print(
     terra.wasm.contract_query(
         basket, {"basket_state": {"basket_contract_address": basket}}
