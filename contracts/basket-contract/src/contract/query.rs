@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    to_binary, Api, Binary, Extern, HumanAddr, Querier, StdResult, Storage, Uint128,
+    to_binary, Api, Binary, Extern, HumanAddr, Querier, StdResult, Storage, Uint128, StdError
 };
 
 use crate::ext_query::{query_cw20_balance, query_cw20_token_supply, query_price};
@@ -56,9 +56,11 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
 
     let penalty_params = cfg.penalty_params;
 
+    let basket_token = &cfg.basket_token.clone().ok_or_else(|| StdError::generic_err("no basket token exists"))?;
+
     // get supply from basket token
     let outstanding_balance_tokens =
-        query_cw20_token_supply(&deps, &cfg.basket_token.ok_or_else())?;
+        query_cw20_token_supply(&deps, basket_token)?;
 
     // get prices for each asset
     let prices = cfg

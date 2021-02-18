@@ -1,5 +1,5 @@
 use basket_math::FPDecimal;
-use cosmwasm_std::{Decimal, HumanAddr, Uint128};
+use cosmwasm_std::{HumanAddr, Uint128};
 use cw20::Cw20ReceiveMsg;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
