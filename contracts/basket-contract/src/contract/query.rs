@@ -38,3 +38,21 @@ fn query_staged_amount<S: Storage, A: Api, Q: Querier>(
     let staged_amount = read_staged_asset(&deps.storage, account, asset)?;
     Ok(StagedAmountResponse { staged_amount })
 }
+
+pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>
+) -> StdResult<BasketStateResponse> {
+    // penalty parameters
+    // total outstanding basket tokens
+    // oracle prices for all assets (uusd)
+    // total inventory of all
+    // current target weights
+    // block height
+    Ok(BasketState {
+        asset_len: ,
+        asset_token: ,
+        inventory: ,
+        oracle_price: ,
+        target_weight: ,
+    })
+}
