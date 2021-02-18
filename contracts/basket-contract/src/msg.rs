@@ -1,4 +1,5 @@
-use cosmwasm_std::{HumanAddr, Uint128};
+use basket_math::FPDecimal;
+use cosmwasm_std::{Decimal, HumanAddr, Uint128};
 use cw20::Cw20ReceiveMsg;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -81,6 +82,9 @@ pub enum QueryMsg {
         account: HumanAddr,
         asset: HumanAddr,
     },
+    BasketState {
+        basket_contract_address: HumanAddr,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -96,4 +100,13 @@ pub struct TargetResponse {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct StagedAmountResponse {
     pub staged_amount: Uint128,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct BasketStateResponse {
+    pub penalty_params: PenaltyParams,
+    pub outstanding_balance_tokens: Uint128,
+    pub prices: Vec<FPDecimal>,
+    pub inv: Vec<Uint128>,
+    pub target: Vec<u32>,
 }
