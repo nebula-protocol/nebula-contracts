@@ -367,6 +367,7 @@ def deploy():
             "MIR": MIR,
             "oracle": oracle,
             "basket": basket,
+            "basket_token": basket_token,
         }
     )
 
