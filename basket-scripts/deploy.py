@@ -27,7 +27,7 @@ from terra_sdk.util.contract import get_code_id, get_contract_address, read_file
 from basket import Oracle, Basket, CW20
 
 # If True, use localterra. Otherwise, deploys on Tequila
-USE_LOCALTERRA = False
+USE_LOCALTERRA = True
 
 lt = LocalTerra()
 
@@ -333,7 +333,7 @@ def deploy():
         deployer,
         basket_token,
         CW20.send(
-            basket, "10000000000", Basket.burn([1, 2, 1, 8, 7])
+            basket, "10000000000", Basket.burn([1, 2, 1, 0, 7])
         ),  # asset weights must be integers
         seq(),
         fee=StdFee(

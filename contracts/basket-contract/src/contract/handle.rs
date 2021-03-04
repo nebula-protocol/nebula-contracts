@@ -158,6 +158,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     let transfer_msgs: Vec<CosmosMsg> = redeem_totals
         .iter()
         .zip(cfg.assets.iter())
+        .filter(|(amt, asset)| !amt.is_zero()) // remove 0 amounts
         .map(|(amt, asset)| {
             Ok(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: asset.clone(),
