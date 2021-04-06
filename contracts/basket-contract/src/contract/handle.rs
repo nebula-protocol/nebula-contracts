@@ -281,7 +281,7 @@ pub fn try_add_asset_type<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::unauthorized());
     }
 
-    if !cfg.assets.iter().any(|asset| asset == new_asset) {
+    if cfg.assets.iter().any(|asset| asset == new_asset) {
         return Err(error::existing_asset(sent_asset));
     }
 
