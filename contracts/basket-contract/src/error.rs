@@ -18,6 +18,13 @@ pub fn not_component_asset(asset: &HumanAddr) -> StdError {
     ))
 }
 
+pub fn existing_asset(asset: &HumanAddr) -> StdError {
+    StdError::generic_err(format!(
+        "asset {} is already a component asset of basket",
+        asset
+    ))
+}
+
 pub fn insufficient_staged(
     account: &HumanAddr,
     asset: &HumanAddr,

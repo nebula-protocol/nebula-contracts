@@ -17,7 +17,7 @@ use crate::{
 };
 use crate::{
     penalty::{compute_diff, compute_penalty, compute_score},
-    state::save_target,
+    state::{save_target, save_assets},
 };
 use basket_math::{dot, sum, FPDecimal};
 
@@ -37,6 +37,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::_SetBasketToken { basket_token } => {
             try_set_basket_token(deps, env, &basket_token)
         }
+        HandleMsg::AddAssetType {asset} => try_add_asset_type(deps, env, asset),
     }
 }
 
@@ -251,6 +252,43 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
 
     let prev_target = read_target(&deps.storage)?;
     save_target(&mut deps.storage, target)?;
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![
+            log("action", "reset_target"),
+            log("prev_target", vec_to_string(&prev_target)),
+            log("new_target", vec_to_string(&target)),
+        ],
+        data: None,
+    })
+}
+
+
+/// May be called by the Basket contract owner to add a new asset
+pub fn try_add_asset_type<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    new_asset: HumanAddr,
+) -> StdResult<HandleResponse> {
+    let cfg = read_config(&deps.storage)?;
+    if let None = cfg.basket_token {
+        return Err(error::basket_token_not_set());
+    }
+
+    // check permission
+    if env.message.sender != cfg.owner {
+        return Err(StdError::unauthorized());
+    }
+
+    if !cfg.assets.iter().any(|asset| asset == new_asset) {
+        return Err(error::existing_asset(sent_asset));
+    }
+
+    let prev_assets = cfg.assets;
+    let new_assets = cfg.assets.clone();
+    new_assets.push(new_asset);
+    save_assets(&mut deps.storage, new_assets)?;
 
     Ok(HandleResponse {
         messages: vec![],

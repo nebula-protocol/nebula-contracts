@@ -58,6 +58,10 @@ pub enum HandleMsg {
         /// Minimum tokens to receive
         min_tokens: Option<Uint128>,
     },
+
+    AddAssetType {
+        asset: HumanAddr,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

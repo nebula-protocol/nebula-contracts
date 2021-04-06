@@ -11,6 +11,9 @@ pub static CONFIG_KEY: &[u8] = b"config";
 /// target: Vec<u32>
 pub static TARGET_KEY: &[u8] = b"target";
 
+/// asset: Vec<HumanAddr>
+pub static ASSETS_KEY: &[u8] = b"assets";
+
 /// staging: Map<asset: HumanAddr, Map<account: HumanAddr, staged_amount: Uint128>>
 pub static PREFIX_STAGING: &[u8] = b"staging";
 
@@ -46,6 +49,10 @@ pub fn read_target<S: Storage>(storage: &S) -> StdResult<Vec<u32>> {
 
 pub fn save_target<S: Storage>(storage: &mut S, target: &Vec<u32>) -> StdResult<()> {
     singleton(storage, TARGET_KEY).save(target)
+}
+
+pub fn save_assets<S: Storage>(storage: &mut S, assets: &Vec<HumanAddr>) -> StdResult<()> {
+    singleton(storage, ASSETS_KEY).save(assets)
 }
 
 pub fn read_staged_asset<S: Storage>(
