@@ -14,7 +14,6 @@ pub static TARGET_KEY: &[u8] = b"target";
 /// asset data: Vec<AssetData>
 pub static ASSET_DATA_KEY: &[u8] = b"asset_data";
 
-
 /// asset: Vec<HumanAddr>
 pub static ASSETS_KEY: &[u8] = b"assets";
 
@@ -27,12 +26,11 @@ pub struct BasketConfig {
     pub owner: HumanAddr,
     pub basket_token: Option<HumanAddr>,
     pub oracle: HumanAddr,
-    pub assets: Vec<HumanAddr>,
     pub penalty_params: PenaltyParams,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct AssetData {
+pub struct TargetAssetData {
     pub asset: HumanAddr,
     pub target: u32,
 }
@@ -53,11 +51,14 @@ pub fn save_config<S: Storage>(storage: &mut S, config: &BasketConfig) -> StdRes
     singleton(storage, CONFIG_KEY).save(config)
 }
 
-pub fn read_asset_data<S: Storage>(storage: &S) -> StdResult<Vec<AssetData>> {
+pub fn read_target_asset_data<S: Storage>(storage: &S) -> StdResult<Vec<TargetAssetData>> {
     singleton_read(storage, ASSET_DATA_KEY).load()
 }
 
-pub fn save_asset_data<S: Storage>(storage: &mut S, asset_data: &Vec<AssetData>) -> StdResult<()> {
+pub fn save_target_asset_data<S: Storage>(
+    storage: &mut S,
+    asset_data: &Vec<TargetAssetData>,
+) -> StdResult<()> {
     singleton(storage, ASSET_DATA_KEY).save(asset_data)
 }
 
@@ -67,10 +68,6 @@ pub fn read_target<S: Storage>(storage: &S) -> StdResult<Vec<u32>> {
 
 pub fn save_target<S: Storage>(storage: &mut S, target: &Vec<u32>) -> StdResult<()> {
     singleton(storage, TARGET_KEY).save(target)
-}
-
-pub fn save_assets<S: Storage>(storage: &mut S, assets: &Vec<HumanAddr>) -> StdResult<()> {
-    singleton(storage, ASSETS_KEY).save(assets)
 }
 
 pub fn read_staged_asset<S: Storage>(

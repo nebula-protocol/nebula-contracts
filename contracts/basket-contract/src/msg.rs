@@ -59,7 +59,6 @@ pub enum HandleMsg {
         /// Minimum tokens to receive
         min_tokens: Option<Uint128>,
     },
-
     // AddAssetType {
     //     asset: HumanAddr,
     // },

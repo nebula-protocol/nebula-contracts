@@ -1,6 +1,6 @@
 use crate::{error, msg::InitMsg, state::PenaltyParams};
 use crate::{
-    state::{save_config, save_target, save_asset_data, BasketConfig, AssetData},
+    state::{save_config, save_target_asset_data, BasketConfig, TargetAssetData},
     util::vec_to_string,
 };
 use cosmwasm_std::{log, Api, Env, Extern, InitResponse, Querier, StdResult, Storage};
@@ -23,19 +23,17 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         owner: msg.owner.clone(),
         basket_token: msg.basket_token,
         oracle: msg.oracle.clone(),
-        assets: msg.assets.clone(),
         penalty_params: msg.penalty_params,
     };
-
 
     // TODO: See if we need clone here
     let assets = msg.assets.clone();
     let target = msg.target.clone();
 
     // TODO: Consider renaming struct name
-    let mut asset_data: Vec<AssetData> = Vec::new();
+    let mut asset_data: Vec<TargetAssetData> = Vec::new();
     for i in 0..msg.target.len() {
-        let asset_elem = AssetData {
+        let asset_elem = TargetAssetData {
             asset: assets[i].clone(),
             target: target[i].clone(),
         };
@@ -43,8 +41,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     }
 
     save_config(&mut deps.storage, &cfg)?;
-    save_asset_data(&mut deps.storage, &asset_data)?;
-    save_target(&mut deps.storage, &msg.target)?;
+    save_target_asset_data(&mut deps.storage, &asset_data)?;
 
     let PenaltyParams {
         a_pos,

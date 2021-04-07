@@ -8,7 +8,8 @@ use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
 use crate::error;
 use crate::ext_query::{query_cw20_balance, query_cw20_token_supply, query_price};
 use crate::state::{
-    read_config, read_target, save_config, stage_asset, unstage_asset, PenaltyParams, AssetData
+    read_config, save_config, stage_asset, unstage_asset, PenaltyParams,
+    TargetAssetData,
 };
 use crate::util::{fpdec_to_int, int_to_fpdec, vec_to_string};
 use crate::{
@@ -17,7 +18,7 @@ use crate::{
 };
 use crate::{
     penalty::{compute_diff, compute_penalty, compute_score},
-    state::{save_target, save_assets, save_asset_data, read_asset_data},
+    state::{read_target_asset_data, save_target_asset_data},
 };
 use basket_math::{dot, sum, FPDecimal};
 
@@ -36,8 +37,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::ResetTarget { assets, target } => try_reset_target(deps, env, &assets, &target),
         HandleMsg::_SetBasketToken { basket_token } => {
             try_set_basket_token(deps, env, &basket_token)
-        }
-        // HandleMsg::AddAssetType {asset} => try_add_asset_type(deps, env, asset),
+        } // HandleMsg::AddAssetType {asset} => try_add_asset_type(deps, env, asset),
     }
 }
 
@@ -78,6 +78,16 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         .clone()
         .ok_or_else(|| error::basket_token_not_set())?;
 
+    let target_asset_data = read_target_asset_data(&deps.storage)?;
+    let assets = target_asset_data
+        .iter()
+        .map(|x| x.asset.clone())
+        .collect::<Vec<_>>();
+    let target = target_asset_data
+        .iter()
+        .map(|x| x.target)
+        .collect::<Vec<_>>();
+
     // require that origin contract from Receive Hook is the associated Basket Token
     if *sent_asset != basket_token {
         return Err(StdError::unauthorized());
@@ -93,8 +103,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         send: vec![],
     });
 
-    let inv: Vec<FPDecimal> = cfg
-        .assets
+    let inv: Vec<FPDecimal> = assets
         .iter()
         .map(|asset| int_to_fpdec(query_cw20_balance(&deps, &asset, &env.contract.address)?))
         .collect::<StdResult<Vec<FPDecimal>>>()?;
@@ -119,8 +128,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
                 .map(|&x| FPDecimal::from(x) / weights_sum)
                 .collect();
 
-            let prices: Vec<FPDecimal> = cfg
-                .assets
+            let prices: Vec<FPDecimal> = assets
                 .iter()
                 .map(|asset| query_price(&deps, &cfg.oracle, &asset))
                 .collect::<StdResult<Vec<FPDecimal>>>()?;
@@ -130,7 +138,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
             let neg_b: Vec<FPDecimal> = b.iter().map(|&x| FPDecimal::one().mul(-1) * x).collect();
 
             // compute score
-            let diff = compute_diff(&inv, &neg_b, &prices, &read_target(&deps.storage)?);
+            let diff = compute_diff(&inv, &neg_b, &prices, &target);
             let score = (sum(&diff) / dot(&b, &prices)).div(2);
 
             let PenaltyParams {
@@ -158,7 +166,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
 
     let transfer_msgs: Vec<CosmosMsg> = redeem_totals
         .iter()
-        .zip(cfg.assets.iter())
+        .zip(assets.iter())
         .filter(|(amt, asset)| !amt.is_zero()) // remove 0 amounts
         .map(|(amt, asset)| {
             Ok(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -210,8 +218,14 @@ pub fn try_receive_stage_asset<S: Storage, A: Api, Q: Querier>(
         return Err(error::basket_token_not_set());
     }
 
+    let target_asset_data = read_target_asset_data(&deps.storage)?;
+    let assets = target_asset_data
+        .iter()
+        .map(|x| x.asset.clone())
+        .collect::<Vec<_>>();
+
     // if sent asset is not a component asset of basket, reject
-    if !cfg.assets.iter().any(|asset| asset == sent_asset) {
+    if !assets.iter().any(|asset| asset == sent_asset) {
         return Err(error::not_component_asset(sent_asset));
     }
 
@@ -230,7 +244,7 @@ pub fn try_receive_stage_asset<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S,A,Q>,
+    deps: &mut Extern<S, A, Q>,
     env: Env,
     assets: &Vec<HumanAddr>,
     target: &Vec<u32>,
@@ -244,24 +258,23 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::unauthorized());
     }
 
-
-    //TODO: Make sure all assets in new asset vector actually exist 
+    //TODO: Make sure all assets in new asset vector actually exist
     //TODO: Make sure sum(targets) = 1
 
     if target.len() != assets.len() {
         return Err(error::bad_weight_dimensions(target.len(), assets.len()));
     }
-    let mut asset_data: Vec<AssetData> = Vec::new();
+    let mut asset_data: Vec<TargetAssetData> = Vec::new();
     for i in 0..target.len() {
-        let asset_elem = AssetData {
+        let asset_elem = TargetAssetData {
             asset: assets[i].clone(),
             target: target[i].clone(),
         };
         asset_data.push(asset_elem);
     }
 
-    let prev_asset_data = read_asset_data(&deps.storage)?;
-    save_asset_data(&mut deps.storage, &asset_data)?;
+    let prev_asset_data = read_target_asset_data(&deps.storage)?;
+    save_target_asset_data(&mut deps.storage, &asset_data)?;
 
     // TODO: Logs
     Ok(HandleResponse {
@@ -274,7 +287,6 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
         data: None,
     })
 }
-
 
 /// May be called by the Basket contract owner to reset the target
 // pub fn try_reset_target_bad<S: Storage, A: Api, Q: Querier>(
@@ -310,7 +322,6 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
 //         data: None,
 //     })
 // }
-
 
 // TODO: Fix this up
 // May be called by the Basket contract owner to add a new asset
@@ -388,14 +399,22 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     min_tokens: &Option<Uint128>,
 ) -> StdResult<HandleResponse> {
     let cfg = read_config(&deps.storage)?;
-    let target = read_target(&deps.storage)?;
+    let target_asset_data = read_target_asset_data(&deps.storage)?;
+    let assets = target_asset_data
+        .iter()
+        .map(|x| x.asset.clone())
+        .collect::<Vec<_>>();
+    let target = target_asset_data
+        .iter()
+        .map(|x| x.target)
+        .collect::<Vec<_>>();
     let basket_token = cfg
         .basket_token
         .clone()
         .ok_or_else(|| error::basket_token_not_set())?;
 
     // ensure that all tokens in asset_amounts have been staged beforehand
-    for (asset, amount) in cfg.assets.iter().zip(asset_amounts) {
+    for (asset, amount) in assets.iter().zip(asset_amounts) {
         let staged = read_staged_asset(&deps.storage, &env.message.sender, asset)?;
         //println!("asset {} amount {} staged {}", asset, amount, staged);
         if *amount > staged {
@@ -414,15 +433,13 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         .collect::<StdResult<Vec<FPDecimal>>>()?;
 
     // get current balances of each token (inventory)
-    let inv: Vec<FPDecimal> = cfg
-        .assets
+    let inv: Vec<FPDecimal> = assets
         .iter()
         .map(|asset| int_to_fpdec(query_cw20_balance(&deps, &asset, &env.contract.address)?))
         .collect::<StdResult<Vec<FPDecimal>>>()?;
 
     // get current prices of each token via oracle
-    let prices: Vec<FPDecimal> = cfg
-        .assets
+    let prices: Vec<FPDecimal> = assets
         .iter()
         .map(|asset| query_price(&deps, &cfg.oracle, &asset))
         .collect::<StdResult<Vec<FPDecimal>>>()?;
@@ -483,9 +500,13 @@ pub fn try_unstage_asset<S: Storage, A: Api, Q: Querier>(
     amount: &Option<Uint128>,
 ) -> StdResult<HandleResponse> {
     let cfg = read_config(&deps.storage)?;
-
+    let target_asset_data = read_target_asset_data(&deps.storage)?;
+    let assets = target_asset_data
+        .iter()
+        .map(|x| x.asset.clone())
+        .collect::<Vec<_>>();
     // if sent asset is not a component asset of basket, reject
-    if !cfg.assets.iter().any(|x| asset == x) {
+    if !assets.iter().any(|x| asset == x) {
         return Err(error::not_component_asset(asset));
     }
 
