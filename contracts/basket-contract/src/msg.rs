@@ -48,6 +48,7 @@ pub enum HandleMsg {
 
     /// Can be called by the owner to reset the basket weight target
     ResetTarget {
+        assets: Vec<HumanAddr>,
         target: Vec<u32>,
     },
 
@@ -59,9 +60,9 @@ pub enum HandleMsg {
         min_tokens: Option<Uint128>,
     },
 
-    AddAssetType {
-        asset: HumanAddr,
-    },
+    // AddAssetType {
+    //     asset: HumanAddr,
+    // },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

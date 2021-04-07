@@ -11,6 +11,10 @@ pub static CONFIG_KEY: &[u8] = b"config";
 /// target: Vec<u32>
 pub static TARGET_KEY: &[u8] = b"target";
 
+/// asset data: Vec<AssetData>
+pub static ASSET_DATA_KEY: &[u8] = b"asset_data";
+
+
 /// asset: Vec<HumanAddr>
 pub static ASSETS_KEY: &[u8] = b"assets";
 
@@ -27,6 +31,12 @@ pub struct BasketConfig {
     pub penalty_params: PenaltyParams,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct AssetData {
+    pub asset: HumanAddr,
+    pub target: u32,
+}
+
 #[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq, JsonSchema)]
 pub struct PenaltyParams {
     pub a_pos: FPDecimal,
@@ -41,6 +51,14 @@ pub fn read_config<S: Storage>(storage: &S) -> StdResult<BasketConfig> {
 
 pub fn save_config<S: Storage>(storage: &mut S, config: &BasketConfig) -> StdResult<()> {
     singleton(storage, CONFIG_KEY).save(config)
+}
+
+pub fn read_asset_data<S: Storage>(storage: &S) -> StdResult<Vec<AssetData>> {
+    singleton_read(storage, ASSET_DATA_KEY).load()
+}
+
+pub fn save_asset_data<S: Storage>(storage: &mut S, asset_data: &Vec<AssetData>) -> StdResult<()> {
+    singleton(storage, ASSET_DATA_KEY).save(asset_data)
 }
 
 pub fn read_target<S: Storage>(storage: &S) -> StdResult<Vec<u32>> {
