@@ -8,8 +8,7 @@ use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
 use crate::error;
 use crate::ext_query::{query_cw20_balance, query_cw20_token_supply, query_price};
 use crate::state::{
-    read_config, save_config, stage_asset, unstage_asset, PenaltyParams,
-    TargetAssetData,
+    read_config, save_config, stage_asset, unstage_asset, PenaltyParams, TargetAssetData,
 };
 use crate::util::{fpdec_to_int, int_to_fpdec, vec_to_string};
 use crate::{
@@ -273,7 +272,19 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
         asset_data.push(asset_elem);
     }
 
+    let updated_assets = asset_data
+        .iter()
+        .map(|x| x.asset.clone())
+        .collect::<Vec<_>>();
+    let updated_target = asset_data.iter().map(|x| x.target).collect::<Vec<_>>();
+
     let prev_asset_data = read_target_asset_data(&deps.storage)?;
+    let prev_assets = prev_asset_data
+        .iter()
+        .map(|x| x.asset.clone())
+        .collect::<Vec<_>>();
+    let prev_target = prev_asset_data.iter().map(|x| x.target).collect::<Vec<_>>();
+
     save_target_asset_data(&mut deps.storage, &asset_data)?;
 
     // TODO: Logs
@@ -281,8 +292,10 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
         messages: vec![],
         log: vec![
             log("action", "reset_target"),
-            // log("prev_asset_data", vec_to_string(&prev_asset_data)),
-            // log("new_asset_data", vec_to_string(&asset_data)),
+            log("prev_assets", vec_to_string(&prev_assets)),
+            log("prev_targets", vec_to_string(&prev_target)),
+            log("updated_assets", vec_to_string(&updated_assets)),
+            log("updated_targets", vec_to_string(&updated_target)),
         ],
         data: None,
     })
@@ -649,5 +662,31 @@ mod tests {
             println!("{}: {}", log.key, log.value);
         }
         assert_eq!(5, res.messages.len());
+    }
+
+    #[test]
+    fn reset_target() {
+        let (mut deps, _init_res) = mock_init();
+        mock_querier_setup(&mut deps);
+
+        deps.querier
+            .set_token_supply(consts::basket_token(), 100_000_000)
+            .set_token_balance(consts::basket_token(), "addr0000", 20_000_000);
+
+        let new_assets = vec![h("mAAPL"), h("mGOOG"), h("mMSFT"), h("mNFLX"), h("GME")];
+        let new_targets: Vec<u32> = vec![10, 5, 30, 5, 50];
+
+        let msg = HandleMsg::ResetTarget {
+            assets: new_assets.clone(),
+            target: new_targets.clone(),
+        };
+
+        let env = mock_env(consts::owner(), &[]);
+        let res = handle(&mut deps, env, msg).unwrap();
+
+        for log in res.log.iter() {
+            println!("{}: {}", log.key, log.value);
+        }
+        assert_eq!(0, res.messages.len());
     }
 }
