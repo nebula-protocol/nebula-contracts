@@ -29,7 +29,9 @@ from basket import Oracle, Basket, CW20
 # If True, use localterra. Otherwise, deploys on Tequila
 USE_LOCALTERRA = True
 
-lt = LocalTerra()
+lt = LocalTerra(gas_prices = {
+        "uluna": "0.15"
+    })
 
 if USE_LOCALTERRA:
     terra = lt
@@ -73,7 +75,7 @@ def store_contract(contract_name, sequence):
 def instantiate_contract(code_id, init_msg, sequence):
     instantiate = MsgInstantiateContract(deployer.key.acc_address, code_id, init_msg)
     instantiate_tx = deployer.create_and_sign_tx(
-        msgs=[instantiate], sequence=sequence, denoms=["uluna"]
+        msgs=[instantiate], sequence=sequence, fee_denoms=["uluna"]
     )
     result = terra.tx.broadcast(instantiate_tx)
     if result.is_tx_error():
@@ -84,7 +86,7 @@ def instantiate_contract(code_id, init_msg, sequence):
 def execute_contract(wallet, contract_address, execute_msg, sequence, fee=None):
     execute = MsgExecuteContract(wallet.key.acc_address, contract_address, execute_msg)
     execute_tx = wallet.create_and_sign_tx(
-        msgs=[execute], sequence=sequence, denoms=["uluna"], fee=fee
+        msgs=[execute], sequence=sequence, fee_denoms=["uluna"], fee=fee
     )
     result = terra.tx.broadcast(execute_tx)
     if result.is_tx_error():
