@@ -200,6 +200,22 @@ def deploy():
         seq(),
     )
 
+    # ANC token
+    print(f"[deploy] - instantiate ANC")
+    ANC = instantiate_contract(
+        token_code_id,
+        {
+            "name": "Anchor Token",
+            "symbol": "ANC",
+            "decimals": 6,
+            "initial_balances": [
+                {"address": deployer.key.acc_address, "amount": "1000000000000"}
+            ],
+            "mint": None,
+        },
+        seq(),
+    )
+
     # instantiate oracle
     print(f"[deploy] - instantiate oracle")
     oracle = instantiate_contract(oracle_code_id, {}, seq())
@@ -256,6 +272,7 @@ def deploy():
                 [wXRP, "0.45"],
                 [wLUNA, "2.1"],
                 [MIR, "5.06"],
+                [ANC, "3.18"],
             ]
         ),
         seq(),
@@ -354,7 +371,30 @@ def deploy():
     )
 
     ### EXAMPLE: how to query basket state
-    print(
+    print("query basket state ",
+        terra.wasm.contract_query(
+            basket, {"basket_state": {"basket_contract_address": basket}}
+        )
+    )
+
+    ### EXAMPLE: how to reset basket composition
+    print("[deploy] - basket: reset_target")
+
+    result = execute_contract(
+        deployer,
+        basket,
+        Basket.reset_target([wBTC, wETH, wXRP, wLUNA, MIR, ANC], [10, 20, 15, 20, 20, 15]),
+        seq(),
+        fee=StdFee(
+            4000000, "20000000uluna"
+        ),  # burning may require a lot of gas if there are a lot of assets
+    )
+    print(f"reset contract TXHASH: {result.txhash}")
+
+    ### EXAMPLE: getting event logs
+    print("logs from reset target", result.logs[0].events_by_type)
+
+    print("query new basket state ",
         terra.wasm.contract_query(
             basket, {"basket_state": {"basket_contract_address": basket}}
         )

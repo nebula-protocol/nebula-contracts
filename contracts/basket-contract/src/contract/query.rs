@@ -91,12 +91,17 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         .iter()
         .map(|x| x.target)
         .collect::<Vec<_>>();
+    let assets = target_asset_data
+        .iter()
+        .map(|x| x.asset.clone())
+        .collect::<Vec<_>>();
 
     Ok(BasketStateResponse {
         penalty_params,
         outstanding_balance_tokens,
         prices,
         inv,
+        assets,
         target,
     })
 }

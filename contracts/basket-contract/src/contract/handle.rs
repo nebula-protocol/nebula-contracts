@@ -4,6 +4,7 @@ use cosmwasm_std::{
 };
 
 use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
+use error::bad_weight_values;
 
 use crate::error;
 use crate::ext_query::{query_cw20_balance, query_cw20_token_supply, query_price};
@@ -258,7 +259,10 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     }
 
     //TODO: Make sure all assets in new asset vector actually exist
-    //TODO: Make sure sum(targets) = 1
+    let provided: u32 = target.clone().iter().sum();
+    if provided != 100 {
+        return Err(bad_weight_values(provided));
+    }
 
     if target.len() != assets.len() {
         return Err(error::bad_weight_dimensions(target.len(), assets.len()));
@@ -287,7 +291,6 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
 
     save_target_asset_data(&mut deps.storage, &asset_data)?;
 
-    // TODO: Logs
     Ok(HandleResponse {
         messages: vec![],
         log: vec![
@@ -300,78 +303,6 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
         data: None,
     })
 }
-
-/// May be called by the Basket contract owner to reset the target
-// pub fn try_reset_target_bad<S: Storage, A: Api, Q: Querier>(
-//     deps: &mut Extern<S, A, Q>,
-//     env: Env,
-//     target: &Vec<u32>,
-// ) -> StdResult<HandleResponse> {
-//     let cfg = read_config(&deps.storage)?;
-//     if let None = cfg.basket_token {
-//         return Err(error::basket_token_not_set());
-//     }
-
-//     // check permission
-//     if env.message.sender != cfg.owner {
-//         return Err(StdError::unauthorized());
-//     }
-
-//     // check match # of assets
-//     if target.len() != cfg.assets.len() {
-//         return Err(error::bad_weight_dimensions(target.len(), cfg.assets.len()));
-//     }
-
-//     let prev_target = read_target(&deps.storage)?;
-//     save_target(&mut deps.storage, target)?;
-
-//     Ok(HandleResponse {
-//         messages: vec![],
-//         log: vec![
-//             log("action", "reset_target"),
-//             log("prev_target", vec_to_string(&prev_target)),
-//             log("new_target", vec_to_string(&target)),
-//         ],
-//         data: None,
-//     })
-// }
-
-// TODO: Fix this up
-// May be called by the Basket contract owner to add a new asset
-// pub fn try_add_asset_type<S: Storage, A: Api, Q: Querier>(
-//     deps: &mut Extern<S, A, Q>,
-//     env: Env,
-//     new_asset: HumanAddr,
-// ) -> StdResult<HandleResponse> {
-//     let cfg = read_config(&deps.storage)?;
-//     if let None = cfg.basket_token {
-//         return Err(error::basket_token_not_set());
-//     }
-
-//     // check permission
-//     if env.message.sender != cfg.owner {
-//         return Err(StdError::unauthorized());
-//     }
-
-//     if cfg.assets.iter().any(|asset| asset == new_asset) {
-//         return Err(error::existing_asset(sent_asset));
-//     }
-
-//     let prev_assets = cfg.assets;
-//     let new_assets = cfg.assets.clone();
-//     new_assets.push(new_asset);
-//     save_assets(&mut deps.storage, new_assets)?;
-
-//     Ok(HandleResponse {
-//         messages: vec![],
-//         log: vec![
-//             log("action", "reset_target"),
-//             log("prev_target", vec_to_string(&prev_target)),
-//             log("new_target", vec_to_string(&target)),
-//         ],
-//         data: None,
-//     })
-// }
 
 /// May be called by the Basket contract owner to set the basket token for first time
 pub fn try_set_basket_token<S: Storage, A: Api, Q: Querier>(

@@ -112,5 +112,6 @@ pub struct BasketStateResponse {
     pub outstanding_balance_tokens: Uint128,
     pub prices: Vec<FPDecimal>,
     pub inv: Vec<Uint128>,
+    pub assets: Vec<HumanAddr>,
     pub target: Vec<u32>,
 }

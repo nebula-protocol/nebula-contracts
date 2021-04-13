@@ -36,3 +36,7 @@ class Basket:
     @staticmethod
     def burn(asset_weights=None):
         return {"burn": {"asset_weights": asset_weights}}
+
+    @staticmethod
+    def reset_target(new_assets, new_target):
+        return {"reset_target": {"assets": new_assets, "target": new_target}}
