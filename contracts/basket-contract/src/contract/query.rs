@@ -40,7 +40,11 @@ fn query_target<S: Storage, A: Api, Q: Querier>(
         .iter()
         .map(|x| x.target)
         .collect::<Vec<_>>();
-    Ok(TargetResponse { target })
+    let assets = target_asset_data
+        .iter()
+        .map(|x| x.asset.clone())
+        .collect::<Vec<_>>();
+    Ok(TargetResponse { assets, target })
 }
 
 fn query_staged_amount<S: Storage, A: Api, Q: Querier>(

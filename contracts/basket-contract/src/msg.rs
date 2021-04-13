@@ -98,6 +98,7 @@ pub struct ConfigResponse {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TargetResponse {
+    pub assets: Vec<HumanAddr>,
     pub target: Vec<u32>,
 }
 
