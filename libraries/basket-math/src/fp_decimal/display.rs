@@ -1,17 +1,17 @@
-use crate::fp_decimal::{FPDecimal, Sign};
+use crate::fp_decimal::FPDecimal;
 use std::fmt;
 
 impl fmt::Display for FPDecimal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let sign = if self.sign() == Sign::Negative {
+        let sign = if self.sign == 0 {
             "-"
         } else {
             ""
         };
-        let integer = (FPDecimal::_int(self.0) / FPDecimal::ONE).abs();
-        let fraction = (FPDecimal::_fraction(self.0)).abs();
+        let integer = (FPDecimal::_int(*self) / FPDecimal::ONE).abs();
+        let fraction = (FPDecimal::_fraction(*self)).abs();
 
-        if fraction == 0 {
+        if fraction == FPDecimal::zero() {
             write!(f, "{}{}", sign, integer.to_string())
         } else {
             let fraction_string = fraction.to_string();
