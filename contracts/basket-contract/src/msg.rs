@@ -56,7 +56,7 @@ pub enum HandleMsg {
     /// Mints new assets
     Mint {
         /// Asset amounts deposited for minting (must be staged)
-        asset_amounts: Vec<Uint128>,
+        asset_amounts: Vec<Asset>,
         /// Minimum tokens to receive
         min_tokens: Option<Uint128>,
     },
@@ -74,7 +74,7 @@ pub enum Cw20HookMsg {
     /// Burns assets
     Burn {
         /// optional proposed set of weights to use
-        asset_weights: Option<Vec<u32>>,
+        asset_weights: Option<Vec<Asset>>,
     },
 }
 

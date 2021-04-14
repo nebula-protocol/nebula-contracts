@@ -21,7 +21,7 @@ use crate::{
     state::{read_target_asset_data, save_target_asset_data},
 };
 use basket_math::{dot, sum, FPDecimal};
-use terraswap::asset::{AssetInfo};
+use terraswap::asset::{Asset, AssetInfo};
 
 /// Convenience function for creating inline HumanAddr
 pub fn h(s: &str) -> HumanAddr {
@@ -56,6 +56,7 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
     let sent_asset = env.message.sender.clone();
     let sent_amount = cw20_msg.amount;
 
+    // Using HumanAddr instead of AssetInfo for cw20
     if let Some(msg) = cw20_msg.msg {
         match from_binary(&msg)? {
             Cw20HookMsg::Burn { asset_weights } => {
@@ -76,7 +77,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     sender: &HumanAddr,
     sent_asset: &HumanAddr,
     sent_amount: Uint128,
-    asset_weights: Option<Vec<u32>>,
+    asset_weights: Option<Vec<Asset>>,
 ) -> StdResult<HandleResponse> {
     let cfg = read_config(&deps.storage)?;
     let basket_token = cfg
@@ -137,11 +138,11 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
             }
             let weights_sum = weights
                 .iter()
-                .fold(FPDecimal::zero(), |acc, &el| acc + FPDecimal::from(el));
+                .fold(FPDecimal::zero(), |acc, &el| acc + FPDecimal::from(el.amount));
 
             let r = weights // normalize weights vector
                 .iter()
-                .map(|&x| FPDecimal::from(x) / weights_sum)
+                .map(|&x| FPDecimal::from(x.amount) / weights_sum)
                 .collect();
 
             let prices: Vec<FPDecimal> = assets
@@ -374,12 +375,12 @@ pub fn try_set_basket_token<S: Storage, A: Api, Q: Querier>(
 pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    asset_amounts: &Vec<Uint128>,
+    asset_amounts: &Vec<Asset>,
     min_tokens: &Option<Uint128>,
 ) -> StdResult<HandleResponse> {
     let cfg = read_config(&deps.storage)?;
     let target_asset_data = read_target_asset_data(&deps.storage)?;
-    let assets = target_asset_data
+    let asset_infos = target_asset_data
         .iter()
         .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
@@ -393,27 +394,33 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         .ok_or_else(|| error::basket_token_not_set())?;
 
     // ensure that all tokens in asset_amounts have been staged beforehand
-    for (asset, amount) in assets.iter().zip(asset_amounts) {
-        let denom_scoped: HumanAddr;
-        let staged = read_staged_asset(&deps.storage, &env.message.sender, asset)?;
-        //println!("asset {} amount {} staged {}", asset, amount, staged);
-        if *amount > staged {
-            return Err(error::insufficient_staged(
-                &env.message.sender,
-                asset,
-                *amount,
-                staged,
-            ));
-        }
-        unstage_asset(&mut deps.storage, &env.message.sender, asset, *amount)?;
-    }
+    for asset in asset_amounts {
+        let curr_info = asset.info;
+        for asset_info in asset_infos {
+            if asset_info == curr_info {
+                let staged = read_staged_asset(&deps.storage, &env.message.sender, &asset_info)?;
+                //println!("asset {} amount {} staged {}", asset, amount, staged);
+                if asset.amount > staged {
+                    return Err(error::insufficient_staged(
+                        &env.message.sender,
+                        &asset_info,
+                        asset.amount.clone(),
+                        staged,
+                    ));
+                }
+                unstage_asset(&mut deps.storage, &env.message.sender, &asset_info, asset.amount.clone())?;
+                break;
+            }
+        };
+    };
+
     let c = asset_amounts
         .iter()
-        .map(|&x| int_to_fpdec(x))
+        .map(|&x| int_to_fpdec(x.amount))
         .collect::<StdResult<Vec<FPDecimal>>>()?;
 
     // get current balances of each token (inventory)
-    let inv: Vec<FPDecimal> = assets
+    let inv: Vec<FPDecimal> = asset_infos
         .iter()
         .map(|asset| match asset {
             AssetInfo::Token { contract_addr } => int_to_fpdec(query_cw20_balance(
@@ -429,7 +436,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         .collect::<StdResult<Vec<FPDecimal>>>()?;
 
     // get current prices of each token via oracle
-    let prices: Vec<FPDecimal> = assets
+    let prices: Vec<FPDecimal> = asset_infos
         .iter()
         .map(|asset| match asset {
             AssetInfo::Token { contract_addr } => query_price(&deps, &cfg.oracle, &contract_addr),
@@ -586,10 +593,30 @@ mod tests {
             ]);
 
         let asset_amounts = vec![
-            Uint128(125_000_000), // mAAPL
-            Uint128::zero(),      // mGOOG
-            Uint128(149_000_000), // mMSFT
-            Uint128(50_090_272),  // mNFLX
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mAAPL"),
+                },
+                amount: Uint128(125_000_000),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mGOOG"),
+                },
+                amount: Uint128::zero(),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mMSFT"),
+                },
+                amount: Uint128(149_000_000),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mNFLX"),
+                },
+                amount: Uint128(50_090_272),
+            },
         ];
         let mint_msg = HandleMsg::Mint {
             asset_amounts: asset_amounts.clone(),
@@ -603,15 +630,18 @@ mod tests {
             _ => panic!("requires staging"),
         }
 
-        for (asset, amount) in vec!["mAAPL", "mGOOG", "mMSFT", "mNFLX"]
-            .iter()
-            .zip(asset_amounts)
-        {
-            let env = mock_env(*asset, &[]);
+
+        for asset in asset_amounts {
+            let env = mock_env(match asset.info {
+                AssetInfo::Token { contract_addr } => {
+                    contract_addr
+                }
+                AssetInfo::NativeToken { denom } => h(&denom),
+            }, &[]);
             let stage_asset_msg = HandleMsg::Receive(Cw20ReceiveMsg {
                 sender: h("addr0000"),
-                amount,
                 msg: Some(to_binary(&Cw20HookMsg::StageAsset {}).unwrap()),
+                amount: asset.amount,
             });
             handle(&mut deps, env, stage_asset_msg).unwrap();
         }
