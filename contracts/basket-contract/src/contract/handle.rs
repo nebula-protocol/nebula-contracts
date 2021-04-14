@@ -410,30 +410,37 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         .clone()
         .ok_or_else(|| error::basket_token_not_set())?;
 
-    // ensure that all tokens in asset_amounts have been staged beforehand
-    for asset in asset_amounts {
-        let curr_info = asset.info.clone();
-        for asset_info in asset_infos {
-            if *asset_info == curr_info {
-                let staged = read_staged_asset(&deps.storage, &env.message.sender, &asset_info)?;
-                //println!("asset {} amount {} staged {}", asset, amount, staged);
-                if asset.amount > staged {
-                    return Err(error::insufficient_staged(
-                        &env.message.sender,
-                        &asset_info,
-                        asset.amount.clone(),
-                        staged,
-                    ));
+    let asset_weights: Vec<Uint128> = {
+        let mut vec: Vec<Uint128> = Vec::new();
+        for i in 0..asset_infos.len() {
+            for weight in asset_amounts {
+                if weight.info.clone() == asset_infos[i].clone() {
+                    vec.push(weight.amount);
+                    break;
                 }
-                unstage_asset(&mut deps.storage, &env.message.sender, &asset_info, asset.amount.clone())?;
-                break;
-            }
+            };
         };
+        vec
     };
 
-    let c = asset_amounts
+    // ensure that all tokens in asset_amounts have been staged beforehand
+    for asset in asset_amounts {
+        let staged = read_staged_asset(&deps.storage, &env.message.sender, &asset.info)?;
+        //println!("asset {} amount {} staged {}", asset, amount, staged);
+        if asset.amount > staged {
+            return Err(error::insufficient_staged(
+                &env.message.sender,
+                &asset.info,
+                asset.amount,
+                staged,
+            ));
+        }
+        unstage_asset(&mut deps.storage, &env.message.sender, &asset.info, asset.amount)?;
+    };
+
+    let c = asset_weights
         .iter()
-        .map(|x| int_to_fpdec(x.amount))
+        .map(|x| int_to_fpdec(x.clone()))
         .collect::<StdResult<Vec<FPDecimal>>>()?;
 
     // get current balances of each token (inventory)
@@ -667,7 +674,7 @@ mod tests {
         let res = handle(&mut deps, env, mint_msg).unwrap();
 
         for log in res.log.iter() {
-            //println!("{}: {}", log.key, log.value);
+            println!("{}: {}", log.key, log.value);
         }
         assert_eq!(1, res.messages.len());
     }

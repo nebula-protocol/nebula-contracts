@@ -6,10 +6,18 @@ class Oracle:
     def set_prices(prices):
         return {"set_prices": {"prices": prices}}
 
-class AssetInfo:
+class Asset:
     @staticmethod
     def asset_info_from_haddrs(haddrs):
         return [{"token": {"contract_addr": haddr}} for haddr in haddrs]
+
+    @staticmethod
+    def asset_info(haddr):
+        return {"token": {"contract_addr": haddr}}
+
+    @staticmethod
+    def asset(haddr, amount):
+        return {"info": Asset.asset_info(haddr), "amount": amount}
 
 class CW20:
     @staticmethod

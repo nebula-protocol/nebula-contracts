@@ -24,7 +24,7 @@ from terra_sdk.core.wasm import (
 )
 from terra_sdk.util.contract import get_code_id, get_contract_address, read_file_as_b64
 
-from basket import Oracle, Basket, CW20, AssetInfo
+from basket import Oracle, Basket, CW20, Asset
 
 # If True, use localterra. Otherwise, deploys on Tequila
 USE_LOCALTERRA = True
@@ -313,6 +313,8 @@ def deploy():
     result = terra.tx.broadcast(initial_balances_tx)
 
     ### EXAMPLE: how to stage and mint
+
+    # wBTC wETH wXRP wLUNA MIR
     print("[deploy] - basket:stage_asset + basket:mint")
     stage_and_mint_tx = deployer.create_and_sign_tx(
         msgs=[
@@ -329,7 +331,13 @@ def deploy():
             MsgExecuteContract(
                 deployer.key.acc_address,
                 basket,
-                Basket.mint(["1000000", "0", "0", "4000000000", "0"]),
+                Basket.mint(
+                    [Asset.asset(wBTC, "1000000"),
+                    Asset.asset(wETH, "0"),
+                    Asset.asset(wXRP, "0"),
+                    Asset.asset(wLUNA, "4000000000"),
+                    Asset.asset(MIR, "0")]
+                ),
             ),
         ],
         sequence=seq(),
@@ -352,7 +360,12 @@ def deploy():
         deployer,
         basket_token,
         CW20.send(
-            basket, "10000000000", Basket.burn([1, 2, 1, 0, 7])
+            basket, "10000000000", Basket.burn(
+                    [Asset.asset(wBTC, "1"),
+                    Asset.asset(wETH, "2"),
+                    Asset.asset(wXRP, "1"),
+                    Asset.asset(wLUNA, "0"),
+                    Asset.asset(MIR, "7")])
         ),  # asset weights must be integers
         seq(),
         fee=StdFee(
@@ -382,7 +395,7 @@ def deploy():
     result = execute_contract(
         deployer,
         basket,
-        Basket.reset_target(AssetInfo.asset_info_from_haddrs([wBTC, wETH, wXRP, wLUNA, MIR, ANC]), [10, 20, 15, 20, 20, 15]),
+        Basket.reset_target(Asset.asset_info_from_haddrs([wBTC, wETH, wXRP, wLUNA, MIR, ANC]), [10, 20, 15, 20, 20, 15]),
         seq(),
         fee=StdFee(
             4000000, "20000000uluna"
