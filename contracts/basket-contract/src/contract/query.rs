@@ -46,12 +46,16 @@ fn query_target<S: Storage, A: Api, Q: Querier>(
         .iter()
         .map(|x| x.target)
         .collect::<Vec<_>>();
+    // let assets = target_asset_data
+    //     .iter()
+    //     .map(|x| match &x.asset {
+    //         AssetInfo::Token { contract_addr } => contract_addr.clone(),
+    //         AssetInfo::NativeToken { denom } => h(denom).clone(),
+    //     })
+    //     .collect::<Vec<_>>();
     let assets = target_asset_data
         .iter()
-        .map(|x| match &x.asset {
-            AssetInfo::Token { contract_addr } => contract_addr.clone(),
-            AssetInfo::NativeToken { denom } => h(denom).clone(),
-        })
+        .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
     Ok(TargetResponse { assets, target })
 }
@@ -59,7 +63,7 @@ fn query_target<S: Storage, A: Api, Q: Querier>(
 fn query_staged_amount<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     account: &HumanAddr,
-    asset: &HumanAddr,
+    asset: &AssetInfo,
 ) -> StdResult<StagedAmountResponse> {
     let staged_amount = read_staged_asset(&deps.storage, account, asset)?;
     Ok(StagedAmountResponse { staged_amount })

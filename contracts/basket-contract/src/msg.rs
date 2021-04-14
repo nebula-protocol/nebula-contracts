@@ -3,7 +3,7 @@ use cosmwasm_std::{HumanAddr, Uint128};
 use cw20::Cw20ReceiveMsg;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use terraswap::asset::AssetInfo;
+use terraswap::asset::{Asset, AssetInfo};
 
 use crate::state::{BasketConfig, PenaltyParams};
 
@@ -38,7 +38,7 @@ pub enum HandleMsg {
 
     /// Withdraws asset from staging
     UnstageAsset {
-        asset: HumanAddr,
+        asset: AssetInfo,
         amount: Option<Uint128>,
     },
 
@@ -49,7 +49,7 @@ pub enum HandleMsg {
 
     /// Can be called by the owner to reset the basket weight target
     ResetTarget {
-        assets: Vec<HumanAddr>,
+        assets: Vec<AssetInfo>,
         target: Vec<u32>,
     },
 
@@ -85,7 +85,7 @@ pub enum QueryMsg {
     Target {},
     StagedAmount {
         account: HumanAddr,
-        asset: HumanAddr,
+        asset: AssetInfo,
     },
     BasketState {
         basket_contract_address: HumanAddr,
@@ -99,7 +99,7 @@ pub struct ConfigResponse {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TargetResponse {
-    pub assets: Vec<HumanAddr>,
+    pub assets: Vec<AssetInfo>,
     pub target: Vec<u32>,
 }
 

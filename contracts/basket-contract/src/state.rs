@@ -74,9 +74,10 @@ pub fn save_target<S: Storage>(storage: &mut S, target: &Vec<u32>) -> StdResult<
 pub fn read_staged_asset<S: Storage>(
     storage: &S,
     account: &HumanAddr,
-    asset: &HumanAddr,
+    asset: &AssetInfo,
 ) -> StdResult<Uint128> {
-    let staging = ReadonlyBucket::multilevel(&[PREFIX_STAGING, asset.as_str().as_bytes()], storage);
+    let staging =
+        ReadonlyBucket::multilevel(&[PREFIX_STAGING, asset.to_string().as_bytes()], storage);
     match staging.load(account.as_str().as_bytes()) {
         Ok(v) => Ok(v),
         Err(_) => Ok(Uint128::zero()),
@@ -86,23 +87,23 @@ pub fn read_staged_asset<S: Storage>(
 pub fn stage_asset<S: Storage>(
     storage: &mut S,
     account: &HumanAddr,
-    asset: &HumanAddr,
+    asset: &AssetInfo,
     amount: Uint128,
 ) -> StdResult<()> {
     let curr_amount = read_staged_asset(storage, account, asset)?;
     let mut staging =
-        Bucket::<S, Uint128>::multilevel(&[PREFIX_STAGING, asset.as_str().as_bytes()], storage);
+        Bucket::<S, Uint128>::multilevel(&[PREFIX_STAGING, asset.to_string().as_bytes()], storage);
     staging.save(account.as_str().as_bytes(), &(curr_amount + amount))
 }
 
 pub fn unstage_asset<S: Storage>(
     storage: &mut S,
     account: &HumanAddr,
-    asset: &HumanAddr,
+    asset: &AssetInfo,
     amount: Uint128,
 ) -> StdResult<()> {
     let curr_amount = read_staged_asset(storage, account, asset)?;
     let mut staging =
-        Bucket::<S, Uint128>::multilevel(&[PREFIX_STAGING, asset.as_str().as_bytes()], storage);
+        Bucket::<S, Uint128>::multilevel(&[PREFIX_STAGING, asset.to_string().as_bytes()], storage);
     staging.save(account.as_str().as_bytes(), &((curr_amount - amount)?))
 }

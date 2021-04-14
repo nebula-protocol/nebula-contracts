@@ -24,7 +24,7 @@ from terra_sdk.core.wasm import (
 )
 from terra_sdk.util.contract import get_code_id, get_contract_address, read_file_as_b64
 
-from basket import Oracle, Basket, CW20
+from basket import Oracle, Basket, CW20, AssetInfo
 
 # If True, use localterra. Otherwise, deploys on Tequila
 USE_LOCALTERRA = True
@@ -379,11 +379,10 @@ def deploy():
 
     ### EXAMPLE: how to reset basket composition
     print("[deploy] - basket: reset_target")
-
     result = execute_contract(
         deployer,
         basket,
-        Basket.reset_target([wBTC, wETH, wXRP, wLUNA, MIR, ANC], [10, 20, 15, 20, 20, 15]),
+        Basket.reset_target(AssetInfo.asset_info_from_haddrs([wBTC, wETH, wXRP, wLUNA, MIR, ANC]), [10, 20, 15, 20, 20, 15]),
         seq(),
         fee=StdFee(
             4000000, "20000000uluna"

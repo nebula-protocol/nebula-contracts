@@ -21,7 +21,7 @@ use crate::{
     state::{read_target_asset_data, save_target_asset_data},
 };
 use basket_math::{dot, sum, FPDecimal};
-use terraswap::asset::AssetInfo;
+use terraswap::asset::{AssetInfo};
 
 /// Convenience function for creating inline HumanAddr
 pub fn h(s: &str) -> HumanAddr {
@@ -255,10 +255,13 @@ pub fn try_receive_stage_asset<S: Storage, A: Api, Q: Querier>(
         AssetInfo::Token { contract_addr } => contract_addr == sent_asset,
         AssetInfo::NativeToken { denom } => &h(denom) == sent_asset,
     }) {
-        return Err(error::not_component_asset(sent_asset));
+        return Err(error::not_component_cw20(sent_asset));
     }
 
-    stage_asset(&mut deps.storage, sender, sent_asset, sent_amount)?;
+    let sent_asset_info = AssetInfo::Token {
+        contract_addr: sent_asset.clone(),
+    };
+    stage_asset(&mut deps.storage, sender, &sent_asset_info, sent_amount)?;
 
     Ok(HandleResponse {
         messages: vec![],
@@ -275,7 +278,7 @@ pub fn try_receive_stage_asset<S: Storage, A: Api, Q: Querier>(
 pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    assets: &Vec<HumanAddr>,
+    assets: &Vec<AssetInfo>,
     target: &Vec<u32>,
 ) -> StdResult<HandleResponse> {
     let cfg = read_config(&deps.storage)?;
@@ -299,9 +302,10 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     let mut asset_data: Vec<TargetAssetData> = Vec::new();
     for i in 0..target.len() {
         let asset_elem = TargetAssetData {
-            asset: AssetInfo::Token {
-                contract_addr: assets[i].clone(),
-            },
+            asset: assets[i].clone(),
+            // asset: AssetInfo::Token {
+            //     contract_addr: assets[i].clone(),
+            // },
             target: target[i].clone(),
         };
         asset_data.push(asset_elem);
@@ -391,24 +395,17 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     // ensure that all tokens in asset_amounts have been staged beforehand
     for (asset, amount) in assets.iter().zip(asset_amounts) {
         let denom_scoped: HumanAddr;
-        let asset_addr = match asset {
-            AssetInfo::Token { contract_addr } => contract_addr,
-            AssetInfo::NativeToken { denom } => {
-                denom_scoped = h(denom);
-                &denom_scoped
-            }
-        };
-        let staged = read_staged_asset(&deps.storage, &env.message.sender, asset_addr)?;
+        let staged = read_staged_asset(&deps.storage, &env.message.sender, asset)?;
         //println!("asset {} amount {} staged {}", asset, amount, staged);
         if *amount > staged {
             return Err(error::insufficient_staged(
                 &env.message.sender,
-                asset_addr,
+                asset,
                 *amount,
                 staged,
             ));
         }
-        unstage_asset(&mut deps.storage, &env.message.sender, asset_addr, *amount)?;
+        unstage_asset(&mut deps.storage, &env.message.sender, asset, *amount)?;
     }
     let c = asset_amounts
         .iter()
@@ -492,7 +489,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 pub fn try_unstage_asset<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    asset: &HumanAddr,
+    asset: &AssetInfo,
     amount: &Option<Uint128>,
 ) -> StdResult<HandleResponse> {
     let cfg = read_config(&deps.storage)?;
@@ -502,10 +499,12 @@ pub fn try_unstage_asset<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
     // if sent asset is not a component asset of basket, reject
-    if !assets.iter().any(|x| match x {
-        AssetInfo::Token { contract_addr } => contract_addr == asset,
-        AssetInfo::NativeToken { denom } => &h(denom) == asset,
-    }) {
+    // if !assets.iter().any(|x| match x {
+    //     AssetInfo::Token { contract_addr } => contract_addr == asset,
+    //     AssetInfo::NativeToken { denom } => &h(denom) == asset,
+    // })
+
+    if !assets.iter().any(|x| x == asset) {
         return Err(error::not_component_asset(asset));
     }
 
@@ -530,7 +529,10 @@ pub fn try_unstage_asset<S: Storage, A: Api, Q: Querier>(
     // return asset
     let messages = if !to_unstage.is_zero() {
         vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: asset.clone(),
+            contract_addr: match asset {
+                AssetInfo::Token { contract_addr } => contract_addr.clone(),
+                AssetInfo::NativeToken { denom } => h(denom),
+            },
             msg: to_binary(&Cw20HandleMsg::Transfer {
                 amount: to_unstage.clone(),
                 recipient: env.message.sender.clone(),
@@ -558,6 +560,7 @@ mod tests {
     use crate::test_helper::*;
     use cw20::Cw20ReceiveMsg;
     use pretty_assertions::assert_eq;
+    use terraswap::asset::{Asset, AssetInfo};
 
     #[test]
     fn mint() {
@@ -660,6 +663,23 @@ mod tests {
             .set_token_balance(consts::basket_token(), "addr0000", 20_000_000);
 
         let new_assets = vec![h("mAAPL"), h("mGOOG"), h("mMSFT"), h("mNFLX"), h("GME")];
+        let new_assets = vec![
+            AssetInfo::Token {
+                contract_addr: h("mAAPL"),
+            },
+            AssetInfo::Token {
+                contract_addr: h("mGOOG"),
+            },
+            AssetInfo::Token {
+                contract_addr: h("mMSFT"),
+            },
+            AssetInfo::Token {
+                contract_addr: h("mNFLX"),
+            },
+            AssetInfo::Token {
+                contract_addr: h("GME"),
+            },
+        ];
         let new_targets: Vec<u32> = vec![10, 5, 30, 5, 50];
 
         let msg = HandleMsg::ResetTarget {
