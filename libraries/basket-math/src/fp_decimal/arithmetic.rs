@@ -110,3 +110,98 @@ impl ops::Div for FPDecimal {
         FPDecimal::_div(self, rhs)
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use crate::FPDecimal;
+    use bigint::U256;
+    
+    #[test]
+    fn test_add() {
+        let five = FPDecimal {num: U256([5, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1};
+        let three = FPDecimal {num: U256([3, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1};
+        let eight = FPDecimal {num: U256([8, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1};
+        assert_eq!(FPDecimal::_add(five, three), eight);
+    }
+
+    #[test]
+    fn test_add_neg() {
+        let neg_five = FPDecimal {num: U256([5, 0, 0, 0]) * FPDecimal::ONE.num, sign: 0};
+        let neg_three = FPDecimal {num: U256([3, 0, 0, 0]) * FPDecimal::ONE.num, sign: 0};
+        let neg_eight = FPDecimal {num: U256([8, 0, 0, 0]) * FPDecimal::ONE.num, sign: 0};
+        assert_eq!(FPDecimal::_add(neg_five, neg_three), neg_eight);
+    }
+
+    #[test]
+    fn test_sub() {
+        let five = FPDecimal {num: U256([5, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1};
+        let three = FPDecimal {num: U256([3, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1};
+        let two = FPDecimal {num: U256([2, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1};
+        assert_eq!(FPDecimal::_sub(five, three), two);
+    }
+
+    #[test]
+    fn test_sub_neg() {
+        let five = FPDecimal {num: U256([5, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1};
+        let neg_three = FPDecimal {num: U256([3, 0, 0, 0]) * FPDecimal::ONE.num, sign: 0};
+        let eight = FPDecimal {num: U256([8, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1};
+        assert_eq!(FPDecimal::_sub(five, neg_three), eight);
+    }
+
+
+    #[test]
+    fn test_mul() {
+        let five = FPDecimal {num: U256([5, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1};
+        let three = FPDecimal {num: U256([3, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1};
+        let fifteen = FPDecimal {num: U256([15, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1};
+        assert_eq!(FPDecimal::_mul(five, three), fifteen);
+    }
+
+    #[test]
+    fn test_mul_pos_neg() {
+        let five = FPDecimal {num: U256([5, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1};
+        let neg_three = FPDecimal {num: U256([3, 0, 0, 0]) * FPDecimal::ONE.num, sign: 0};
+        let neg_fifteen = FPDecimal {num: U256([15, 0, 0, 0]) * FPDecimal::ONE.num, sign: 0};
+        assert_eq!(FPDecimal::_mul(five, neg_three), neg_fifteen);
+    }
+
+    #[test]
+    fn test_mul_neg_pos() {
+        let neg_five = FPDecimal {num: U256([5, 0, 0, 0]) * FPDecimal::ONE.num, sign: 0};
+        let three = FPDecimal {num: U256([3, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1};
+        let neg_fifteen = FPDecimal {num: U256([15, 0, 0, 0]) * FPDecimal::ONE.num, sign: 0};
+        assert_eq!(FPDecimal::_mul(neg_five, three), neg_fifteen);
+    }
+
+    #[test]
+    fn test_mul_neg_neg() {
+        let neg_five = FPDecimal {num: U256([5, 0, 0, 0]) * FPDecimal::ONE.num, sign: 0};
+        let neg_three = FPDecimal {num: U256([3, 0, 0, 0]) * FPDecimal::ONE.num, sign: 0};
+        let fifteen = FPDecimal {num: U256([15, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1};
+        assert_eq!(FPDecimal::_mul(neg_five, neg_three), fifteen);
+    }
+
+
+    #[test]
+    fn test_div() {
+        let hundred = FPDecimal {num: U256([100, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1};
+        let five = FPDecimal {num: U256([5, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1};
+        let twenty = FPDecimal {num: U256([20, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1};
+        assert_eq!(FPDecimal::_div(hundred, five), twenty);
+    }
+
+    #[test]
+    fn test_reciprocal() {
+        let five = FPDecimal {num: U256([5, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1};
+        let point_2 = FPDecimal {num: FPDecimal::ONE.num / U256([5, 0, 0, 0]), sign: 1};
+        assert_eq!(FPDecimal::reciprocal(five), point_2);
+    }
+
+    #[test]
+    fn test_abs() {
+        let neg_five = FPDecimal {num: U256([5, 0, 0, 0]) * FPDecimal::ONE.num, sign: 0};
+        let five = FPDecimal {num: U256([5, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1};
+        assert_eq!(neg_five.abs(), five);
+    }
+}

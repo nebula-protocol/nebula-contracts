@@ -41,3 +41,29 @@ impl FPDecimal {
         val
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use crate::FPDecimal;
+    use bigint::U256;
+    
+
+    #[test]
+    fn test_exp() {
+        assert_eq!(FPDecimal::_exp(FPDecimal::ONE), FPDecimal::E);
+    }
+
+    #[test]
+    fn test_exp0() {
+        assert_eq!(FPDecimal::_exp(FPDecimal::zero()), FPDecimal::ONE);
+    }
+
+    #[test]
+    fn test_exp10() {
+        assert_eq!(FPDecimal::_exp(
+            FPDecimal {num: U256([10, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1}), 
+            FPDecimal::E_10
+        );
+    }
+}
