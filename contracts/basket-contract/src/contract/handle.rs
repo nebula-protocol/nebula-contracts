@@ -94,6 +94,23 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         .iter()
         .map(|x| x.target)
         .collect::<Vec<_>>();
+     // Reorder asset_weights according to ordering of target assets
+    let asset_weights: Option<Vec<Uint128>> = match &asset_weights {
+        Some(weights) => {
+            let mut vec: Vec<Uint128> = Vec::new();
+            for i in 0..assets.len() {
+                for weight in weights {
+                    if weight.info.clone() == assets[i].clone() {
+                        vec.push(weight.amount);
+                        break;
+                    }
+                };
+            };
+            Some(vec)
+        }
+        None => None,
+    };
+   
 
     // require that origin contract from Receive Hook is the associated Basket Token
     if *sent_asset != basket_token {
@@ -138,11 +155,11 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
             }
             let weights_sum = weights
                 .iter()
-                .fold(FPDecimal::zero(), |acc, &el| acc + FPDecimal::from(el.amount));
+                .fold(FPDecimal::zero(), |acc, el| acc + FPDecimal::from(el.u128() as i128));
 
             let r = weights // normalize weights vector
                 .iter()
-                .map(|&x| FPDecimal::from(x.amount) / weights_sum)
+                .map(|x| FPDecimal::from(x.u128() as i128) / weights_sum)
                 .collect();
 
             let prices: Vec<FPDecimal> = assets
@@ -380,7 +397,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
     let cfg = read_config(&deps.storage)?;
     let target_asset_data = read_target_asset_data(&deps.storage)?;
-    let asset_infos = target_asset_data
+    let asset_infos = &target_asset_data
         .iter()
         .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
@@ -395,9 +412,9 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 
     // ensure that all tokens in asset_amounts have been staged beforehand
     for asset in asset_amounts {
-        let curr_info = asset.info;
+        let curr_info = asset.info.clone();
         for asset_info in asset_infos {
-            if asset_info == curr_info {
+            if *asset_info == curr_info {
                 let staged = read_staged_asset(&deps.storage, &env.message.sender, &asset_info)?;
                 //println!("asset {} amount {} staged {}", asset, amount, staged);
                 if asset.amount > staged {
@@ -416,7 +433,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 
     let c = asset_amounts
         .iter()
-        .map(|&x| int_to_fpdec(x.amount))
+        .map(|x| int_to_fpdec(x.amount))
         .collect::<StdResult<Vec<FPDecimal>>>()?;
 
     // get current balances of each token (inventory)
@@ -692,7 +709,6 @@ mod tests {
             .set_token_supply(consts::basket_token(), 100_000_000)
             .set_token_balance(consts::basket_token(), "addr0000", 20_000_000);
 
-        let new_assets = vec![h("mAAPL"), h("mGOOG"), h("mMSFT"), h("mNFLX"), h("GME")];
         let new_assets = vec![
             AssetInfo::Token {
                 contract_addr: h("mAAPL"),
