@@ -55,9 +55,17 @@ impl FPDecimal {
 mod tests {
 
     use crate::FPDecimal;
+    use bigint::U256;
+    
 
     #[test]
     fn test_ln() {
         assert_eq!(FPDecimal::_ln(FPDecimal::E), FPDecimal::ONE);
+    }
+
+    #[test]
+
+    fn test_ln10() {
+        assert_eq!(FPDecimal::_ln(FPDecimal::E_10), FPDecimal {num: FPDecimal::ONE.num * U256([10, 0, 0, 0]), sign: 1});
     }
 }

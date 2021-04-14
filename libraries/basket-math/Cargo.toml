@@ -16,6 +16,7 @@ cosmwasm-storage = { version = "0.10.1", features = ["iterator"] }
 terra-cosmwasm = { version = "1.2.2" }
 schemars = "0.7"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+bigint = "4"
 
 [dev-dependencies]
 plotters = "^0.3.0"

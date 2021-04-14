@@ -10,19 +10,19 @@ impl FPDecimal {
     // e^(a)
     pub fn _exp(a: FPDecimal) -> FPDecimal {
         let mut x = a.num;
-        let mut r = FPDecimal::ONE.num;
+        let mut r = FPDecimal::ONE;
         while x >= U256([10, 0, 0, 0]) * FPDecimal::ONE.num {
             x = x - U256([10, 0, 0, 0]) * FPDecimal::ONE.num;
-            r = FPDecimal::_mul(FPDecimal {num: r, sign: 1}, FPDecimal::E_10).num;
+            r = FPDecimal::_mul(r, FPDecimal::E_10);
         }
         if x == FPDecimal::ONE.num {
-            let val = FPDecimal::_mul(FPDecimal {num: r, sign: 1}, FPDecimal::E);
+            let val = FPDecimal::_mul(r, FPDecimal::E);
             if a.sign == 0 {
                 return FPDecimal::reciprocal(val);
             }
             return val;
         } else if x == FPDecimal::zero().num {
-            let val = FPDecimal {num: r, sign: 1};
+            let val = r;
             if a.sign == 0 {
                 return FPDecimal::reciprocal(val);
             }
@@ -34,7 +34,7 @@ impl FPDecimal {
             d = (d * x) / (FPDecimal::ONE.num * U256([i, 0, 0, 0]));
             tr = tr + d;
         }
-        let val = FPDecimal::_mul(FPDecimal {num: tr, sign: 1}, FPDecimal {num: r, sign: 1});
+        let val = FPDecimal::_mul(FPDecimal {num: tr, sign: 1}, r);
         if a.sign == 0 {
             return FPDecimal::reciprocal(val);
         }
