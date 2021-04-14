@@ -15,6 +15,6 @@ fn main() {
     export_schema(&schema_for!(InitMsg), &out_dir);
     export_schema(&schema_for!(HandleMsg), &out_dir);
     export_schema(&schema_for!(QueryMsg), &out_dir);
-    export_schema(&schema_for!(State), &out_dir);
-    export_schema(&schema_for!(CountResponse), &out_dir);
+    // export_schema(&schema_for!(State), &out_dir);
+    // export_schema(&schema_for!(CountResponse), &out_dir);
 }
