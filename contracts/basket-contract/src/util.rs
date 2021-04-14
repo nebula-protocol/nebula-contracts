@@ -21,13 +21,13 @@ pub fn cast_i128_u128(x: i128) -> StdResult<u128> {
 
 /// converts integer amounts (for coin balances) into FPDecimal for calculation
 pub fn int_to_fpdec(amount: Uint128) -> StdResult<FPDecimal> {
-    Ok(FPDecimal(cast_u128_i128(amount.u128())? * FPDecimal::ONE))
+    Ok(FPDecimal::from(amount.u128()))
 }
 
 /// converts into integer
 pub fn fpdec_to_int(dec: FPDecimal) -> StdResult<(Uint128, FPDecimal)> {
     Ok((
-        Uint128(cast_i128_u128(dec.int().0 / FPDecimal::ONE)?),
+        Uint128(cast_i128_u128((dec.int() / FPDecimal::ONE.num))?), //need to convert to i128 here
         dec.fraction(),
     ))
 }
