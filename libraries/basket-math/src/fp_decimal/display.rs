@@ -8,21 +8,42 @@ impl fmt::Display for FPDecimal {
         } else {
             ""
         };
-        let integer = (FPDecimal::_int(*self) / FPDecimal::ONE).abs();
+        let integer = self.int().abs();
         let fraction = (FPDecimal::_fraction(*self)).abs();
 
         if fraction == FPDecimal::zero() {
-            write!(f, "{}{}", sign, integer.to_string())
+            write!(f, "{}{}", sign, integer.num / FPDecimal::ONE.num)
         } else {
-            let fraction_string = fraction.to_string();
+            let fraction_string = fraction.num.to_string(); //
             let fraction_string =
                 "0".repeat(FPDecimal::DIGITS - fraction_string.len()) + &fraction_string;
             f.write_str(sign)?;
-            f.write_str(&integer.to_string())?;
+            f.write_str(&integer.num.to_string())?;
             f.write_str(".")?;
             f.write_str(fraction_string.trim_end_matches('0'))?;
 
             Ok(())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use crate::FPDecimal;
+    use bigint::U256;    
+
+    #[test]
+    fn test_fmt() {
+        assert_eq!(&format!("{}", FPDecimal::LN_1_5), "0.405465108108164382");
+    }
+
+    #[test]
+    fn test_fmt_neg() {
+        assert_eq!(
+            &format!("{}", 
+            FPDecimal {num: FPDecimal::ONE.num * U256([5, 0, 0, 0]), sign: 0}), 
+            "-5"
+    );
     }
 }
