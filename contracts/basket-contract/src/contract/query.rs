@@ -8,6 +8,12 @@ use crate::msg::{
 };
 use crate::state::{read_config, read_staged_asset, read_target_asset_data};
 use basket_math::FPDecimal;
+use terraswap::asset::AssetInfo;
+
+/// Convenience function for creating inline HumanAddr
+pub fn h(s: &str) -> HumanAddr {
+    HumanAddr(s.to_string())
+}
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
@@ -42,7 +48,10 @@ fn query_target<S: Storage, A: Api, Q: Querier>(
         .collect::<Vec<_>>();
     let assets = target_asset_data
         .iter()
-        .map(|x| x.asset.clone())
+        .map(|x| match &x.asset {
+            AssetInfo::Token { contract_addr } => contract_addr.clone(),
+            AssetInfo::NativeToken { denom } => h(denom).clone(),
+        })
         .collect::<Vec<_>>();
     Ok(TargetResponse { assets, target })
 }
@@ -81,14 +90,30 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
     // get prices for each asset
     let prices = assets
         .iter()
-        .map(|asset| query_price(&deps, &cfg.oracle, &asset))
+        .map(|asset| match asset {
+            AssetInfo::Token { contract_addr } => query_price(&deps, &cfg.oracle, &contract_addr),
+            AssetInfo::NativeToken { denom } => query_price(&deps, &cfg.oracle, &h(denom)),
+        })
         .collect::<StdResult<Vec<FPDecimal>>>()?;
 
     // get inventory
     let inv: Vec<Uint128> = assets
         .iter()
-        .map(|asset| query_cw20_balance(&deps, &asset, basket_contract_address))
+        .map(|asset| match asset {
+            AssetInfo::Token { contract_addr } => {
+                query_cw20_balance(&deps, &contract_addr, basket_contract_address)
+            }
+            AssetInfo::NativeToken { denom } => {
+                query_cw20_balance(&deps, &h(denom), basket_contract_address)
+            }
+        })
+        // .map(|asset| int_to_fpdec(query_cw20_balance(&deps, &asset, &env.contract.address)?))
         .collect::<StdResult<Vec<Uint128>>>()?;
+
+    // let inv: Vec<Uint128> = assets
+    //     .iter()
+    //     .map(|asset| query_cw20_balance(&deps, &asset, basket_contract_address))
+    //     .collect::<StdResult<Vec<Uint128>>>()?;
 
     let target_asset_data = read_target_asset_data(&deps.storage)?;
     let target = target_asset_data
@@ -97,7 +122,10 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         .collect::<Vec<_>>();
     let assets = target_asset_data
         .iter()
-        .map(|x| x.asset.clone())
+        .map(|x| match &x.asset {
+            AssetInfo::Token { contract_addr } => contract_addr.clone(),
+            AssetInfo::NativeToken { denom } => h(denom).clone(),
+        })
         .collect::<Vec<_>>();
 
     Ok(BasketStateResponse {

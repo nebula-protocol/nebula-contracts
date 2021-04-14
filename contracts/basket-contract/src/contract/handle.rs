@@ -21,6 +21,12 @@ use crate::{
     state::{read_target_asset_data, save_target_asset_data},
 };
 use basket_math::{dot, sum, FPDecimal};
+use terraswap::asset::AssetInfo;
+
+/// Convenience function for creating inline HumanAddr
+pub fn h(s: &str) -> HumanAddr {
+    HumanAddr(s.to_string())
+}
 
 pub fn handle<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -105,7 +111,17 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
 
     let inv: Vec<FPDecimal> = assets
         .iter()
-        .map(|asset| int_to_fpdec(query_cw20_balance(&deps, &asset, &env.contract.address)?))
+        .map(|asset| match asset {
+            AssetInfo::Token { contract_addr } => int_to_fpdec(query_cw20_balance(
+                &deps,
+                &contract_addr,
+                &env.contract.address,
+            )?),
+            AssetInfo::NativeToken { denom } => {
+                int_to_fpdec(query_cw20_balance(&deps, &h(denom), &env.contract.address)?)
+            }
+        })
+        // .map(|asset| int_to_fpdec(query_cw20_balance(&deps, &asset, &env.contract.address)?))
         .collect::<StdResult<Vec<FPDecimal>>>()?;
 
     let basket_token_supply = query_cw20_token_supply(&deps, &basket_token)?;
@@ -130,7 +146,12 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
 
             let prices: Vec<FPDecimal> = assets
                 .iter()
-                .map(|asset| query_price(&deps, &cfg.oracle, &asset))
+                .map(|asset| match asset {
+                    AssetInfo::Token { contract_addr } => {
+                        query_price(&deps, &cfg.oracle, &contract_addr)
+                    }
+                    AssetInfo::NativeToken { denom } => query_price(&deps, &cfg.oracle, &h(denom)),
+                })
                 .collect::<StdResult<Vec<FPDecimal>>>()?;
 
             let prod = dot(&inv, &prices) / dot(&r, &prices);
@@ -170,7 +191,12 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         .filter(|(amt, asset)| !amt.is_zero()) // remove 0 amounts
         .map(|(amt, asset)| {
             Ok(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: asset.clone(),
+                contract_addr: {
+                    match asset {
+                        AssetInfo::Token { contract_addr } => contract_addr.clone(),
+                        AssetInfo::NativeToken { denom } => h(denom),
+                    }
+                },
                 msg: to_binary(&Cw20HandleMsg::Transfer {
                     amount: amt.clone(),
                     recipient: sender.clone(),
@@ -225,7 +251,10 @@ pub fn try_receive_stage_asset<S: Storage, A: Api, Q: Querier>(
         .collect::<Vec<_>>();
 
     // if sent asset is not a component asset of basket, reject
-    if !assets.iter().any(|asset| asset == sent_asset) {
+    if !assets.iter().any(|asset| match asset {
+        AssetInfo::Token { contract_addr } => contract_addr == sent_asset,
+        AssetInfo::NativeToken { denom } => &h(denom) == sent_asset,
+    }) {
         return Err(error::not_component_asset(sent_asset));
     }
 
@@ -270,7 +299,9 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     let mut asset_data: Vec<TargetAssetData> = Vec::new();
     for i in 0..target.len() {
         let asset_elem = TargetAssetData {
-            asset: assets[i].clone(),
+            asset: AssetInfo::Token {
+                contract_addr: assets[i].clone(),
+            },
             target: target[i].clone(),
         };
         asset_data.push(asset_elem);
@@ -359,17 +390,25 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 
     // ensure that all tokens in asset_amounts have been staged beforehand
     for (asset, amount) in assets.iter().zip(asset_amounts) {
-        let staged = read_staged_asset(&deps.storage, &env.message.sender, asset)?;
+        let denom_scoped: HumanAddr;
+        let asset_addr = match asset {
+            AssetInfo::Token { contract_addr } => contract_addr,
+            AssetInfo::NativeToken { denom } => {
+                denom_scoped = h(denom);
+                &denom_scoped
+            }
+        };
+        let staged = read_staged_asset(&deps.storage, &env.message.sender, asset_addr)?;
         //println!("asset {} amount {} staged {}", asset, amount, staged);
         if *amount > staged {
             return Err(error::insufficient_staged(
                 &env.message.sender,
-                asset,
+                asset_addr,
                 *amount,
                 staged,
             ));
         }
-        unstage_asset(&mut deps.storage, &env.message.sender, &asset, *amount)?;
+        unstage_asset(&mut deps.storage, &env.message.sender, asset_addr, *amount)?;
     }
     let c = asset_amounts
         .iter()
@@ -379,13 +418,26 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     // get current balances of each token (inventory)
     let inv: Vec<FPDecimal> = assets
         .iter()
-        .map(|asset| int_to_fpdec(query_cw20_balance(&deps, &asset, &env.contract.address)?))
+        .map(|asset| match asset {
+            AssetInfo::Token { contract_addr } => int_to_fpdec(query_cw20_balance(
+                &deps,
+                &contract_addr,
+                &env.contract.address,
+            )?),
+            AssetInfo::NativeToken { denom } => {
+                int_to_fpdec(query_cw20_balance(&deps, &h(denom), &env.contract.address)?)
+            }
+        })
+        // .map(|asset| int_to_fpdec(query_cw20_balance(&deps, &asset, &env.contract.address)?))
         .collect::<StdResult<Vec<FPDecimal>>>()?;
 
     // get current prices of each token via oracle
     let prices: Vec<FPDecimal> = assets
         .iter()
-        .map(|asset| query_price(&deps, &cfg.oracle, &asset))
+        .map(|asset| match asset {
+            AssetInfo::Token { contract_addr } => query_price(&deps, &cfg.oracle, &contract_addr),
+            AssetInfo::NativeToken { denom } => query_price(&deps, &cfg.oracle, &h(denom)),
+        })
         .collect::<StdResult<Vec<FPDecimal>>>()?;
 
     // compute penalty
@@ -450,7 +502,10 @@ pub fn try_unstage_asset<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
     // if sent asset is not a component asset of basket, reject
-    if !assets.iter().any(|x| asset == x) {
+    if !assets.iter().any(|x| match x {
+        AssetInfo::Token { contract_addr } => contract_addr == asset,
+        AssetInfo::NativeToken { denom } => &h(denom) == asset,
+    }) {
         return Err(error::not_component_asset(asset));
     }
 

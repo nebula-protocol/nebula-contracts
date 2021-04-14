@@ -3,6 +3,7 @@ use cosmwasm_std::{HumanAddr, Uint128};
 use cw20::Cw20ReceiveMsg;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use terraswap::asset::AssetInfo;
 
 use crate::state::{BasketConfig, PenaltyParams};
 

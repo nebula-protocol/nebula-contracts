@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use basket_math::FPDecimal;
 use cosmwasm_std::{HumanAddr, StdResult, Storage, Uint128};
 use cosmwasm_storage::{singleton, singleton_read, Bucket, ReadonlyBucket};
+use terraswap::asset::AssetInfo;
 
 /// config: BasketConfig
 pub static CONFIG_KEY: &[u8] = b"config";
@@ -31,7 +32,7 @@ pub struct BasketConfig {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TargetAssetData {
-    pub asset: HumanAddr,
+    pub asset: AssetInfo,
     pub target: u32,
 }
 
