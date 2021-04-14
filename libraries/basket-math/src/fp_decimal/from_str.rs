@@ -39,7 +39,7 @@ impl FromStr for FPDecimal {
                 Ok(
                     FPDecimal {
                         num: integer * FPDecimal::ONE.num + 
-                            fraction * U256::pow(U256([10, 0, 0, 0]), U256::from(exp as u32)), 
+                            fraction * U256::exp10(exp), 
                         sign: sign
                     }
                 )
