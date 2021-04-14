@@ -32,3 +32,26 @@ impl FPDecimal {
         FPDecimal::_tanh(*self)
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use crate::FPDecimal;
+    use std::str::FromStr;
+    
+
+    #[test]
+    fn test_sinh() {
+        assert_eq!(FPDecimal::_sinh(FPDecimal::ONE), FPDecimal::from_str("1.1752011935").unwrap());
+    }
+
+    #[test]
+    fn test_cosh() {
+        assert_eq!(FPDecimal::_cosh(FPDecimal::ONE), FPDecimal::from_str("1.5430806345").unwrap());
+    }
+
+    #[test]
+    fn test_tanh() {
+        assert_eq!(FPDecimal::_tanh(FPDecimal::ONE), FPDecimal::from_str("0.761594155554627386").unwrap());
+    }
+}
