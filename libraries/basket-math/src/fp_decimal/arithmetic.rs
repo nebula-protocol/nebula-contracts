@@ -27,9 +27,19 @@ impl FPDecimal {
         }
     }
 
+    pub fn add(&self, other: i128) -> FPDecimal
+    {
+        FPDecimal::_add(*self, FPDecimal::from(other))
+    }
+
     pub fn _sub(x: FPDecimal, y: FPDecimal) -> FPDecimal {
         let neg_y = FPDecimal {num: y.num, sign: 1 - y.sign};
         FPDecimal::_add(x, neg_y)
+    }
+
+    pub fn sub(&self, other: i128) -> FPDecimal
+    {
+        FPDecimal::_sub(*self, FPDecimal::from(other))
     }
 
     pub fn _mul(x: FPDecimal, y: FPDecimal) -> FPDecimal {
@@ -58,12 +68,23 @@ impl FPDecimal {
             sign: sign
         }
     }
+
+    pub fn mul(&self, other: i128) -> FPDecimal
+    {
+        FPDecimal::_mul(*self, FPDecimal::from(other))
+    }
+
     pub fn _div(x: FPDecimal, y: FPDecimal) -> FPDecimal {
         if y == FPDecimal::ONE {
             return x;
         }
         assert!(y.num != U256::zero());
         FPDecimal::_mul(x, FPDecimal::reciprocal(y))
+    }
+
+    pub fn div(&self, other: i128) -> FPDecimal
+    {
+        FPDecimal::_div(*self, FPDecimal::from(other))
     }
 
     pub fn reciprocal(x: FPDecimal) -> FPDecimal {
@@ -76,15 +97,6 @@ impl FPDecimal {
 
     pub fn abs(&self) -> FPDecimal {
         FPDecimal { num: self.num, sign: 1i8}
-    }
-
-    pub fn convertTou128(num:U256) -> u128 {
-        let mut array: [u8; 16] = [0;16];
-        for i in 0..16 {
-            array[i] = num.byte(i);
-        }
-        let val = u128::from_le_bytes(array);
-        return val;
     }
 }
 
@@ -127,9 +139,9 @@ mod tests {
     use bigint::U256;
 
     #[test]
-    fn test_byte_func() {
-        let first_num = FPDecimal::from(2348093290348092384i128).num;
-        assert_eq!(FPDecimal::convertTou128(first_num), 2348093290348092384)
+    fn test_into_u128() {
+        let first_num : u128 = FPDecimal::from(1234567890123456789u128).into();
+        assert_eq!(first_num, 1234567890123456789u128)
     }
 
     #[test]

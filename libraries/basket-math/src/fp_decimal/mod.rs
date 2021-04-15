@@ -1,10 +1,10 @@
 use bigint::U256;
-
+use schemars::JsonSchema;
 // pub struct FPDecimal(#[schemars(with = "String")] pub i128);
 
-#[derive(Copy, Clone, Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Default, Debug, PartialEq, Eq, PartialOrd, Ord, JsonSchema)]
 pub struct FPDecimal {
-    pub num: U256,
+    #[schemars(with = "String")] pub num: U256,
     pub sign: i8
 }
 
@@ -12,7 +12,7 @@ impl From<u128> for FPDecimal {
     fn from(x: u128) -> FPDecimal {
         let second = x >> 64;
         let second_u64 = second as u64;
-        FPDecimal {num: U256([x as u64, second_u64 ,0,0]), sign: 1}
+        FPDecimal {num: U256([x as u64, second_u64 ,0,0]) * FPDecimal::ONE.num, sign: 1}
     }
 }
 
@@ -25,7 +25,19 @@ impl From<i128> for FPDecimal {
         let abs_x : u128 = x.abs() as u128;
         let second = abs_x >> 64;
         let second_u64 = second as u64;
-        FPDecimal {num: U256([abs_x as u64, second_u64, 0, 0]), sign: sign}
+        FPDecimal {num: U256([abs_x as u64, second_u64, 0, 0]) * FPDecimal::ONE.num, sign: sign}
+    }
+}
+
+impl Into<u128> for FPDecimal {
+    fn into(self) -> u128 {
+        let num = self.int().num / FPDecimal::ONE.num;
+        let mut array: [u8; 16] = [0;16];
+        for i in 0..16 {
+            array[i] = num.byte(i);
+        }
+        let val = u128::from_le_bytes(array);
+        val
     }
 }
 
