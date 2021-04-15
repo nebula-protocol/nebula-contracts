@@ -155,11 +155,11 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
             }
             let weights_sum = weights
                 .iter()
-                .fold(FPDecimal::zero(), |acc, el| acc + FPDecimal::from(el.u128() as i128));
+                .fold(FPDecimal::zero(), |acc, &el| acc + FPDecimal::from(el as u128));
 
             let r = weights // normalize weights vector
                 .iter()
-                .map(|x| FPDecimal::from(x.u128() as i128) / weights_sum)
+                .map(|&x| FPDecimal::from(x as u128) / weights_sum)
                 .collect();
 
             let prices: Vec<FPDecimal> = assets
@@ -174,11 +174,11 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
 
             let prod = dot(&inv, &prices) / dot(&r, &prices);
             let b: Vec<FPDecimal> = r.iter().map(|&x| m_div_n * prod * x).collect();
-            let neg_b: Vec<FPDecimal> = b.iter().map(|&x| FPDecimal::one().mul(-1) * x).collect();
+            let neg_b: Vec<FPDecimal> = b.iter().map(|&x| FPDecimal::from(-1i128) * x).collect();
 
             // compute score
-            let diff = compute_diff(&inv, &neg_b, &prices, &target);
-            let score = (sum(&diff) / dot(&b, &prices)).div(2);
+            let diff = compute_diff(&inv, &neg_b, &prices, &read_target(&deps.storage)?);
+            let score = (sum(&diff) / dot(&b, &prices)).div(2i128);
 
             let PenaltyParams {
                 a_pos,
@@ -205,8 +205,8 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
 
     let transfer_msgs: Vec<CosmosMsg> = redeem_totals
         .iter()
-        .zip(assets.iter())
-        .filter(|(amt, asset)| !amt.is_zero()) // remove 0 amounts
+        .zip(cfg.assets.iter())
+        .filter(|(amt, _asset)| !amt.is_zero()) // remove 0 amounts
         .map(|(amt, asset)| {
             Ok(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: {
@@ -469,7 +469,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         .collect::<StdResult<Vec<FPDecimal>>>()?;
 
     // compute penalty
-    let score = compute_score(&inv, &c, &prices, &target).div(2);
+    let score = compute_score(&inv, &c, &prices, &target).div(2i128);
 
     let PenaltyParams {
         a_pos,
@@ -673,9 +673,9 @@ mod tests {
         let env = mock_env(h("addr0000"), &[]);
         let res = handle(&mut deps, env, mint_msg).unwrap();
 
-        for log in res.log.iter() {
-            println!("{}: {}", log.key, log.value);
-        }
+        // for _log in res.log.iter() {
+        //     //println!("{}: {}", log.key, log.value);
+        // }
         assert_eq!(1, res.messages.len());
     }
 

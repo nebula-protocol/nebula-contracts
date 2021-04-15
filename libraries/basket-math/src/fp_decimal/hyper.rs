@@ -1,34 +1,57 @@
 /// Hyperbolic Trig functions for FPDecimal
-use crate::fp_decimal::FPDecimal;
+use crate::fp_decimal::{FPDecimal, U256};
 
 impl FPDecimal {
-    pub fn _sinh(x: i128) -> i128 {
-        let neg_x: i128 = -1 * x;
-        let denominator: i128 = FPDecimal::ONE * 2;
-        let numerator: i128 = FPDecimal::_sub(FPDecimal::_exp(x), FPDecimal::_exp(neg_x));
+    pub fn _sinh(x: FPDecimal) -> FPDecimal {
+        let neg_x: FPDecimal = FPDecimal {num: x.num, sign: 1 - x.sign};
+        let denominator = FPDecimal {num: FPDecimal::ONE.num * U256([2, 0, 0, 0]), sign: 1};
+        let numerator : FPDecimal = FPDecimal::_sub(FPDecimal::_exp(x), FPDecimal::_exp(neg_x));
         FPDecimal::_div(numerator, denominator)
     }
 
     pub fn sinh(&self) -> FPDecimal {
-        FPDecimal(FPDecimal::_sinh(self.0))
+        FPDecimal::_sinh(*self)
     }
 
-    pub fn _cosh(x: i128) -> i128 {
-        let neg_x: i128 = -1 * x;
-        let denominator: i128 = FPDecimal::ONE * 2;
-        let numerator: i128 = FPDecimal::_add(FPDecimal::_exp(x), FPDecimal::_exp(neg_x));
+    pub fn _cosh(x: FPDecimal) -> FPDecimal {
+        let neg_x: FPDecimal = FPDecimal {num: x.num, sign: 1 - x.sign};
+        let denominator = FPDecimal {num: FPDecimal::ONE.num * U256([2, 0, 0, 0]), sign: 1};
+        let numerator : FPDecimal = FPDecimal::_add(FPDecimal::_exp(x), FPDecimal::_exp(neg_x));
         FPDecimal::_div(numerator, denominator)
     }
 
     pub fn cosh(&self) -> FPDecimal {
-        FPDecimal(FPDecimal::_cosh(self.0))
+        FPDecimal::_cosh(*self)
     }
 
-    pub fn _tanh(x: i128) -> i128 {
+    pub fn _tanh(x: FPDecimal) -> FPDecimal {
         FPDecimal::_div(FPDecimal::_sinh(x), FPDecimal::_cosh(x))
     }
 
     pub fn tanh(&self) -> FPDecimal {
-        FPDecimal(FPDecimal::_tanh(self.0))
+        FPDecimal::_tanh(*self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use crate::FPDecimal;
+    use std::str::FromStr;
+    
+
+    #[test]
+    fn test_sinh() {
+        assert_eq!(FPDecimal::_sinh(FPDecimal::ONE), FPDecimal::from_str("1.1752011935").unwrap());
+    }
+
+    #[test]
+    fn test_cosh() {
+        assert_eq!(FPDecimal::_cosh(FPDecimal::ONE), FPDecimal::from_str("1.5430806345").unwrap());
+    }
+
+    #[test]
+    fn test_tanh() {
+        assert_eq!(FPDecimal::_tanh(FPDecimal::ONE), FPDecimal::from_str("0.761594155554627386").unwrap());
     }
 }

@@ -17,10 +17,10 @@ pub fn compute_err(
     // w: Vec<FPDecimal> = normalized target vector (target / sum(target))
     let target_sum = target
         .iter()
-        .fold(FPDecimal::zero(), |acc, &el| acc + FPDecimal::from(el));
+        .fold(FPDecimal::zero(), |acc, &el| acc + FPDecimal::from(el as u128));
     let w: Vec<FPDecimal> = target
         .iter()
-        .map(|&x| FPDecimal::from(x) / target_sum)
+        .map(|&x| FPDecimal::from(x as u128) / target_sum)
         .collect();
     //println!("\tw = normalize(target) = target / sum(target)");
     //println!("\t  = {}", vec_to_string(&w));
@@ -129,7 +129,7 @@ pub fn compute_penalty(
     a_neg: FPDecimal,
     s_neg: FPDecimal,
 ) -> FPDecimal {
-    if score.0 <= 0 {
+    if score.num <= FPDecimal::zero().num {
         FPDecimal::one() - a_neg * (score / s_neg).tanh()
     } else {
         FPDecimal::one() - a_pos * (score / s_pos).tanh()

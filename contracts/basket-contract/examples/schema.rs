@@ -5,8 +5,7 @@ use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
 use basket_contract::state::{BasketConfig, PenaltyParams};
 use basket_contract::{
-    msg::{Cw20HookMsg, HandleMsg, InitMsg, QueryMsg, StagedAmountResponse},
-    // test_helper::ConfigResponse,
+    msg::{Cw20HookMsg, HandleMsg, InitMsg, QueryMsg, StagedAmountResponse}
 };
 
 fn main() {
