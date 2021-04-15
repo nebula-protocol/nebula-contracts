@@ -69,15 +69,19 @@ pub fn read_target<S: Storage>(storage: &S) -> StdResult<Vec<u32>> {
 
 pub fn save_target<S: Storage>(storage: &mut S, target: &Vec<u32>) -> StdResult<()> {
     singleton(storage, TARGET_KEY).save(target)
-} 
+}
 
 // Keep record of total staged for each asset
-pub fn save_total_staged_asset<S: Storage>(storage: &mut S, asset: &AssetInfo, amount: &Uint128) -> StdResult<()> {
-    singleton(storage, &asset.to_string().as_bytes()).save(amount)
-} 
-
 pub fn read_total_staged_asset<S: Storage>(storage: &S, asset: &AssetInfo) -> StdResult<Uint128> {
     singleton_read(storage, &asset.to_string().as_bytes()).load()
+}
+
+pub fn save_total_staged_asset<S: Storage>(
+    storage: &mut S,
+    asset: &AssetInfo,
+    amount: &Uint128,
+) -> StdResult<()> {
+    singleton(storage, &asset.to_string().as_bytes()).save(amount)
 }
 
 pub fn read_staged_asset<S: Storage>(
@@ -100,8 +104,21 @@ pub fn stage_asset<S: Storage>(
     amount: Uint128,
 ) -> StdResult<()> {
     let curr_amount = read_staged_asset(storage, account, asset)?;
+
+    let curr_total_staged = read_total_staged_asset(storage, asset);
+
+    // Check if zero
+    let curr_total_staged = match curr_total_staged {
+        Ok(v) => v,
+        Err(_) => Uint128::zero(),
+    };
+
+    // Best practice for error checking?
+    save_total_staged_asset(storage, asset, &(curr_total_staged + amount))?;
+
     let mut staging =
         Bucket::<S, Uint128>::multilevel(&[PREFIX_STAGING, asset.to_string().as_bytes()], storage);
+
     staging.save(account.as_str().as_bytes(), &(curr_amount + amount))
 }
 
@@ -112,6 +129,12 @@ pub fn unstage_asset<S: Storage>(
     amount: Uint128,
 ) -> StdResult<()> {
     let curr_amount = read_staged_asset(storage, account, asset)?;
+
+    let curr_total_staged = read_total_staged_asset(storage, asset)?;
+
+    // Best practice for error checking?
+    save_total_staged_asset(storage, asset, &((curr_total_staged - amount)?))?;
+
     let mut staging =
         Bucket::<S, Uint128>::multilevel(&[PREFIX_STAGING, asset.to_string().as_bytes()], storage);
     staging.save(account.as_str().as_bytes(), &((curr_amount - amount)?))

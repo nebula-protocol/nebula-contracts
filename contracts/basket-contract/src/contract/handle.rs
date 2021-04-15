@@ -7,7 +7,7 @@ use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
 use error::bad_weight_values;
 
 use crate::error;
-use crate::ext_query::{query_cw20_balance, query_cw20_token_supply, query_price};
+use crate::ext_query::{query_cw20_balance_minus_staged, query_cw20_token_supply, query_price};
 use crate::state::{
     read_config, save_config, stage_asset, unstage_asset, PenaltyParams, TargetAssetData,
 };
@@ -126,20 +126,20 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         send: vec![],
     });
 
-    let inv: Vec<FPDecimal> = assets
-        .iter()
-        .map(|asset| match asset {
-            AssetInfo::Token { contract_addr } => int_to_fpdec(query_cw20_balance(
-                &deps,
-                &contract_addr,
-                &env.contract.address,
-            )?),
-            AssetInfo::NativeToken { denom } => {
-                int_to_fpdec(query_cw20_balance(&deps, &h(denom), &env.contract.address)?)
-            }
-        })
-        // .map(|asset| int_to_fpdec(query_cw20_balance(&deps, &asset, &env.contract.address)?))
-        .collect::<StdResult<Vec<FPDecimal>>>()?;
+    let inv: Vec<FPDecimal> =
+        assets
+            .iter()
+            .map(|asset| match asset {
+                AssetInfo::Token { contract_addr } => int_to_fpdec(
+                    query_cw20_balance_minus_staged(&deps, &contract_addr, &env.contract.address)?,
+                ),
+                AssetInfo::NativeToken { denom } => int_to_fpdec(query_cw20_balance_minus_staged(
+                    &deps,
+                    &h(denom),
+                    &env.contract.address,
+                )?),
+            })
+            .collect::<StdResult<Vec<FPDecimal>>>()?;
 
     let basket_token_supply = query_cw20_token_supply(&deps, &basket_token)?;
 
@@ -437,29 +437,34 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     }
 
     for asset in asset_amounts {
-        unstage_asset(&mut deps.storage, &env.message.sender, &asset.info, asset.amount)?;
+        unstage_asset(
+            &mut deps.storage,
+            &env.message.sender,
+            &asset.info,
+            asset.amount,
+        )?;
     }
-    
+
     let c = asset_weights
         .iter()
         .map(|x| int_to_fpdec(x.clone()))
         .collect::<StdResult<Vec<FPDecimal>>>()?;
 
     // get current balances of each token (inventory)
-    let inv: Vec<FPDecimal> = asset_infos
-        .iter()
-        .map(|asset| match asset {
-            AssetInfo::Token { contract_addr } => int_to_fpdec(query_cw20_balance(
-                &deps,
-                &contract_addr,
-                &env.contract.address,
-            )?),
-            AssetInfo::NativeToken { denom } => {
-                int_to_fpdec(query_cw20_balance(&deps, &h(denom), &env.contract.address)?)
-            }
-        })
-        // .map(|asset| int_to_fpdec(query_cw20_balance(&deps, &asset, &env.contract.address)?))
-        .collect::<StdResult<Vec<FPDecimal>>>()?;
+    let inv: Vec<FPDecimal> =
+        asset_infos
+            .iter()
+            .map(|asset| match asset {
+                AssetInfo::Token { contract_addr } => int_to_fpdec(
+                    query_cw20_balance_minus_staged(&deps, &contract_addr, &env.contract.address)?,
+                ),
+                AssetInfo::NativeToken { denom } => int_to_fpdec(query_cw20_balance_minus_staged(
+                    &deps,
+                    &h(denom),
+                    &env.contract.address,
+                )?),
+            })
+            .collect::<StdResult<Vec<FPDecimal>>>()?;
 
     // get current prices of each token via oracle
     let prices: Vec<FPDecimal> = asset_infos

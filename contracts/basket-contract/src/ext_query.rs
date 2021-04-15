@@ -1,3 +1,4 @@
+use crate::state::read_total_staged_asset;
 use basket_math::FPDecimal;
 use cosmwasm_std::{
     to_binary, Api, Decimal, Extern, HumanAddr, Querier, QueryRequest, StdResult, Storage, Uint128,
@@ -6,6 +7,7 @@ use cosmwasm_std::{
 use cw20::{BalanceResponse as Cw20BalanceResponse, TokenInfoResponse as Cw20TokenInfoResponse};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
+use terraswap::asset::AssetInfo;
 
 /// QueryMsgs to external contracts
 #[derive(Serialize, Deserialize)]
@@ -48,6 +50,25 @@ pub fn query_price<S: Storage, A: Api, Q: Querier>(
 
     // transform Decimal -> FPDecimal
     Ok(FPDecimal::from_str(res.rate.to_string().as_str())?)
+}
+
+/// EXTERNAL QUERY
+/// -- Queries the token_address contract for the current balance of account
+pub fn query_cw20_balance_minus_staged<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    asset_address: &HumanAddr,
+    account_address: &HumanAddr,
+) -> StdResult<Uint128> {
+    let tot_balance = query_cw20_balance(&deps, &asset_address, &account_address)?;
+
+    let staged_balance = read_total_staged_asset(
+        &deps.storage,
+        &AssetInfo::Token {
+            contract_addr: asset_address.clone(),
+        },
+    )?;
+    // tot_balance - staged_balance
+    tot_balance - staged_balance
 }
 
 /// EXTERNAL QUERY

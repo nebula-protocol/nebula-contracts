@@ -235,13 +235,13 @@ def deploy():
             MsgExecuteContract(
                 deployer.key.acc_address,
                 wBTC,
-                CW20.send(basket, "1000000", Basket.stage_asset()),
+                CW20.send(basket, "3000000", Basket.stage_asset()),
             ),
-            MsgExecuteContract(
-                deployer.key.acc_address,
-                basket,
-                Basket.mint(["1000000"]),
-            ),
+            # MsgExecuteContract(
+            #     deployer.key.acc_address,
+            #     basket,
+            #     Basket.mint(["1000000"]),
+            # ),
         ],
         sequence=seq(),
         fee=StdFee(4000000, "2000000uluna"),
@@ -249,6 +249,7 @@ def deploy():
 
     result = terra.tx.broadcast(stage_and_mint_tx)
     print(f"stage & mint TXHASH: {result.txhash}")
+    # print(result)
     print(result.logs[0].events_by_type)
 
     ### EXAMPLE: how to query
