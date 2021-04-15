@@ -15,9 +15,9 @@ pub fn compute_err(
     // );
 
     // w: Vec<FPDecimal> = normalized target vector (target / sum(target))
-    let target_sum = target
-        .iter()
-        .fold(FPDecimal::zero(), |acc, &el| acc + FPDecimal::from(el as u128));
+    let target_sum = target.iter().fold(FPDecimal::zero(), |acc, &el| {
+        acc + FPDecimal::from(el as u128)
+    });
     let w: Vec<FPDecimal> = target
         .iter()
         .map(|&x| FPDecimal::from(x as u128) / target_sum)

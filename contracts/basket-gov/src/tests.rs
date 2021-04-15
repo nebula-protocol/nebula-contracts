@@ -5,18 +5,18 @@ use crate::state::{
     Config, Poll, State, TokenManager,
 };
 
-use cosmwasm_std::testing::{mock_env, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
-use cosmwasm_std::{
-    coins, from_binary, log, to_binary, Api, CanonicalAddr, Coin, CosmosMsg, Decimal, Env, Extern,
-    HandleResponse, HumanAddr, StdError, Uint128, WasmMsg,
-};
-use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
 use crate::common::OrderBy;
 use crate::msg::{
     ConfigResponse, Cw20HookMsg, ExecuteMsg, HandleMsg, InitMsg, PollResponse, PollStatus,
     PollsResponse, QueryMsg, StakerResponse, VoteOption, VoterInfo, VotersResponse,
     VotersResponseItem,
 };
+use cosmwasm_std::testing::{mock_env, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
+use cosmwasm_std::{
+    coins, from_binary, log, to_binary, Api, CanonicalAddr, Coin, CosmosMsg, Decimal, Env, Extern,
+    HandleResponse, HumanAddr, StdError, Uint128, WasmMsg,
+};
+use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
 
 const VOTING_TOKEN: &str = "voting_token";
 const TEST_CREATOR: &str = "creator";

@@ -4,15 +4,19 @@ use schemars::JsonSchema;
 
 #[derive(Copy, Clone, Default, Debug, PartialEq, Eq, PartialOrd, Ord, JsonSchema)]
 pub struct FPDecimal {
-    #[schemars(with = "String")] pub num: U256,
-    pub sign: i8
+    #[schemars(with = "String")]
+    pub num: U256,
+    pub sign: i8,
 }
 
 impl From<u128> for FPDecimal {
     fn from(x: u128) -> FPDecimal {
         let second = x >> 64;
         let second_u64 = second as u64;
-        FPDecimal {num: U256([x as u64, second_u64 ,0,0]) * FPDecimal::ONE.num, sign: 1}
+        FPDecimal {
+            num: U256([x as u64, second_u64, 0, 0]) * FPDecimal::ONE.num,
+            sign: 1,
+        }
     }
 }
 
@@ -22,17 +26,20 @@ impl From<i128> for FPDecimal {
         if x < 0 {
             sign = 0;
         }
-        let abs_x : u128 = x.abs() as u128;
+        let abs_x: u128 = x.abs() as u128;
         let second = abs_x >> 64;
         let second_u64 = second as u64;
-        FPDecimal {num: U256([abs_x as u64, second_u64, 0, 0]) * FPDecimal::ONE.num, sign: sign}
+        FPDecimal {
+            num: U256([abs_x as u64, second_u64, 0, 0]) * FPDecimal::ONE.num,
+            sign: sign,
+        }
     }
 }
 
 impl Into<u128> for FPDecimal {
     fn into(self) -> u128 {
         let num = self.int().num / FPDecimal::ONE.num;
-        let mut array: [u8; 16] = [0;16];
+        let mut array: [u8; 16] = [0; 16];
         for i in 0..16 {
             array[i] = num.byte(i);
         }
@@ -49,15 +56,39 @@ impl Into<u128> for FPDecimal {
 // }
 
 impl FPDecimal {
-    pub const MAX: FPDecimal = FPDecimal {num: U256::MAX, sign: 1};
-    pub const MIN: FPDecimal = FPDecimal {num: U256::MAX, sign: 0};
+    pub const MAX: FPDecimal = FPDecimal {
+        num: U256::MAX,
+        sign: 1,
+    };
+    pub const MIN: FPDecimal = FPDecimal {
+        num: U256::MAX,
+        sign: 0,
+    };
     pub const DIGITS: usize = 18;
-    pub const ONE: FPDecimal  = FPDecimal {num: U256([1_000_000_000_000_000_000, 0,0,0]), sign: 1};
-    pub const MUL_PRECISION: FPDecimal = FPDecimal {num: U256([1_000_000_000, 0,0,0]), sign: 1};
-    pub const E_10: FPDecimal = FPDecimal {num: U256([1053370797511887454u64, 1194u64, 0, 0]), sign:1}; // e^10
-    pub const E: FPDecimal = FPDecimal {num: U256([2718281828459045235, 0,0,0]), sign: 1};
-    pub const LN_10: FPDecimal = FPDecimal {num: U256([2302585092994045684, 0,0,0]), sign: 1}; // ln(10)
-    pub const LN_1_5: FPDecimal = FPDecimal {num: U256([405465108108164382, 0,0,0]), sign: 1}; // ln(1.5)
+    pub const ONE: FPDecimal = FPDecimal {
+        num: U256([1_000_000_000_000_000_000, 0, 0, 0]),
+        sign: 1,
+    };
+    pub const MUL_PRECISION: FPDecimal = FPDecimal {
+        num: U256([1_000_000_000, 0, 0, 0]),
+        sign: 1,
+    };
+    pub const E_10: FPDecimal = FPDecimal {
+        num: U256([1053370797511887454u64, 1194u64, 0, 0]),
+        sign: 1,
+    }; // e^10
+    pub const E: FPDecimal = FPDecimal {
+        num: U256([2718281828459045235, 0, 0, 0]),
+        sign: 1,
+    };
+    pub const LN_10: FPDecimal = FPDecimal {
+        num: U256([2302585092994045684, 0, 0, 0]),
+        sign: 1,
+    }; // ln(10)
+    pub const LN_1_5: FPDecimal = FPDecimal {
+        num: U256([405465108108164382, 0, 0, 0]),
+        sign: 1,
+    }; // ln(1.5)
 
     pub const fn one() -> FPDecimal {
         FPDecimal::ONE
@@ -65,8 +96,8 @@ impl FPDecimal {
 
     pub const fn zero() -> FPDecimal {
         FPDecimal {
-            num: U256([0,0,0,0]),
-            sign: 1
+            num: U256([0, 0, 0, 0]),
+            sign: 1,
         }
     }
 
@@ -88,7 +119,7 @@ impl FPDecimal {
         let x_final = x1_1 * FPDecimal::ONE.num;
         FPDecimal {
             num: x_final,
-            sign: x.sign
+            sign: x.sign,
         }
     }
 
@@ -101,11 +132,10 @@ impl FPDecimal {
     }
 
     pub fn _fraction(x: FPDecimal) -> FPDecimal {
-
         let x1 = x.num;
         FPDecimal {
             num: x1 - FPDecimal::_int(x).num,
-            sign: x.sign
+            sign: x.sign,
         }
     }
 

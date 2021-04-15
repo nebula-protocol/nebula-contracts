@@ -29,9 +29,7 @@ impl Serialize for FPDecimal {
     where
         S: ser::Serializer,
     {
-        serializer.serialize_str(
-            &format!("{}", &self)
-        )
+        serializer.serialize_str(&format!("{}", &self))
     }
 }
 

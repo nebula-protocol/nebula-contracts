@@ -4,12 +4,12 @@ use crate::state::{
     state_store, Config, Poll, State, TokenManager,
 };
 
+use crate::msg::{PollStatus, StakerResponse};
 use cosmwasm_std::{
     log, to_binary, Api, CanonicalAddr, CosmosMsg, Env, Extern, HandleResponse, HandleResult,
     HumanAddr, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 use cw20::Cw20HandleMsg;
-use crate::msg::{PollStatus, StakerResponse};
 
 pub fn stake_voting_tokens<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,

@@ -1,6 +1,6 @@
+use bigint::U256;
 use cosmwasm_std::StdError;
 use std::str::FromStr;
-use bigint::U256;
 
 use crate::fp_decimal::FPDecimal;
 
@@ -20,7 +20,10 @@ impl FromStr for FPDecimal {
             1 => {
                 let integer = U256::from_dec_str(parts[0])
                     .map_err(|_| StdError::generic_err("Error parsing integer"))?;
-                Ok(FPDecimal {num: integer * FPDecimal::ONE.num, sign: sign})
+                Ok(FPDecimal {
+                    num: integer * FPDecimal::ONE.num,
+                    sign: sign,
+                })
             }
             2 => {
                 let integer = U256::from_dec_str(parts[0])
@@ -35,14 +38,11 @@ impl FromStr for FPDecimal {
                             FPDecimal::DIGITS
                         ))
                     })?;
-                    
-                Ok(
-                    FPDecimal {
-                        num: integer * FPDecimal::ONE.num + 
-                            fraction * U256::exp10(exp), 
-                        sign: sign
-                    }
-                )
+
+                Ok(FPDecimal {
+                    num: integer * FPDecimal::ONE.num + fraction * U256::exp10(exp),
+                    sign: sign,
+                })
             }
             _ => Err(StdError::generic_err("Unexpected number of dots")),
         }
@@ -57,15 +57,15 @@ mod tests {
     use crate::FPDecimal;
     use bigint::U256;
     use std::str::FromStr;
-    
 
     #[test]
     fn test_from_str() {
         let val = FPDecimal::from_str("-1.23");
-        assert_eq!(val.unwrap(), 
+        assert_eq!(
+            val.unwrap(),
             FPDecimal {
-                num : U256([123, 0, 0, 0]) * FPDecimal::ONE.num / U256::from(100),
-                sign : 0
+                num: U256([123, 0, 0, 0]) * FPDecimal::ONE.num / U256::from(100),
+                sign: 0
             }
         );
     }
@@ -73,8 +73,6 @@ mod tests {
     #[test]
     fn test_from_str_one() {
         let val = FPDecimal::from_str("1");
-        assert_eq!(val.unwrap(), 
-            FPDecimal::ONE
-        );
+        assert_eq!(val.unwrap(), FPDecimal::ONE);
     }
 }

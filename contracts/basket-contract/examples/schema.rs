@@ -3,10 +3,8 @@ use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
+use basket_contract::msg::{Cw20HookMsg, HandleMsg, InitMsg, QueryMsg, StagedAmountResponse};
 use basket_contract::state::{BasketConfig, PenaltyParams};
-use basket_contract::{
-    msg::{Cw20HookMsg, HandleMsg, InitMsg, QueryMsg, StagedAmountResponse}
-};
 
 fn main() {
     let mut out_dir = current_dir().unwrap();

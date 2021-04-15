@@ -16,18 +16,21 @@ impl FPDecimal {
             r = r + FPDecimal::LN_10.num;
         }
         while v < FPDecimal::ONE.num {
-            v = FPDecimal::_mul(FPDecimal {num: v, sign: 1}, FPDecimal::E).num;
+            v = FPDecimal::_mul(FPDecimal { num: v, sign: 1 }, FPDecimal::E).num;
             r = r - FPDecimal::ONE.num;
         }
         while v > FPDecimal::E.num {
-            v = FPDecimal::_div(FPDecimal {num: v, sign: 1}, FPDecimal::E).num;
+            v = FPDecimal::_div(FPDecimal { num: v, sign: 1 }, FPDecimal::E).num;
             r = r + FPDecimal::ONE.num;
         }
         if v == FPDecimal::ONE.num {
-            return FPDecimal{num: r, sign: 1};
+            return FPDecimal { num: r, sign: 1 };
         }
         if v == FPDecimal::E.num {
-            return FPDecimal {num: FPDecimal::ONE.num + r, sign: 1};
+            return FPDecimal {
+                num: FPDecimal::ONE.num + r,
+                sign: 1,
+            };
         }
         v = v - U256([3, 0, 0, 0]) * FPDecimal::ONE.num / U256([2, 0, 0, 0]);
         r = r + FPDecimal::LN_1_5.num;
@@ -43,7 +46,7 @@ impl FPDecimal {
                 break;
             }
         }
-        FPDecimal {num: r, sign: 1}
+        FPDecimal { num: r, sign: 1 }
     }
 
     pub fn ln(&self) -> FPDecimal {
@@ -56,7 +59,6 @@ mod tests {
 
     use crate::FPDecimal;
     use bigint::U256;
-    
 
     #[test]
     fn test_ln() {
@@ -66,19 +68,25 @@ mod tests {
     #[test]
     fn test_ln10() {
         assert_eq!(
-            FPDecimal::_ln(FPDecimal {num: U256([10, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1}), 
+            FPDecimal::_ln(FPDecimal {
+                num: U256([10, 0, 0, 0]) * FPDecimal::ONE.num,
+                sign: 1
+            }),
             FPDecimal::LN_10
         );
     }
 
     #[test]
     fn test_ln1_5() {
-        let three = FPDecimal {num: U256([3, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1};
-        let two = FPDecimal {num: U256([2, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1};
+        let three = FPDecimal {
+            num: U256([3, 0, 0, 0]) * FPDecimal::ONE.num,
+            sign: 1,
+        };
+        let two = FPDecimal {
+            num: U256([2, 0, 0, 0]) * FPDecimal::ONE.num,
+            sign: 1,
+        };
         let one_point_five = FPDecimal::_div(three, two);
-        assert_eq!(
-            FPDecimal::_ln(one_point_five), 
-            FPDecimal::LN_1_5
-        );
+        assert_eq!(FPDecimal::_ln(one_point_five), FPDecimal::LN_1_5);
     }
 }

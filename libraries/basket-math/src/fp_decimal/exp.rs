@@ -34,7 +34,7 @@ impl FPDecimal {
             d = (d * x) / (FPDecimal::ONE.num * U256([i, 0, 0, 0]));
             tr = tr + d;
         }
-        let val = FPDecimal::_mul(FPDecimal {num: tr, sign: 1}, r);
+        let val = FPDecimal::_mul(FPDecimal { num: tr, sign: 1 }, r);
         if a.sign == 0 {
             return FPDecimal::reciprocal(val);
         }
@@ -47,7 +47,6 @@ mod tests {
 
     use crate::FPDecimal;
     use bigint::U256;
-    
 
     #[test]
     fn test_exp() {
@@ -61,8 +60,11 @@ mod tests {
 
     #[test]
     fn test_exp10() {
-        assert_eq!(FPDecimal::_exp(
-            FPDecimal {num: U256([10, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1}), 
+        assert_eq!(
+            FPDecimal::_exp(FPDecimal {
+                num: U256([10, 0, 0, 0]) * FPDecimal::ONE.num,
+                sign: 1
+            }),
             FPDecimal::E_10
         );
     }

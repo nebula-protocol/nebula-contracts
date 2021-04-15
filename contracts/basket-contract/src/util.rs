@@ -25,11 +25,8 @@ pub fn int_to_fpdec(amount: Uint128) -> StdResult<FPDecimal> {
 
 /// converts into integer
 pub fn fpdec_to_int(dec: FPDecimal) -> StdResult<(Uint128, FPDecimal)> {
-    let dec_u128 : u128 = dec.into();
-    Ok((
-        Uint128::from(dec_u128),
-        dec.fraction()
-    ))
+    let dec_u128: u128 = dec.into();
+    Ok((Uint128::from(dec_u128), dec.fraction()))
 }
 
 /// Prints vectors

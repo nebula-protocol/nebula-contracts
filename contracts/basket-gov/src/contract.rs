@@ -1,14 +1,14 @@
+use crate::msg::{
+    ConfigResponse, Cw20HookMsg, ExecuteMsg, HandleMsg, InitMsg, MigrateMsg, PollResponse,
+    PollStatus, PollsResponse, QueryMsg, StateResponse, VoteOption, VoterInfo, VotersResponse,
+    VotersResponseItem,
+};
 use crate::querier::load_token_balance;
 use crate::staking::{query_staker, stake_voting_tokens, withdraw_voting_tokens};
 use crate::state::{
     bank_read, bank_store, config_read, config_store, poll_indexer_store, poll_read, poll_store,
     poll_voter_read, poll_voter_store, read_poll_voters, read_polls, state_read, state_store,
     Config, ExecuteData, Poll, State,
-};
-use crate::msg::{
-    ConfigResponse, Cw20HookMsg, ExecuteMsg, HandleMsg, InitMsg, MigrateMsg, PollResponse,
-    PollStatus, PollsResponse, QueryMsg, StateResponse, VoteOption, VoterInfo, VotersResponse,
-    VotersResponseItem,
 };
 
 use cosmwasm_std::{
@@ -19,7 +19,6 @@ use cosmwasm_std::{
 use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
 
 use crate::common::OrderBy;
-
 
 const MIN_TITLE_LENGTH: usize = 4;
 const MAX_TITLE_LENGTH: usize = 64;

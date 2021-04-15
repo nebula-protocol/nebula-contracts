@@ -3,11 +3,7 @@ use std::fmt;
 
 impl fmt::Display for FPDecimal {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let sign = if self.sign == 0 {
-            "-"
-        } else {
-            ""
-        };
+        let sign = if self.sign == 0 { "-" } else { "" };
         let integer = self.int().abs();
         let fraction = (FPDecimal::_fraction(*self)).abs();
 
@@ -31,7 +27,7 @@ impl fmt::Display for FPDecimal {
 mod tests {
 
     use crate::FPDecimal;
-    use bigint::U256;    
+    use bigint::U256;
 
     #[test]
     fn test_fmt() {
@@ -41,9 +37,14 @@ mod tests {
     #[test]
     fn test_fmt_neg() {
         assert_eq!(
-            &format!("{}", 
-            FPDecimal {num: FPDecimal::ONE.num * U256([5, 0, 0, 0]), sign: 0}), 
+            &format!(
+                "{}",
+                FPDecimal {
+                    num: FPDecimal::ONE.num * U256([5, 0, 0, 0]),
+                    sign: 0
+                }
+            ),
             "-5"
-    );
+        );
     }
 }

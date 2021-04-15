@@ -94,7 +94,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         .iter()
         .map(|x| x.target)
         .collect::<Vec<_>>();
-     // Reorder asset_weights according to ordering of target assets
+    // Reorder asset_weights according to ordering of target assets
     let asset_weights: Option<Vec<Uint128>> = match &asset_weights {
         Some(weights) => {
             let mut vec: Vec<Uint128> = Vec::new();
@@ -104,13 +104,12 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
                         vec.push(weight.amount);
                         break;
                     }
-                };
-            };
+                }
+            }
             Some(vec)
         }
         None => None,
     };
-   
 
     // require that origin contract from Receive Hook is the associated Basket Token
     if *sent_asset != basket_token {
@@ -153,9 +152,9 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
             if weights.len() != inv.len() {
                 return Err(error::bad_weight_dimensions(weights.len(), inv.len()));
             }
-            let weights_sum = weights
-                .iter()
-                .fold(FPDecimal::zero(), |acc, &el| acc + FPDecimal::from(el.u128()));
+            let weights_sum = weights.iter().fold(FPDecimal::zero(), |acc, &el| {
+                acc + FPDecimal::from(el.u128())
+            });
 
             let r = weights // normalize weights vector
                 .iter()
@@ -418,8 +417,8 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
                     vec.push(weight.amount);
                     break;
                 }
-            };
-        };
+            }
+        }
         vec
     };
 
@@ -435,8 +434,13 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
                 staged,
             ));
         }
-        unstage_asset(&mut deps.storage, &env.message.sender, &asset.info, asset.amount)?;
-    };
+        unstage_asset(
+            &mut deps.storage,
+            &env.message.sender,
+            &asset.info,
+            asset.amount,
+        )?;
+    }
 
     let c = asset_weights
         .iter()
@@ -654,14 +658,14 @@ mod tests {
             _ => panic!("requires staging"),
         }
 
-
         for asset in asset_amounts {
-            let env = mock_env(match asset.info {
-                AssetInfo::Token { contract_addr } => {
-                    contract_addr
-                }
-                AssetInfo::NativeToken { denom } => h(&denom),
-            }, &[]);
+            let env = mock_env(
+                match asset.info {
+                    AssetInfo::Token { contract_addr } => contract_addr,
+                    AssetInfo::NativeToken { denom } => h(&denom),
+                },
+                &[],
+            );
             let stage_asset_msg = HandleMsg::Receive(Cw20ReceiveMsg {
                 sender: h("addr0000"),
                 msg: Some(to_binary(&Cw20HookMsg::StageAsset {}).unwrap()),
