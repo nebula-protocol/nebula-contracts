@@ -312,6 +312,20 @@ def deploy():
 
     result = terra.tx.broadcast(initial_balances_tx)
 
+    print('PREMINT')
+    print(
+        terra.wasm.contract_query(
+            basket_token, {"balance": {"address": deployer.key.acc_address}}
+        )
+    )
+
+    ### EXAMPLE: how to query basket state
+    print(
+        terra.wasm.contract_query(
+            basket, {"basket_state": {"basket_contract_address": basket}}
+        )
+    )
+
     ### EXAMPLE: how to stage and mint
 
     # wBTC wETH wXRP wLUNA MIR
@@ -351,6 +365,20 @@ def deploy():
     print(
         terra.wasm.contract_query(
             basket_token, {"balance": {"address": deployer.key.acc_address}}
+        )
+    )
+
+    print('PREBURN POST MINT')
+    print(
+        terra.wasm.contract_query(
+            basket_token, {"balance": {"address": deployer.key.acc_address}}
+        )
+    )
+
+    ### EXAMPLE: how to query basket state
+    print(
+        terra.wasm.contract_query(
+            basket, {"basket_state": {"basket_contract_address": basket}}
         )
     )
 
