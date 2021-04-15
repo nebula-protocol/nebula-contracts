@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use basket_math::FPDecimal;
 use cosmwasm_std::{HumanAddr, StdResult, Storage, Uint128};
 use cosmwasm_storage::{singleton, singleton_read, Bucket, ReadonlyBucket};
-use terraswap::asset::AssetInfo;
+use terraswap::asset::{Asset, AssetInfo};
 
 /// config: BasketConfig
 pub static CONFIG_KEY: &[u8] = b"config";
@@ -69,6 +69,15 @@ pub fn read_target<S: Storage>(storage: &S) -> StdResult<Vec<u32>> {
 
 pub fn save_target<S: Storage>(storage: &mut S, target: &Vec<u32>) -> StdResult<()> {
     singleton(storage, TARGET_KEY).save(target)
+} 
+
+// Keep record of total staged for each asset
+pub fn save_total_staged_asset<S: Storage>(storage: &mut S, asset: &AssetInfo, amount: &Uint128) -> StdResult<()> {
+    singleton(storage, &asset.to_string().as_bytes()).save(amount)
+} 
+
+pub fn read_total_staged_asset<S: Storage>(storage: &S, asset: &AssetInfo) -> StdResult<Uint128> {
+    singleton_read(storage, &asset.to_string().as_bytes()).load()
 }
 
 pub fn read_staged_asset<S: Storage>(

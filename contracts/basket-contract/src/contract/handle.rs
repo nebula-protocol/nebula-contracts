@@ -436,11 +436,11 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         }
     }
 
-    for (asset, amount) in cfg.assets.iter().zip(asset_amounts) {
-        unstage_asset(&mut deps.storage, &env.message.sender, &asset, *amount)?;
+    for asset in asset_amounts {
+        unstage_asset(&mut deps.storage, &env.message.sender, &asset.info, asset.amount)?;
     }
     
-    let c = asset_amounts
+    let c = asset_weights
         .iter()
         .map(|x| int_to_fpdec(x.clone()))
         .collect::<StdResult<Vec<FPDecimal>>>()?;
