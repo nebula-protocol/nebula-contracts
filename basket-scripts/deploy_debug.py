@@ -194,7 +194,7 @@ def deploy():
     )
 
     # sets initial balance of basket contract
-    amount_wBTC = 2000000
+    amount_wBTC = "1000000"
 
     print(
         f"[deploy] - give initial balances wBTC {amount_wBTC}"
@@ -210,6 +210,8 @@ def deploy():
     )
 
     result = terra.tx.broadcast(initial_balances_tx)
+    print(result.logs[0].events_by_type)
+
 
     ### EXAMPLE: how to query basket state
     print("FIRST")
@@ -233,12 +235,12 @@ def deploy():
             MsgExecuteContract(
                 deployer.key.acc_address,
                 wBTC,
-                CW20.send(basket, "2000000", Basket.stage_asset()),
+                CW20.send(basket, "1000000", Basket.stage_asset()),
             ),
             MsgExecuteContract(
                 deployer.key.acc_address,
                 basket,
-                Basket.mint(["2000000"]),
+                Basket.mint(["1000000"]),
             ),
         ],
         sequence=seq(),
