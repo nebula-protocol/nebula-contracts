@@ -27,7 +27,7 @@ pub fn int_to_fpdec(amount: Uint128) -> StdResult<FPDecimal> {
 /// converts into integer
 pub fn fpdec_to_int(dec: FPDecimal) -> StdResult<(Uint128, FPDecimal)> {
     Ok((
-        Uint128(cast_i128_u128((dec.int() / FPDecimal::ONE.num))?), //need to convert to i128 here
+        FPDecimal::convertTou128(dec.int().num / FPDecimal::ONE.num)?, //need to convert to i128 here
         dec.fraction(),
     ))
 }

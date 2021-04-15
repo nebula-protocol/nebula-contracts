@@ -77,6 +77,15 @@ impl FPDecimal {
     pub fn abs(&self) -> FPDecimal {
         FPDecimal { num: self.num, sign: 1i8}
     }
+
+    pub fn convertTou128(num:U256) -> u128 {
+        let mut array: [u8; 16] = [0;16];
+        for i in 0..16 {
+            array[i] = num.byte(i);
+        }
+        let val = u128::from_le_bytes(array);
+        return val;
+    }
 }
 
 impl ops::Add for FPDecimal {
@@ -116,7 +125,13 @@ mod tests {
 
     use crate::FPDecimal;
     use bigint::U256;
-    
+
+    #[test]
+    fn test_byte_func() {
+        let first_num = FPDecimal::from(2348093290348092384i128).num;
+        assert_eq!(FPDecimal::convertTou128(first_num), 2348093290348092384)
+    }
+
     #[test]
     fn test_add() {
         let five = FPDecimal {num: U256([5, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1};
