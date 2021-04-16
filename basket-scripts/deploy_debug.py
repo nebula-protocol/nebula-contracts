@@ -24,7 +24,7 @@ from terra_sdk.core.wasm import (
 )
 from terra_sdk.util.contract import get_code_id, get_contract_address, read_file_as_b64
 
-from basket import Oracle, Basket, CW20
+from basket import Oracle, Basket, CW20, Asset
 
 # If True, use localterra. Otherwise, deploys on Tequila
 USE_LOCALTERRA = True
@@ -237,11 +237,11 @@ def deploy():
                 wBTC,
                 CW20.send(basket, "3000000", Basket.stage_asset()),
             ),
-            # MsgExecuteContract(
-            #     deployer.key.acc_address,
-            #     basket,
-            #     Basket.mint(["1000000"]),
-            # ),
+            MsgExecuteContract(
+                deployer.key.acc_address,
+                basket,
+                Basket.mint([Asset.asset(wBTC, "1000000")]),
+            ),
         ],
         sequence=seq(),
         fee=StdFee(4000000, "2000000uluna"),

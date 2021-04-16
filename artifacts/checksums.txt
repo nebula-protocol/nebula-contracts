@@ -1,11 +1,4 @@
-<<<<<<< HEAD
-
-fe18ca5140ea43ad07194a0cd5cc7229cce456708e3f45035ab7fd2b5dac2b9e  basket_contract.wasm
-7e6c343070c0af3b377d8c581d6aaa2366ebe0919619d6e484eedd5aea0ffcf3  basket_dummy_oracle.wasm
-3a6977be64f03ab68eb44b4aea170545a99ecaf6babba7f982bcd9a9acc7b227  terraswap_token.wasm
-=======
-699c0686d8c3504b7cf28b2c49d769e6900a3a211b788d3a56e1dcb3bd24dfdb  basket_contract.wasm
+9895ebc8e2df8f205d9ba73060b7fbeb12f3048ab2f6534feffcb9ba9292a386  basket_contract.wasm
 5a72a3997c87785c344943476078b5de8202b8d3f974be2b42bb0f3cc8dae67c  basket_dummy_oracle.wasm
 1c852986b0457cd7bd701d8380b8e385cb874a296a484a58d83b74080529c087  basket_gov.wasm
 3a6977be64f03ab68eb44b4aea170545a99ecaf6babba7f982bcd9a9acc7b227  terraswap_token.wasm
->>>>>>> efffb8bcf34ff4f922dc4acc348d093eb9f5909d
