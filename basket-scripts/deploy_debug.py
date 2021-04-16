@@ -150,10 +150,10 @@ def deploy():
             "assets": [wBTC],
             "oracle": oracle,
             "penalty_params": {
-                "a_pos": "0",
-                "s_pos": "0",
-                "a_neg": "0",
-                "s_neg": "0",
+                "a_pos": "1",
+                "s_pos": "1",
+                "a_neg": "0.005",
+                "s_neg": "0.5",
             },
             "target": [100],
         },
@@ -169,7 +169,7 @@ def deploy():
             "symbol": "BASKET",
             "decimals": 6,
             "initial_balances": [
-                {"address": deployer.key.acc_address, "amount": "100"}
+                {"address": deployer.key.acc_address, "amount": "100000000"}
             ],
             "mint": {"minter": basket, "cap": None},
         },
@@ -194,7 +194,7 @@ def deploy():
     )
 
     # sets initial balance of basket contract
-    amount_wBTC = 2
+    amount_wBTC = "1000000"
 
     print(
         f"[deploy] - give initial balances wBTC {amount_wBTC}"
@@ -210,6 +210,8 @@ def deploy():
     )
 
     result = terra.tx.broadcast(initial_balances_tx)
+    print(result.logs[0].events_by_type)
+
 
     ### EXAMPLE: how to query basket state
     print("FIRST")
@@ -233,13 +235,13 @@ def deploy():
             MsgExecuteContract(
                 deployer.key.acc_address,
                 wBTC,
-                CW20.send(basket, "1", Basket.stage_asset()),
+                CW20.send(basket, "3000000", Basket.stage_asset()),
             ),
-            MsgExecuteContract(
-                deployer.key.acc_address,
-                basket,
-                Basket.mint(["1"]),
-            ),
+            # MsgExecuteContract(
+            #     deployer.key.acc_address,
+            #     basket,
+            #     Basket.mint(["1000000"]),
+            # ),
         ],
         sequence=seq(),
         fee=StdFee(4000000, "2000000uluna"),
@@ -247,6 +249,8 @@ def deploy():
 
     result = terra.tx.broadcast(stage_and_mint_tx)
     print(f"stage & mint TXHASH: {result.txhash}")
+    # print(result)
+    print(result.logs[0].events_by_type)
 
     ### EXAMPLE: how to query
     print(

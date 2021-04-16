@@ -1,3 +1,4 @@
+use bigint::U256;
 use cosmwasm_std::StdError;
 use std::str::FromStr;
 
@@ -13,18 +14,21 @@ impl FromStr for FPDecimal {
     /// This never performs any kind of rounding.
     /// More than 18 fractional digits, even zeros, result in an error.
     fn from_str(input: &str) -> Result<Self, Self::Err> {
-        let sign = if input.starts_with('-') { -1 } else { 1 };
-        let parts: Vec<&str> = input.split('.').collect();
+        let sign = if input.starts_with('-') { 0 } else { 1 };
+        let parts: Vec<&str> = input.trim_start_matches('-').split('.').collect();
         match parts.len() {
             1 => {
-                let integer = i128::from_str(parts[0])
+                let integer = U256::from_dec_str(parts[0])
                     .map_err(|_| StdError::generic_err("Error parsing integer"))?;
-                Ok(FPDecimal::from(sign * integer.abs()))
+                Ok(FPDecimal {
+                    num: integer * FPDecimal::ONE.num,
+                    sign: sign,
+                })
             }
             2 => {
-                let integer = i128::from_str(parts[0])
+                let integer = U256::from_dec_str(parts[0])
                     .map_err(|_| StdError::generic_err("Error parsing integer"))?;
-                let fraction = i128::from_str(parts[1])
+                let fraction = U256::from_dec_str(parts[1])
                     .map_err(|_| StdError::generic_err("Error parsing fraction"))?;
                 let exp = FPDecimal::DIGITS
                     .checked_sub(parts[1].len())
@@ -34,11 +38,41 @@ impl FromStr for FPDecimal {
                             FPDecimal::DIGITS
                         ))
                     })?;
-                Ok(FPDecimal(
-                    sign * (integer.abs() * FPDecimal::ONE + fraction * 10i128.pow(exp as u32)),
-                ))
+
+                Ok(FPDecimal {
+                    num: integer * FPDecimal::ONE.num + fraction * U256::exp10(exp),
+                    sign: sign,
+                })
             }
             _ => Err(StdError::generic_err("Unexpected number of dots")),
         }
+
+        //Ok(FPDecimal {num: num * FPDecimal::ONE.num, sign: sign})
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    use crate::FPDecimal;
+    use bigint::U256;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_from_str() {
+        let val = FPDecimal::from_str("-1.23");
+        assert_eq!(
+            val.unwrap(),
+            FPDecimal {
+                num: U256([123, 0, 0, 0]) * FPDecimal::ONE.num / U256::from(100),
+                sign: 0
+            }
+        );
+    }
+
+    #[test]
+    fn test_from_str_one() {
+        let val = FPDecimal::from_str("1");
+        assert_eq!(val.unwrap(), FPDecimal::ONE);
     }
 }

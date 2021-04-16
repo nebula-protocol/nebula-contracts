@@ -1,7 +1,4 @@
-<<<<<<< Updated upstream
-a256a0dd5a3af602d0f6f115af2f7c55c7bbfc0656754e87f689b4e6712ca2f5  basket_contract.wasm
-=======
+
 fe18ca5140ea43ad07194a0cd5cc7229cce456708e3f45035ab7fd2b5dac2b9e  basket_contract.wasm
->>>>>>> Stashed changes
 7e6c343070c0af3b377d8c581d6aaa2366ebe0919619d6e484eedd5aea0ffcf3  basket_dummy_oracle.wasm
 3a6977be64f03ab68eb44b4aea170545a99ecaf6babba7f982bcd9a9acc7b227  terraswap_token.wasm

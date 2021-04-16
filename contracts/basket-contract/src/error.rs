@@ -1,4 +1,5 @@
 use cosmwasm_std::{HumanAddr, StdError, Uint128};
+use terraswap::asset::{Asset, AssetInfo};
 
 pub fn missing_cw20_msg() -> StdError {
     StdError::generic_err("Receive Hook - missing expected .msg in body")
@@ -11,16 +12,34 @@ pub fn bad_weight_dimensions(provided: usize, expected: usize) -> StdError {
     ))
 }
 
-pub fn not_component_asset(asset: &HumanAddr) -> StdError {
+pub fn bad_weight_values(provided: u32) -> StdError {
+    StdError::generic_err(format!("weights do not add to 100 (given {}", provided))
+}
+
+pub fn not_component_cw20(asset: &HumanAddr) -> StdError {
     StdError::generic_err(format!(
         "asset {} is not a component asset of basket",
         asset
     ))
 }
 
+pub fn not_component_asset(asset: &AssetInfo) -> StdError {
+    StdError::generic_err(format!(
+        "asset {} is not a component asset of basket",
+        asset
+    ))
+}
+
+pub fn existing_asset(asset: &AssetInfo) -> StdError {
+    StdError::generic_err(format!(
+        "asset {} is already a component asset of basket",
+        asset
+    ))
+}
+
 pub fn insufficient_staged(
     account: &HumanAddr,
-    asset: &HumanAddr,
+    asset: &AssetInfo,
     requested: Uint128,
     staged: Uint128,
 ) -> StdError {

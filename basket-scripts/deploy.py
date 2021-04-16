@@ -24,12 +24,14 @@ from terra_sdk.core.wasm import (
 )
 from terra_sdk.util.contract import get_code_id, get_contract_address, read_file_as_b64
 
-from basket import Oracle, Basket, CW20
+from basket import Oracle, Basket, CW20, Asset
 
 # If True, use localterra. Otherwise, deploys on Tequila
 USE_LOCALTERRA = True
 
-lt = LocalTerra()
+lt = LocalTerra(gas_prices = {
+        "uluna": "0.15"
+    })
 
 if USE_LOCALTERRA:
     terra = lt
@@ -73,7 +75,7 @@ def store_contract(contract_name, sequence):
 def instantiate_contract(code_id, init_msg, sequence):
     instantiate = MsgInstantiateContract(deployer.key.acc_address, code_id, init_msg)
     instantiate_tx = deployer.create_and_sign_tx(
-        msgs=[instantiate], sequence=sequence, denoms=["uluna"]
+        msgs=[instantiate], sequence=sequence, fee_denoms=["uluna"]
     )
     result = terra.tx.broadcast(instantiate_tx)
     if result.is_tx_error():
@@ -84,7 +86,7 @@ def instantiate_contract(code_id, init_msg, sequence):
 def execute_contract(wallet, contract_address, execute_msg, sequence, fee=None):
     execute = MsgExecuteContract(wallet.key.acc_address, contract_address, execute_msg)
     execute_tx = wallet.create_and_sign_tx(
-        msgs=[execute], sequence=sequence, denoms=["uluna"], fee=fee
+        msgs=[execute], sequence=sequence, fee_denoms=["uluna"], fee=fee
     )
     result = terra.tx.broadcast(execute_tx)
     if result.is_tx_error():
@@ -198,6 +200,22 @@ def deploy():
         seq(),
     )
 
+    # ANC token
+    print(f"[deploy] - instantiate ANC")
+    ANC = instantiate_contract(
+        token_code_id,
+        {
+            "name": "Anchor Token",
+            "symbol": "ANC",
+            "decimals": 6,
+            "initial_balances": [
+                {"address": deployer.key.acc_address, "amount": "1000000000000"}
+            ],
+            "mint": None,
+        },
+        seq(),
+    )
+
     # instantiate oracle
     print(f"[deploy] - instantiate oracle")
     oracle = instantiate_contract(oracle_code_id, {}, seq())
@@ -254,6 +272,7 @@ def deploy():
                 [wXRP, "0.45"],
                 [wLUNA, "2.1"],
                 [MIR, "5.06"],
+                [ANC, "3.18"],
             ]
         ),
         seq(),
@@ -293,7 +312,23 @@ def deploy():
 
     result = terra.tx.broadcast(initial_balances_tx)
 
+    print('PREMINT')
+    print(
+        terra.wasm.contract_query(
+            basket_token, {"balance": {"address": deployer.key.acc_address}}
+        )
+    )
+
+    ### EXAMPLE: how to query basket state
+    print(
+        terra.wasm.contract_query(
+            basket, {"basket_state": {"basket_contract_address": basket}}
+        )
+    )
+
     ### EXAMPLE: how to stage and mint
+
+    # wBTC wETH wXRP wLUNA MIR
     print("[deploy] - basket:stage_asset + basket:mint")
     stage_and_mint_tx = deployer.create_and_sign_tx(
         msgs=[
@@ -310,7 +345,13 @@ def deploy():
             MsgExecuteContract(
                 deployer.key.acc_address,
                 basket,
-                Basket.mint(["1000000", "0", "0", "4000000000", "0"]),
+                Basket.mint(
+                    [Asset.asset(wBTC, "1000000"),
+                    Asset.asset(wETH, "0"),
+                    Asset.asset(wXRP, "0"),
+                    Asset.asset(wLUNA, "4000000000"),
+                    Asset.asset(MIR, "0")]
+                ),
             ),
         ],
         sequence=seq(),
@@ -327,13 +368,32 @@ def deploy():
         )
     )
 
+    print('PREBURN POST MINT')
+    print(
+        terra.wasm.contract_query(
+            basket_token, {"balance": {"address": deployer.key.acc_address}}
+        )
+    )
+
+    ### EXAMPLE: how to query basket state
+    print(
+        terra.wasm.contract_query(
+            basket, {"basket_state": {"basket_contract_address": basket}}
+        )
+    )
+
     ### EXAMPLE: how to burn
     print("[deploy] - basket:burn")
     result = execute_contract(
         deployer,
         basket_token,
         CW20.send(
-            basket, "10000000000", Basket.burn([1, 2, 1, 0, 7])
+            basket, "10000000000", Basket.burn(
+                    [Asset.asset(wBTC, "1"),
+                    Asset.asset(wETH, "2"),
+                    Asset.asset(wXRP, "1"),
+                    Asset.asset(wLUNA, "0"),
+                    Asset.asset(MIR, "7")])
         ),  # asset weights must be integers
         seq(),
         fee=StdFee(
@@ -352,7 +412,29 @@ def deploy():
     )
 
     ### EXAMPLE: how to query basket state
-    print(
+    print("query basket state ",
+        terra.wasm.contract_query(
+            basket, {"basket_state": {"basket_contract_address": basket}}
+        )
+    )
+
+    ### EXAMPLE: how to reset basket composition
+    print("[deploy] - basket: reset_target")
+    result = execute_contract(
+        deployer,
+        basket,
+        Basket.reset_target(Asset.asset_info_from_haddrs([wBTC, wETH, wXRP, wLUNA, MIR, ANC]), [10, 20, 15, 20, 20, 15]),
+        seq(),
+        fee=StdFee(
+            4000000, "20000000uluna"
+        ),  # burning may require a lot of gas if there are a lot of assets
+    )
+    print(f"reset contract TXHASH: {result.txhash}")
+
+    ### EXAMPLE: getting event logs
+    print("logs from reset target", result.logs[0].events_by_type)
+
+    print("query new basket state ",
         terra.wasm.contract_query(
             basket, {"basket_state": {"basket_contract_address": basket}}
         )

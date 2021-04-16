@@ -6,6 +6,18 @@ class Oracle:
     def set_prices(prices):
         return {"set_prices": {"prices": prices}}
 
+class Asset:
+    @staticmethod
+    def asset_info_from_haddrs(haddrs):
+        return [{"token": {"contract_addr": haddr}} for haddr in haddrs]
+
+    @staticmethod
+    def asset_info(haddr):
+        return {"token": {"contract_addr": haddr}}
+
+    @staticmethod
+    def asset(haddr, amount):
+        return {"info": Asset.asset_info(haddr), "amount": amount}
 
 class CW20:
     @staticmethod
@@ -36,3 +48,7 @@ class Basket:
     @staticmethod
     def burn(asset_weights=None):
         return {"burn": {"asset_weights": asset_weights}}
+
+    @staticmethod
+    def reset_target(new_assets, new_target):
+        return {"reset_target": {"assets": new_assets, "target": new_target}}
