@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use basket_math::FPDecimal;
 use cosmwasm_std::{HumanAddr, StdResult, Storage, Uint128};
-use cosmwasm_storage::{singleton, singleton_read, Bucket, ReadonlyBucket};
+use cosmwasm_storage::{singleton, singleton_read, Bucket, ReadonlyBucket, bucket, bucket_read};
 use terraswap::asset::{Asset, AssetInfo};
 
 /// config: BasketConfig
@@ -20,6 +20,10 @@ pub static ASSETS_KEY: &[u8] = b"assets";
 
 /// staging: Map<asset: HumanAddr, Map<account: HumanAddr, staged_amount: Uint128>>
 pub static PREFIX_STAGING: &[u8] = b"staging";
+
+pub static PREFIX_TOTAL_STAGING: &[u8] = b"total_staging";
+
+
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct BasketConfig {
@@ -73,7 +77,7 @@ pub fn save_target<S: Storage>(storage: &mut S, target: &Vec<u32>) -> StdResult<
 
 // Keep record of total staged for each asset
 pub fn read_total_staged_asset<S: Storage>(storage: &S, asset: &AssetInfo) -> StdResult<Uint128> {
-    singleton_read(storage, &asset.to_string().as_bytes()).load()
+    bucket_read(PREFIX_TOTAL_STAGING, storage).load(asset.to_string().as_bytes())
 }
 
 pub fn save_total_staged_asset<S: Storage>(
@@ -114,7 +118,10 @@ pub fn stage_asset<S: Storage>(
     };
 
     // Best practice for error checking?
-    save_total_staged_asset(storage, asset, &(curr_total_staged + amount))?;
+    // save_total_staged_asset(storage, asset, &(curr_total_staged + amount))?;
+    // let mut total_staging = Bucket::<S, Uint128>(&[PREFIX_TOTAL_STAGING, asset.to_string().as_bytes()], storage);
+
+    bucket(PREFIX_TOTAL_STAGING, storage).save(asset.to_string().as_bytes(), &(curr_total_staged + amount))?;
 
     let mut staging =
         Bucket::<S, Uint128>::multilevel(&[PREFIX_STAGING, asset.to_string().as_bytes()], storage);

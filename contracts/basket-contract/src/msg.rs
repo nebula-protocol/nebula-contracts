@@ -116,4 +116,5 @@ pub struct BasketStateResponse {
     pub inv: Vec<Uint128>,
     pub assets: Vec<HumanAddr>,
     pub target: Vec<u32>,
+    pub stag: Vec<Uint128>,
 }
