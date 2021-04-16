@@ -140,10 +140,17 @@ mod tests {
     use crate::FPDecimal;
     use bigint::U256;
 
+
     #[test]
     fn test_into_u128() {
         let first_num: u128 = FPDecimal::from(1234567890123456789u128).into();
         assert_eq!(first_num, 1234567890123456789u128)
+    }
+
+    #[test]
+    fn test_overflow() {
+        let num1 = FPDecimal::from(1701411834604692317316873037158841i128);
+        assert_eq!(num1, FPDecimal::one());
     }
 
     #[test]
