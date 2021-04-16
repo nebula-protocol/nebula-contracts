@@ -9,7 +9,7 @@ use crate::msg::{
     BasketStateResponse, ConfigResponse, QueryMsg, StagedAmountResponse, TargetResponse,
 };
 use crate::state::{
-    read_config, read_staged_asset, read_target_asset_data, read_total_staged_asset,
+    read_config, read_staged_asset, read_target_asset_data,
 };
 use basket_math::FPDecimal;
 use terraswap::asset::AssetInfo;
@@ -117,25 +117,6 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         })
         .collect::<StdResult<Vec<Uint128>>>()?;
 
-    // let stag: Vec<Uint128> = assets
-    //     .iter()
-    //     .map(|asset| match asset {
-    //         AssetInfo::Token { contract_addr } => read_total_staged_asset(
-    //             &deps.storage,
-    //             &AssetInfo::Token {
-    //                 contract_addr: contract_addr.clone(),
-    //             },
-    //         ),
-    //         AssetInfo::NativeToken { denom } => read_total_staged_asset(
-    //             &deps.storage,
-    //             &AssetInfo::NativeToken {
-    //                 denom: denom.clone(),
-    //             },
-    //         ),
-    //     })
-    //     .collect::<StdResult<Vec<Uint128>>>()?;
-
-    let stag: Vec<Uint128> = vec![Uint128(0)];
 
     let target_asset_data = read_target_asset_data(&deps.storage)?;
 
@@ -158,7 +139,6 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         prices,
         inv,
         assets,
-        target,
-        stag,
+        target
     })
 }

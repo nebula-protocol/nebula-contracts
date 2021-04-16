@@ -141,7 +141,8 @@ pub fn unstage_asset<S: Storage>(
     let curr_total_staged = read_total_staged_asset(storage, asset)?;
 
     // Best practice for error checking?
-    save_total_staged_asset(storage, asset, &((curr_total_staged - amount)?))?;
+    bucket(PREFIX_TOTAL_STAGING, storage)
+        .save(asset.to_string().as_bytes(), &(curr_total_staged - amount))?;
 
     let mut staging =
         Bucket::<S, Uint128>::multilevel(&[PREFIX_STAGING, asset.to_string().as_bytes()], storage);

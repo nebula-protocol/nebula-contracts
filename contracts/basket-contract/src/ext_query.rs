@@ -60,16 +60,7 @@ pub fn query_cw20_balance_minus_staged<S: Storage, A: Api, Q: Querier>(
     asset_address: &HumanAddr,
     account_address: &HumanAddr,
 ) -> StdResult<Uint128> {
-    // let tot_balance = query_cw20_balance(&deps, &asset_address, &account_address)?;
-
-    let res: Cw20BalanceResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: asset_address.clone(),
-        msg: to_binary(&ExtQueryMsg::Balance {
-            address: account_address.clone(),
-        })?,
-    }))?;
-
-    let b = res.balance.u128();
+    let tot_balance = query_cw20_balance(&deps, &asset_address, &account_address)?;
 
     let staged_balance = read_total_staged_asset(
         &deps.storage,
@@ -78,12 +69,7 @@ pub fn query_cw20_balance_minus_staged<S: Storage, A: Api, Q: Querier>(
         },
     )?;
 
-    let c = staged_balance.u128();
-
-    let ret = b - c;
-    // tot_balance - staged_balance
-    Ok(Uint128(ret))
-    // Err(e) => Err(E::custom(format!("invalid Uint128 '{}' - {}", v, e)))
+    tot_balance - staged_balance
 }
 
 /// EXTERNAL QUERY

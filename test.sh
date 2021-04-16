@@ -1,2 +1,2 @@
 bash ./build.sh
-cd basket-scripts && python3 deploy_debug.py
+cd basket-scripts && python3 deploy.py
