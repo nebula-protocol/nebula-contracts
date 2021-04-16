@@ -80,13 +80,6 @@ pub fn read_total_staged_asset<S: Storage>(storage: &S, asset: &AssetInfo) -> St
         .or(Ok(Uint128(0)))
 }
 
-pub fn save_total_staged_asset<S: Storage>(
-    storage: &mut S,
-    asset: &AssetInfo,
-    amount: &Uint128,
-) -> StdResult<()> {
-    singleton(storage, &asset.to_string().as_bytes()).save(amount)
-}
 
 pub fn read_staged_asset<S: Storage>(
     storage: &S,
@@ -117,10 +110,6 @@ pub fn stage_asset<S: Storage>(
         Err(_) => Uint128::zero(),
     };
 
-    // Best practice for error checking?
-    // save_total_staged_asset(storage, asset, &(curr_total_staged + amount))?;
-    // let mut total_staging = Bucket::<S, Uint128>(&[PREFIX_TOTAL_STAGING, asset.to_string().as_bytes()], storage);
-
     bucket(PREFIX_TOTAL_STAGING, storage)
         .save(asset.to_string().as_bytes(), &(curr_total_staged + amount))?;
 
@@ -140,7 +129,6 @@ pub fn unstage_asset<S: Storage>(
 
     let curr_total_staged = read_total_staged_asset(storage, asset)?;
 
-    // Best practice for error checking?
     bucket(PREFIX_TOTAL_STAGING, storage)
         .save(asset.to_string().as_bytes(), &(curr_total_staged - amount))?;
 
