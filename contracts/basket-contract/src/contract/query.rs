@@ -8,7 +8,7 @@ use crate::ext_query::{
 use crate::msg::{
     BasketStateResponse, ConfigResponse, QueryMsg, StagedAmountResponse, TargetResponse,
 };
-use crate::state::{read_config, read_staged_asset, read_target_asset_data};
+use crate::state::{read_config, read_staged_asset, read_target_asset_data, read_total_staged_asset};
 use basket_math::FPDecimal;
 use terraswap::asset::AssetInfo;
 
@@ -107,13 +107,31 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         .iter()
         .map(|asset| match asset {
             AssetInfo::Token { contract_addr } => {
-                query_cw20_balance_minus_staged(&deps, &contract_addr, basket_contract_address)
+                query_cw20_balance(&deps, &contract_addr, basket_contract_address)
             }
             AssetInfo::NativeToken { denom } => {
-                query_cw20_balance_minus_staged(&deps, &h(denom), basket_contract_address)
+                query_cw20_balance(&deps, &h(denom), basket_contract_address)
             }
         })
         .collect::<StdResult<Vec<Uint128>>>()?;
+
+    let stag: Vec<Uint128> = assets
+        .iter()
+        .map(|asset| match asset {
+            AssetInfo::Token { contract_addr } => {
+                read_total_staged_asset(&deps.storage, &AssetInfo::Token {
+                    contract_addr: contract_addr.clone(),
+                },)
+            }
+            AssetInfo::NativeToken { denom } => {
+                read_total_staged_asset(&deps.storage, &AssetInfo::NativeToken {
+                    denom: denom.clone(),
+                },)
+            }
+        })
+        .collect::<StdResult<Vec<Uint128>>>()?;
+
+    // let stag: Vec<Uint128> = vec![Uint128(0)];
 
     let target_asset_data = read_target_asset_data(&deps.storage)?;
     let target = target_asset_data
@@ -128,6 +146,8 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         })
         .collect::<Vec<_>>();
 
+
+
     Ok(BasketStateResponse {
         penalty_params,
         outstanding_balance_tokens,
@@ -135,5 +155,6 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         inv,
         assets,
         target,
+        stag,
     })
 }
