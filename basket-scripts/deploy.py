@@ -14,6 +14,7 @@ incurs multiple CW20 transfers to the user may require more gas than permitted b
 fee estimation feature).
 """
 
+import time
 from terra_sdk.client.lcd import LCDClient
 from terra_sdk.client.localterra import LocalTerra
 from terra_sdk.core.auth import StdFee
@@ -25,6 +26,9 @@ from terra_sdk.core.wasm import (
 from terra_sdk.util.contract import get_code_id, get_contract_address, read_file_as_b64
 
 from basket import Oracle, Basket, CW20, Asset
+from requests import Request, Session
+from requests.exceptions import ConnectionError, Timeout, TooManyRedirects
+import json
 
 # If True, use localterra. Otherwise, deploys on Tequila
 USE_LOCALTERRA = True
@@ -59,6 +63,32 @@ else:
     )
     deployer = terra.wallet(lt.wallets["test1"].key)
 
+
+def get_price(symbol):
+  currency = 'USD'
+  url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest'
+  parameters = {
+    'convert': currency,
+    'symbol': symbol
+  }
+  headers = {
+    'Accepts': 'application/json',
+    'X-CMC_PRO_API_KEY': 'a7dec7fa-c4b0-4eed-8423-fe5604ba079d',
+  }
+
+  session = Session()
+  session.headers.update(headers)
+
+  try:
+    response = session.get(url, params=parameters)
+    data = json.loads(response.text)
+
+    price = data['data'][symbol]['quote'][currency]['price']
+    market_cap = data['data'][symbol]['quote'][currency]['market_cap']
+    return price
+      # print("For {}, price = {}, market_cap = {}".format(symbol, price, market_cap))
+  except (ConnectionError, Timeout, TooManyRedirects) as e:
+    print(e)
 
 def store_contract(contract_name, sequence):
     contract_bytes = read_file_as_b64(f"../artifacts/{contract_name}.wasm")
@@ -452,6 +482,19 @@ def deploy():
             "basket_token": basket_token,
         }
     )
+
+    while True:
+        tokens = ['WBTC', 'WETH', 'XRP', 'LUNA', 'MIR']
+        prices = [get_price(t) for t in tokens]
+        tot = sum(prices)
+        percentages = [float(p)/tot for p in prices]
+        print(percentages)
+        for i in range(len(percentages) - 1):
+            percentages[i] = int(percentages[i])
+        percentages[-1] = 100 - sum(percentages[:-1])
+        time.sleep(10)
+        print(percentages, sum(percentages))
+
 
 
 deploy()
