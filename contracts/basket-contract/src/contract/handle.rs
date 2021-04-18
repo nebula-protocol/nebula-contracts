@@ -59,8 +59,8 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
     // Using HumanAddr instead of AssetInfo for cw20
     if let Some(msg) = cw20_msg.msg {
         match from_binary(&msg)? {
-            Cw20HookMsg::Burn { asset_weights } => {
-                try_receive_burn(deps, env, &sender, &sent_asset, sent_amount, asset_weights)
+            Cw20HookMsg::Burn { asset_weights, redeem_mins } => {
+                try_receive_burn(deps, env, &sender, &sent_asset, sent_amount, asset_weights, redeem_mins)
             }
             Cw20HookMsg::StageAsset {} => {
                 try_receive_stage_asset(deps, env, &sender, &sent_asset, sent_amount)
@@ -78,6 +78,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     sent_asset: &HumanAddr,
     sent_amount: Uint128,
     asset_weights: Option<Vec<Asset>>,
+    redeem_mins:Option<Vec<Asset>>,
 ) -> StdResult<HandleResponse> {
     let cfg = read_config(&deps.storage)?;
     let basket_token = cfg
@@ -95,13 +96,14 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.target)
         .collect::<Vec<_>>();
     // Reorder asset_weights according to ordering of target assets
-    let asset_weights: Option<Vec<Uint128>> = match &asset_weights {
-        Some(weights) => {
+
+    let mut ordered_min_redeem: Option<Vec<Uint128>> = match &redeem_mins {
+        Some(mins) => {
             let mut vec: Vec<Uint128> = Vec::new();
             for i in 0..assets.len() {
-                for weight in weights {
-                    if weight.info.clone() == assets[i].clone() {
-                        vec.push(weight.amount);
+                for j in 0..mins.len() {
+                    if mins[j].info.clone() == assets[i].clone() {
+                        vec.push(mins[j].amount);
                         break;
                     }
                 }
@@ -110,6 +112,23 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         }
         None => None,
     };
+
+    let asset_weights: Option<Vec<Uint128>> = match &asset_weights {
+        Some(weights) => {
+            let mut vec: Vec<Uint128> = Vec::new();
+            for i in 0..assets.len() {
+                for j in 0..weights.len() {
+                    if weights[j].info.clone() == assets[i].clone() {
+                        vec.push(weights[j].amount);
+                        break;
+                    }
+                }
+            }
+            Some(vec)
+        }
+        None => None,
+    };
+
 
     // require that origin contract from Receive Hook is the associated Basket Token
     if *sent_asset != basket_token {
@@ -201,6 +220,14 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
 
     let (redeem_totals, redeem_roundoffs): (Vec<Uint128>, Vec<FPDecimal>) =
         redeem.iter().cloned().unzip();
+
+    if let Some(order_mins) = ordered_min_redeem {
+        for i in 0..redeem_totals.len() {
+            if redeem_totals[i] < order_mins[i] {
+                return Err(error::below_min_tokens(redeem_totals[i], order_mins[i]));
+            }
+        }
+    }
 
     let transfer_msgs: Vec<CosmosMsg> = redeem_totals
         .iter()
@@ -692,10 +719,39 @@ mod tests {
             .set_token_supply(consts::basket_token(), 100_000_000)
             .set_token_balance(consts::basket_token(), "addr0000", 20_000_000);
 
+        let new_assets = vec![
+            Asset {
+                info: AssetInfo::Token {
+                        contract_addr: h("mAAPL"),
+                    },
+                amount: Uint128(10)
+            },
+            Asset {
+                info: AssetInfo::Token {
+                        contract_addr: h("mGOOG"),
+                    },
+                amount: Uint128(10)
+            },
+            Asset {
+                info: AssetInfo::Token {
+                        contract_addr: h("mMSFT"),
+                    },
+                amount: Uint128(10)
+            },
+            Asset {
+                info: AssetInfo::Token {
+                        contract_addr: h("mNFLX"),
+                    },
+                amount: Uint128(10)
+            }
+
+        ];
+
         let msg = HandleMsg::Receive(cw20::Cw20ReceiveMsg {
             msg: Some(
                 to_binary(&Cw20HookMsg::Burn {
                     asset_weights: None,
+                    redeem_mins:Some(new_assets),
                 })
                 .unwrap(),
             ),
