@@ -7,7 +7,7 @@ use crate::fp_decimal::FPDecimal;
 impl FromStr for FPDecimal {
     type Err = StdError;
 
-    /// Converts the decimal string to a Decimal256
+    /// Converts the decimal string to a FPDecimal
     /// Possible inputs: "1.23", "1", "000012", "1.123000000"
     /// Disallowed: "", ".23"
     ///

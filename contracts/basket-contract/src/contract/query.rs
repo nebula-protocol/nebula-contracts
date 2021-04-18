@@ -2,11 +2,15 @@ use cosmwasm_std::{
     to_binary, Api, Binary, Extern, HumanAddr, Querier, StdError, StdResult, Storage, Uint128,
 };
 
-use crate::ext_query::{query_cw20_balance, query_cw20_token_supply, query_price};
+use crate::ext_query::{
+    query_cw20_balance, query_cw20_balance_minus_staged, query_cw20_token_supply, query_price,
+};
 use crate::msg::{
     BasketStateResponse, ConfigResponse, QueryMsg, StagedAmountResponse, TargetResponse,
 };
-use crate::state::{read_config, read_staged_asset, read_target_asset_data};
+use crate::state::{
+    read_config, read_staged_asset, read_target_asset_data,
+};
 use basket_math::FPDecimal;
 use terraswap::asset::AssetInfo;
 
@@ -105,25 +109,22 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         .iter()
         .map(|asset| match asset {
             AssetInfo::Token { contract_addr } => {
-                query_cw20_balance(&deps, &contract_addr, basket_contract_address)
+                query_cw20_balance_minus_staged(&deps, &contract_addr, basket_contract_address)
             }
             AssetInfo::NativeToken { denom } => {
-                query_cw20_balance(&deps, &h(denom), basket_contract_address)
+                query_cw20_balance_minus_staged(&deps, &h(denom), basket_contract_address)
             }
         })
-        // .map(|asset| int_to_fpdec(query_cw20_balance(&deps, &asset, &env.contract.address)?))
         .collect::<StdResult<Vec<Uint128>>>()?;
 
-    // let inv: Vec<Uint128> = assets
-    //     .iter()
-    //     .map(|asset| query_cw20_balance(&deps, &asset, basket_contract_address))
-    //     .collect::<StdResult<Vec<Uint128>>>()?;
 
     let target_asset_data = read_target_asset_data(&deps.storage)?;
+
     let target = target_asset_data
         .iter()
         .map(|x| x.target)
         .collect::<Vec<_>>();
+
     let assets = target_asset_data
         .iter()
         .map(|x| match &x.asset {
@@ -138,6 +139,6 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         prices,
         inv,
         assets,
-        target,
+        target
     })
 }
