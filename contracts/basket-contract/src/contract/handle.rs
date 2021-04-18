@@ -28,6 +28,10 @@ pub fn h(s: &str) -> HumanAddr {
     HumanAddr(s.to_string())
 }
 
+/* 
+    Match the incoming message to the right category: receive, mint, 
+    unstage, reset_target, or  set basket token 
+*/
 pub fn handle<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -47,6 +51,11 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     }
 }
 
+/* 
+    Receives CW20 tokens which can either be cluster tokens that are burned
+    to receive assets, or assets that can be staged for the process of minting
+    cluster tokens.
+*/
 pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -71,6 +80,13 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
     }
 }
 
+/* 
+    Receives cluster tokens which are burned for assets according to 
+    the given asset_weights and cluster penalty paramter. The corresponding
+    assets are taken from the cluster inventory and sent back to the user
+    along with any rewards based on whether the assets are moved towards/away
+    from the target.
+*/
 pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -249,6 +265,12 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     })
 }
 
+/* 
+    Receives an asset which is part of the cluster and stages it such that
+    the contract records the sender of the asset and the balance sent. This
+    balance is later looked up when this sender wants to mint cluster tokens from
+    the a number of staged assets.
+*/
 pub fn try_receive_stage_asset<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     _env: Env,
@@ -292,6 +314,11 @@ pub fn try_receive_stage_asset<S: Storage, A: Api, Q: Querier>(
     })
 }
 
+/* 
+    Changes the cluster target weights for different assets to the given
+    target weights and saves it. The ordering of the target weights is 
+    determined by the given assets.
+*/
 pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -356,7 +383,9 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-/// May be called by the Basket contract owner to set the basket token for first time
+/* 
+     May be called by the Basket contract owner to set the basket token for first time
+*/
 pub fn try_set_basket_token<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -388,6 +417,12 @@ pub fn try_set_basket_token<S: Storage, A: Api, Q: Querier>(
     })
 }
 
+/* 
+    Tries to mint cluster tokens from the asset amounts given.
+    Throws error if there can only be less than 'min_tokens' minted from the assets.
+    Note that the corresponding asset amounts need to be staged before in order to
+    successfully mint tokens.
+*/
 pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -524,6 +559,11 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     })
 }
 
+/* 
+    Tries to unstage the given asset by the given amount by giving back
+    the user the requested amount of asset only if the user has enough
+    previously staged asset. Throws an error otherwise.
+*/
 pub fn try_unstage_asset<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,

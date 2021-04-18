@@ -54,7 +54,8 @@ pub fn query_price<S: Storage, A: Api, Q: Querier>(
 }
 
 /// EXTERNAL QUERY
-/// -- Queries the token_address contract for the current balance of account
+/// -- Queries the token_address contract for the current balance of an account without
+/// the counting the staged amount
 pub fn query_cw20_balance_minus_staged<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     asset_address: &HumanAddr,
