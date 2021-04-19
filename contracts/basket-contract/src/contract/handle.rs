@@ -102,7 +102,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         .ok_or_else(|| error::basket_token_not_set())?;
 
     let target_asset_data = read_target_asset_data(&deps.storage)?;
-    let assets = target_asset_data
+    let asset_infos = target_asset_data
         .iter()
         .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
@@ -111,22 +111,18 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.target)
         .collect::<Vec<_>>();
 
-    // Set vecotr of asset_weights = 0
-    // Reorder asset_weights according to ordering of target assets
-    // Same issue as mint
+    let mut new_asset_weights = vec![Uint128(0); asset_infos.len()];
     let asset_weights: Option<Vec<Uint128>> = match &asset_weights {
         Some(weights) => {
-            let mut vec: Vec<Uint128> = Vec::new();
-            for i in 0..assets.len() {
+            for i in 0..asset_infos.len() {
                 for weight in weights {
-                    if weight.info.clone() == assets[i].clone() {
-                        vec.push(weight.amount);
+                    if weight.info.clone() == asset_infos[i].clone() {
+                        new_asset_weights[i] = weight.amount;
                         break;
                     }
                 }
-                // never breaks: do something
             }
-            Some(vec)
+            Some(new_asset_weights)
         }
         None => None,
     };
@@ -147,7 +143,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     });
 
     let inv: Vec<FPDecimal> =
-        assets
+        asset_infos
             .iter()
             .map(|asset| match asset {
                 AssetInfo::Token { contract_addr } => int_to_fpdec(
@@ -181,7 +177,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
                 .map(|&x| FPDecimal::from(x.u128()) / weights_sum)
                 .collect();
 
-            let prices: Vec<FPDecimal> = assets
+            let prices: Vec<FPDecimal> = asset_infos
                 .iter()
                 .map(|asset| match asset {
                     AssetInfo::Token { contract_addr } => {
@@ -224,7 +220,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
 
     let transfer_msgs: Vec<CosmosMsg> = redeem_totals
         .iter()
-        .zip(assets.iter())
+        .zip(asset_infos.iter())
         .filter(|(amt, _asset)| !amt.is_zero()) // remove 0 amounts
         .map(|(amt, asset)| {
             Ok(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -454,19 +450,20 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 
     // accommmodate inputs: subsets of target assets vector
 
+    let mut new_asset_weights = vec![Uint128(0); asset_infos.len()];
+
     // list of 0's for vector (size of asset_infos) -> replace in the for loop
     let asset_weights: Vec<Uint128> = {
-        let mut vec: Vec<Uint128> = Vec::new();
         for i in 0..asset_infos.len() {
             for weight in asset_amounts {
                 if weight.info.clone() == asset_infos[i].clone() {
-                    vec.push(weight.amount);
+                    new_asset_weights[i] = weight.amount;
                     break;
                 }
             }
             // 0 if else
         }
-        vec
+        new_asset_weights
     };
 
     // ensure that all tokens in asset_amounts have been staged beforehand
@@ -682,12 +679,12 @@ mod tests {
                 },
                 amount: Uint128(125_000_000),
             },
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: h("mGOOG"),
-                },
-                amount: Uint128::zero(),
-            },
+            // Asset {
+            //     info: AssetInfo::Token {
+            //         contract_addr: h("mGOOG"),
+            //     },
+            //     amount: Uint128::zero(),
+            // },
             Asset {
                 info: AssetInfo::Token {
                     contract_addr: h("mMSFT"),
@@ -732,9 +729,9 @@ mod tests {
         let env = mock_env(h("addr0000"), &[]);
         let res = handle(&mut deps, env, mint_msg).unwrap();
 
-        // for _log in res.log.iter() {
-        //     //println!("{}: {}", log.key, log.value);
-        // }
+        for log in res.log.iter() {
+            println!("{}: {}", log.key, log.value);
+        }
         assert_eq!(1, res.messages.len());
     }
 
