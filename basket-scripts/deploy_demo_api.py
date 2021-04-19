@@ -178,9 +178,9 @@ def deploy():
     print(f"[deploy] - store basket_contract")
     basket_code_id = store_contract("basket_contract", seq())
 
-    init_tokens = [('MIR', 'Mirror'), ('LUNA', 'Luna'), ('ANC', 'Anchor')]
-    info = get_prices(init_tokens)
-    INITIAL_TOKEN_INFO = [info[s[0]] for s in init_tokens]
+    terra_tokens = [('MIR', 'Mirror'), ('LUNA', 'Luna'), ('ANC', 'Anchor')]
+    info = get_prices(terra_tokens)
+    INITIAL_TOKEN_INFO = [info[s[0]] for s in terra_tokens]
 
     # "symbol", "name", "market_cap", "price"
 
@@ -219,7 +219,7 @@ def deploy():
     print(f"[deploy] - instantiate oracle")
     oracle = instantiate_contract(oracle_code_id, {}, seq())
 
-    init_top_10 = assets
+    init_terra_tokens = assets
 
     # instantiate basket with top 10
     print(f"[deploy] - instantiate basket with 3 coins")
@@ -229,7 +229,7 @@ def deploy():
 
             "name": "Basket",
             "owner": deployer.key.acc_address,
-            "assets": [asset['contract'] for asset in init_top_10],
+            "assets": [asset['contract'] for asset in init_terra_tokens],
             "oracle": oracle,
             "penalty_params": {
                 "a_pos": "1",
@@ -264,15 +264,15 @@ def deploy():
 
     # sets initial balance of basket contract
     total = 500000
-    initialization_amounts = [get_amount(total * 0.1, str(init_token['price'])) for init_token in init_top_10]
+    initialization_amounts = [get_amount(total * 0.33, str(init_token['price'])) for init_token in init_terra_tokens]
     print("[deploy] - give initial balances")
-    for idx, init_token in enumerate(init_top_10):
+    for idx, init_token in enumerate(init_terra_tokens):
         print(f"{init_token['symbol']}: {initialization_amounts[idx]}")
 
     initial_transfers = [
             MsgExecuteContract(
                 deployer.key.acc_address, init_token['contract'], CW20.transfer(basket, initialization_amounts[idx])
-            ) for idx, init_token in enumerate(init_top_10)]
+            ) for idx, init_token in enumerate(init_terra_tokens)]
 
     initial_balances_tx = deployer.create_and_sign_tx(
         msgs=initial_transfers,
@@ -284,8 +284,8 @@ def deploy():
 
     # for steps, data in enumerate(HARD_DATA):
     for _ in range(4):
-        info = get_prices(init_tokens)
-        data = [info[s[0]] for s in init_tokens]
+        info = get_prices(terra_tokens)
+        data = [info[s[0]] for s in terra_tokens]
         # Update assets with new data
         assets = []
         for token_info in data:
@@ -314,47 +314,7 @@ def deploy():
             Oracle.set_prices(prices),
             seq(),
         )
-
-        # Get top 10
-        curr_top_10 = assets
-
-        ### EXAMPLE: how to query basket state
-
-        # GET CURRENT COMPOSITION FROM BASKET STATE
-        basket_state = terra.wasm.contract_query(
-                basket, {"basket_state": {"basket_contract_address": basket}}
-            )
-        print("query basket state ",
-            basket_state
-        )
-
-        top_10_assets = [asset['contract'] for asset in curr_top_10]
-        if (sorted(basket_state['assets']) != sorted(top_10_assets)):
-             # IF NECESSARY, RESET COMPOSITION
-            print("[deploy] - basket: reset_target")
-
-            result = execute_contract(
-                deployer,
-                basket,
-                Basket.reset_target(
-                    Asset.asset_info_from_haddrs(
-                        top_10_assets), [10] * len(top_10_assets)
-                    ),
-                seq(),
-                fee=StdFee(
-                    4000000, "20000000uluna"
-                ),  # burning may require a lot of gas if there are a lot of assets
-            )
-            print(f"reset contract TXHASH: {result.txhash}")
-
-        # GET CURRENT COMPOSITION FROM BASKET STATE
-        basket_state = terra.wasm.contract_query(
-                basket, {"basket_state": {"basket_contract_address": basket}}
-            )
-        print("query basket state after all",
-            basket_state
-        )
-        time.sleep(30)
+        time.sleep(60)
 
 
 
