@@ -110,7 +110,10 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         .iter()
         .map(|x| x.target)
         .collect::<Vec<_>>();
+
+    // Set vecotr of asset_weights = 0
     // Reorder asset_weights according to ordering of target assets
+    // Same issue as mint
     let asset_weights: Option<Vec<Uint128>> = match &asset_weights {
         Some(weights) => {
             let mut vec: Vec<Uint128> = Vec::new();
@@ -121,6 +124,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
                         break;
                     }
                 }
+                // never breaks: do something
             }
             Some(vec)
         }
@@ -325,6 +329,9 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     assets: &Vec<AssetInfo>,
     target: &Vec<u32>,
 ) -> StdResult<HandleResponse> {
+
+    // allow removal / adding
+    
     let cfg = read_config(&deps.storage)?;
     if let None = cfg.basket_token {
         return Err(error::basket_token_not_set());
@@ -444,6 +451,10 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         .clone()
         .ok_or_else(|| error::basket_token_not_set())?;
 
+
+    // accommmodate inputs: subsets of target assets vector
+
+    // list of 0's for vector (size of asset_infos) -> replace in the for loop
     let asset_weights: Vec<Uint128> = {
         let mut vec: Vec<Uint128> = Vec::new();
         for i in 0..asset_infos.len() {
@@ -453,6 +464,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
                     break;
                 }
             }
+            // 0 if else
         }
         vec
     };

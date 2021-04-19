@@ -469,6 +469,4 @@ def deploy():
         print(percentages, sum(percentages))
         time.sleep(30)
 
-
-
 deploy()
