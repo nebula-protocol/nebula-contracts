@@ -5,9 +5,10 @@ import json
 def get_prices(symbols):
   currency = 'USD'
   url = 'https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest'
+  sys = [a[0] for a in symbols]
   parameters = {
     'convert': currency,
-    'symbol': ','.join(symbols)
+    'symbol': ','.join(sys)
   }
 
   headers = {
@@ -22,10 +23,12 @@ def get_prices(symbols):
     response = session.get(url, params=parameters)
     data = json.loads(response.text)
     symbol_to_prices = {}
-    for symbol in symbols:
+    for s in symbols:
+      symbol, name = s
       price = data['data'][symbol]['quote'][currency]['price']
+      print(symbol, price)
       market_cap = data['data'][symbol]['quote'][currency]['market_cap']
-      symbol_to_prices[symbol] = price
+      symbol_to_prices[symbol] = {'symbol': symbol, 'name': name, 'price': price, 'market_cap': market_cap}
     return symbol_to_prices
     # print("For {}, price = {}, market_cap = {}".format(symbol, price, market_cap))
   except (ConnectionError, Timeout, TooManyRedirects) as e:
