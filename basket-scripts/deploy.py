@@ -264,24 +264,6 @@ def deploy():
     print(f"[deploy] - set basket token")
     execute_contract(deployer, basket, Basket.set_basket_token(basket_token), seq())
 
-    # set oracle prices
-    print(f"[deploy] - set oracle prices")
-    execute_contract(
-        deployer,
-        oracle,
-        Oracle.set_prices(
-            [
-                [wBTC, "30000.0"],
-                [wETH, "1500.0"],
-                [wXRP, "0.45"],
-                [wLUNA, "2.1"],
-                [MIR, "5.06"],
-                [ANC, "3.18"],
-            ]
-        ),
-        seq(),
-    )
-
     # sets initial balance of basket contract
     total = 5000000
     amount_wBTC = get_amount(total * 0.08, "30000.0")
@@ -315,6 +297,29 @@ def deploy():
     )
 
     result = terra.tx.broadcast(initial_balances_tx)
+
+    # set oracle prices
+    print(f"[deploy] - set oracle prices")
+    execute_contract(
+        deployer,
+        oracle,
+        Oracle.set_prices(
+            [
+                [wBTC, "30000.0"],
+                [wETH, "1500.0"],
+                [wXRP, "0.45"],
+                [wLUNA, "2.1"],
+                [MIR, "5.06"],
+                [ANC, "3.18"],
+            ]
+        ),
+        seq(),
+    )
+
+    debug_print = terra.wasm.contract_query(
+            basket, {"basket_state": {"basket_contract_address": basket}}
+        )
+    import pdb; pdb.set_trace()
 
     print('PREMINT')
     print(

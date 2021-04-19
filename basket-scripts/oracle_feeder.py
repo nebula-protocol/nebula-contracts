@@ -58,7 +58,7 @@ def get_top_15_market_cap():
         'symbol': symbol_item["symbol"],
         'name': symbol_item["name"],
         'market_cap': symbol_item['quote'][currency]['market_cap'],
-        'price': symbol_item['quote'][currency]['price']
+        'price': str(symbol_item['quote'][currency]['price'])
       }
       top_15_market_cap_symbols.append(symbol_data)
     return top_15_market_cap_symbols

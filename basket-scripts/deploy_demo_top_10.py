@@ -184,9 +184,10 @@ def deploy():
 
     # WBTC -> contract
     assets = []
+    asset_to_contract = {}
     for token_info in INITIAL_TOKEN_INFO:
         # wrapped bitcoin
-        print(f"[deploy] - instantiate {token_info['name']} ({token_info['symbol']}) at ${token_info['price']}")
+        print(f"[deploy] - instantiate {token_info['name']} ({token_info['symbol']}) at ${token_info['price']}, amount {10**6 * 400}")
         print(token_info)
         contract = instantiate_contract(
                 token_code_id,
@@ -196,12 +197,13 @@ def deploy():
                     "decimals": 6,
                     "initial_balances": [
                         {"address": deployer.key.acc_address,
-                        "amount": token_info['price'] * 10**6 * 400}
+                        "amount": str(10**6 * 400000)}
                     ],
                     "mint": None,
                 },
                 seq(),
             )
+        asset_to_contract[token_info['symbol']] = contract
         asset = {
             'contract': contract,
             'symbol': token_info['symbol'],
@@ -222,6 +224,7 @@ def deploy():
     basket = instantiate_contract(
         basket_code_id,
         {
+
             "name": "Basket",
             "owner": deployer.key.acc_address,
             "assets": [asset['contract'] for asset in init_top_10],
@@ -242,8 +245,8 @@ def deploy():
     basket_token = instantiate_contract(
         token_code_id,
         {
-            "name": "Basket Token",
-            "symbol": "TOP_TEN_MARKET_CAP",
+            "name": "Top 10 Basket Token",
+            "symbol": "TOP",
             "decimals": 6,
             "initial_balances": [
                 {"address": deployer.key.acc_address, "amount": "1000000000000"}
@@ -258,17 +261,19 @@ def deploy():
     execute_contract(deployer, basket, Basket.set_basket_token(basket_token), seq())
 
     # sets initial balance of basket contract
-    total = 5000000
+    total = 500000
     initialization_amounts = [get_amount(total * 0.1, str(init_token['price'])) for init_token in init_top_10]
     print("[deploy] - give initial balances")
     for idx, init_token in enumerate(init_top_10):
         print(f"{init_token['symbol']}: {initialization_amounts[idx]}")
 
-    initial_balances_tx = deployer.create_and_sign_tx(
-        msgs=[
+    initial_transfers = [
             MsgExecuteContract(
                 deployer.key.acc_address, init_token['contract'], CW20.transfer(basket, initialization_amounts[idx])
-            ) for idx, init_token in enumerate(init_top_10)],
+            ) for idx, init_token in enumerate(init_top_10)]
+
+    initial_balances_tx = deployer.create_and_sign_tx(
+        msgs=initial_transfers,
         sequence=seq(),
         fee=StdFee(4000000, "2000000uluna"),
     )
@@ -282,55 +287,72 @@ def deploy():
             # wrapped bitcoin
             print(f"[deploy] - instantiate {token_info['name']} ({token_info['symbol']}) at ${token_info['price']}")
             asset = {
-                'contract': instantiate_contract(
-                    token_code_id,
-                    {
-                        "name": token_info['name'],
-                        "symbol": token_info['symbol'],
-                        "decimals": 6,
-                        "initial_balances": [
-                            {"address": deployer.key.acc_address,
-                            "amount": token_info['price'] * 10**6 * 400}
-                        ],
-                        "mint": None,
-                    },
-                    seq(),
-                ),
+                'contract': asset_to_contract[token_info['symbol']],
                 'symbol': token_info['symbol'],
                 'name': token_info['name'],
                 'price': token_info['price'],
                 'market_cap': token_info['market_cap'],
             }
+
             assets.append(asset)
 
-            prices = [[asset['contract'], asset['price']] for asset in assets]
+        prices = [
+            [asset['contract'], "{:.2f}".format(asset['price'])] for asset in assets
+        ]
 
-            # set oracle prices
-            print(f"[deploy] - set oracle prices")
-            execute_contract(
+        # set oracle prices
+        print(f"[deploy] - set oracle prices {prices}")
+        
+        execute_contract(
+            deployer,
+            oracle,
+            Oracle.set_prices(prices),
+            seq(),
+        )
+
+        # Get top 10
+        curr_top_10 = assets[:10]
+
+        ### EXAMPLE: how to query basket state
+
+        # GET CURRENT COMPOSITION FROM BASKET STATE
+        basket_state = terra.wasm.contract_query(
+                basket, {"basket_state": {"basket_contract_address": basket}}
+            )
+        print("query basket state ",
+            basket_state
+        )
+
+        top_10_assets = [asset['contract'] for asset in curr_top_10]
+        set(basket_state['assets']) - set(top_10_assets)
+        if (sorted(basket_state['assets']) != sorted(top_10_assets)):
+             # IF NECESSARY, RESET COMPOSITION
+            print("[deploy] - basket: reset_target")
+
+            result = execute_contract(
                 deployer,
-                oracle,
-                Oracle.set_prices(prices),
+                basket,
+                Basket.reset_target(
+                    Asset.asset_info_from_haddrs(
+                        top_10_assets), [10] * len(top_10_assets)
+                    ),
                 seq(),
+                fee=StdFee(
+                    4000000, "20000000uluna"
+                ),  # burning may require a lot of gas if there are a lot of assets
             )
-
-            # Get top 10
-            TOP_10 = assets[:10]
-
-            ### EXAMPLE: how to query basket state
-
-            # GET CURRENT COMPOSITION FROM BASKET STATE
-            basket_state = terra.wasm.contract_query(
-                    basket, {"basket_state": {"basket_contract_address": basket}}
-                )
-            print("query basket state ",
-                basket_state
+            print(f"reset contract TXHASH: {result.txhash}")
+        
+        # GET CURRENT COMPOSITION FROM BASKET STATE
+        basket_state = terra.wasm.contract_query(
+                basket, {"basket_state": {"basket_contract_address": basket}}
             )
+        print("query basket state after all",
+            basket_state
+        )
+            
 
-            print(TOP_10)
-
-
-            # COMPARE TO TOP 10 CURRENT ASSETS
+        # import pdb; pdb.set_trace()
 
             # IF NECESSARY, RESET COMPOSITION
 
