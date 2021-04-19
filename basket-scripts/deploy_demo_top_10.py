@@ -69,27 +69,27 @@ HARD_DATA = [
         {'symbol': 'XLM', 'name': 'Stellar', 'market_cap': 12575828504.56768, 'price': 0.54960038207931}, 
         {'symbol': 'THETA', 'name': 'THETA', 'market_cap': 11934890200.179289, 'price': 11.93489020017929}
     ], 
-    [
-        {'symbol': 'BTC', 'name': 'Bitcoin', 'market_cap': 760123509761.5577, 'price': 45733.93241461603}, 
-        {'symbol': 'ETH', 'name': 'Ethereum', 'market_cap': 208241284658.2259, 'price': 1535.3549701988345}, 
-        {'symbol': 'BNB', 'name': 'Binance Coin', 'market_cap': 50604093031.36272, 'price': 305.7852295610551}, 
-        {'symbol': 'XRP', 'name': 'XRP', 'market_cap': 44233759627.76987, 'price': 0.91471498348896}, 
-        {'symbol': 'USDT', 'name': 'Tether', 'market_cap': 38143460252.49616, 'price': 0.9999371385729}, 
-        {'symbol': 'DOGE', 'name': 'Dogecoin', 'market_cap': 42169672926.89015, 'price': 0.032629475972721}, 
-        {'symbol': 'ADA', 'name': 'Cardano', 'market_cap': 41502086056.318726, 'price': 1.29903856519512}, 
-        {'symbol': 'DOT', 'name': 'Polkadot', 'market_cap': 35344690849.73061, 'price': 37.9643961562771}, 
-        {'symbol': 'BCH', 'name': 'Bitcoin Cash', 'market_cap': 18959657250.55402, 'price': 1013.2027217251489}, 
-        {'symbol': 'LINK', 'name': 'Chainlink', 'market_cap': 18458192426.985268, 'price': 20.86945620216298}, 
-        {'symbol': 'LTC', 'name': 'Litecoin', 'market_cap': 18398192426.94358, 'price': 13.618381155374}, 
-        {'symbol': 'VET', 'name': 'VeChain', 'market_cap': 16604040717.068766, 'price': 0.25816515212028}, 
-        {'symbol': 'UNI', 'name': 'Uniswap', 'market_cap': 16600639748.245836, 'price': 31.71780842984127}, 
-        {'symbol': 'XLM', 'name': 'Stellar', 'market_cap': 12575828504.56768, 'price': 0.54960038207931}, 
-        {'symbol': 'THETA', 'name': 'THETA', 'market_cap': 11934890200.179289, 'price': 11.93489020017929}
-    ], 
+    # [
+    #     {'symbol': 'BTC', 'name': 'Bitcoin', 'market_cap': 760123509761.5577, 'price': 45733.93241461603}, 
+    #     {'symbol': 'ETH', 'name': 'Ethereum', 'market_cap': 208241284658.2259, 'price': 1535.3549701988345}, 
+    #     {'symbol': 'BNB', 'name': 'Binance Coin', 'market_cap': 50604093031.36272, 'price': 305.7852295610551}, 
+    #     {'symbol': 'XRP', 'name': 'XRP', 'market_cap': 44233759627.76987, 'price': 0.91471498348896}, 
+    #     {'symbol': 'USDT', 'name': 'Tether', 'market_cap': 38143460252.49616, 'price': 0.9999371385729}, 
+    #     {'symbol': 'DOGE', 'name': 'Dogecoin', 'market_cap': 42169672926.89015, 'price': 0.032629475972721}, 
+    #     {'symbol': 'ADA', 'name': 'Cardano', 'market_cap': 41502086056.318726, 'price': 1.29903856519512}, 
+    #     {'symbol': 'DOT', 'name': 'Polkadot', 'market_cap': 35344690849.73061, 'price': 37.9643961562771}, 
+    #     {'symbol': 'BCH', 'name': 'Bitcoin Cash', 'market_cap': 18959657250.55402, 'price': 1013.2027217251489}, 
+    #     {'symbol': 'LINK', 'name': 'Chainlink', 'market_cap': 18458192426.985268, 'price': 20.86945620216298}, 
+    #     {'symbol': 'LTC', 'name': 'Litecoin', 'market_cap': 18398192426.94358, 'price': 13.618381155374}, 
+    #     {'symbol': 'VET', 'name': 'VeChain', 'market_cap': 16604040717.068766, 'price': 0.25816515212028}, 
+    #     {'symbol': 'UNI', 'name': 'Uniswap', 'market_cap': 16600639748.245836, 'price': 31.71780842984127}, 
+    #     {'symbol': 'XLM', 'name': 'Stellar', 'market_cap': 12575828504.56768, 'price': 0.54960038207931}, 
+    #     {'symbol': 'THETA', 'name': 'THETA', 'market_cap': 11934890200.179289, 'price': 11.93489020017929}
+    # ], 
 ]
 
 lt = LocalTerra(gas_prices = {
-        "uluna": "0.15"
+        "uluna": "0.05"
     })
 
 if USE_LOCALTERRA:
@@ -313,19 +313,22 @@ def deploy():
         # Get top 10
         curr_top_10 = assets[:10]
 
-        ### EXAMPLE: how to query basket state
 
         # GET CURRENT COMPOSITION FROM BASKET STATE
         basket_state = terra.wasm.contract_query(
-                basket, {"basket_state": {"basket_contract_address": basket}}
-            )
-        print("query basket state ",
+            basket, {"basket_state": {"basket_contract_address": basket}}
+        )
+        print("query basket state initial",
             basket_state
         )
 
         top_10_assets = [asset['contract'] for asset in curr_top_10]
-        set(basket_state['assets']) - set(top_10_assets)
-        if (sorted(basket_state['assets']) != sorted(top_10_assets)):
+        curr_assets = basket_state['assets']
+        
+        if (sorted(curr_assets) != sorted(top_10_assets)):
+            
+            new_assets = list(set(curr_assets).union(set(top_10_assets)))
+            new_weights = [10 if nw in top_10_assets else 0 for nw in new_assets]
              # IF NECESSARY, RESET COMPOSITION
             print("[deploy] - basket: reset_target")
 
@@ -333,118 +336,87 @@ def deploy():
                 deployer,
                 basket,
                 Basket.reset_target(
-                    Asset.asset_info_from_haddrs(
-                        top_10_assets), [10] * len(top_10_assets)
+                    Asset.asset_info_from_haddrs(new_assets), new_weights
                     ),
                 seq(),
                 fee=StdFee(
                     4000000, "20000000uluna"
                 ),  # burning may require a lot of gas if there are a lot of assets
             )
+            print(Asset.asset_info_from_haddrs(new_assets), new_weights)
+
             print(f"reset contract TXHASH: {result.txhash}")
-        
-        # GET CURRENT COMPOSITION FROM BASKET STATE
-        basket_state = terra.wasm.contract_query(
-                basket, {"basket_state": {"basket_contract_address": basket}}
+
+            # Show burn works (burn LTC)
+            print("[deploy] - basket:burn old asset (LTC)")
+            old_asset = (set(basket_state['assets']) - set(top_10_assets)).pop()
+            asset_burns = []
+            for new_asset in new_assets:
+                if new_asset == old_asset:
+                    asset_burns.append(Asset.asset(old_asset, "1"))
+                else:
+                    asset_burns.append(Asset.asset(new_asset, "0"))
+            result = execute_contract(
+                deployer,
+                basket_token,
+                CW20.send(
+                    basket, "1000000000", Basket.burn(asset_burns)
+                ),  # asset weights must be integers
+                seq(),
+                fee=StdFee(
+                    8000000, "40000000uluna"
+                ),  # burning may require a lot of gas if there are a lot of assets
             )
-        print("query basket state after all",
-            basket_state
-        )
-            
+            print(f"burn TXHASH: {result.txhash}")
+        
+            # GET CURRENT COMPOSITION FROM BASKET STATE
+            basket_state = terra.wasm.contract_query(
+                    basket, {"basket_state": {"basket_contract_address": basket}}
+                )
+            print("query basket state after burn",
+                basket_state
+            )
+            # Show reward logs - score must be high
+            print(result.logs[0].events_by_type)
 
-        # import pdb; pdb.set_trace()
+            ### EXAMPLE: Mint newly added asset (LINK)
+            new_asset = (set(top_10_assets) - set(curr_assets)).pop()
+            asset_mints = []
+            for asset in new_assets:
+                if asset == new_asset:
+                    asset_mints.append(Asset.asset(new_asset, "125000000"))
+                else:
+                    asset_burns.append(Asset.asset(asset, "0"))
+            print("[deploy] - basket:stage_asset + basket:mint")
+            stage_and_mint_tx = deployer.create_and_sign_tx(
+                msgs=[
+                    MsgExecuteContract(
+                        deployer.key.acc_address,
+                        new_asset,
+                        CW20.send(basket, "125000000", Basket.stage_asset()),
+                    ),
+                    MsgExecuteContract(
+                        deployer.key.acc_address,
+                        basket,
+                        Basket.mint(
+                            asset_mints
+                        ),
+                    ),
+                ],
+                sequence=seq(),
+                fee=StdFee(4000000, "2000000uluna"),
+            )
 
-            # IF NECESSARY, RESET COMPOSITION
-
-            # IF STEPS = 2, BURN LTC + SHOW REWARD
-
-    #         ### EXAMPLE: how to reset basket composition
-    #         print("[deploy] - basket: reset_target")
-    #         result = execute_contract(
-    #             deployer,
-    #             basket,
-    #             Basket.reset_target(Asset.asset_info_from_haddrs([wBTC, wETH, wXRP, wLUNA, MIR, ANC]), [10, 20, 15, 20, 20, 15]),
-    #             seq(),
-    #             fee=StdFee(
-    #                 4000000, "20000000uluna"
-    #             ),  # burning may require a lot of gas if there are a lot of assets
-    #         )
-    #         print(f"reset contract TXHASH: {result.txhash}")
-
-    #         ### EXAMPLE: getting event logs
-    #         print("logs from reset target", result.logs[0].events_by_type)
-
-    #         print("query new basket state ",
-    #             terra.wasm.contract_query(
-    #                 basket, {"basket_state": {"basket_contract_address": basket}}
-    #             )
-    #         )
-
-    # ### EXAMPLE: how to stage and mint
-
-    # print("[deploy] - basket:stage_asset + basket:mint")
-    # stage_and_mint_tx = deployer.create_and_sign_tx(
-    #     msgs=[
-    #         MsgExecuteContract(
-    #             deployer.key.acc_address,
-    #             wBTC,
-    #             CW20.send(basket, "1000000", Basket.stage_asset()),
-    #         ),
-    #         MsgExecuteContract(
-    #             deployer.key.acc_address,
-    #             wLUNA,
-    #             CW20.send(basket, "4000000000", Basket.stage_asset()),
-    #         ),
-    #         MsgExecuteContract(
-    #             deployer.key.acc_address,
-    #             basket,
-    #             Basket.mint(
-    #                 [Asset.asset(wBTC, "1000000"),
-    #                 Asset.asset(wETH, "0"),
-    #                 Asset.asset(wXRP, "0"),
-    #                 Asset.asset(wLUNA, "4000000000"),
-    #                 Asset.asset(MIR, "0")]
-    #             ),
-    #         ),
-    #     ],
-    #     sequence=seq(),
-    #     fee=StdFee(4000000, "2000000uluna"),
-    # )
-
-    # result = terra.tx.broadcast(stage_and_mint_tx)
-    # print(f"stage & mint TXHASH: {result.txhash}")
-
-
-    # ### EXAMPLE: how to burn
-    # print("[deploy] - basket:burn")
-    # result = execute_contract(
-    #     deployer,
-    #     basket_token,
-    #     CW20.send(
-    #         basket, "10000000000", Basket.burn(
-    #                 [Asset.asset(wBTC, "1"),
-    #                 Asset.asset(wETH, "2"),
-    #                 Asset.asset(wXRP, "1"),
-    #                 Asset.asset(wLUNA, "0"),
-    #                 Asset.asset(MIR, "7")])
-    #     ),  # asset weights must be integers
-    #     seq(),
-    #     fee=StdFee(
-    #         4000000, "20000000uluna"
-    #     ),  # burning may require a lot of gas if there are a lot of assets
-    # )
-    # print(f"burn TXHASH: {result.txhash}")
-
-    # ### EXAMPLE: getting event logs
-    # print(result.logs[0].events_by_type)
-
-    # print(
-    #     terra.wasm.contract_query(
-    #         basket_token, {"balance": {"address": deployer.key.acc_address}}
-    #     )
-    # )
-
-    
+            result = terra.tx.broadcast(stage_and_mint_tx)
+            print(f"stage & mint TXHASH: {result.txhash}")
+            basket_state = terra.wasm.contract_query(
+                    basket, {"basket_state": {"basket_contract_address": basket}}
+                )
+            print("query basket state after mint",
+                basket_state
+            )
+            # Show reward logs - score must be high
+            print(result.logs[1].events_by_type)
 
     # while True:
     #     tokens = ['WBTC', 'WETH', 'XRP', 'LUNA', 'MIR']

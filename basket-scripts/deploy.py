@@ -319,7 +319,6 @@ def deploy():
     debug_print = terra.wasm.contract_query(
             basket, {"basket_state": {"basket_contract_address": basket}}
         )
-    import pdb; pdb.set_trace()
 
     print('PREMINT')
     print(
