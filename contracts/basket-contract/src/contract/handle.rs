@@ -498,20 +498,6 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         }
     }
 
-    for asset in asset_amounts {
-        unstage_asset(
-            &mut deps.storage,
-            &env.message.sender,
-            &asset.info,
-            asset.amount,
-        )?;
-    }
-
-    let c = asset_weights
-        .iter()
-        .map(|x| int_to_fpdec(x.clone()))
-        .collect::<StdResult<Vec<FPDecimal>>>()?;
-
     // get current balances of each token (inventory)
     let inv: Vec<FPDecimal> =
         asset_infos
@@ -527,6 +513,12 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
                 )?),
             })
             .collect::<StdResult<Vec<FPDecimal>>>()?;
+
+    let c = asset_weights
+        .iter()
+        .map(|x| int_to_fpdec(x.clone()))
+        .collect::<StdResult<Vec<FPDecimal>>>()?;
+
 
     // get current prices of each token via oracle
     let prices: Vec<FPDecimal> = asset_infos
@@ -560,6 +552,16 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         if mint_total < *min {
             return Err(error::below_min_tokens(mint_total, *min));
         }
+    }
+
+    // Unstage after everything works
+    for asset in asset_amounts {
+        unstage_asset(
+            &mut deps.storage,
+            &env.message.sender,
+            &asset.info,
+            asset.amount,
+        )?;
     }
 
     let mint_msg = CosmosMsg::Wasm(WasmMsg::Execute {

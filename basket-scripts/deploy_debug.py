@@ -229,14 +229,33 @@ def deploy():
     )
 
     ### EXAMPLE: how to stage and mint
-    print("[deploy] - basket:stage_asset + basket:mint")
+    print("[deploy] - basket:stage_asset")
     stage_and_mint_tx = deployer.create_and_sign_tx(
         msgs=[
             MsgExecuteContract(
                 deployer.key.acc_address,
                 wBTC,
-                CW20.send(basket, "3000000", Basket.stage_asset()),
+                CW20.send(basket, "1000000", Basket.stage_asset()),
             ),
+        ],
+        sequence=seq(),
+        fee=StdFee(4000000, "2000000uluna"),
+    )
+    result = terra.tx.broadcast(stage_and_mint_tx)
+    print(f"stage TXHASH: {result.txhash}")
+    print(result.logs[0].events_by_type)
+
+    ### EXAMPLE: how to query basket state
+    print(
+        terra.wasm.contract_query(
+            basket, {"basket_state": {"basket_contract_address": basket}}
+        )
+    )
+
+    ### EXAMPLE: how to stage and mint
+    print("[deploy] - basket:mint")
+    stage_and_mint_tx = deployer.create_and_sign_tx(
+        msgs=[
             MsgExecuteContract(
                 deployer.key.acc_address,
                 basket,
@@ -246,18 +265,17 @@ def deploy():
         sequence=seq(),
         fee=StdFee(4000000, "2000000uluna"),
     )
-
     result = terra.tx.broadcast(stage_and_mint_tx)
-    print(f"stage & mint TXHASH: {result.txhash}")
-    # print(result)
+    print(f"mint TXHASH: {result.txhash}")
     print(result.logs[0].events_by_type)
 
-    ### EXAMPLE: how to query
+    print("BALANCE after")
     print(
         terra.wasm.contract_query(
             basket_token, {"balance": {"address": deployer.key.acc_address}}
         )
     )
+
 
     ### EXAMPLE: how to query basket state
     print(
@@ -265,15 +283,5 @@ def deploy():
             basket, {"basket_state": {"basket_contract_address": basket}}
         )
     )
-
-    print(
-        {
-            "wBTC": wBTC,
-            "oracle": oracle,
-            "basket": basket,
-            "basket_token": basket_token,
-        }
-    )
-
 
 deploy()
