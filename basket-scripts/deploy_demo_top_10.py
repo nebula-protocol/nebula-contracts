@@ -347,15 +347,22 @@ def deploy():
 
             print(f"reset contract TXHASH: {result.txhash}")
 
+            basket_state = terra.wasm.contract_query(
+                    basket, {"basket_state": {"basket_contract_address": basket}}
+                )
+            print("query basket state before burn",
+                basket_state
+            )
+
             # Show burn works (burn LTC)
             print("[deploy] - basket:burn old asset (LTC)")
             old_asset = (set(basket_state['assets']) - set(top_10_assets)).pop()
-            asset_burns = []
-            for new_asset in new_assets:
-                if new_asset == old_asset:
-                    asset_burns.append(Asset.asset(old_asset, "1"))
-                else:
-                    asset_burns.append(Asset.asset(new_asset, "0"))
+            asset_burns = [Asset.asset(old_asset, "1")]
+            # for new_asset in new_assets:
+            #     if new_asset == old_asset:
+            #         asset_burns.append(Asset.asset(old_asset, "1"))
+            #     else:
+            #         asset_burns.append(Asset.asset(new_asset, "0"))
             result = execute_contract(
                 deployer,
                 basket_token,
@@ -369,7 +376,6 @@ def deploy():
             )
             print(f"burn TXHASH: {result.txhash}")
         
-            # GET CURRENT COMPOSITION FROM BASKET STATE
             basket_state = terra.wasm.contract_query(
                     basket, {"basket_state": {"basket_contract_address": basket}}
                 )
@@ -387,6 +393,7 @@ def deploy():
                     asset_mints.append(Asset.asset(new_asset, "125000000"))
                 else:
                     asset_burns.append(Asset.asset(asset, "0"))
+
             print("[deploy] - basket:stage_asset + basket:mint")
             stage_and_mint_tx = deployer.create_and_sign_tx(
                 msgs=[
@@ -417,19 +424,6 @@ def deploy():
             )
             # Show reward logs - score must be high
             print(result.logs[1].events_by_type)
-
-    # while True:
-    #     tokens = ['WBTC', 'WETH', 'XRP', 'LUNA', 'MIR']
-    #     prices = get_prices(tokens)
-    #     tot = sum(prices)
-    #     percentages = [float(p)/tot for p in prices]
-    #     print(percentages)
-    #     for i in range(len(percentages) - 1):
-    #         percentages[i] = int(percentages[i])
-    #     percentages[-1] = 100 - sum(percentages[:-1])
-    #     print(percentages, sum(percentages))
-    #     time.sleep(30)
-
 
 
 deploy()
