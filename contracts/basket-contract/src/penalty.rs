@@ -138,22 +138,17 @@ pub fn compute_penalty(
 
 #[cfg(test)]
 mod tests {
+    use basket_math::FPDecimal;
+    use crate::state::PenaltyParams;
+    use crate::penalty::compute_penalty;
 
-    // #[test]
-    // fn test_compute_penalty() {
-    //     let inv = vec![FPDecimal::from(5).div(3), FPDecimal::from(3)];
-    //     let c = vec![FPDecimal::from(7).div(2), FPDecimal::from(3).div(2)];
-    //     let target = vec![1, 2];
-    //     let p = vec![FPDecimal::from(1), FPDecimal::from(1).div(2)];
+    #[test]
+    fn test_compute_penalty() {
 
-    //     let penalty_params = PenaltyParams {
-    //         alpha_plus: FPDecimal::ONE,            // 1
-    //         alpha_minus: FPDecimal::ONE / 2 / 100, // 0.005
-    //         sigma_plus: FPDecimal::ONE,            // 1
-    //         sigma_minus: FPDecimal::ONE / 2,       // 0.5
-    //     };
-
-    //     let score = compute_score(&inv, &c, &target, &p);
-    //     let penalty = compute_penalty(&score, &penalty_params);
-    // }
+        let score = FPDecimal::from(3u128) / FPDecimal::from(-100i128);
+        let half = FPDecimal::from(1u128).div(2i128);
+        let tenth = half.div(5i128);
+        let penalty = compute_penalty(score, half, half, tenth, tenth.mul(3));;
+        println!("{}", penalty)
+    }
 }
