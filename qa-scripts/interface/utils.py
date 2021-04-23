@@ -1,5 +1,5 @@
 from terra_sdk.client.lcd import AsyncLCDClient
-from terra_sdk.client.localterra import LocalTerra
+from terra_sdk.client.localterra import AsyncLocalTerra
 from terra_sdk.core.auth import StdFee
 from terra_sdk.core.wasm import (
     MsgStoreCode,
@@ -18,31 +18,39 @@ CACHE_INITIALIZATION = True
 OVERWRITE_CACHE_ALLOWED = set()
 
 
-lt = LocalTerra()
+USE_LOCALTERRA = True
 
-gas_prices = {
-    "uluna": "0.15",
-    "usdr": "0.1018",
-    "uusd": "0.15",
-    "ukrw": "178.05",
-    "umnt": "431.6259",
-    "ueur": "0.125",
-    "ucny": "0.97",
-    "ujpy": "16",
-    "ugbp": "0.11",
-    "uinr": "11",
-    "ucad": "0.19",
-    "uchf": "0.13",
-    "uaud": "0.19",
-    "usgd": "0.2",
-}
+lt = AsyncLocalTerra(gas_prices = {
+    "uusd": "0.15"
+})
 
-terra = AsyncLCDClient(
-    "https://tequila-fcd.terra.dev", "tequila-0004", gas_prices=gas_prices
-)
+if USE_LOCALTERRA:
+    terra = lt
+    deployer = lt.wallets["test1"]
+else:
+    gas_prices = {
+        "uluna": "0.15",
+        "usdr": "0.1018",
+        "uusd": "0.15",
+        "ukrw": "178.05",
+        "umnt": "431.6259",
+        "ueur": "0.125",
+        "ucny": "0.97",
+        "ujpy": "16",
+        "ugbp": "0.11",
+        "uinr": "11",
+        "ucad": "0.19",
+        "uchf": "0.13",
+        "uaud": "0.19",
+        "usgd": "0.2",
+    }
 
+    terra = AsyncLCDClient(
+        "https://tequila-fcd.terra.dev", "tequila-0004", gas_prices=gas_prices
+    )
 
-deployer = terra.wallet(lt.wallets["test1"].key)
+    deployer = terra.wallet(lt.wallets["test1"].key)
+
 sequence = asyncio.get_event_loop().run_until_complete(deployer.sequence())
 
 
@@ -74,7 +82,7 @@ def async_cache_on_disk(fxn):
 async def store_contract(contract_name):
     import os
 
-    parent_dir = os.path.dirname(os.path.dirname(__file__))
+    parent_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
     contract_bytes = read_file_as_b64(f"{parent_dir}/artifacts/{contract_name}.wasm")
     store_code = MsgStoreCode(deployer.key.acc_address, contract_bytes)
     store_code_tx = await deployer.create_and_sign_tx(

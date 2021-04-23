@@ -110,6 +110,8 @@ class BasketLogic:
 
         d = np.abs(err(i - b, p)) - np.abs(err(i, p))
         x = np.sum(d) / np.dot(b, p) / 2
+        print("redeem score is", x)
+        print("redeem penalty is", self.penalty(x))
         r = b * self.penalty(x)
 
         r = r.astype(np.int64)

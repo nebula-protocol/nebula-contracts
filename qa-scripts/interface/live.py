@@ -88,6 +88,9 @@ class InterfaceLive(InterfaceBase):
 
         mint_log = result.logs[-1].events_by_type
 
+        import pprint
+        pprint.pprint(mint_log)
+
         mint_total = mint_log["from_contract"]["mint_total"][0]
         return int(mint_total)
 
@@ -127,6 +130,10 @@ class InterfaceLive(InterfaceBase):
             raise Exception(result.raw_log)
 
         redeem_log = result.logs[0].events_by_type
+
+        import pprint
+        for thing in result.logs:
+            pprint.pprint(thing.events_by_type)
 
         redeem_totals = redeem_log["from_contract"]["redeem_totals"]
         return ast.literal_eval(redeem_totals[0])

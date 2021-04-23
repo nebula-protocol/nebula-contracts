@@ -129,22 +129,6 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         None => None,
     };
 
-    let asset_weights: Option<Vec<Uint128>> = match &asset_weights {
-        Some(weights) => {
-            let mut vec: Vec<Uint128> = Vec::new();
-            for i in 0..assets.len() {
-                for j in 0..weights.len() {
-                    if weights[j].info.clone() == assets[i].clone() {
-                        vec.push(weights[j].amount);
-                        break;
-                    }
-                }
-            }
-            Some(vec)
-        }
-        None => None,
-    };
-
 
     // require that origin contract from Receive Hook is the associated Basket Token
     if *sent_asset != basket_token {
@@ -176,58 +160,77 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
             })
             .collect::<StdResult<Vec<FPDecimal>>>()?;
 
+
+    let asset_weights: Vec<Uint128> = match &asset_weights {
+        Some(weights) => {
+            let mut vec: Vec<Uint128> = Vec::new();
+            for i in 0..assets.len() {
+                for j in 0..weights.len() {
+                    if weights[j].info.clone() == assets[i].clone() {
+                        vec.push(weights[j].amount);
+                        break;
+                    }
+                }
+            }
+            vec
+        }
+        None => {
+            let mut vec: Vec<Uint128> = Vec::new();
+            for i in &inv {
+                let (w, _) = fpdec_to_int(*i)?; // the fraction part is kept inside basket
+                vec.push(w);
+            }
+        vec
+        },
+    };
+
     let basket_token_supply = query_cw20_token_supply(&deps, &basket_token)?;
 
-    let m_div_n = int_to_fpdec(burn_amount)? / int_to_fpdec(basket_token_supply)?;
     let m = int_to_fpdec(burn_amount)?;
     let n = int_to_fpdec(basket_token_supply)?;
 
     let mut logs: Vec<LogAttribute> = Vec::new();
-    let redeem_subtotals: Vec<FPDecimal> = match &asset_weights {
-        Some(weights) => {
-            // ensure the provided weights has the same dimension as our inventory
-            if weights.len() != inv.len() {
-                return Err(error::bad_weight_dimensions(weights.len(), inv.len()));
-            }
-            let weights_sum = weights.iter().fold(FPDecimal::zero(), |acc, &el| {
-                acc + FPDecimal::from(el.u128())
-            });
-
-            let r = weights // normalize weights vector
-                .iter()
-                .map(|&x| FPDecimal::from(x.u128()) / weights_sum)
-                .collect();
-
-            let prices: Vec<FPDecimal> = assets
-                .iter()
-                .map(|asset| match asset {
-                    AssetInfo::Token { contract_addr } => {
-                        query_price(&deps, &cfg.oracle, &contract_addr)
-                    }
-                    AssetInfo::NativeToken { denom } => query_price(&deps, &cfg.oracle, &h(denom)),
-                })
-                .collect::<StdResult<Vec<FPDecimal>>>()?;
-
-            let prod = dot(&inv, &prices) / dot(&r, &prices);
-            let b: Vec<FPDecimal> = r.iter().map(|&x| m_div_n * prod * x).collect();
-            let neg_b: Vec<FPDecimal> = b.iter().map(|&x| FPDecimal::from(-1i128) * x).collect();
-
-            // compute score
-            let diff = compute_diff(&inv, &neg_b, &prices, &target);
-            let score = (sum(&diff) / dot(&b, &prices)).div(2i128);
-
-            let PenaltyParams {
-                a_pos,
-                s_pos,
-                a_neg,
-                s_neg,
-            } = cfg.penalty_params;
-            let penalty = compute_penalty(score, a_pos, s_pos, a_neg, s_neg);
-            logs.push(log("score", score));
-            logs.push(log("penalty", penalty));
-            b.iter().map(|&x| penalty * x).collect()
+    let redeem_subtotals: Vec<FPDecimal> = {
+        // ensure the provided weights has the same dimension as our inventory
+        if asset_weights.len() != inv.len() {
+            return Err(error::bad_weight_dimensions(asset_weights.len(), inv.len()));
         }
-        None => inv.iter().map(|&x| m * x / n).collect(),
+        let weights_sum = asset_weights.iter().fold(FPDecimal::zero(), |acc, &el| {
+            acc + FPDecimal::from(el.u128())
+        });
+
+        let r: Vec<FPDecimal> = asset_weights // normalize weights vector
+            .iter()
+            .map(|&x| FPDecimal::from(x.u128()) / weights_sum)
+            .collect();
+
+        let prices: Vec<FPDecimal> = assets
+            .iter()
+            .map(|asset| match asset {
+                AssetInfo::Token { contract_addr } => {
+                    query_price(&deps, &cfg.oracle, &contract_addr)
+                }
+                AssetInfo::NativeToken { denom } => query_price(&deps, &cfg.oracle, &h(denom)),
+            })
+            .collect::<StdResult<Vec<FPDecimal>>>()?;
+
+        let b: Vec<FPDecimal> = r.iter().map(|&x| m * x * dot(&inv, &prices) / n / dot(&r, &prices)).collect();
+        let neg_b: Vec<FPDecimal> = b.iter().map(|&x| FPDecimal::from(-1i128) * x).collect();
+
+        // compute score
+        let diff = compute_diff(&inv, &neg_b, &prices, &target);
+        let score = (sum(&diff) / dot(&b, &prices)).div(2i128);
+
+        let PenaltyParams {
+            a_pos,
+            s_pos,
+            a_neg,
+            s_neg,
+        } = cfg.penalty_params;
+        let penalty = compute_penalty(score, a_pos, s_pos, a_neg, s_neg);
+        logs.push(log("score", score));
+        logs.push(log("penalty", penalty));
+        b.iter().map(|&x| penalty * x).collect()
     };
 
     // convert reward into Uint128 -- truncate decimal as roundoff
@@ -277,13 +280,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
                 log("sent_asset", sent_asset),
                 log("sent_tokens", sent_amount),
                 log("burn_amount", burn_amount),
-                log(
-                    "asset_weights",
-                    match &asset_weights {
-                        Some(v) => vec_to_string(v),
-                        None => "".to_string(),
-                    },
-                ),
+                log("asset_weights", vec_to_string(&asset_weights)),
                 log("redeem_totals", vec_to_string(&redeem_totals)),
                 log("redeem_roundoffs", vec_to_string(&redeem_roundoffs)),
             ],
