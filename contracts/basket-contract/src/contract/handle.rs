@@ -179,6 +179,8 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     let basket_token_supply = query_cw20_token_supply(&deps, &basket_token)?;
 
     let m_div_n = int_to_fpdec(burn_amount)? / int_to_fpdec(basket_token_supply)?;
+    let m = int_to_fpdec(burn_amount)?;
+    let n = int_to_fpdec(basket_token_supply)?;
 
     let mut logs: Vec<LogAttribute> = Vec::new();
     let redeem_subtotals: Vec<FPDecimal> = match &asset_weights {
@@ -225,7 +227,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
             logs.push(log("penalty", penalty));
             b.iter().map(|&x| penalty * x).collect()
         }
-        None => inv.iter().map(|&x| m_div_n * x).collect(),
+        None => inv.iter().map(|&x| m * x / n).collect(),
     };
 
     // convert reward into Uint128 -- truncate decimal as roundoff
@@ -544,7 +546,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 
     // compute number of new tokens
     let mint_subtotal =
-        penalty * dot(&c, &prices) / dot(&inv, &prices) * int_to_fpdec(basket_token_supply)?;
+        penalty * dot(&c, &prices) * int_to_fpdec(basket_token_supply)? / dot(&inv, &prices);
 
     let (mint_total, mint_roundoff) = fpdec_to_int(mint_subtotal)?; // the fraction part is kept inside basket
 
