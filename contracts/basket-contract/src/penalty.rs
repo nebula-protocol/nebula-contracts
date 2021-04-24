@@ -129,7 +129,7 @@ pub fn compute_penalty(
     a_neg: FPDecimal,
     s_neg: FPDecimal,
 ) -> FPDecimal {
-    if score.num <= FPDecimal::zero().num {
+    if score.sign == 0{
         FPDecimal::one() - a_neg * (score / s_neg).tanh()
     } else {
         FPDecimal::one() - a_pos * (score / s_pos).tanh()
