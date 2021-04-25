@@ -16,7 +16,7 @@ pub fn bad_weight_values(provided: u32) -> StdError {
     StdError::generic_err(format!("weights do not add to 100 (given {}", provided))
 }
 
-pub fn not_component_cw20(asset: &HumanAddr) -> StdError {
+pub fn not_component_cw20(asset: &AssetInfo) -> StdError {
     StdError::generic_err(format!(
         "asset {} is not a component asset of basket",
         asset

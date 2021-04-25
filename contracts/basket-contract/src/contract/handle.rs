@@ -48,6 +48,19 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::_SetBasketToken { basket_token } => {
             try_set_basket_token(deps, env, &basket_token)
         } // HandleMsg::AddAssetType {asset} => try_add_asset_type(deps, env, asset),
+        HandleMsg::StageNativeAsset { asset } => {
+            // only native token can be deposited directly
+            if !asset.is_native_token() {
+                return Err(StdError::unauthorized());
+            }
+
+            // Check the actual deposit happens
+            asset.assert_sent_native_token_balance(&env)?;
+
+            let sender = &env.message.sender.clone();
+
+            try_receive_stage_asset(deps, env, sender, &asset)
+        }
     }
 }
 
@@ -64,15 +77,16 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
     let sender = cw20_msg.sender;
     let sent_asset = env.message.sender.clone();
     let sent_amount = cw20_msg.amount;
-
+    let asset = Asset { info: AssetInfo::Token{ contract_addr: sent_asset }, amount: sent_amount };
+    
     // Using HumanAddr instead of AssetInfo for cw20
     if let Some(msg) = cw20_msg.msg {
         match from_binary(&msg)? {
             Cw20HookMsg::Burn { asset_weights, redeem_mins } => {
-                try_receive_burn(deps, env, &sender, &sent_asset, sent_amount, asset_weights, redeem_mins)
+                try_receive_burn(deps, env, &sender, &asset, asset_weights, redeem_mins)
             }
             Cw20HookMsg::StageAsset {} => {
-                try_receive_stage_asset(deps, env, &sender, &sent_asset, sent_amount)
+                try_receive_stage_asset(deps, env, &sender, &asset)
             }
         }
     } else {
@@ -91,8 +105,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     sender: &HumanAddr,
-    sent_asset: &HumanAddr,
-    sent_amount: Uint128,
+    asset: &Asset,
     asset_weights: Option<Vec<Asset>>,
     redeem_mins:Option<Vec<Asset>>,
 ) -> StdResult<HandleResponse> {
@@ -111,9 +124,14 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         .iter()
         .map(|x| x.target)
         .collect::<Vec<_>>();
-    // Reorder asset_weights according to ordering of target assets
+    let sent_asset = match &asset.info {
+        AssetInfo::Token { contract_addr } => { contract_addr}
+        AssetInfo::NativeToken { denom: _ } => {  return Err(StdError::unauthorized()); }
+    };
+    let sent_amount = asset.amount;
 
-    let mut ordered_min_redeem: Option<Vec<Uint128>> = match &redeem_mins {
+    // Reorder asset_weights according to ordering of target assets
+    let ordered_min_redeem: Option<Vec<Uint128>> = match &redeem_mins {
         Some(mins) => {
             let mut vec: Vec<Uint128> = Vec::new();
             for i in 0..assets.len() {
@@ -302,8 +320,7 @@ pub fn try_receive_stage_asset<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     _env: Env,
     sender: &HumanAddr,
-    sent_asset: &HumanAddr,
-    sent_amount: Uint128,
+    staged_asset: &Asset,
 ) -> StdResult<HandleResponse> {
     let cfg = read_config(&deps.storage)?;
     if let None = cfg.basket_token {
@@ -317,25 +334,19 @@ pub fn try_receive_stage_asset<S: Storage, A: Api, Q: Querier>(
         .collect::<Vec<_>>();
 
     // if sent asset is not a component asset of basket, reject
-    if !assets.iter().any(|asset| match asset {
-        AssetInfo::Token { contract_addr } => contract_addr == sent_asset,
-        AssetInfo::NativeToken { denom } => &h(denom) == sent_asset,
-    }) {
-        return Err(error::not_component_cw20(sent_asset));
+    if !assets.iter().any(|asset| *asset == staged_asset.info) {
+        return Err(error::not_component_cw20(&staged_asset.info));
     }
 
-    let sent_asset_info = AssetInfo::Token {
-        contract_addr: sent_asset.clone(),
-    };
-    stage_asset(&mut deps.storage, sender, &sent_asset_info, sent_amount)?;
+    stage_asset(&mut deps.storage, sender, &staged_asset.info, staged_asset.amount)?;
 
     Ok(HandleResponse {
         messages: vec![],
         log: vec![
             log("action", "receive:stage_asset"),
             log("sender", sender),
-            log("asset", sent_asset),
-            log("staged_amount", sent_amount),
+            log("asset", staged_asset.info.clone()),
+            log("staged_amount", staged_asset.amount),
         ],
         data: None,
     })
@@ -716,6 +727,76 @@ mod tests {
                     contract_addr: h("mNFLX"),
                 },
                 amount: Uint128(50_090_272),
+            },
+        ];
+        let mint_msg = HandleMsg::Mint {
+            asset_amounts: asset_amounts.clone(),
+            min_tokens: None,
+        };
+
+        let env = mock_env(h("addr0000"), &[]);
+        let res = handle(&mut deps, env, mint_msg.clone());
+        match res {
+            Err(..) => (),
+            _ => panic!("requires staging"),
+        }
+
+        for asset in asset_amounts {
+            let env = mock_env(
+                match asset.info {
+                    AssetInfo::Token { contract_addr } => contract_addr,
+                    AssetInfo::NativeToken { denom } => h(&denom),
+                },
+                &[],
+            );
+            let stage_asset_msg = HandleMsg::Receive(Cw20ReceiveMsg {
+                sender: h("addr0000"),
+                msg: Some(to_binary(&Cw20HookMsg::StageAsset {}).unwrap()),
+                amount: asset.amount,
+            });
+            handle(&mut deps, env, stage_asset_msg).unwrap();
+        }
+
+        let env = mock_env(h("addr0000"), &[]);
+        let res = handle(&mut deps, env, mint_msg).unwrap();
+
+        // for _log in res.log.iter() {
+        //     //println!("{}: {}", log.key, log.value);
+        // }
+        assert_eq!(1, res.messages.len());
+    }
+
+    #[test]
+    fn mint_with_native_stage() {
+        let (mut deps, _init_res) = mock_init();
+        mock_querier_setup(&mut deps);
+
+        // Asset :: UST Price :: Balance (µ)     (+ proposed   ) :: %
+        // ---
+        // mAAPL ::  135.18   ::  7_290_053_159  (+ 125_000_000) :: 0.20367359382 -> 0.20391741720
+        // mGOOG :: 1780.03   ::    319_710_128                  :: 0.11761841035 -> 0.11577407690
+        // mMSFT ::  222.42   :: 14_219_281_228  (+ 149_000_000) :: 0.65364669475 -> 0.65013907200
+        // mNFLX ::  540.82   ::    224_212_221  (+  50_090_272) :: 0.02506130106 -> 0.03016943389
+        deps.querier
+            .set_token_balance("wBTC", consts::basket_token(), 1_000_000)
+            .set_token_balance("LUNA", consts::basket_token(), 2_000_000)
+            .set_oracle_prices(vec![
+                ("wBTC", Decimal::from_str("30000.00").unwrap()),
+                ("LUNA", Decimal::from_str("15.00").unwrap()),
+            ]);
+
+        let asset_amounts = vec![
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("wBTC"),
+                },
+                amount: Uint128(125_000_000),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mGOOG"),
+                },
+                amount: Uint128::zero(),
             },
         ];
         let mint_msg = HandleMsg::Mint {

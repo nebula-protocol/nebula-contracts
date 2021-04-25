@@ -42,6 +42,11 @@ pub enum HandleMsg {
         amount: Option<Uint128>,
     },
 
+    /// Withdraws asset from staging
+    StageNativeAsset {
+        asset: Asset,
+    },
+
     /// Called to set basket token after initialization
     _SetBasketToken {
         basket_token: HumanAddr,

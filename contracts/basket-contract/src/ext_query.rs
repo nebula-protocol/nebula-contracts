@@ -1,9 +1,6 @@
 use crate::state::read_total_staged_asset;
 use basket_math::FPDecimal;
-use cosmwasm_std::{
-    to_binary, Api, Decimal, Extern, HumanAddr, Querier, QueryRequest, StdResult, Storage, Uint128,
-    WasmQuery,
-};
+use cosmwasm_std::{Api, BalanceResponse, BankQuery, Decimal, Extern, HumanAddr, Querier, QueryRequest, StdResult, Storage, Uint128, WasmQuery, to_binary};
 use cw20::{BalanceResponse as Cw20BalanceResponse, TokenInfoResponse as Cw20TokenInfoResponse};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -52,6 +49,39 @@ pub fn query_price<S: Storage, A: Api, Q: Querier>(
     // transform Decimal -> FPDecimal
     Ok(FPDecimal::from_str(res.rate.to_string().as_str())?)
 }
+
+// Query native balances
+pub fn query_native_balance<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    denom: String,
+    account_address: &HumanAddr,
+) -> StdResult<Uint128> {
+    // load price form the oracle
+    let balance: BalanceResponse = deps.querier.query(&QueryRequest::Bank(BankQuery::Balance {
+        address: HumanAddr::from(account_address),
+        denom,
+    }))?;
+    Ok(balance.amount.amount)
+}
+
+// Query native balances
+pub fn query_native_balance_minus_staged<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    denom: String,
+    account_address: &HumanAddr,
+) -> StdResult<Uint128> {
+    let tot_balance = query_native_balance(&deps, denom.clone(), &account_address)?;
+
+    let staged_balance = read_total_staged_asset(
+        &deps.storage,
+        &AssetInfo::NativeToken {
+            denom,
+        },
+    )?;
+
+    tot_balance - staged_balance
+}
+
 
 /// EXTERNAL QUERY
 /// -- Queries the token_address contract for the current balance of an account without
