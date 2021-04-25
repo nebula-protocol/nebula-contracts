@@ -13,7 +13,7 @@ use log::info;
 pub enum ExtQueryMsg {
     // Oracle
     Price {
-        base_asset: String,
+        base_asset: AssetInfo,
         quote_asset: String,
     },
     // Cw20
@@ -35,13 +35,13 @@ pub struct PriceResponse {
 pub fn query_price<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     oracle_address: &HumanAddr,
-    asset_address: &HumanAddr,
+    asset_info: &AssetInfo,
 ) -> StdResult<FPDecimal> {
     // perform query
     let res: PriceResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: oracle_address.clone(),
         msg: to_binary(&ExtQueryMsg::Price {
-            base_asset: asset_address.to_string(),
+            base_asset: asset_info.clone(),
             quote_asset: "uusd".to_string(),
         })?,
     }))?;

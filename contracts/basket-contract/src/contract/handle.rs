@@ -216,12 +216,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
 
             let prices: Vec<FPDecimal> = assets
                 .iter()
-                .map(|asset| match asset {
-                    AssetInfo::Token { contract_addr } => {
-                        query_price(&deps, &cfg.oracle, &contract_addr)
-                    }
-                    AssetInfo::NativeToken { denom } => query_price(&deps, &cfg.oracle, &h(denom)),
-                })
+                .map(|asset_info| query_price(&deps, &cfg.oracle, asset_info))
                 .collect::<StdResult<Vec<FPDecimal>>>()?;
 
             let prod = dot(&inv, &prices) / dot(&r, &prices);
@@ -534,10 +529,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     // get current prices of each token via oracle
     let prices: Vec<FPDecimal> = asset_infos
         .iter()
-        .map(|asset| match asset {
-            AssetInfo::Token { contract_addr } => query_price(&deps, &cfg.oracle, &contract_addr),
-            AssetInfo::NativeToken { denom } => query_price(&deps, &cfg.oracle, &h(denom)),
-        })
+        .map(|asset_info| query_price(&deps, &cfg.oracle, asset_info))
         .collect::<StdResult<Vec<FPDecimal>>>()?;
 
     // compute penalty
