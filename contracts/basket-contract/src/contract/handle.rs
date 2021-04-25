@@ -7,7 +7,7 @@ use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
 use error::bad_weight_values;
 
 use crate::error;
-use crate::ext_query::{query_cw20_balance_minus_staged, query_cw20_token_supply, query_price};
+use crate::ext_query::{query_cw20_balance_minus_staged, query_native_balance_minus_staged, query_cw20_token_supply, query_price};
 use crate::state::{
     read_config, save_config, stage_asset, unstage_asset, PenaltyParams, TargetAssetData,
 };
@@ -186,9 +186,9 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
                 AssetInfo::Token { contract_addr } => int_to_fpdec(
                     query_cw20_balance_minus_staged(&deps, &contract_addr, &env.contract.address)?,
                 ),
-                AssetInfo::NativeToken { denom } => int_to_fpdec(query_cw20_balance_minus_staged(
+                AssetInfo::NativeToken { denom } => int_to_fpdec(query_native_balance_minus_staged(
                     &deps,
-                    &h(denom),
+                    denom,
                     &env.contract.address,
                 )?),
             })
@@ -517,9 +517,9 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
                 AssetInfo::Token { contract_addr } => int_to_fpdec(
                     query_cw20_balance_minus_staged(&deps, &contract_addr, &env.contract.address)?,
                 ),
-                AssetInfo::NativeToken { denom } => int_to_fpdec(query_cw20_balance_minus_staged(
+                AssetInfo::NativeToken { denom } => int_to_fpdec(query_native_balance_minus_staged(
                     &deps,
-                    &h(denom),
+                    denom,
                     &env.contract.address,
                 )?),
             })

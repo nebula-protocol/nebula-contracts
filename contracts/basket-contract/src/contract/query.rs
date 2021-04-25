@@ -2,9 +2,7 @@ use cosmwasm_std::{
     to_binary, Api, Binary, Extern, HumanAddr, Querier, StdError, StdResult, Storage, Uint128,
 };
 
-use crate::ext_query::{
-    query_cw20_balance, query_cw20_balance_minus_staged, query_cw20_token_supply, query_price,
-};
+use crate::ext_query::{query_cw20_balance, query_cw20_balance_minus_staged, query_cw20_token_supply, query_native_balance_minus_staged, query_price};
 use crate::msg::{
     BasketStateResponse, ConfigResponse, QueryMsg, StagedAmountResponse, TargetResponse,
 };
@@ -112,7 +110,7 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
                 query_cw20_balance_minus_staged(&deps, &contract_addr, basket_contract_address)
             }
             AssetInfo::NativeToken { denom } => {
-                query_cw20_balance_minus_staged(&deps, &h(denom), basket_contract_address)
+                query_native_balance_minus_staged(&deps, denom, basket_contract_address)
             }
         })
         .collect::<StdResult<Vec<Uint128>>>()?;
@@ -127,10 +125,7 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
 
     let assets = target_asset_data
         .iter()
-        .map(|x| match &x.asset {
-            AssetInfo::Token { contract_addr } => contract_addr.clone(),
-            AssetInfo::NativeToken { denom } => h(denom).clone(),
-        })
+        .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
 
     Ok(BasketStateResponse {
