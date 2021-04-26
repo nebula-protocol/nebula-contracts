@@ -96,10 +96,7 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
     // get prices for each asset
     let prices = assets
         .iter()
-        .map(|asset| match asset {
-            AssetInfo::Token { contract_addr } => query_price(&deps, &cfg.oracle, &contract_addr),
-            AssetInfo::NativeToken { denom } => query_price(&deps, &cfg.oracle, &h(denom)),
-        })
+        .map(|asset_info| query_price(&deps, &cfg.oracle, asset_info))
         .collect::<StdResult<Vec<FPDecimal>>>()?;
 
     // get inventory

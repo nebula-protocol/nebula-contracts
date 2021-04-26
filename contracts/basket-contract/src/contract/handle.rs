@@ -262,20 +262,11 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         .iter()
         .zip(assets.iter())
         .filter(|(amt, _asset)| !amt.is_zero()) // remove 0 amounts
-        .map(|(amt, asset)| {
-            Ok(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: {
-                    match asset {
-                        AssetInfo::Token { contract_addr } => contract_addr.clone(),
-                        AssetInfo::NativeToken { denom } => h(denom),
-                    }
-                },
-                msg: to_binary(&Cw20HandleMsg::Transfer {
-                    amount: amt.clone(),
-                    recipient: sender.clone(),
-                })?,
-                send: vec![],
-            }))
+        .map(|(amt, asset_info)| {
+            let asset = Asset { info: asset_info.clone(), amount: amt.clone() };
+
+            // TODO: Check if sender field is correct here (recipient should be sender.clone())
+            asset.into_msg(&deps, env.contract.address.clone(), sender.clone())
         })
         .collect::<StdResult<Vec<CosmosMsg>>>()?;
 
@@ -599,7 +590,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 pub fn try_unstage_asset<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    asset: &AssetInfo,
+    asset_info: &AssetInfo,
     amount: &Option<Uint128>,
 ) -> StdResult<HandleResponse> {
     let cfg = read_config(&deps.storage)?;
@@ -614,17 +605,17 @@ pub fn try_unstage_asset<S: Storage, A: Api, Q: Querier>(
     //     AssetInfo::NativeToken { denom } => &h(denom) == asset,
     // })
 
-    if !assets.iter().any(|x| x == asset) {
-        return Err(error::not_component_asset(asset));
+    if !assets.iter().any(|x| x == asset_info) {
+        return Err(error::not_component_asset(asset_info));
     }
 
-    let curr_staged = read_staged_asset(&deps.storage, &env.message.sender, asset)?;
+    let curr_staged = read_staged_asset(&deps.storage, &env.message.sender, asset_info)?;
     let to_unstage = match amount {
         Some(amt) => {
             if *amt > curr_staged {
                 return Err(error::insufficient_staged(
                     &env.message.sender,
-                    asset,
+                    asset_info,
                     *amt,
                     curr_staged,
                 ));
@@ -634,21 +625,15 @@ pub fn try_unstage_asset<S: Storage, A: Api, Q: Querier>(
         None => curr_staged,
     };
 
-    unstage_asset(&mut deps.storage, &env.message.sender, asset, to_unstage)?;
+    unstage_asset(&mut deps.storage, &env.message.sender, asset_info, to_unstage)?;
 
     // return asset
     let messages = if !to_unstage.is_zero() {
-        vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: match asset {
-                AssetInfo::Token { contract_addr } => contract_addr.clone(),
-                AssetInfo::NativeToken { denom } => h(denom),
-            },
-            msg: to_binary(&Cw20HandleMsg::Transfer {
-                amount: to_unstage.clone(),
-                recipient: env.message.sender.clone(),
-            })?,
-            send: vec![],
-        })]
+
+        let asset = Asset { info: asset_info.clone(), amount: to_unstage.clone() };
+
+        // TODO: Check if sender field is correct here (recipient should be sender.clone())
+        vec![asset.into_msg(&deps, env.contract.address.clone(), env.message.sender.clone())?]
     } else {
         vec![]
     };
@@ -657,7 +642,7 @@ pub fn try_unstage_asset<S: Storage, A: Api, Q: Querier>(
         messages,
         log: vec![
             log("action", "unstage_asset"),
-            log("asset", asset),
+            log("asset", asset_info),
             log("amount", to_unstage),
         ],
         data: None,
