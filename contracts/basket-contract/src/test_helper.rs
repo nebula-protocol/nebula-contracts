@@ -67,7 +67,7 @@ impl CustomMockQuerier {
                     ExtQueryMsg::Price {
                         base_asset,
                         quote_asset,
-                    } => match self.oracle_querier.assets.get(&base_asset.to_string()) {
+                    } => match self.oracle_querier.assets.get(&base_asset) {
                         Some(base_price) => match self.oracle_querier.assets.get(&quote_asset) {
                             Some(quote_price) => Ok(to_binary(&PriceResponse {
                                 rate: decimal_division(*base_price, *quote_price),

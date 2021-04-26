@@ -16,7 +16,7 @@ use terraswap::{asset::AssetInfo, querier::query_balance};
 pub enum ExtQueryMsg {
     // Oracle
     Price {
-        base_asset: AssetInfo,
+        base_asset: String,
         quote_asset: String,
     },
     // Cw20
@@ -44,7 +44,7 @@ pub fn query_price<S: Storage, A: Api, Q: Querier>(
     let res: PriceResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: oracle_address.clone(),
         msg: to_binary(&ExtQueryMsg::Price {
-            base_asset: asset_info.clone(),
+            base_asset: asset_info.to_string(),
             quote_asset: "uusd".to_string(),
         })?,
     }))?;
