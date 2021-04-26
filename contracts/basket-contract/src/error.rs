@@ -1,5 +1,5 @@
 use cosmwasm_std::{HumanAddr, StdError, Uint128};
-use terraswap::asset::{Asset, AssetInfo};
+use terraswap::asset::AssetInfo;
 
 pub fn missing_cw20_msg() -> StdError {
     StdError::generic_err("Receive Hook - missing expected .msg in body")

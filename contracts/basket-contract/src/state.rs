@@ -80,7 +80,6 @@ pub fn read_total_staged_asset<S: Storage>(storage: &S, asset: &AssetInfo) -> St
         .or(Ok(Uint128(0)))
 }
 
-
 pub fn read_staged_asset<S: Storage>(
     storage: &S,
     account: &HumanAddr,

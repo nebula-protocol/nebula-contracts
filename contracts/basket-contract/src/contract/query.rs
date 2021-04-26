@@ -2,13 +2,14 @@ use cosmwasm_std::{
     to_binary, Api, Binary, Extern, HumanAddr, Querier, StdError, StdResult, Storage, Uint128,
 };
 
-use crate::ext_query::{query_cw20_balance, query_cw20_balance_minus_staged, query_cw20_token_supply, query_native_balance_minus_staged, query_price};
+use crate::ext_query::{
+    query_cw20_balance_minus_staged, query_cw20_token_supply, query_native_balance_minus_staged,
+    query_price,
+};
 use crate::msg::{
     BasketStateResponse, ConfigResponse, QueryMsg, StagedAmountResponse, TargetResponse,
 };
-use crate::state::{
-    read_config, read_staged_asset, read_target_asset_data,
-};
+use crate::state::{read_config, read_staged_asset, read_target_asset_data};
 use basket_math::FPDecimal;
 use terraswap::asset::AssetInfo;
 
@@ -48,13 +49,6 @@ fn query_target<S: Storage, A: Api, Q: Querier>(
         .iter()
         .map(|x| x.target)
         .collect::<Vec<_>>();
-    // let assets = target_asset_data
-    //     .iter()
-    //     .map(|x| match &x.asset {
-    //         AssetInfo::Token { contract_addr } => contract_addr.clone(),
-    //         AssetInfo::NativeToken { denom } => h(denom).clone(),
-    //     })
-    //     .collect::<Vec<_>>();
     let assets = target_asset_data
         .iter()
         .map(|x| x.asset.clone())
@@ -112,7 +106,6 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         })
         .collect::<StdResult<Vec<Uint128>>>()?;
 
-
     let target_asset_data = read_target_asset_data(&deps.storage)?;
 
     let target = target_asset_data
@@ -131,6 +124,6 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         prices,
         inv,
         assets,
-        target
+        target,
     })
 }
