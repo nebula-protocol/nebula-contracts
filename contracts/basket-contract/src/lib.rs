@@ -7,7 +7,6 @@ pub mod state;
 #[cfg(test)]
 pub mod test_helper;
 
-mod penalty;
 mod util;
 
 #[cfg(target_arch = "wasm32")]

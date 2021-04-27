@@ -8,9 +8,7 @@ use crate::ext_query::{
 use crate::msg::{
     BasketStateResponse, ConfigResponse, QueryMsg, StagedAmountResponse, TargetResponse,
 };
-use crate::state::{
-    read_config, read_staged_asset, read_target_asset_data,
-};
+use crate::state::{read_config, read_staged_asset, read_target_asset_data};
 use basket_math::FPDecimal;
 use terraswap::asset::AssetInfo;
 
@@ -117,7 +115,6 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         })
         .collect::<StdResult<Vec<Uint128>>>()?;
 
-
     let target_asset_data = read_target_asset_data(&deps.storage)?;
 
     let target = target_asset_data
@@ -139,6 +136,6 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         inv,
         assets,
         penalty,
-        target
+        target,
     })
 }

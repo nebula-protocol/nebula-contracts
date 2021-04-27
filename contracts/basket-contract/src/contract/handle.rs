@@ -1,26 +1,26 @@
 use cosmwasm_std::{
     from_binary, log, to_binary, Api, CosmosMsg, Env, Extern, HandleResponse, HandleResult,
-    HumanAddr, LogAttribute, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
+    HumanAddr, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 
 use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
 use error::bad_weight_values;
 
 use crate::error;
-use crate::ext_query::{query_cw20_balance_minus_staged, query_cw20_token_supply, query_price, query_mint_amount};
-use crate::state::{
-    read_config, save_config, stage_asset, unstage_asset, TargetAssetData,
+use crate::ext_query::{
+    query_cw20_balance_minus_staged, query_cw20_token_supply, query_mint_amount, query_price,
+    query_redeem_amount,
 };
-use crate::util::{fpdec_to_int, int_to_fpdec, vec_to_string};
+use crate::state::{read_config, save_config, stage_asset, unstage_asset, TargetAssetData};
+use crate::util::{vec_to_string};
 use crate::{
     msg::{Cw20HookMsg, HandleMsg},
     state::read_staged_asset,
 };
 use crate::{
-    penalty::{compute_diff, compute_penalty, compute_score},
     state::{read_target_asset_data, save_target_asset_data},
 };
-use basket_math::{dot, sum, FPDecimal};
+use basket_math::{dot, sum};
 use terraswap::asset::{Asset, AssetInfo};
 
 /// Convenience function for creating inline HumanAddr
@@ -28,9 +28,9 @@ pub fn h(s: &str) -> HumanAddr {
     HumanAddr(s.to_string())
 }
 
-/* 
-    Match the incoming message to the right category: receive, mint, 
-    unstage, reset_target, or  set basket token 
+/*
+    Match the incoming message to the right category: receive, mint,
+    unstage, reset_target, or  set basket token
 */
 pub fn handle<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -51,7 +51,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-/* 
+/*
     Receives CW20 tokens which can either be cluster tokens that are burned
     to receive assets, or assets that can be staged for the process of minting
     cluster tokens.
@@ -68,9 +68,18 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
     // Using HumanAddr instead of AssetInfo for cw20
     if let Some(msg) = cw20_msg.msg {
         match from_binary(&msg)? {
-            Cw20HookMsg::Burn { asset_weights, redeem_mins } => {
-                try_receive_burn(deps, env, &sender, &sent_asset, sent_amount, asset_weights, redeem_mins)
-            }
+            Cw20HookMsg::Burn {
+                asset_weights,
+                redeem_mins,
+            } => try_receive_burn(
+                deps,
+                env,
+                &sender,
+                &sent_asset,
+                sent_amount,
+                asset_weights,
+                redeem_mins,
+            ),
             Cw20HookMsg::StageAsset {} => {
                 try_receive_stage_asset(deps, env, &sender, &sent_asset, sent_amount)
             }
@@ -80,8 +89,8 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-/* 
-    Receives cluster tokens which are burned for assets according to 
+/*
+    Receives cluster tokens which are burned for assets according to
     the given asset_weights and cluster penalty paramter. The corresponding
     assets are taken from the cluster inventory and sent back to the user
     along with any rewards based on whether the assets are moved towards/away
@@ -94,13 +103,156 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     sent_asset: &HumanAddr,
     sent_amount: Uint128,
     asset_weights: Option<Vec<Asset>>,
-    redeem_mins:Option<Vec<Asset>>,
+    redeem_mins: Option<Vec<Asset>>,
 ) -> StdResult<HandleResponse> {
+    let cfg = read_config(&deps.storage)?;
+    let basket_token = cfg
+        .basket_token
+        .clone()
+        .ok_or_else(|| error::basket_token_not_set())?;
 
-    Ok(HandleResponse::default())
+    let target_asset_data = read_target_asset_data(&deps.storage)?;
+    let assets = target_asset_data
+        .iter()
+        .map(|x| x.asset.clone())
+        .collect::<Vec<_>>();
+    let target = target_asset_data
+        .iter()
+        .map(|x| x.target)
+        .collect::<Vec<_>>();
+    // Reorder asset_weights according to ordering of target assets
+
+    let mut ordered_min_redeem: Option<Vec<Uint128>> = match &redeem_mins {
+        Some(mins) => {
+            let mut vec: Vec<Uint128> = Vec::new();
+            for i in 0..assets.len() {
+                for j in 0..mins.len() {
+                    if mins[j].info.clone() == assets[i].clone() {
+                        vec.push(mins[j].amount);
+                        break;
+                    }
+                }
+            }
+            Some(vec)
+        }
+        None => None,
+    };
+
+    // require that origin contract from Receive Hook is the associated Basket Token
+    if *sent_asset != basket_token {
+        return Err(StdError::unauthorized());
+    }
+
+    let burn_amount = sent_amount.clone();
+
+    let burn_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: basket_token.clone(),
+        msg: to_binary(&Cw20HandleMsg::Burn {
+            amount: burn_amount.clone(),
+        })?,
+        send: vec![],
+    });
+
+    let inv: Vec<Uint128> = assets
+        .iter()
+        .map(|asset| match asset {
+            AssetInfo::Token { contract_addr } => {
+                query_cw20_balance_minus_staged(&deps, &contract_addr, &env.contract.address)
+            }
+            AssetInfo::NativeToken { denom } => {
+                query_cw20_balance_minus_staged(&deps, &h(denom), &env.contract.address)
+            }
+        })
+        .collect::<StdResult<Vec<Uint128>>>()?;
+
+    let asset_weights: Vec<Uint128> = match &asset_weights {
+        Some(weights) => {
+            let mut vec: Vec<Uint128> = Vec::new();
+            for i in 0..assets.len() {
+                for j in 0..weights.len() {
+                    if weights[j].info.clone() == assets[i].clone() {
+                        vec.push(weights[j].amount);
+                        break;
+                    }
+                }
+            }
+            vec
+        }
+        None => inv.clone(),
+    };
+
+    let basket_token_supply = query_cw20_token_supply(&deps, &basket_token)?;
+
+    let prices: Vec<String> = assets
+        .iter()
+        .map(|asset| match asset {
+            AssetInfo::Token { contract_addr } => query_price(&deps, &cfg.oracle, &contract_addr),
+            AssetInfo::NativeToken { denom } => query_price(&deps, &cfg.oracle, &h(denom)),
+        })
+        .collect::<StdResult<Vec<String>>>()?;
+
+    let redeem_response = query_redeem_amount(
+        &deps,
+        &cfg.penalty,
+        basket_token_supply,
+        inv,
+        burn_amount,
+        asset_weights.clone(),
+        prices,
+        target,
+    )?;
+
+    let redeem_totals = redeem_response.redeem_assets;
+
+    if let Some(order_mins) = ordered_min_redeem {
+        for i in 0..redeem_totals.len() {
+            if redeem_totals[i] < order_mins[i] {
+                return Err(error::below_min_tokens(redeem_totals[i], order_mins[i]));
+            }
+        }
+    }
+
+    let transfer_msgs: Vec<CosmosMsg> = redeem_totals
+        .iter()
+        .zip(assets.iter())
+        .filter(|(amt, _asset)| !amt.is_zero()) // remove 0 amounts
+        .map(|(amt, asset)| {
+            Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: {
+                    match asset {
+                        AssetInfo::Token { contract_addr } => contract_addr.clone(),
+                        AssetInfo::NativeToken { denom } => h(denom),
+                    }
+                },
+                msg: to_binary(&Cw20HandleMsg::Transfer {
+                    amount: amt.clone(),
+                    recipient: sender.clone(),
+                })?,
+                send: vec![],
+            }))
+        })
+        .collect::<StdResult<Vec<CosmosMsg>>>()?;
+
+    Ok(HandleResponse {
+        messages: vec![vec![burn_msg], transfer_msgs].concat(),
+        log: vec![
+            vec![
+                log("action", "receive:burn"),
+                log("sender", sender),
+                log("sent_asset", sent_asset),
+                log("sent_tokens", sent_amount),
+                log("burn_amount", burn_amount),
+                log("asset_weights", vec_to_string(&asset_weights)),
+                log("redeem_totals", vec_to_string(&redeem_totals)),
+            ],
+            redeem_response.log,
+        ]
+        .concat(),
+        data: None,
+    })
 }
 
-/* 
+/*
     Receives an asset which is part of the cluster and stages it such that
     the contract records the sender of the asset and the balance sent. This
     balance is later looked up when this sender wants to mint cluster tokens from
@@ -149,9 +301,9 @@ pub fn try_receive_stage_asset<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-/* 
+/*
     Changes the cluster target weights for different assets to the given
-    target weights and saves it. The ordering of the target weights is 
+    target weights and saves it. The ordering of the target weights is
     determined by the given assets.
 */
 pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
@@ -218,7 +370,7 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-/* 
+/*
      May be called by the Basket contract owner to set the basket token for first time
 */
 pub fn try_set_basket_token<S: Storage, A: Api, Q: Querier>(
@@ -252,7 +404,7 @@ pub fn try_set_basket_token<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-/* 
+/*
     Tries to mint cluster tokens from the asset amounts given.
     Throws error if there can only be less than 'min_tokens' minted from the assets.
     Note that the corresponding asset amounts need to be staged before in order to
@@ -271,10 +423,10 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
 
-    let target: Vec<Uint128> = target_asset_data
+    let target: Vec<u32> = target_asset_data
         .iter()
-        .map(|x| Uint128(x.target as u128))
-        .collect::<Vec<Uint128>>();
+        .map(|x| x.target)
+        .collect::<Vec<u32>>();
 
     let basket_token = cfg
         .basket_token
@@ -309,22 +461,19 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     }
 
     // get current balances of each token (inventory)
-    let inv: Vec<Uint128> =
-        asset_infos
-            .iter()
-            .map(|asset| match asset {
-                AssetInfo::Token { contract_addr } =>
-                    query_cw20_balance_minus_staged(&deps, &contract_addr, &env.contract.address),
-                AssetInfo::NativeToken { denom } => query_cw20_balance_minus_staged(
-                    &deps,
-                    &h(denom),
-                    &env.contract.address,
-                ),
-            })
-            .collect::<StdResult<Vec<Uint128>>>()?;
+    let inv: Vec<Uint128> = asset_infos
+        .iter()
+        .map(|asset| match asset {
+            AssetInfo::Token { contract_addr } => {
+                query_cw20_balance_minus_staged(&deps, &contract_addr, &env.contract.address)
+            }
+            AssetInfo::NativeToken { denom } => {
+                query_cw20_balance_minus_staged(&deps, &h(denom), &env.contract.address)
+            }
+        })
+        .collect::<StdResult<Vec<Uint128>>>()?;
 
     let c = asset_weights;
-
 
     // get current prices of each token via oracle
     let prices: Vec<String> = asset_infos
@@ -344,7 +493,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         inv,
         c,
         prices,
-        target
+        target,
     )?;
 
     let mint_total = mint_response.mint_tokens;
@@ -389,7 +538,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-/* 
+/*
     Tries to unstage the given asset by the given amount by giving back
     the user the requested amount of asset only if the user has enough
     previously staged asset. Throws an error otherwise.
@@ -568,36 +717,35 @@ mod tests {
         let new_assets = vec![
             Asset {
                 info: AssetInfo::Token {
-                        contract_addr: h("mAAPL"),
-                    },
-                amount: Uint128(10)
+                    contract_addr: h("mAAPL"),
+                },
+                amount: Uint128(10),
             },
             Asset {
                 info: AssetInfo::Token {
-                        contract_addr: h("mGOOG"),
-                    },
-                amount: Uint128(10)
+                    contract_addr: h("mGOOG"),
+                },
+                amount: Uint128(10),
             },
             Asset {
                 info: AssetInfo::Token {
-                        contract_addr: h("mMSFT"),
-                    },
-                amount: Uint128(10)
+                    contract_addr: h("mMSFT"),
+                },
+                amount: Uint128(10),
             },
             Asset {
                 info: AssetInfo::Token {
-                        contract_addr: h("mNFLX"),
-                    },
-                amount: Uint128(10)
-            }
-
+                    contract_addr: h("mNFLX"),
+                },
+                amount: Uint128(10),
+            },
         ];
 
         let msg = HandleMsg::Receive(cw20::Cw20ReceiveMsg {
             msg: Some(
                 to_binary(&Cw20HookMsg::Burn {
                     asset_weights: None,
-                    redeem_mins:Some(new_assets),
+                    redeem_mins: Some(new_assets),
                 })
                 .unwrap(),
             ),

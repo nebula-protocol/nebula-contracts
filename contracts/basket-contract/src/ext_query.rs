@@ -1,14 +1,14 @@
 use crate::state::read_total_staged_asset;
 use basket_math::FPDecimal;
 use cosmwasm_std::{
-    to_binary, Api, Decimal, Extern, HumanAddr, Querier, QueryRequest, StdResult, Storage, Uint128,
-    WasmQuery, LogAttribute
+    to_binary, Api, Decimal, Extern, HumanAddr, LogAttribute, Querier, QueryRequest, StdResult,
+    Storage, Uint128, WasmQuery,
 };
 use cw20::{BalanceResponse as Cw20BalanceResponse, TokenInfoResponse as Cw20TokenInfoResponse};
+use log::info;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use terraswap::asset::AssetInfo;
-use log::info;
 
 /// QueryMsgs to external contracts
 #[derive(Serialize, Deserialize)]
@@ -31,7 +31,7 @@ pub enum ExtQueryMsg {
         inventory: Vec<Uint128>,
         mint_asset_amounts: Vec<Uint128>,
         asset_prices: Vec<String>,
-        target_weights: Vec<Uint128>
+        target_weights: Vec<u32>,
     },
 
     // Penalty redeem
@@ -41,8 +41,8 @@ pub enum ExtQueryMsg {
         redeem_tokens: Uint128,
         redeem_weights: Vec<Uint128>,
         asset_prices: Vec<String>,
-        target_weights: Vec<Uint128>,
-    }
+        target_weights: Vec<u32>,
+    },
 }
 
 #[derive(Serialize, Deserialize)]
@@ -55,15 +55,14 @@ pub struct PriceResponse {
 #[derive(Serialize, Deserialize)]
 pub struct MintResponse {
     pub mint_tokens: Uint128,
-    pub log: Vec<LogAttribute>
+    pub log: Vec<LogAttribute>,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct RedeemResponse {
     pub redeem_assets: Vec<Uint128>,
-    pub log: Vec<LogAttribute>
+    pub log: Vec<LogAttribute>,
 }
-
 
 /// EXTERNAL QUERY
 /// -- Queries the oracle contract for the current asset price
@@ -144,7 +143,7 @@ pub fn query_mint_amount<S: Storage, A: Api, Q: Querier>(
     inventory: Vec<Uint128>,
     mint_asset_amounts: Vec<Uint128>,
     asset_prices: Vec<String>,
-    target_weights: Vec<Uint128>,
+    target_weights: Vec<u32>,
 ) -> StdResult<MintResponse> {
     let res: MintResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: asset_address.clone(),
@@ -153,7 +152,7 @@ pub fn query_mint_amount<S: Storage, A: Api, Q: Querier>(
             inventory,
             mint_asset_amounts,
             asset_prices,
-            target_weights
+            target_weights,
         })?,
     }))?;
 
@@ -170,7 +169,7 @@ pub fn query_redeem_amount<S: Storage, A: Api, Q: Querier>(
     redeem_tokens: Uint128,
     redeem_weights: Vec<Uint128>,
     asset_prices: Vec<String>,
-    target_weights: Vec<Uint128>
+    target_weights: Vec<u32>,
 ) -> StdResult<RedeemResponse> {
     let res: RedeemResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: asset_address.clone(),
@@ -180,10 +179,9 @@ pub fn query_redeem_amount<S: Storage, A: Api, Q: Querier>(
             redeem_tokens,
             redeem_weights,
             asset_prices,
-            target_weights
+            target_weights,
         })?,
     }))?;
 
     Ok(res)
 }
-

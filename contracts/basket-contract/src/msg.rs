@@ -1,11 +1,10 @@
-use basket_math::FPDecimal;
 use cosmwasm_std::{HumanAddr, Uint128};
 use cw20::Cw20ReceiveMsg;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use terraswap::asset::{Asset, AssetInfo};
 
-use crate::state::{BasketConfig};
+use crate::state::BasketConfig;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
@@ -75,7 +74,7 @@ pub enum Cw20HookMsg {
     Burn {
         /// optional proposed set of weights to use
         asset_weights: Option<Vec<Asset>>,
-        redeem_mins:Option<Vec<Asset>>,
+        redeem_mins: Option<Vec<Asset>>,
     },
 }
 
@@ -116,5 +115,5 @@ pub struct BasketStateResponse {
     pub inv: Vec<Uint128>,
     pub assets: Vec<HumanAddr>,
     pub penalty: HumanAddr,
-    pub target: Vec<u32>
+    pub target: Vec<u32>,
 }
