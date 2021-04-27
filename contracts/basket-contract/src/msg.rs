@@ -19,7 +19,7 @@ pub struct InitMsg {
     pub basket_token: Option<HumanAddr>,
 
     /// Asset addresses
-    pub assets: Vec<HumanAddr>,
+    pub assets: Vec<AssetInfo>,
 
     /// Oracle address
     pub oracle: HumanAddr,
@@ -42,7 +42,7 @@ pub enum HandleMsg {
         amount: Option<Uint128>,
     },
 
-    /// Withdraws asset from staging
+    /// Stages native asset
     StageNativeAsset {
         asset: Asset,
     },

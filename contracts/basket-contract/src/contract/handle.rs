@@ -53,7 +53,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             }
 
             // Check the actual deposit happens
-            asset.assert_sent_native_token_balance(&env)?;
+            // asset.assert_sent_native_token_balance(&env)?;
 
             let sender = &env.message.sender.clone();
 
@@ -762,15 +762,9 @@ mod tests {
 
     #[test]
     fn mint_with_native_stage() {
-        let (mut deps, _init_res) = mock_init();
-        mock_querier_setup(&mut deps);
+        let (mut deps, _init_res) = mock_init_native_stage();
+        mock_querier_setup_stage_native(&mut deps);
 
-        // Asset :: UST Price :: Balance (µ)     (+ proposed   ) :: %
-        // ---
-        // mAAPL ::  135.18   ::  7_290_053_159  (+ 125_000_000) :: 0.20367359382 -> 0.20391741720
-        // mGOOG :: 1780.03   ::    319_710_128                  :: 0.11761841035 -> 0.11577407690
-        // mMSFT ::  222.42   :: 14_219_281_228  (+ 149_000_000) :: 0.65364669475 -> 0.65013907200
-        // mNFLX ::  540.82   ::    224_212_221  (+  50_090_272) :: 0.02506130106 -> 0.03016943389
         deps.querier
             .set_token_balance("wBTC", consts::basket_token(), 1_000_000)
             .set_token_balance("LUNA", consts::basket_token(), 2_000_000)
@@ -781,16 +775,10 @@ mod tests {
 
         let asset_amounts = vec![
             Asset {
-                info: AssetInfo::Token {
-                    contract_addr: h("wBTC"),
+                info: AssetInfo::NativeToken {
+                    denom: "LUNA".to_string(),
                 },
-                amount: Uint128(125_000_000),
-            },
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: h("mGOOG"),
-                },
-                amount: Uint128::zero(),
+                amount: Uint128(1_000),
             },
         ];
         let mint_msg = HandleMsg::Mint {
@@ -806,27 +794,27 @@ mod tests {
         }
 
         for asset in asset_amounts {
-            let env = mock_env(
-                match asset.info {
-                    AssetInfo::Token { contract_addr } => contract_addr,
-                    AssetInfo::NativeToken { denom } => h(&denom),
-                },
-                &[],
-            );
-            let stage_asset_msg = HandleMsg::Receive(Cw20ReceiveMsg {
-                sender: h("addr0000"),
-                msg: Some(to_binary(&Cw20HookMsg::StageAsset {}).unwrap()),
-                amount: asset.amount,
-            });
-            handle(&mut deps, env, stage_asset_msg).unwrap();
+            // let env = mock_env(
+            //     match asset.info {
+            //         AssetInfo::Token { contract_addr } => contract_addr,
+            //         AssetInfo::NativeToken { denom } => h(&denom),
+            //     },
+            //     &[],
+            // );
+            let env = mock_env(h("addr0000"), &[]);
+            if asset.is_native_token() {
+                let stage_asset_msg = HandleMsg::StageNativeAsset { asset };
+                handle(&mut deps, env, stage_asset_msg).unwrap();
+            }; 
+            
         }
 
         let env = mock_env(h("addr0000"), &[]);
         let res = handle(&mut deps, env, mint_msg).unwrap();
 
-        // for _log in res.log.iter() {
-        //     //println!("{}: {}", log.key, log.value);
-        // }
+        for log in res.log.iter() {
+            println!("{}: {}", log.key, log.value);
+        }
         assert_eq!(1, res.messages.len());
     }
 

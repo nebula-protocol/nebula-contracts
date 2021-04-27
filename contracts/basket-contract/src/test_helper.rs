@@ -12,6 +12,7 @@ use cw20::TokenInfoResponse;
 use std::collections::HashMap;
 pub use std::str::FromStr;
 use terra_cosmwasm::*;
+use terraswap::asset::{AssetInfo};
 
 /// Convenience function for creating inline HumanAddr
 pub fn h(s: &str) -> HumanAddr {
@@ -307,11 +308,29 @@ pub mod consts {
     pub fn oracle() -> HumanAddr {
         h("oracle")
     }
-    pub fn assets() -> Vec<HumanAddr> {
-        vec![h("mAAPL"), h("mGOOG"), h("mMSFT"), h("mNFLX")]
+    pub fn assets() -> Vec<AssetInfo> {
+        vec![AssetInfo::Token {
+            contract_addr: h("mAAPL"),
+        }, AssetInfo::Token {
+            contract_addr: h("mGOOG"),
+        }, AssetInfo::Token {
+            contract_addr: h("mMSFT"),
+        }, AssetInfo::Token {
+            contract_addr: h("mNFLX"),
+        }]
     }
     pub fn target() -> Vec<u32> {
         vec![20, 10, 65, 5]
+    }
+    pub fn assets_native_stage() -> Vec<AssetInfo> {
+        vec![AssetInfo::Token {
+            contract_addr: h("wBTC"),
+        }, AssetInfo::NativeToken {
+            denom: "LUNA".to_string(),
+        },]
+    }
+    pub fn target_native_stage() -> Vec<u32> {
+        vec![50, 50]
     }
     pub fn penalty_params() -> PenaltyParams {
         PenaltyParams {
@@ -334,6 +353,26 @@ pub fn mock_init() -> (
         owner: consts::owner(),
         basket_token: Some(consts::basket_token()),
         target: consts::target(),
+        oracle: consts::oracle(),
+        penalty_params: consts::penalty_params(),
+    };
+
+    let env = mock_env(consts::oracle().as_str(), &[]);
+    let res = init(&mut deps, env.clone(), msg).unwrap();
+    (deps, res)
+}
+
+pub fn mock_init_native_stage() -> (
+    Extern<MockStorage, MockApi, CustomMockQuerier>,
+    InitResponse,
+) {
+    let mut deps = mock_dependencies(20, &[]);
+    let msg = InitMsg {
+        name: consts::name().to_string(),
+        assets: consts::assets_native_stage(),
+        owner: consts::owner(),
+        basket_token: Some(consts::basket_token()),
+        target: consts::target_native_stage(),
         oracle: consts::oracle(),
         penalty_params: consts::penalty_params(),
     };
@@ -404,5 +443,47 @@ pub fn mock_querier_setup(deps: &mut Extern<MockStorage, MockApi, CustomMockQuer
         ("mGOOG", Decimal::from_str("1.0").unwrap()),
         ("mMSFT", Decimal::from_str("1.0").unwrap()),
         ("mNFLX", Decimal::from_str("1.0").unwrap()),
+    ]);
+}
+
+/// sets up mock queriers with basic setup
+pub fn mock_querier_setup_stage_native(deps: &mut Extern<MockStorage, MockApi, CustomMockQuerier>) {
+    deps.querier
+        .reset_token_querier()
+        .set_token(
+            consts::basket_token(),
+            token_data::<Vec<(&str, u128)>, &str>(
+                "Basket Token",
+                "BASKET",
+                6,
+                1_000_000_000,
+                vec![],
+            ),
+        )
+        .set_token(
+            "wBTC",
+            token_data(
+                "Wrapped BTC",
+                "wBTC",
+                6,
+                1_000_000_000_000,
+                vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
+            ),
+        )
+        .set_token(
+            "LUNA",
+            token_data(
+                "LUNA",
+                "LUNA",
+                6,
+                1_000_000_000_000,
+                vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
+            ),
+        );
+
+    deps.querier.reset_oracle_querier().set_oracle_prices(vec![
+        ("uusd", Decimal::one()),
+        ("wBTC", Decimal::from_str("1.0").unwrap()),
+        ("LUNA", Decimal::from_str("1.0").unwrap()),
     ]);
 }
