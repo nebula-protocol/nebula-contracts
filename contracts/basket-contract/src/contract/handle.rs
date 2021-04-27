@@ -22,7 +22,6 @@ use crate::{
 };
 use basket_math::{dot, sum, FPDecimal};
 use terraswap::asset::{Asset, AssetInfo};
-use std::cmp::min;
 
 /// Convenience function for creating inline HumanAddr
 pub fn h(s: &str) -> HumanAddr {
