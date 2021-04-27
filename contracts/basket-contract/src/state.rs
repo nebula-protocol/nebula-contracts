@@ -29,21 +29,13 @@ pub struct BasketConfig {
     pub owner: HumanAddr,
     pub basket_token: Option<HumanAddr>,
     pub oracle: HumanAddr,
-    pub penalty_params: PenaltyParams,
+    pub penalty: HumanAddr,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TargetAssetData {
     pub asset: AssetInfo,
     pub target: u32,
-}
-
-#[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq, JsonSchema)]
-pub struct PenaltyParams {
-    pub a_pos: FPDecimal,
-    pub s_pos: FPDecimal,
-    pub a_neg: FPDecimal,
-    pub s_neg: FPDecimal,
 }
 
 pub fn read_config<S: Storage>(storage: &S) -> StdResult<BasketConfig> {
@@ -79,7 +71,6 @@ pub fn read_total_staged_asset<S: Storage>(storage: &S, asset: &AssetInfo) -> St
         .load(asset.to_string().as_bytes())
         .or(Ok(Uint128(0)))
 }
-
 
 pub fn read_staged_asset<S: Storage>(
     storage: &S,

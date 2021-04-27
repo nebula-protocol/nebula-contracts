@@ -1,36 +1,37 @@
 use cosmwasm_std::{
     from_binary, log, to_binary, Api, CosmosMsg, Env, Extern, HandleResponse, HandleResult,
-    HumanAddr, LogAttribute, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
+    HumanAddr, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 
 use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
 use error::bad_weight_values;
 
 use crate::error;
-use crate::ext_query::{query_cw20_balance_minus_staged, query_cw20_token_supply, query_price};
-use crate::state::{
-    read_config, save_config, stage_asset, unstage_asset, PenaltyParams, TargetAssetData,
+use crate::ext_query::{
+    query_cw20_balance_minus_staged, query_cw20_token_supply, query_mint_amount, query_price,
+    query_redeem_amount,
 };
-use crate::util::{fpdec_to_int, int_to_fpdec, vec_to_string};
+use crate::state::{read_config, save_config, stage_asset, unstage_asset, TargetAssetData};
+use crate::util::{vec_to_string};
 use crate::{
     msg::{Cw20HookMsg, HandleMsg},
     state::read_staged_asset,
 };
 use crate::{
-    penalty::{compute_diff, compute_penalty, compute_score},
     state::{read_target_asset_data, save_target_asset_data},
 };
-use basket_math::{dot, sum, FPDecimal};
+use basket_math::{dot, sum};
 use terraswap::asset::{Asset, AssetInfo};
+use crate::contract::query_basket_state;
 
 /// Convenience function for creating inline HumanAddr
 pub fn h(s: &str) -> HumanAddr {
     HumanAddr(s.to_string())
 }
 
-/* 
-    Match the incoming message to the right category: receive, mint, 
-    unstage, reset_target, or  set basket token 
+/*
+    Match the incoming message to the right category: receive, mint,
+    unstage, reset_target, or  set basket token
 */
 pub fn handle<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -51,7 +52,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-/* 
+/*
     Receives CW20 tokens which can either be cluster tokens that are burned
     to receive assets, or assets that can be staged for the process of minting
     cluster tokens.
@@ -68,9 +69,18 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
     // Using HumanAddr instead of AssetInfo for cw20
     if let Some(msg) = cw20_msg.msg {
         match from_binary(&msg)? {
-            Cw20HookMsg::Burn { asset_weights, redeem_mins } => {
-                try_receive_burn(deps, env, &sender, &sent_asset, sent_amount, asset_weights, redeem_mins)
-            }
+            Cw20HookMsg::Burn {
+                asset_weights,
+                redeem_mins,
+            } => try_receive_burn(
+                deps,
+                env,
+                &sender,
+                &sent_asset,
+                sent_amount,
+                asset_weights,
+                redeem_mins,
+            ),
             Cw20HookMsg::StageAsset {} => {
                 try_receive_stage_asset(deps, env, &sender, &sent_asset, sent_amount)
             }
@@ -80,8 +90,8 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-/* 
-    Receives cluster tokens which are burned for assets according to 
+/*
+    Receives cluster tokens which are burned for assets according to
     the given asset_weights and cluster penalty paramter. The corresponding
     assets are taken from the cluster inventory and sent back to the user
     along with any rewards based on whether the assets are moved towards/away
@@ -94,7 +104,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     sent_asset: &HumanAddr,
     sent_amount: Uint128,
     asset_weights: Option<Vec<Asset>>,
-    redeem_mins:Option<Vec<Asset>>,
+    redeem_mins: Option<Vec<Asset>>,
 ) -> StdResult<HandleResponse> {
     let cfg = read_config(&deps.storage)?;
     let basket_token = cfg
@@ -102,17 +112,20 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         .clone()
         .ok_or_else(|| error::basket_token_not_set())?;
 
+    let basket_state = query_basket_state(&deps, &env.contract.address)?;
+
+    let prices = basket_state.prices;
+    let basket_token_supply = basket_state.outstanding_balance_tokens;
+    let inv = basket_state.inv;
+    let target = basket_state.target;
+
     let target_asset_data = read_target_asset_data(&deps.storage)?;
     let assets = target_asset_data
         .iter()
         .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
-    let target = target_asset_data
-        .iter()
-        .map(|x| x.target)
-        .collect::<Vec<_>>();
-    // Reorder asset_weights according to ordering of target assets
 
+    // order min redeem and asset weights by ordering of target assets
     let mut ordered_min_redeem: Option<Vec<Uint128>> = match &redeem_mins {
         Some(mins) => {
             let mut vec: Vec<Uint128> = Vec::new();
@@ -129,6 +142,21 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         None => None,
     };
 
+    let asset_weights: Vec<Uint128> = match &asset_weights {
+        Some(weights) => {
+            let mut vec: Vec<Uint128> = Vec::new();
+            for i in 0..assets.len() {
+                for j in 0..weights.len() {
+                    if weights[j].info.clone() == assets[i].clone() {
+                        vec.push(weights[j].amount);
+                        break;
+                    }
+                }
+            }
+            vec
+        }
+        None => inv.clone(),
+    };
 
     // require that origin contract from Receive Hook is the associated Basket Token
     if *sent_asset != basket_token {
@@ -145,102 +173,18 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         send: vec![],
     });
 
-    let inv: Vec<FPDecimal> =
-        assets
-            .iter()
-            .map(|asset| match asset {
-                AssetInfo::Token { contract_addr } => int_to_fpdec(
-                    query_cw20_balance_minus_staged(&deps, &contract_addr, &env.contract.address)?,
-                ),
-                AssetInfo::NativeToken { denom } => int_to_fpdec(query_cw20_balance_minus_staged(
-                    &deps,
-                    &h(denom),
-                    &env.contract.address,
-                )?),
-            })
-            .collect::<StdResult<Vec<FPDecimal>>>()?;
+    let redeem_response = query_redeem_amount(
+        &deps,
+        &cfg.penalty,
+        basket_token_supply,
+        inv,
+        burn_amount,
+        asset_weights.clone(),
+        prices,
+        target,
+    )?;
 
-
-    let asset_weights: Vec<Uint128> = match &asset_weights {
-        Some(weights) => {
-            let mut vec: Vec<Uint128> = Vec::new();
-            for i in 0..assets.len() {
-                for j in 0..weights.len() {
-                    if weights[j].info.clone() == assets[i].clone() {
-                        vec.push(weights[j].amount);
-                        break;
-                    }
-                }
-            }
-            vec
-        }
-        None => {
-            let mut vec: Vec<Uint128> = Vec::new();
-            for i in &inv {
-                let (w, _) = fpdec_to_int(*i)?; // the fraction part is kept inside basket
-                vec.push(w);
-            }
-        vec
-        },
-    };
-
-    let basket_token_supply = query_cw20_token_supply(&deps, &basket_token)?;
-
-    let m = int_to_fpdec(burn_amount)?;
-    let n = int_to_fpdec(basket_token_supply)?;
-
-    let mut logs: Vec<LogAttribute> = Vec::new();
-    let redeem_subtotals: Vec<FPDecimal> = {
-        // ensure the provided weights has the same dimension as our inventory
-        if asset_weights.len() != inv.len() {
-            return Err(error::bad_weight_dimensions(asset_weights.len(), inv.len()));
-        }
-        let weights_sum = asset_weights.iter().fold(FPDecimal::zero(), |acc, &el| {
-            acc + FPDecimal::from(el.u128())
-        });
-
-        let r: Vec<FPDecimal> = asset_weights // normalize weights vector
-            .iter()
-            .map(|&x| FPDecimal::from(x.u128()) / weights_sum)
-            .collect();
-
-        let prices: Vec<FPDecimal> = assets
-            .iter()
-            .map(|asset| match asset {
-                AssetInfo::Token { contract_addr } => {
-                    query_price(&deps, &cfg.oracle, &contract_addr)
-                }
-                AssetInfo::NativeToken { denom } => query_price(&deps, &cfg.oracle, &h(denom)),
-            })
-            .collect::<StdResult<Vec<FPDecimal>>>()?;
-
-        let b: Vec<FPDecimal> = r.iter().map(|&x| m * x * dot(&inv, &prices) / n / dot(&r, &prices)).collect();
-        let neg_b: Vec<FPDecimal> = b.iter().map(|&x| FPDecimal::from(-1i128) * x).collect();
-
-        // compute score
-        let diff = compute_diff(&inv, &neg_b, &prices, &target);
-        let score = (sum(&diff) / dot(&b, &prices)).div(2i128);
-
-        let PenaltyParams {
-            a_pos,
-            s_pos,
-            a_neg,
-            s_neg,
-        } = cfg.penalty_params;
-        let penalty = compute_penalty(score, a_pos, s_pos, a_neg, s_neg);
-        logs.push(log("score", score));
-        logs.push(log("penalty", penalty));
-        b.iter().map(|&x| penalty * x).collect()
-    };
-
-    // convert reward into Uint128 -- truncate decimal as roundoff
-    let redeem: Vec<(Uint128, FPDecimal)> = redeem_subtotals
-        .iter()
-        .map(|&x| fpdec_to_int(x))
-        .collect::<StdResult<Vec<(Uint128, FPDecimal)>>>()?;
-
-    let (redeem_totals, redeem_roundoffs): (Vec<Uint128>, Vec<FPDecimal>) =
-        redeem.iter().cloned().unzip();
+    let redeem_totals = redeem_response.redeem_assets;
 
     if let Some(order_mins) = ordered_min_redeem {
         for i in 0..redeem_totals.len() {
@@ -282,16 +226,15 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
                 log("burn_amount", burn_amount),
                 log("asset_weights", vec_to_string(&asset_weights)),
                 log("redeem_totals", vec_to_string(&redeem_totals)),
-                log("redeem_roundoffs", vec_to_string(&redeem_roundoffs)),
             ],
-            logs,
+            redeem_response.log,
         ]
         .concat(),
         data: None,
     })
 }
 
-/* 
+/*
     Receives an asset which is part of the cluster and stages it such that
     the contract records the sender of the asset and the balance sent. This
     balance is later looked up when this sender wants to mint cluster tokens from
@@ -340,9 +283,9 @@ pub fn try_receive_stage_asset<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-/* 
+/*
     Changes the cluster target weights for different assets to the given
-    target weights and saves it. The ordering of the target weights is 
+    target weights and saves it. The ordering of the target weights is
     determined by the given assets.
 */
 pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
@@ -409,7 +352,7 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-/* 
+/*
      May be called by the Basket contract owner to set the basket token for first time
 */
 pub fn try_set_basket_token<S: Storage, A: Api, Q: Querier>(
@@ -443,7 +386,7 @@ pub fn try_set_basket_token<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-/* 
+/*
     Tries to mint cluster tokens from the asset amounts given.
     Throws error if there can only be less than 'min_tokens' minted from the assets.
     Note that the corresponding asset amounts need to be staged before in order to
@@ -455,16 +398,21 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     asset_amounts: &Vec<Asset>,
     min_tokens: &Option<Uint128>,
 ) -> StdResult<HandleResponse> {
+
+    let basket_state = query_basket_state(&deps, &env.contract.address)?;
+
+    let prices = basket_state.prices;
+    let basket_token_supply = basket_state.outstanding_balance_tokens;
+    let inv = basket_state.inv;
+    let target = basket_state.target;
+
     let cfg = read_config(&deps.storage)?;
     let target_asset_data = read_target_asset_data(&deps.storage)?;
     let asset_infos = &target_asset_data
         .iter()
         .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
-    let target = target_asset_data
-        .iter()
-        .map(|x| x.target)
-        .collect::<Vec<_>>();
+
     let basket_token = cfg
         .basket_token
         .clone()
@@ -497,55 +445,19 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         }
     }
 
-    // get current balances of each token (inventory)
-    let inv: Vec<FPDecimal> =
-        asset_infos
-            .iter()
-            .map(|asset| match asset {
-                AssetInfo::Token { contract_addr } => int_to_fpdec(
-                    query_cw20_balance_minus_staged(&deps, &contract_addr, &env.contract.address)?,
-                ),
-                AssetInfo::NativeToken { denom } => int_to_fpdec(query_cw20_balance_minus_staged(
-                    &deps,
-                    &h(denom),
-                    &env.contract.address,
-                )?),
-            })
-            .collect::<StdResult<Vec<FPDecimal>>>()?;
+    let c = asset_weights;
 
-    let c = asset_weights
-        .iter()
-        .map(|x| int_to_fpdec(x.clone()))
-        .collect::<StdResult<Vec<FPDecimal>>>()?;
+    let mint_response = query_mint_amount(
+        &deps,
+        &cfg.penalty,
+        basket_token_supply,
+        inv,
+        c,
+        prices,
+        target,
+    )?;
 
-
-    // get current prices of each token via oracle
-    let prices: Vec<FPDecimal> = asset_infos
-        .iter()
-        .map(|asset| match asset {
-            AssetInfo::Token { contract_addr } => query_price(&deps, &cfg.oracle, &contract_addr),
-            AssetInfo::NativeToken { denom } => query_price(&deps, &cfg.oracle, &h(denom)),
-        })
-        .collect::<StdResult<Vec<FPDecimal>>>()?;
-
-    // compute penalty
-    let score = compute_score(&inv, &c, &prices, &target).div(2i128);
-
-    let PenaltyParams {
-        a_pos,
-        s_pos,
-        a_neg,
-        s_neg,
-    } = cfg.penalty_params;
-    let penalty = compute_penalty(score, a_pos, s_pos, a_neg, s_neg);
-
-    let basket_token_supply = query_cw20_token_supply(&deps, &basket_token)?;
-
-    // compute number of new tokens
-    let mint_subtotal =
-        penalty * dot(&c, &prices) * int_to_fpdec(basket_token_supply)? / dot(&inv, &prices);
-
-    let (mint_total, mint_roundoff) = fpdec_to_int(mint_subtotal)?; // the fraction part is kept inside basket
+    let mint_total = mint_response.mint_tokens;
 
     if let Some(min) = min_tokens {
         if mint_total < *min {
@@ -572,22 +484,22 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         send: vec![],
     });
 
+    let mut logs = vec![
+        log("action", "mint"),
+        log("sender", &env.message.sender),
+        log("mint_total", mint_total),
+    ];
+    logs.extend(mint_response.log);
+
     // mint and send number of tokens to user
     Ok(HandleResponse {
         messages: vec![mint_msg],
-        log: vec![
-            log("action", "mint"),
-            log("sender", &env.message.sender),
-            log("score", score),
-            log("penalty", penalty),
-            log("mint_total", mint_total),
-            log("mint_roundoff", mint_roundoff),
-        ],
+        log: logs,
         data: None,
     })
 }
 
-/* 
+/*
     Tries to unstage the given asset by the given amount by giving back
     the user the requested amount of asset only if the user has enough
     previously staged asset. Throws an error otherwise.
@@ -766,36 +678,35 @@ mod tests {
         let new_assets = vec![
             Asset {
                 info: AssetInfo::Token {
-                        contract_addr: h("mAAPL"),
-                    },
-                amount: Uint128(10)
+                    contract_addr: h("mAAPL"),
+                },
+                amount: Uint128(10),
             },
             Asset {
                 info: AssetInfo::Token {
-                        contract_addr: h("mGOOG"),
-                    },
-                amount: Uint128(10)
+                    contract_addr: h("mGOOG"),
+                },
+                amount: Uint128(10),
             },
             Asset {
                 info: AssetInfo::Token {
-                        contract_addr: h("mMSFT"),
-                    },
-                amount: Uint128(10)
+                    contract_addr: h("mMSFT"),
+                },
+                amount: Uint128(10),
             },
             Asset {
                 info: AssetInfo::Token {
-                        contract_addr: h("mNFLX"),
-                    },
-                amount: Uint128(10)
-            }
-
+                    contract_addr: h("mNFLX"),
+                },
+                amount: Uint128(10),
+            },
         ];
 
         let msg = HandleMsg::Receive(cw20::Cw20ReceiveMsg {
             msg: Some(
                 to_binary(&Cw20HookMsg::Burn {
                     asset_weights: None,
-                    redeem_mins:Some(new_assets),
+                    redeem_mins: Some(new_assets),
                 })
                 .unwrap(),
             ),

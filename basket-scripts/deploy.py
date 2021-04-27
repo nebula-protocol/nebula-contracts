@@ -120,6 +120,23 @@ def deploy():
     print(f"[deploy] - store basket_contract")
     basket_code_id = store_contract("basket_contract", seq())
 
+    print(f"[deploy] - store penalty_contract")
+    penalty_code_id = store_contract("basket_penalty", seq())
+
+    print(f"[deploy] - instantiate penalty contract")
+    penalty_contract = instantiate_contract(
+        penalty_code_id,
+        {
+            "penalty_params": {
+                "a_pos": "1",
+                "s_pos": "1",
+                "a_neg": "0.005",
+                "s_neg": "0.5",
+            }
+        },
+        seq()
+    )
+
     # wrapped bitcoin
     print(f"[deploy] - instantiate wBTC")
     wBTC = instantiate_contract(
@@ -229,12 +246,7 @@ def deploy():
             "owner": deployer.key.acc_address,
             "assets": [wBTC, wETH, wXRP, wLUNA, MIR],
             "oracle": oracle,
-            "penalty_params": {
-                "a_pos": "1",
-                "s_pos": "1",
-                "a_neg": "0.005",
-                "s_neg": "0.5",
-            },
+            "penalty": penalty_contract,
             "target": [10, 20, 15, 30, 25],
         },
         seq(),
