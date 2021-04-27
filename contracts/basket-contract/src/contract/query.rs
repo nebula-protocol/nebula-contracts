@@ -85,7 +85,7 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
 
-    let penalty_params = cfg.penalty_params;
+    let penalty: HumanAddr = HumanAddr::from(&cfg.penalty);
 
     let basket_token = &cfg
         .basket_token
@@ -102,7 +102,7 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
             AssetInfo::Token { contract_addr } => query_price(&deps, &cfg.oracle, &contract_addr),
             AssetInfo::NativeToken { denom } => query_price(&deps, &cfg.oracle, &h(denom)),
         })
-        .collect::<StdResult<Vec<FPDecimal>>>()?;
+        .collect::<StdResult<Vec<String>>>()?;
 
     // get inventory
     let inv: Vec<Uint128> = assets
@@ -134,11 +134,11 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         .collect::<Vec<_>>();
 
     Ok(BasketStateResponse {
-        penalty_params,
         outstanding_balance_tokens,
         prices,
         inv,
         assets,
+        penalty,
         target
     })
 }

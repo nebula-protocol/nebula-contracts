@@ -3,9 +3,7 @@ use cosmwasm_std::{
     Storage, Uint128
 };
 
-use basket_math::{dot, sum, FPDecimal};
-use crate::msg::{HandleMsg, InitMsg, PriceResponse, QueryMsg, MintResponse};
-use crate::state::{read_price, set_price};
+use crate::msg::{HandleMsg, InitMsg, QueryMsg, MintResponse, RedeemResponse};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     _deps: &mut Extern<S, A, Q>,
@@ -20,76 +18,61 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     env: Env,
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
-    match msg {
-        HandleMsg::SetPrices { prices } => try_set_prices(deps, env, &prices),
-    }
-}
-
-pub fn try_set_prices<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    _env: Env,
-    prices: &Vec<(String, Decimal)>,
-) -> StdResult<HandleResponse> {
-    for (asset, price) in prices.iter() {
-        set_price(&mut deps.storage, asset, price)?;
-    }
     Ok(HandleResponse::default())
 }
 
-
 pub fn compute_mint<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
+    basket_token_supply: &Uint128,
     inventory: &Vec<Uint128>,
     mint_asset_amounts: &Vec<Uint128>,
     asset_prices: &Vec<String>,
     target_weights: &Vec<Uint128>,
-) -> StdResult<HandleResponse> {
-
-    Ok(HandleResponse::default())
+) -> StdResult<MintResponse> {
+    Ok(
+        MintResponse {
+        mint_tokens: Uint128(1),
+        log: vec![]
+    })
 }
 
 pub fn compute_redeem<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
+    basket_token_supply: &Uint128,
     inventory: &Vec<Uint128>,
     redeem_tokens: &Uint128,
     redeem_weights: &Vec<Uint128>,
     asset_prices: &Vec<String>,
     target_weights: &Vec<Uint128>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<RedeemResponse> {
 
-    Ok(HandleResponse::default())
+    Ok(
+        RedeemResponse {
+            redeem_assets: vec![Uint128(1); inventory.len()],
+            log: vec![]
+        })
 }
 
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     msg: QueryMsg,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Binary> {
     match msg {
         QueryMsg::Mint {
+            basket_token_supply,
             inventory,
             mint_asset_amounts,
             asset_prices,
             target_weights
-        } => compute_mint(deps, &inventory, &mint_asset_amounts, &asset_prices, &target_weights),
+        } => to_binary(&compute_mint(deps, &basket_token_supply, &inventory, &mint_asset_amounts, &asset_prices, &target_weights)?),
         QueryMsg::Redeem {
+            basket_token_supply,
             inventory,
             redeem_tokens,
             redeem_weights,
             asset_prices,
             target_weights
-        } => compute_redeem(deps, &inventory, &redeem_tokens, &redeem_weights, &asset_prices, &target_weights),
+        } => to_binary(&compute_redeem(deps, &basket_token_supply, &inventory, &redeem_tokens, &redeem_weights, &asset_prices, &target_weights)?),
     }
-}
-
-fn query_price<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    asset: String,
-) -> StdResult<PriceResponse> {
-    let rate = read_price(&deps.storage, &asset)?;
-    Ok(PriceResponse {
-        rate,
-        last_updated_base: 0,
-        last_updated_quote: 0,
-    })
 }
