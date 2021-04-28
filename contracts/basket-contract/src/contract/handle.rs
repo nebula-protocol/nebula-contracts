@@ -53,7 +53,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             }
 
             // Check the actual deposit happens
-            // asset.assert_sent_native_token_balance(&env)?;
+            asset.assert_sent_native_token_balance(&env)?;
 
             let sender = &env.message.sender.clone();
 
@@ -462,6 +462,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     asset_amounts: &Vec<Asset>,
     min_tokens: &Option<Uint128>,
 ) -> StdResult<HandleResponse> {
+    println!("enter mint {:?}", asset_amounts);
     let cfg = read_config(&deps.storage)?;
     let target_asset_data = read_target_asset_data(&deps.storage)?;
     let asset_infos = &target_asset_data
@@ -490,6 +491,8 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         vec
     };
 
+    println!("weights {:?}", asset_weights);
+
     // ensure that all tokens in asset_amounts have been staged beforehand
     for asset in asset_amounts {
         let staged = read_staged_asset(&deps.storage, &env.message.sender, &asset.info)?;
@@ -503,6 +506,8 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
             ));
         }
     }
+
+    println!("staged b4hand");
 
     // get current balances of each token (inventory)
     let inv: Vec<FPDecimal> =
@@ -518,6 +523,8 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
             })
             .collect::<StdResult<Vec<FPDecimal>>>()?;
 
+    println!("gimme inventory");
+    
     let c = asset_weights
         .iter()
         .map(|x| int_to_fpdec(x.clone()))
@@ -554,6 +561,8 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         }
     }
 
+    println!("after all the math");
+
     // Unstage after everything works
     for asset in asset_amounts {
         unstage_asset(
@@ -563,6 +572,8 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
             asset.amount,
         )?;
     }
+
+    println!("after unstaging all {}", mint_total.to_string());
 
     let mint_msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: basket_token.clone(),
@@ -781,6 +792,7 @@ mod tests {
                 amount: Uint128(1_000),
             },
         ];
+
         let mint_msg = HandleMsg::Mint {
             asset_amounts: asset_amounts.clone(),
             min_tokens: None,
@@ -801,7 +813,17 @@ mod tests {
             //     },
             //     &[],
             // );
-            let env = mock_env(h("addr0000"), &[]);
+  
+            // let env = mock_env(h("addr0000"), &[]);
+
+            let env = mock_env(
+                h("addr0000"),
+                &[Coin {
+                    denom: "LUNA".to_string(),
+                    amount: Uint128(1_000),
+                }],
+            );
+
             if asset.is_native_token() {
                 let stage_asset_msg = HandleMsg::StageNativeAsset { asset };
                 handle(&mut deps, env, stage_asset_msg).unwrap();

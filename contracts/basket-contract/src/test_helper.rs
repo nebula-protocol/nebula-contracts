@@ -323,11 +323,17 @@ pub mod consts {
         vec![20, 10, 65, 5]
     }
     pub fn assets_native_stage() -> Vec<AssetInfo> {
-        vec![AssetInfo::Token {
-            contract_addr: h("wBTC"),
-        }, AssetInfo::NativeToken {
-            denom: "LUNA".to_string(),
-        },]
+        vec![
+            AssetInfo::Token {
+                contract_addr: h("wBTC"),
+            }, 
+            AssetInfo::NativeToken {
+                denom: "LUNA".to_string(),
+            }, 
+            // AssetInfo::Token {
+            //     contract_addr: h("LUNA"),
+            // },
+        ]
     }
     pub fn target_native_stage() -> Vec<u32> {
         vec![50, 50]
