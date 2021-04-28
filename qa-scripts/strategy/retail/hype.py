@@ -16,7 +16,7 @@ class HypeFlow(StrategyBase):
             self.neg_hype = random.randrange(0, len(self.basket.asset_tokens))
 
     def tick(self):
-        # - favor minting with one type of token 
+        # - favor minting with one type of token
         # - favor redeeming with one type of token
         # - swap out hyped up tokens ever so often
         if random.random() < 0.005:

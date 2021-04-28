@@ -451,6 +451,33 @@ def deploy():
     ### EXAMPLE: getting event logs
     print("logs from reset target", result.logs[0].events_by_type)
 
+    ### EXAMPLE: how to reset basket penalty contract
+    print("[deploy] - basket: reset_penalty")
+    # create a new penalty contract
+    penalty_contract = instantiate_contract(
+        penalty_code_id,
+        {
+            "penalty_params": {
+                "a_pos": "1",
+                "s_pos": "1",
+                "a_neg": "0.05",
+                "s_neg": "0.5",
+            }
+        },
+        seq()
+    )
+    print("created new penalty contract", penalty_contract)
+    result = execute_contract(
+        deployer,
+        basket,
+        {"reset_penalty": {"penalty": penalty_contract}},
+        seq(),
+        fee=StdFee(
+            4000000, "20000000uluna"
+        ),  # burning may require a lot of gas if there are a lot of assets
+    )
+    print(f"reset penalty TXHASH: {result.txhash}")
+
     print("query new basket state ",
         terra.wasm.contract_query(
             basket, {"basket_state": {"basket_contract_address": basket}}

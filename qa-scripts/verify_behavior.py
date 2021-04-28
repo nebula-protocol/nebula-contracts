@@ -42,6 +42,7 @@ def find_issues(mode="mint"):
         else:
             raise Exception("Invalid mode")
 
+
 async def test_double_mint(basket_params):
     if live:
         basket, basket_token, assets = await create_basket(**basket_params)
@@ -51,5 +52,6 @@ async def test_double_mint(basket_params):
 
     tokens = await interface.mint(basket_params["asset_tokens"])
     assert tokens == basket_params["basket_tokens"]
+
 
 find_issues()

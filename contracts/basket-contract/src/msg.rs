@@ -52,6 +52,10 @@ pub enum HandleMsg {
         target: Vec<u32>,
     },
 
+    ResetPenalty {
+        penalty: HumanAddr,
+    },
+
     /// Mints new assets
     Mint {
         /// Asset amounts deposited for minting (must be staged)

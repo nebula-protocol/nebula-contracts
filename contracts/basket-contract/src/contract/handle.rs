@@ -48,7 +48,13 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::ResetTarget { assets, target } => try_reset_target(deps, env, &assets, &target),
         HandleMsg::_SetBasketToken { basket_token } => {
             try_set_basket_token(deps, env, &basket_token)
-        } // HandleMsg::AddAssetType {asset} => try_add_asset_type(deps, env, asset),
+        }
+        HandleMsg::ResetPenalty { penalty } => {
+            try_reset_penalty(deps, env, &penalty)
+        }
+
+
+        // HandleMsg::AddAssetType {asset} => try_add_asset_type(deps, env, asset),
     }
 }
 
@@ -351,6 +357,39 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
         data: None,
     })
 }
+
+
+/*
+    Changes the cluster target weights for different assets to the given
+    target weights and saves it. The ordering of the target weights is
+    determined by the given assets.
+*/
+pub fn try_reset_penalty<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    penalty: &HumanAddr,
+) -> StdResult<HandleResponse> {
+    let cfg = read_config(&deps.storage)?;
+
+    // check permission
+    if env.message.sender != cfg.owner {
+        return Err(StdError::unauthorized());
+    }
+
+    let mut new_cfg = cfg.clone();
+    new_cfg.penalty = penalty.clone();;
+    save_config(&mut deps.storage, &new_cfg)?;
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![
+            log("action", "reset_penalty"),
+            log("penalty", &penalty),
+        ],
+        data: None,
+    })
+}
+
 
 /*
      May be called by the Basket contract owner to set the basket token for first time

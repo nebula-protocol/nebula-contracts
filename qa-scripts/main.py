@@ -46,6 +46,7 @@ async def run_strategies():
     )
     await s.go_sync(ticks=10)
 
+
 async def tiny_basket():
     basket_args = await create_basket(
         50,
@@ -59,6 +60,7 @@ async def tiny_basket():
     await interface.sync()
     print(interface.summary())
     print(await interface.redeem(50))
+
 
 if __name__ == "__main__":
 

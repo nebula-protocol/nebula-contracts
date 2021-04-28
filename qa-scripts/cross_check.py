@@ -21,14 +21,17 @@ async def create_and_test(basket_args, ops):
         if op_type == "mint":
             recv_local = await local.mint(amt)
             recv_live = await live.mint(amt)
-            assert recv_local == recv_live, f"Local minted {recv_local} but live minted {recv_live}"
+            assert (
+                recv_local == recv_live
+            ), f"Local minted {recv_local} but live minted {recv_live}"
 
         elif op_type == "redeem":
             recv_local = await local.redeem(amt)
             recv_live = await live.redeem(amt)
 
-            assert (recv_local == recv_live).all(), f"Local redeemed {recv_local} but live redeemed {recv_live}"
-
+            assert (
+                recv_local == recv_live
+            ).all(), f"Local redeemed {recv_local} but live redeemed {recv_live}"
 
         print("Basket state: ", local_basket.summary())
 
@@ -41,12 +44,8 @@ basket_params = {
     "penalty_params": {"a_neg": 0.1, "a_pos": 0.5, "s_neg": 0.3, "s_pos": 0.5},
 }
 
-ops = [
-    ["mint", [100, 100]],
-    ["redeem", 200],
-    ["mint", [3000, 1500]],
-    ["redeem", 10000]
-]
+ops = [["mint", [100, 100]], ["redeem", 200], ["mint", [3000, 1500]], ["redeem", 10000]]
 
 import asyncio
+
 asyncio.get_event_loop().run_until_complete(create_and_test(basket_params, ops))

@@ -20,9 +20,7 @@ OVERWRITE_CACHE_ALLOWED = set()
 
 USE_LOCALTERRA = True
 
-lt = AsyncLocalTerra(gas_prices = {
-    "uusd": "0.15"
-})
+lt = AsyncLocalTerra(gas_prices={"uusd": "0.15"})
 
 if USE_LOCALTERRA:
     terra = lt
@@ -175,9 +173,7 @@ async def create_basket(
     print(f"Creating penalty contract")
     penalty_contract = await instantiate_contract(
         penalty_code_id,
-        {
-            "penalty_params": penalty_params
-        },
+        {"penalty_params": penalty_params},
     )
 
     print("Creating asset tokens...")

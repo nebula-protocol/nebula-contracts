@@ -98,6 +98,7 @@ class InterfaceLive(InterfaceBase):
         mint_log = result.logs[-1].events_by_type
 
         import pprint
+
         pprint.pprint(mint_log)
 
         mint_total = mint_log["from_contract"]["mint_total"][0]
@@ -141,6 +142,7 @@ class InterfaceLive(InterfaceBase):
         redeem_log = result.logs[0].events_by_type
 
         import pprint
+
         for thing in result.logs:
             pprint.pprint(thing.events_by_type)
 
