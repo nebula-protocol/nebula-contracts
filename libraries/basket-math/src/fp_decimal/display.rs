@@ -13,8 +13,9 @@ impl fmt::Display for FPDecimal {
             let fraction_string = fraction.num.to_string(); //
             let fraction_string =
                 "0".repeat(FPDecimal::DIGITS - fraction_string.len()) + &fraction_string;
+            let integer_num = integer.num / FPDecimal::ONE.num;
             f.write_str(sign)?;
-            f.write_str(&integer.num.to_string())?;
+            f.write_str(&integer_num.to_string())?;
             f.write_str(".")?;
             f.write_str(fraction_string.trim_end_matches('0'))?;
 
@@ -28,6 +29,12 @@ mod tests {
 
     use crate::FPDecimal;
     use bigint::U256;
+
+    #[test]
+    fn test_fmt_sub() {
+        let input : FPDecimal = FPDecimal::ONE + FPDecimal::from(3u128).div(100i128);
+        assert_eq!(&format!("{}", input), "1.03");
+    }
 
     #[test]
     fn test_fmt() {
