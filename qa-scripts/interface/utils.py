@@ -170,6 +170,15 @@ async def create_basket(
     basket_code_id = await store_contract("basket_contract")
     token_code_id = await store_contract("terraswap_token")
     oracle_code_id = await store_contract("basket_dummy_oracle")
+    penalty_code_id = await store_contract("basket_penalty")
+
+    print(f"Creating penalty contract")
+    penalty_contract = await instantiate_contract(
+        penalty_code_id,
+        {
+            "penalty_params": penalty_params
+        },
+    )
 
     print("Creating asset tokens...")
 
@@ -197,7 +206,7 @@ async def create_basket(
             "owner": deployer.key.acc_address,
             "assets": assets,
             "oracle": oracle,
-            "penalty_params": penalty_params,
+            "penalty": penalty_contract,
             "target": target_weights,
         },
     )

@@ -31,6 +31,10 @@ pub enum QueryMsg {
         asset_prices: Vec<String>,
         target_weights: Vec<u32>,
     },
+
+    Params {
+
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -43,4 +47,9 @@ pub struct MintResponse {
 pub struct RedeemResponse {
     pub redeem_assets: Vec<Uint128>,
     pub log: Vec<LogAttribute>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct ParamsResponse {
+    pub penalty_params: PenaltyParams,
 }

@@ -7,6 +7,7 @@ class InterfaceBase:
         self.asset_tokens = None
         self.asset_prices = None
         self.target_weights = None
+        self.penalty_contract = None
         self.penalty_params = None
 
     @classmethod

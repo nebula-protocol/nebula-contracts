@@ -331,11 +331,16 @@ def deploy():
         )
     )
 
-    ### EXAMPLE: how to query basket state
+    ### EXAMPLE: how to query basket state and penalty params
+    basket_state = terra.wasm.contract_query(
+        basket, {"basket_state": {"basket_contract_address": basket}}
+    )
     print(
-        terra.wasm.contract_query(
-            basket, {"basket_state": {"basket_contract_address": basket}}
-        )
+        basket_state
+    )
+
+    print(
+        terra.wasm.contract_query(basket_state["penalty"], {"params": {}})
     )
 
     ### EXAMPLE: how to stage and mint

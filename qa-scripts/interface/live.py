@@ -31,6 +31,8 @@ class InterfaceLive(InterfaceBase):
         self.basket_token = basket_token
         self.assets = assets
 
+        self.penalty_param_cache = {}
+
     def fork(self):
         logic = BasketLogic.from_interface(self)
         return InterfaceLocal(logic)
@@ -43,10 +45,17 @@ class InterfaceLive(InterfaceBase):
         self.asset_prices = np.array(basket_state["prices"], dtype=np.longdouble)
         self.asset_tokens = np.array(basket_state["inv"], dtype=np.int64)
         self.target_weights = np.array(basket_state["target"], dtype=np.int64)
+        self.penalty_contract = basket_state["penalty"]
 
-        self.penalty_params = {
-            k: np.longdouble(v) for k, v in basket_state["penalty_params"].items()
-        }
+        if self.penalty_contract not in self.penalty_param_cache:
+            penalty_state = await terra.wasm.contract_query(
+                self.penalty_contract, {"params": {}}
+            )
+            self.penalty_param_cache[self.penalty_contract] = {
+                k: np.longdouble(v) for k, v in penalty_state["penalty_params"].items()
+            }
+
+        self.penalty_params = self.penalty_param_cache[self.penalty_contract]
 
     async def mint(self, amounts, min_tokens=None):
 

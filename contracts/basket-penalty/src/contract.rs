@@ -1,7 +1,7 @@
 use cosmwasm_std::{to_binary, Api, Binary, Decimal, Env, Extern, HandleResponse, InitResponse, Querier, StdResult, Storage, Uint128, log};
 
 use basket_math::{FPDecimal, dot, sum, mul, mul_const, sub, add, abs};
-use crate::msg::{HandleMsg, InitMsg, MintResponse, QueryMsg, RedeemResponse};
+use crate::msg::{HandleMsg, InitMsg, MintResponse, QueryMsg, RedeemResponse, ParamsResponse};
 use std::str::FromStr;
 use crate::state::{PenaltyConfig, save_config, PenaltyParams, read_config};
 use crate::penalty::{compute_score, compute_penalty, compute_diff};
@@ -144,6 +144,15 @@ pub fn compute_redeem<S: Storage, A: Api, Q: Querier>(
     })
 }
 
+pub fn get_params<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+) -> StdResult<ParamsResponse> {
+    let cfg = read_config(&deps.storage)?;
+    Ok(ParamsResponse {
+        penalty_params: cfg.penalty_params
+    })
+}
+
 pub fn query<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     msg: QueryMsg,
@@ -179,5 +188,6 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
             &asset_prices,
             &target_weights,
         )?),
+        QueryMsg::Params { } => to_binary(&get_params(deps)?)
     }
 }
