@@ -133,6 +133,7 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         })
         .collect::<Vec<_>>();
 
+    // TODO: RETURN ASSETINFO HERE
     Ok(BasketStateResponse {
         penalty_params,
         outstanding_balance_tokens,

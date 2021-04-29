@@ -103,7 +103,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         .ok_or_else(|| error::basket_token_not_set())?;
 
     let target_asset_data = read_target_asset_data(&deps.storage)?;
-    let assets = target_asset_data
+    let asset_infos = target_asset_data
         .iter()
         .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
@@ -111,14 +111,14 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         .iter()
         .map(|x| x.target)
         .collect::<Vec<_>>();
-    // Reorder asset_weights according to ordering of target assets
+
 
     let mut ordered_min_redeem: Option<Vec<Uint128>> = match &redeem_mins {
         Some(mins) => {
             let mut vec: Vec<Uint128> = Vec::new();
-            for i in 0..assets.len() {
+            for i in 0..asset_infos.len() {
                 for j in 0..mins.len() {
-                    if mins[j].info.clone() == assets[i].clone() {
+                    if mins[j].info.clone() == asset_infos[i].clone() {
                         vec.push(mins[j].amount);
                         break;
                     }
@@ -146,7 +146,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     });
 
     let inv: Vec<FPDecimal> =
-        assets
+        asset_infos
             .iter()
             .map(|asset| match asset {
                 AssetInfo::Token { contract_addr } => int_to_fpdec(
@@ -161,18 +161,19 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
             .collect::<StdResult<Vec<FPDecimal>>>()?;
 
 
+
+    let mut new_asset_weights = vec![Uint128(0); asset_infos.len()];
     let asset_weights: Vec<Uint128> = match &asset_weights {
         Some(weights) => {
-            let mut vec: Vec<Uint128> = Vec::new();
-            for i in 0..assets.len() {
+            for i in 0..asset_infos.len() {
                 for j in 0..weights.len() {
-                    if weights[j].info.clone() == assets[i].clone() {
-                        vec.push(weights[j].amount);
+                    if weights[j].info.clone() == asset_infos[i].clone() {
+                        new_asset_weights[i] = weights[j].amount;
                         break;
                     }
                 }
             }
-            vec
+            new_asset_weights
         }
         None => {
             let mut vec: Vec<Uint128> = Vec::new();
@@ -180,7 +181,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
                 let (w, _) = fpdec_to_int(*i)?; // the fraction part is kept inside basket
                 vec.push(w);
             }
-        vec
+            vec
         },
     };
 
@@ -204,7 +205,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
             .map(|&x| FPDecimal::from(x.u128()) / weights_sum)
             .collect();
 
-        let prices: Vec<FPDecimal> = assets
+        let prices: Vec<FPDecimal> = asset_infos
             .iter()
             .map(|asset| match asset {
                 AssetInfo::Token { contract_addr } => {
@@ -252,7 +253,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
 
     let transfer_msgs: Vec<CosmosMsg> = redeem_totals
         .iter()
-        .zip(assets.iter())
+        .zip(asset_infos.iter())
         .filter(|(amt, _asset)| !amt.is_zero()) // remove 0 amounts
         .map(|(amt, asset)| {
             Ok(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -351,6 +352,9 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     assets: &Vec<AssetInfo>,
     target: &Vec<u32>,
 ) -> StdResult<HandleResponse> {
+
+    // allow removal / adding
+    
     let cfg = read_config(&deps.storage)?;
     if let None = cfg.basket_token {
         return Err(error::basket_token_not_set());
@@ -470,17 +474,23 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         .clone()
         .ok_or_else(|| error::basket_token_not_set())?;
 
+
+    // accommmodate inputs: subsets of target assets vector
+
+    let mut new_asset_weights = vec![Uint128(0); asset_infos.len()];
+
+    // list of 0's for vector (size of asset_infos) -> replace in the for loop
     let asset_weights: Vec<Uint128> = {
-        let mut vec: Vec<Uint128> = Vec::new();
         for i in 0..asset_infos.len() {
             for weight in asset_amounts {
                 if weight.info.clone() == asset_infos[i].clone() {
-                    vec.push(weight.amount);
+                    new_asset_weights[i] = weight.amount;
                     break;
                 }
             }
+            // 0 if else
         }
-        vec
+        new_asset_weights
     };
 
     // ensure that all tokens in asset_amounts have been staged beforehand
@@ -748,9 +758,90 @@ mod tests {
         let env = mock_env(h("addr0000"), &[]);
         let res = handle(&mut deps, env, mint_msg).unwrap();
 
-        // for _log in res.log.iter() {
-        //     //println!("{}: {}", log.key, log.value);
-        // }
+        for log in res.log.iter() {
+            println!("{}: {}", log.key, log.value);
+        }
+        assert_eq!(1, res.messages.len());
+    }
+
+    #[test]
+    // Should be same output as mint()
+    fn mint_two() {
+        let (mut deps, _init_res) = mock_init();
+        mock_querier_setup(&mut deps);
+
+        // Asset :: UST Price :: Balance (µ)     (+ proposed   ) :: %
+        // ---
+        // mAAPL ::  135.18   ::  7_290_053_159  (+ 125_000_000) :: 0.20367359382 -> 0.20391741720
+        // mGOOG :: 1780.03   ::    319_710_128                  :: 0.11761841035 -> 0.11577407690
+        // mMSFT ::  222.42   :: 14_219_281_228  (+ 149_000_000) :: 0.65364669475 -> 0.65013907200
+        // mNFLX ::  540.82   ::    224_212_221  (+  50_090_272) :: 0.02506130106 -> 0.03016943389
+        deps.querier
+            .set_token_balance("mAAPL", consts::basket_token(), 7_290_053_159)
+            .set_token_balance("mGOOG", consts::basket_token(), 319_710_128)
+            .set_token_balance("mMSFT", consts::basket_token(), 14_219_281_228)
+            .set_token_balance("mNFLX", consts::basket_token(), 224_212_221)
+            .set_oracle_prices(vec![
+                ("mAAPL", Decimal::from_str("135.18").unwrap()),
+                ("mGOOG", Decimal::from_str("1780.03").unwrap()),
+                ("mMSFT", Decimal::from_str("222.42").unwrap()),
+                ("mNFLX", Decimal::from_str("540.82").unwrap()),
+            ]);
+
+        let asset_amounts = vec![
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mMSFT"),
+                },
+                amount: Uint128(149_000_000),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mNFLX"),
+                },
+                amount: Uint128(50_090_272),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mAAPL"),
+                },
+                amount: Uint128(125_000_000),
+            },
+        ];
+        let mint_msg = HandleMsg::Mint {
+            asset_amounts: asset_amounts.clone(),
+            min_tokens: None,
+        };
+
+        let env = mock_env(h("addr0000"), &[]);
+        let res = handle(&mut deps, env, mint_msg.clone());
+        match res {
+            Err(..) => (),
+            _ => panic!("requires staging"),
+        }
+
+        for asset in asset_amounts {
+            let env = mock_env(
+                match asset.info {
+                    AssetInfo::Token { contract_addr } => contract_addr,
+                    AssetInfo::NativeToken { denom } => h(&denom),
+                },
+                &[],
+            );
+            let stage_asset_msg = HandleMsg::Receive(Cw20ReceiveMsg {
+                sender: h("addr0000"),
+                msg: Some(to_binary(&Cw20HookMsg::StageAsset {}).unwrap()),
+                amount: asset.amount,
+            });
+            handle(&mut deps, env, stage_asset_msg).unwrap();
+        }
+
+        let env = mock_env(h("addr0000"), &[]);
+        let res = handle(&mut deps, env, mint_msg).unwrap();
+
+        for log in res.log.iter() {
+            println!("{}: {}", log.key, log.value);
+        }
         assert_eq!(1, res.messages.len());
     }
 
