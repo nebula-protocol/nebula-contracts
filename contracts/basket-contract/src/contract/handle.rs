@@ -462,7 +462,6 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     asset_amounts: &Vec<Asset>,
     min_tokens: &Option<Uint128>,
 ) -> StdResult<HandleResponse> {
-    println!("enter mint {:?}", asset_amounts);
     let cfg = read_config(&deps.storage)?;
     let target_asset_data = read_target_asset_data(&deps.storage)?;
     let asset_infos = &target_asset_data
@@ -491,8 +490,6 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         vec
     };
 
-    println!("weights {:?}", asset_weights);
-
     // ensure that all tokens in asset_amounts have been staged beforehand
     for asset in asset_amounts {
         let staged = read_staged_asset(&deps.storage, &env.message.sender, &asset.info)?;
@@ -506,8 +503,6 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
             ));
         }
     }
-
-    println!("staged b4hand");
 
     // get current balances of each token (inventory)
     let inv: Vec<FPDecimal> =
@@ -523,19 +518,18 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
             })
             .collect::<StdResult<Vec<FPDecimal>>>()?;
 
-    println!("gimme inventory");
-    
     let c = asset_weights
         .iter()
         .map(|x| int_to_fpdec(x.clone()))
         .collect::<StdResult<Vec<FPDecimal>>>()?;
+
 
     // get current prices of each token via oracle
     let prices: Vec<FPDecimal> = asset_infos
         .iter()
         .map(|asset_info| query_price(&deps, &cfg.oracle, asset_info))
         .collect::<StdResult<Vec<FPDecimal>>>()?;
-
+    
     // compute penalty
     let score = compute_score(&inv, &c, &prices, &target).div(2i128);
 
@@ -561,8 +555,6 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         }
     }
 
-    println!("after all the math");
-
     // Unstage after everything works
     for asset in asset_amounts {
         unstage_asset(
@@ -572,8 +564,6 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
             asset.amount,
         )?;
     }
-
-    println!("after unstaging all {}", mint_total.to_string());
 
     let mint_msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: basket_token.clone(),
@@ -696,11 +686,13 @@ mod tests {
         // mGOOG :: 1780.03   ::    319_710_128                  :: 0.11761841035 -> 0.11577407690
         // mMSFT ::  222.42   :: 14_219_281_228  (+ 149_000_000) :: 0.65364669475 -> 0.65013907200
         // mNFLX ::  540.82   ::    224_212_221  (+  50_090_272) :: 0.02506130106 -> 0.03016943389
+
+        // The set token balance should include the amount we would also like to stage
         deps.querier
-            .set_token_balance("mAAPL", consts::basket_token(), 7_290_053_159)
-            .set_token_balance("mGOOG", consts::basket_token(), 319_710_128)
-            .set_token_balance("mMSFT", consts::basket_token(), 14_219_281_228)
-            .set_token_balance("mNFLX", consts::basket_token(), 224_212_221)
+            .set_token_balance("mAAPL", MOCK_CONTRACT_ADDR, 7_290_053_159)
+            .set_token_balance("mGOOG", MOCK_CONTRACT_ADDR, 319_710_128)
+            .set_token_balance("mMSFT", MOCK_CONTRACT_ADDR, 14_219_281_228)
+            .set_token_balance("mNFLX", MOCK_CONTRACT_ADDR, 224_212_221)
             .set_oracle_prices(vec![
                 ("mAAPL", Decimal::from_str("135.18").unwrap()),
                 ("mGOOG", Decimal::from_str("1780.03").unwrap()),
@@ -778,18 +770,18 @@ mod tests {
 
         deps.querier
             .set_token_balance("wBTC", consts::basket_token(), 1_000_000)
-            .set_token_balance("LUNA", consts::basket_token(), 2_000_000)
+            .set_denom_balance("uluna", MOCK_CONTRACT_ADDR, 2_000_000)
             .set_oracle_prices(vec![
                 ("wBTC", Decimal::from_str("30000.00").unwrap()),
-                ("LUNA", Decimal::from_str("15.00").unwrap()),
+                ("uluna", Decimal::from_str("15.00").unwrap()),
             ]);
 
         let asset_amounts = vec![
             Asset {
                 info: AssetInfo::NativeToken {
-                    denom: "LUNA".to_string(),
+                    denom: "uluna".to_string(),
                 },
-                amount: Uint128(1_000),
+                amount: Uint128(1_000_000),
             },
         ];
 
@@ -806,21 +798,11 @@ mod tests {
         }
 
         for asset in asset_amounts {
-            // let env = mock_env(
-            //     match asset.info {
-            //         AssetInfo::Token { contract_addr } => contract_addr,
-            //         AssetInfo::NativeToken { denom } => h(&denom),
-            //     },
-            //     &[],
-            // );
-  
-            // let env = mock_env(h("addr0000"), &[]);
-
             let env = mock_env(
                 h("addr0000"),
                 &[Coin {
-                    denom: "LUNA".to_string(),
-                    amount: Uint128(1_000),
+                    denom: "uluna".to_string(),
+                    amount: Uint128(1_000_000),
                 }],
             );
 

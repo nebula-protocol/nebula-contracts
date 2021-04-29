@@ -60,8 +60,8 @@ pub fn query_native_balance_minus_staged<S: Storage, A: Api, Q: Querier>(
     account_address: &HumanAddr,
 ) -> StdResult<Uint128> {
     let tot_balance = query_balance(&deps, account_address, denom.clone())?;
-    let all_balances = query_all_balances(&deps, account_address)?;
-    println!("me balances {:?}", all_balances);
+    // let all_balances = query_all_balances(&deps, account_address)?;
+    // println!("me balances {:?}", all_balances);
     let staged_balance = read_total_staged_asset(
         &deps.storage,
         &AssetInfo::NativeToken {
