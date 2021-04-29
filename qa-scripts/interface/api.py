@@ -6,18 +6,6 @@ class Oracle:
     def set_prices(prices):
         return {"set_prices": {"prices": prices}}
 
-class Asset:
-    @staticmethod
-    def asset_info_from_haddrs(haddrs):
-        return [{"token": {"contract_addr": haddr}} for haddr in haddrs]
-
-    @staticmethod
-    def asset_info(haddr):
-        return {"token": {"contract_addr": haddr}}
-
-    @staticmethod
-    def asset(haddr, amount):
-        return {"info": Asset.asset_info(haddr), "amount": amount}
 
 class CW20:
     @staticmethod
@@ -38,8 +26,8 @@ class Basket:
         return {"__set_basket_token": {"basket_token": basket_token}}
 
     @staticmethod
-    def mint(asset_amounts):
-        return {"mint": {"asset_amounts": asset_amounts}}
+    def mint(asset_amounts, min_tokens=None):
+        return {"mint": {"asset_amounts": asset_amounts, "min_tokens": min_tokens}}
 
     @staticmethod
     def stage_asset():
@@ -47,8 +35,24 @@ class Basket:
 
     @staticmethod
     def burn(asset_weights=None, redeem_mins=None):
-        return {"burn": {"asset_weights": asset_weights, "redeem_mins": redeem_mins}}
+        return {
+            "burn": {
+                "asset_weights": asset_weights,
+                "redeem_mins": redeem_mins,
+                "random_fuckshit": None,
+            }
+        }
+
+
+class Asset:
+    @staticmethod
+    def asset_info_from_haddrs(haddrs):
+        return [{"token": {"contract_addr": haddr}} for haddr in haddrs]
 
     @staticmethod
-    def reset_target(new_assets, new_target):
-        return {"reset_target": {"assets": new_assets, "target": new_target}}
+    def asset_info(haddr):
+        return {"token": {"contract_addr": haddr}}
+
+    @staticmethod
+    def asset(haddr, amount):
+        return {"info": Asset.asset_info(haddr), "amount": amount}

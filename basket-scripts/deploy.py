@@ -461,16 +461,4 @@ def deploy():
         }
     )
 
-    while True:
-        tokens = ['WBTC', 'WETH', 'XRP', 'LUNA', 'MIR']
-        prices = get_prices(tokens)
-        tot = sum(prices)
-        percentages = [float(p)/tot for p in prices]
-        print(percentages)
-        for i in range(len(percentages) - 1):
-            percentages[i] = int(percentages[i])
-        percentages[-1] = 100 - sum(percentages[:-1])
-        print(percentages, sum(percentages))
-        time.sleep(30)
-
 deploy()

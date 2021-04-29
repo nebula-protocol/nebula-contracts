@@ -78,8 +78,12 @@ impl FPDecimal {
         if y == FPDecimal::ONE {
             return x;
         }
-        assert!(y.num != U256::zero());
-        FPDecimal::_mul(x, FPDecimal::reciprocal(y))
+
+        assert_ne!(y.num, U256::zero());
+        FPDecimal {
+            num: FPDecimal::ONE.num * x.num / y.num,
+            sign: 1 ^ x.sign ^ y.sign
+        }
     }
 
     pub fn div(&self, other: i128) -> FPDecimal {
@@ -330,5 +334,18 @@ mod tests {
             sign: 1,
         };
         assert_eq!(neg_five.abs(), five);
+    }
+
+    #[test]
+    fn test_div_identity() {
+
+        for i in 1..10000 {
+            let a = FPDecimal {
+                num: U256([i, 0, 0, 0]) * FPDecimal::ONE.num,
+                sign: 1,
+            };
+
+            assert_eq!(a / a, FPDecimal::ONE);
+        }
     }
 }
