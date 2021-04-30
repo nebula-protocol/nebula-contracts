@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use basket_math::FPDecimal;
 use cosmwasm_std::{HumanAddr, StdError, StdResult, Storage, Uint128};
 use cosmwasm_storage::{bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket};
-use terraswap::asset::{Asset, AssetInfo};
+use terraswap::asset::{AssetInfo};
 
 /// config: BasketConfig
 pub static CONFIG_KEY: &[u8] = b"config";

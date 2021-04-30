@@ -4,7 +4,6 @@ use crate::{
     util::vec_to_string,
 };
 use cosmwasm_std::{log, Api, Env, Extern, InitResponse, Querier, StdResult, Storage};
-use terraswap::asset::AssetInfo;
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,

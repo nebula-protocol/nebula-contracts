@@ -5,10 +5,9 @@ use cosmwasm_std::{
     WasmQuery,
 };
 use cw20::{BalanceResponse as Cw20BalanceResponse, TokenInfoResponse as Cw20TokenInfoResponse};
-use log::info;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-use terraswap::{asset::AssetInfo, querier::query_balance, querier::query_all_balances};
+use terraswap::{asset::AssetInfo, querier::query_balance};
 
 /// QueryMsgs to external contracts
 #[derive(Serialize, Deserialize)]

@@ -139,7 +139,6 @@ pub fn compute_penalty(
 #[cfg(test)]
 mod tests {
     use basket_math::FPDecimal;
-    use crate::state::PenaltyParams;
     use crate::penalty::compute_penalty;
 
     #[test]
@@ -148,7 +147,7 @@ mod tests {
         let score = FPDecimal::from(3u128) / FPDecimal::from(-100i128);
         let half = FPDecimal::from(1u128).div(2i128);
         let tenth = half.div(5i128);
-        let penalty = compute_penalty(score, half, half, tenth, tenth.mul(3));;
+        let penalty = compute_penalty(score, half, half, tenth, tenth.mul(3));
         println!("{}", penalty)
     }
 }
