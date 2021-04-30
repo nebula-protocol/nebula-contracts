@@ -14,6 +14,7 @@ incurs multiple CW20 transfers to the user may require more gas than permitted b
 fee estimation feature).
 """
 
+import time
 from terra_sdk.client.lcd import LCDClient
 from terra_sdk.client.localterra import LocalTerra
 from terra_sdk.core.auth import StdFee
@@ -25,6 +26,10 @@ from terra_sdk.core.wasm import (
 from terra_sdk.util.contract import get_code_id, get_contract_address, read_file_as_b64
 
 from basket import Oracle, Basket, CW20, Asset
+from oracle_feeder import get_prices
+from requests import Request, Session
+from requests.exceptions import ConnectionError, Timeout, TooManyRedirects
+import json
 
 # If True, use localterra. Otherwise, deploys on Tequila
 USE_LOCALTERRA = True
@@ -58,7 +63,6 @@ else:
         "https://tequila-fcd.terra.dev", "tequila-0004", gas_prices=gas_prices
     )
     deployer = terra.wallet(lt.wallets["test1"].key)
-
 
 def store_contract(contract_name, sequence):
     contract_bytes = read_file_as_b64(f"../artifacts/{contract_name}.wasm")
@@ -260,24 +264,6 @@ def deploy():
     print(f"[deploy] - set basket token")
     execute_contract(deployer, basket, Basket.set_basket_token(basket_token), seq())
 
-    # set oracle prices
-    print(f"[deploy] - set oracle prices")
-    execute_contract(
-        deployer,
-        oracle,
-        Oracle.set_prices(
-            [
-                [wBTC, "30000.0"],
-                [wETH, "1500.0"],
-                [wXRP, "0.45"],
-                [wLUNA, "2.1"],
-                [MIR, "5.06"],
-                [ANC, "3.18"],
-            ]
-        ),
-        seq(),
-    )
-
     # sets initial balance of basket contract
     total = 5000000
     amount_wBTC = get_amount(total * 0.08, "30000.0")
@@ -311,6 +297,28 @@ def deploy():
     )
 
     result = terra.tx.broadcast(initial_balances_tx)
+
+    # set oracle prices
+    print(f"[deploy] - set oracle prices")
+    execute_contract(
+        deployer,
+        oracle,
+        Oracle.set_prices(
+            [
+                [wBTC, "30000.0"],
+                [wETH, "1500.0"],
+                [wXRP, "0.45"],
+                [wLUNA, "2.1"],
+                [MIR, "5.06"],
+                [ANC, "3.18"],
+            ]
+        ),
+        seq(),
+    )
+
+    debug_print = terra.wasm.contract_query(
+            basket, {"basket_state": {"basket_contract_address": basket}}
+        )
 
     print('PREMINT')
     print(
@@ -452,6 +460,5 @@ def deploy():
             "basket_token": basket_token,
         }
     )
-
 
 deploy()

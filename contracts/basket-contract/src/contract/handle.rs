@@ -118,7 +118,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         .ok_or_else(|| error::basket_token_not_set())?;
 
     let target_asset_data = read_target_asset_data(&deps.storage)?;
-    let assets = target_asset_data
+    let asset_infos = target_asset_data
         .iter()
         .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
@@ -138,26 +138,10 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     let ordered_min_redeem: Option<Vec<Uint128>> = match &redeem_mins {
         Some(mins) => {
             let mut vec: Vec<Uint128> = Vec::new();
-            for i in 0..assets.len() {
+            for i in 0..asset_infos.len() {
                 for j in 0..mins.len() {
-                    if mins[j].info.clone() == assets[i].clone() {
+                    if mins[j].info.clone() == asset_infos[i].clone() {
                         vec.push(mins[j].amount);
-                        break;
-                    }
-                }
-            }
-            Some(vec)
-        }
-        None => None,
-    };
-
-    let asset_weights: Option<Vec<Uint128>> = match &asset_weights {
-        Some(weights) => {
-            let mut vec: Vec<Uint128> = Vec::new();
-            for i in 0..assets.len() {
-                for j in 0..weights.len() {
-                    if weights[j].info.clone() == assets[i].clone() {
-                        vec.push(weights[j].amount);
                         break;
                     }
                 }
@@ -183,7 +167,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     });
 
     let inv: Vec<FPDecimal> =
-        assets
+        asset_infos
             .iter()
             .map(|asset| match asset {
                 AssetInfo::Token { contract_addr } => int_to_fpdec(
@@ -195,51 +179,73 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
             })
             .collect::<StdResult<Vec<FPDecimal>>>()?;
 
+
+
+    let mut new_asset_weights = vec![Uint128(0); asset_infos.len()];
+    let asset_weights: Vec<Uint128> = match &asset_weights {
+        Some(weights) => {
+            for i in 0..asset_infos.len() {
+                for j in 0..weights.len() {
+                    if weights[j].info.clone() == asset_infos[i].clone() {
+                        new_asset_weights[i] = weights[j].amount;
+                        break;
+                    }
+                }
+            }
+            new_asset_weights
+        }
+        None => {
+            let mut vec: Vec<Uint128> = Vec::new();
+            for i in &inv {
+                let (w, _) = fpdec_to_int(*i)?; // the fraction part is kept inside basket
+                vec.push(w);
+            }
+            vec
+        },
+    };
+
     let basket_token_supply = query_cw20_token_supply(&deps, &basket_token)?;
 
-    let m_div_n = int_to_fpdec(burn_amount)? / int_to_fpdec(basket_token_supply)?;
+    let m = int_to_fpdec(burn_amount)?;
+    let n = int_to_fpdec(basket_token_supply)?;
 
     let mut logs: Vec<LogAttribute> = Vec::new();
-    let redeem_subtotals: Vec<FPDecimal> = match &asset_weights {
-        Some(weights) => {
-            // ensure the provided weights has the same dimension as our inventory
-            if weights.len() != inv.len() {
-                return Err(error::bad_weight_dimensions(weights.len(), inv.len()));
-            }
-            let weights_sum = weights.iter().fold(FPDecimal::zero(), |acc, &el| {
-                acc + FPDecimal::from(el.u128())
-            });
-
-            let r = weights // normalize weights vector
-                .iter()
-                .map(|&x| FPDecimal::from(x.u128()) / weights_sum)
-                .collect();
-
-            let prices: Vec<FPDecimal> = assets
-                .iter()
-                .map(|asset_info| query_price(&deps, &cfg.oracle, asset_info))
-                .collect::<StdResult<Vec<FPDecimal>>>()?;
-
-            let prod = dot(&inv, &prices) / dot(&r, &prices);
-            let b: Vec<FPDecimal> = r.iter().map(|&x| m_div_n * prod * x).collect();
-            let neg_b: Vec<FPDecimal> = b.iter().map(|&x| FPDecimal::from(-1i128) * x).collect();
-
-            // compute score
-            let diff = compute_diff(&inv, &neg_b, &prices, &target);
-            let score = (sum(&diff) / dot(&b, &prices)).div(2i128);
-
-            let PenaltyParams {
-                a_pos,
-                s_pos,
-                a_neg,
-                s_neg,
-            } = cfg.penalty_params;
-            let penalty = compute_penalty(score, a_pos, s_pos, a_neg, s_neg);
-            logs.push(log("score", score));
-            logs.push(log("penalty", penalty));
-            b.iter().map(|&x| penalty * x).collect()
+    let redeem_subtotals: Vec<FPDecimal> = {
+        // ensure the provided weights has the same dimension as our inventory
+        if asset_weights.len() != inv.len() {
+            return Err(error::bad_weight_dimensions(asset_weights.len(), inv.len()));
         }
-        None => inv.iter().map(|&x| m_div_n * x).collect(),
+        let weights_sum = asset_weights.iter().fold(FPDecimal::zero(), |acc, &el| {
+            acc + FPDecimal::from(el.u128())
+        });
+
+        let r: Vec<FPDecimal> = asset_weights // normalize weights vector
+            .iter()
+            .map(|&x| FPDecimal::from(x.u128()) / weights_sum)
+            .collect();
+
+        let prices: Vec<FPDecimal> = asset_infos
+            .iter()
+            .map(|asset_info| query_price(&deps, &cfg.oracle, asset_info))
+            .collect::<StdResult<Vec<FPDecimal>>>()?;
+
+        let b: Vec<FPDecimal> = r.iter().map(|&x| m * x * dot(&inv, &prices) / n / dot(&r, &prices)).collect();
+        let neg_b: Vec<FPDecimal> = b.iter().map(|&x| FPDecimal::from(-1i128) * x).collect();
+
+        // compute score
+        let diff = compute_diff(&inv, &neg_b, &prices, &target);
+        let score = (sum(&diff) / dot(&b, &prices)).div(2i128);
+
+        let PenaltyParams {
+            a_pos,
+            s_pos,
+            a_neg,
+            s_neg,
+        } = cfg.penalty_params;
+        let penalty = compute_penalty(score, a_pos, s_pos, a_neg, s_neg);
+        logs.push(log("score", score));
+        logs.push(log("penalty", penalty));
+        b.iter().map(|&x| penalty * x).collect()
     };
 
     // convert reward into Uint128 -- truncate decimal as roundoff
@@ -261,7 +267,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
 
     let transfer_msgs: Vec<CosmosMsg> = redeem_totals
         .iter()
-        .zip(assets.iter())
+        .zip(asset_infos.iter())
         .filter(|(amt, _asset)| !amt.is_zero()) // remove 0 amounts
         .map(|(amt, asset_info)| {
             let asset = Asset {
@@ -283,13 +289,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
                 log("sent_asset", sent_asset),
                 log("sent_tokens", sent_amount),
                 log("burn_amount", burn_amount),
-                log(
-                    "asset_weights",
-                    match &asset_weights {
-                        Some(v) => vec_to_string(v),
-                        None => "".to_string(),
-                    },
-                ),
+                log("asset_weights", vec_to_string(&asset_weights)),
                 log("redeem_totals", vec_to_string(&redeem_totals)),
                 log("redeem_roundoffs", vec_to_string(&redeem_roundoffs)),
             ],
@@ -358,6 +358,9 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     assets: &Vec<AssetInfo>,
     target: &Vec<u32>,
 ) -> StdResult<HandleResponse> {
+
+    // allow removal / adding
+    
     let cfg = read_config(&deps.storage)?;
     if let None = cfg.basket_token {
         return Err(error::basket_token_not_set());
@@ -477,17 +480,23 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         .clone()
         .ok_or_else(|| error::basket_token_not_set())?;
 
+
+    // accommmodate inputs: subsets of target assets vector
+
+    let mut new_asset_weights = vec![Uint128(0); asset_infos.len()];
+
+    // list of 0's for vector (size of asset_infos) -> replace in the for loop
     let asset_weights: Vec<Uint128> = {
-        let mut vec: Vec<Uint128> = Vec::new();
         for i in 0..asset_infos.len() {
             for weight in asset_amounts {
                 if weight.info.clone() == asset_infos[i].clone() {
-                    vec.push(weight.amount);
+                    new_asset_weights[i] = weight.amount;
                     break;
                 }
             }
+            // 0 if else
         }
-        vec
+        new_asset_weights
     };
 
     // ensure that all tokens in asset_amounts have been staged beforehand
@@ -545,7 +554,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 
     // compute number of new tokens
     let mint_subtotal =
-        penalty * dot(&c, &prices) / dot(&inv, &prices) * int_to_fpdec(basket_token_supply)?;
+        penalty * dot(&c, &prices) * int_to_fpdec(basket_token_supply)? / dot(&inv, &prices);
 
     let (mint_total, mint_roundoff) = fpdec_to_int(mint_subtotal)?; // the fraction part is kept inside basket
 
@@ -757,9 +766,90 @@ mod tests {
         let env = mock_env(h("addr0000"), &[]);
         let res = handle(&mut deps, env, mint_msg).unwrap();
 
-        // for _log in res.log.iter() {
-        //     //println!("{}: {}", log.key, log.value);
-        // }
+        for log in res.log.iter() {
+            println!("{}: {}", log.key, log.value);
+        }
+        assert_eq!(1, res.messages.len());
+    }
+
+    #[test]
+    // Should be same output as mint()
+    fn mint_two() {
+        let (mut deps, _init_res) = mock_init();
+        mock_querier_setup(&mut deps);
+
+        // Asset :: UST Price :: Balance (µ)     (+ proposed   ) :: %
+        // ---
+        // mAAPL ::  135.18   ::  7_290_053_159  (+ 125_000_000) :: 0.20367359382 -> 0.20391741720
+        // mGOOG :: 1780.03   ::    319_710_128                  :: 0.11761841035 -> 0.11577407690
+        // mMSFT ::  222.42   :: 14_219_281_228  (+ 149_000_000) :: 0.65364669475 -> 0.65013907200
+        // mNFLX ::  540.82   ::    224_212_221  (+  50_090_272) :: 0.02506130106 -> 0.03016943389
+        deps.querier
+            .set_token_balance("mAAPL", MOCK_CONTRACT_ADDR, 7_290_053_159)
+            .set_token_balance("mGOOG", MOCK_CONTRACT_ADDR, 319_710_128)
+            .set_token_balance("mMSFT", MOCK_CONTRACT_ADDR, 14_219_281_228)
+            .set_token_balance("mNFLX", MOCK_CONTRACT_ADDR, 224_212_221)
+            .set_oracle_prices(vec![
+                ("mAAPL", Decimal::from_str("135.18").unwrap()),
+                ("mGOOG", Decimal::from_str("1780.03").unwrap()),
+                ("mMSFT", Decimal::from_str("222.42").unwrap()),
+                ("mNFLX", Decimal::from_str("540.82").unwrap()),
+            ]);
+
+        let asset_amounts = vec![
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mMSFT"),
+                },
+                amount: Uint128(149_000_000),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mNFLX"),
+                },
+                amount: Uint128(50_090_272),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mAAPL"),
+                },
+                amount: Uint128(125_000_000),
+            },
+        ];
+        let mint_msg = HandleMsg::Mint {
+            asset_amounts: asset_amounts.clone(),
+            min_tokens: None,
+        };
+
+        let env = mock_env(h("addr0000"), &[]);
+        let res = handle(&mut deps, env, mint_msg.clone());
+        match res {
+            Err(..) => (),
+            _ => panic!("requires staging"),
+        }
+
+        for asset in asset_amounts {
+            let env = mock_env(
+                match asset.info {
+                    AssetInfo::Token { contract_addr } => contract_addr,
+                    AssetInfo::NativeToken { denom } => h(&denom),
+                },
+                &[],
+            );
+            let stage_asset_msg = HandleMsg::Receive(Cw20ReceiveMsg {
+                sender: h("addr0000"),
+                msg: Some(to_binary(&Cw20HookMsg::StageAsset {}).unwrap()),
+                amount: asset.amount,
+            });
+            handle(&mut deps, env, stage_asset_msg).unwrap();
+        }
+
+        let env = mock_env(h("addr0000"), &[]);
+        let res = handle(&mut deps, env, mint_msg).unwrap();
+
+        for log in res.log.iter() {
+            println!("{}: {}", log.key, log.value);
+        }
         assert_eq!(1, res.messages.len());
     }
 
