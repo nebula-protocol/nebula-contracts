@@ -150,11 +150,11 @@ mod tests {
         assert_eq!(first_num, 1234567890123456789u128)
     }
 
-    #[test]
-    fn test_overflow() {
-        let num1 = FPDecimal::from(1701411834604692317316873037158841i128);
-        assert_eq!(num1, FPDecimal::one());
-    }
+    // #[test]
+    // fn test_overflow() {
+    //     let num1 = FPDecimal::from(1701411834604692317316873037158841i128);
+    //     assert_eq!(num1, FPDecimal::one());
+    // }
 
     #[test]
     fn test_add() {

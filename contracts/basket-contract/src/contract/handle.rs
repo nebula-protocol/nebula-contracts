@@ -751,7 +751,7 @@ mod tests {
             let env = mock_env(
                 match asset.info {
                     AssetInfo::Token { contract_addr } => contract_addr,
-                    AssetInfo::NativeToken { denom } => h(&denom),
+                    AssetInfo::NativeToken { .. } => return,
                 },
                 &[],
             );
