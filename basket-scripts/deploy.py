@@ -231,7 +231,11 @@ def deploy():
         {
             "name": "Basket",
             "owner": deployer.key.acc_address,
-            "assets": Asset.asset_info_from_haddrs([wBTC, wETH, wXRP, wLUNA, MIR],
+            "assets": [Asset.cw20_asset_info(wBTC), 
+                       Asset.cw20_asset_info(wETH), 
+                       Asset.cw20_asset_info(wXRP), 
+                       Asset.cw20_asset_info(wLUNA), 
+                       Asset.cw20_asset_info(MIR)],
             "oracle": oracle,
             "penalty_params": {
                 "a_pos": "1",
@@ -431,7 +435,16 @@ def deploy():
     result = execute_contract(
         deployer,
         basket,
-        Basket.reset_target(Asset.asset_info_from_haddrs([wBTC, wETH, wXRP, wLUNA, MIR, ANC]), [10, 20, 15, 20, 20, 15]),
+        Basket.reset_target(
+            [
+                Asset.cw20_asset_info(wBTC), 
+                Asset.cw20_asset_info(wETH), 
+                Asset.cw20_asset_info(wXRP), 
+                Asset.cw20_asset_info(wLUNA), 
+                Asset.cw20_asset_info(MIR),
+                Asset.cw20_asset_info(ANC)
+            ],
+            [10, 20, 15, 20, 20, 15]),
         seq(),
         fee=StdFee(
             4000000, "20000000uluna"

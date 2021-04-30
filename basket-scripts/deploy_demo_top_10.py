@@ -336,14 +336,14 @@ def deploy():
                 deployer,
                 basket,
                 Basket.reset_target(
-                    Asset.asset_info_from_haddrs(new_assets), new_weights
+                    [Asset.cw20_asset_info(n) for n in new_assets], new_weights
                     ),
                 seq(),
                 fee=StdFee(
                     4000000, "20000000uluna"
                 ),  # burning may require a lot of gas if there are a lot of assets
             )
-            print(Asset.asset_info_from_haddrs(new_assets), new_weights)
+            print([Asset.cw20_asset_info(n) for n in new_assets], new_weights)
 
             print(f"reset contract TXHASH: {result.txhash}")
 
