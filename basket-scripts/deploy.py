@@ -404,7 +404,7 @@ def deploy():
                     Asset.asset(wXRP, "0"),
                     Asset.asset(wLUNA, "4000000000"),
                     Asset.asset(MIR, "0"),
-                    Asset.asset("uluna", "100000"),]
+                    Asset.asset("uluna", "100000", native=True),]
                 ),
             ),
         ],
@@ -414,6 +414,8 @@ def deploy():
 
     result = terra.tx.broadcast(stage_and_mint_tx)
     print(f"stage & mint TXHASH: {result.txhash}")
+    import pdb; pdb.set_trace()
+    print(result.logs[0].events_by_type)
 
     ### EXAMPLE: how to query
     print(
