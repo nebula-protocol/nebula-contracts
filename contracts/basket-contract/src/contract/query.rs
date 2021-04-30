@@ -118,7 +118,6 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
 
-    // TODO: RETURN ASSETINFO HERE
     Ok(BasketStateResponse {
         penalty_params,
         outstanding_balance_tokens,
@@ -126,5 +125,6 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         inv,
         assets,
         target,
+        basket_contract_address: basket_contract_address.clone(),
     })
 }

@@ -404,7 +404,7 @@ def deploy():
                     Asset.asset(wXRP, "0"),
                     Asset.asset(wLUNA, "4000000000"),
                     Asset.asset(MIR, "0"),
-                    Asset.asset("uluna", "100000"),]
+                    Asset.asset("uluna", "100000", native=True),]
                 ),
             ),
         ],
