@@ -227,7 +227,7 @@ def deploy():
 
             "name": "Basket",
             "owner": deployer.key.acc_address,
-            "assets": [asset['contract'] for asset in init_top_10],
+            "assets": [Asset.cw20_asset_info(asset['contract']) for asset in init_terra_tokens],
             "oracle": oracle,
             "penalty_params": {
                 "a_pos": "1",

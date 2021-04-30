@@ -147,7 +147,7 @@ def deploy():
         {
             "name": "Basket",
             "owner": deployer.key.acc_address,
-            "assets": [wBTC],
+            "assets": [Asset.cw20_asset_info(wBTC)],
             "oracle": oracle,
             "penalty_params": {
                 "a_pos": "1",

@@ -218,7 +218,6 @@ def deploy():
 
     ### EXAMPLE: how to stage and mint
 
-    # TODO Stage native here
     print("[deploy] - basket:stage_asset")
     stage_and_mint_tx = deployer.create_and_sign_tx(
         msgs=[

@@ -18,6 +18,7 @@ import time
 from terra_sdk.client.lcd import LCDClient
 from terra_sdk.client.localterra import LocalTerra
 from terra_sdk.core.auth import StdFee
+from terra_sdk.core.bank.msgs import MsgSend
 from terra_sdk.core.wasm import (
     MsgStoreCode,
     MsgInstantiateContract,
@@ -235,7 +236,8 @@ def deploy():
                        Asset.cw20_asset_info(wETH), 
                        Asset.cw20_asset_info(wXRP), 
                        Asset.cw20_asset_info(wLUNA), 
-                       Asset.cw20_asset_info(MIR)],
+                       Asset.cw20_asset_info(MIR),
+                       Asset.native_asset_info("uluna")],
             "oracle": oracle,
             "penalty_params": {
                 "a_pos": "1",
@@ -243,7 +245,7 @@ def deploy():
                 "a_neg": "0.005",
                 "s_neg": "0.5",
             },
-            "target": [10, 20, 15, 30, 25],
+            "target": [10, 20, 15, 30, 20, 5],
         },
         seq(),
     )
@@ -302,6 +304,26 @@ def deploy():
 
     result = terra.tx.broadcast(initial_balances_tx)
 
+    # Add native token uluna
+    amount_uluna = "1000000"
+    print(
+        f"[deploy] - give initial balances uluna {amount_uluna}"
+    )
+
+    # TODO 
+    initial_balances_tx = deployer.create_and_sign_tx(
+        msgs=[
+            MsgSend(
+                deployer.key.acc_address, basket, {"uluna": amount_uluna},
+            ),
+        ],
+        sequence=seq(),
+        fee=StdFee(4000000, "2000000uluna"),
+    )
+
+    result = terra.tx.broadcast(initial_balances_tx)
+    print(result.logs[0].events_by_type)
+
     # set oracle prices
     print(f"[deploy] - set oracle prices")
     execute_contract(
@@ -315,6 +337,7 @@ def deploy():
                 [wLUNA, "2.1"],
                 [MIR, "5.06"],
                 [ANC, "3.18"],
+                ["uluna", "15.00"],
             ]
         ),
         seq(),
@@ -340,7 +363,25 @@ def deploy():
 
     ### EXAMPLE: how to stage and mint
 
-    # wBTC wETH wXRP wLUNA MIR
+    # stage native here
+    print("[deploy] - basket:stage_native_asset")
+    stage_and_mint_tx = deployer.create_and_sign_tx(
+        msgs=[
+            MsgExecuteContract(
+                deployer.key.acc_address,
+                basket,
+                Basket.stage_native_asset("uluna", "100000"),
+                {"uluna": 100000},
+            ),
+        ],
+        sequence=seq(),
+        fee=StdFee(4000000, "2000000uluna"),
+    )
+    result = terra.tx.broadcast(stage_and_mint_tx)
+    print(f"stage native TXHASH: {result.txhash}")
+    print(result.logs[0].events_by_type)
+
+    # wBTC wETH wXRP wLUNA MIR uluna
     print("[deploy] - basket:stage_asset + basket:mint")
     stage_and_mint_tx = deployer.create_and_sign_tx(
         msgs=[
@@ -362,7 +403,8 @@ def deploy():
                     Asset.asset(wETH, "0"),
                     Asset.asset(wXRP, "0"),
                     Asset.asset(wLUNA, "4000000000"),
-                    Asset.asset(MIR, "0")]
+                    Asset.asset(MIR, "0"),
+                    Asset.asset("uluna", "100000"),]
                 ),
             ),
         ],
