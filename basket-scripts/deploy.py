@@ -414,6 +414,8 @@ def deploy():
 
     result = terra.tx.broadcast(stage_and_mint_tx)
     print(f"stage & mint TXHASH: {result.txhash}")
+    import pdb; pdb.set_trace()
+    print(result.logs[0].events_by_type)
 
     ### EXAMPLE: how to query
     print(
