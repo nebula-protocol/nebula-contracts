@@ -47,7 +47,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::ResetTarget { assets, target } => try_reset_target(deps, env, &assets, &target),
         HandleMsg::_SetBasketToken { basket_token } => {
             try_set_basket_token(deps, env, &basket_token)
-        } // HandleMsg::AddAssetType {asset} => try_add_asset_type(deps, env, asset),
+        }, // HandleMsg::AddAssetType {asset} => try_add_asset_type(deps, env, asset),
+        HandleMsg::_ResetOwner { owner } => try_reset_owner(deps, env, &owner),
     }
 }
 
@@ -113,7 +114,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         .collect::<Vec<_>>();
 
 
-    let mut ordered_min_redeem: Option<Vec<Uint128>> = match &redeem_mins {
+    let ordered_min_redeem: Option<Vec<Uint128>> = match &redeem_mins {
         Some(mins) => {
             let mut vec: Vec<Uint128> = Vec::new();
             for i in 0..asset_infos.len() {
@@ -448,6 +449,40 @@ pub fn try_set_basket_token<S: Storage, A: Api, Q: Querier>(
 }
 
 /* 
+     May be called by the Basket contract owner to reset the owner
+*/
+pub fn try_reset_owner<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    owner: &HumanAddr,
+) -> StdResult<HandleResponse> {
+    let cfg = read_config(&deps.storage)?;
+
+    // check permission
+    if env.message.sender != cfg.owner {
+        return Err(StdError::unauthorized());
+    }
+
+    // TODO: Error checking needed here? can this function be called more than once?
+    // if let Some(token) = cfg.basket_token {
+    //     return Err(error::basket_token_already_set(&token));
+    // }
+
+    let mut new_cfg = cfg.clone();
+    new_cfg.owner = owner.clone();
+    save_config(&mut deps.storage, &new_cfg)?;
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![
+            log("action", "_try_reset_owner"),
+            log("basket_token", &owner),
+        ],
+        data: None,
+    })
+}
+
+/* 
     Tries to mint cluster tokens from the asset amounts given.
     Throws error if there can only be less than 'min_tokens' minted from the assets.
     Note that the corresponding asset amounts need to be staged before in order to
@@ -608,7 +643,7 @@ pub fn try_unstage_asset<S: Storage, A: Api, Q: Querier>(
     asset: &AssetInfo,
     amount: &Option<Uint128>,
 ) -> StdResult<HandleResponse> {
-    let cfg = read_config(&deps.storage)?;
+    let _cfg = read_config(&deps.storage)?;
     let target_asset_data = read_target_asset_data(&deps.storage)?;
     let assets = target_asset_data
         .iter()
