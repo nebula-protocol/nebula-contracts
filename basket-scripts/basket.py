@@ -64,5 +64,8 @@ class Governance:
                 "execute_msg": execute_msg
             }
         }
-    def execute_msg(contract, msg):
+    def create_execute_msg(contract, msg_data=None):
+        msg = None
+        if msg_data is not None:
+            msg = dict_to_b64(msg_data)
         return {"contract": contract, "msg": msg}

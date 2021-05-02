@@ -177,7 +177,7 @@ def deploy():
             "symbol": "NEB",
             "decimals": 6,
             "initial_balances": [
-                {"address": deployer.key.acc_address, "amount": "100000000000"}
+                {"address": deployer.key.acc_address, "amount": "1000000000000"}
             ],
             "mint": None,
         },
@@ -277,8 +277,8 @@ def deploy():
     print(result.logs[0].events_by_type)
 
     poll = Governance.create_poll(
-        "Test", "Test", "TestLink",
-        Governance.execute_msg(
+        "Test", "Test", "TestLink1234",
+        Governance.create_execute_msg(
             basket,
             Basket.reset_target(Asset.asset_info_from_haddrs([wBTC, wETH]), [25, 75])
         )
@@ -288,7 +288,7 @@ def deploy():
         deployer,
         nebula_token,
         CW20.send(
-            nebula_gov, "100000000", poll
+            nebula_gov, "10000000000", poll
         ), 
         seq(),
         fee=StdFee(
