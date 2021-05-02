@@ -52,3 +52,17 @@ class Basket:
     @staticmethod
     def reset_target(new_assets, new_target):
         return {"reset_target": {"assets": new_assets, "target": new_target}}
+
+class Governance:
+    @staticmethod
+    def create_poll(title, description, link = None, execute_msg=None):
+        return {
+            "create_poll": {
+                "title": title, 
+                "description": description, 
+                "link": link, 
+                "execute_msg": execute_msg
+            }
+        }
+    def execute_msg(contract, msg):
+        return {"contract": contract, "msg": msg}
