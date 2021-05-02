@@ -3,14 +3,13 @@ use cosmwasm_std::{
 };
 
 use crate::ext_query::{
-    query_cw20_balance, query_cw20_balance_minus_staged, query_cw20_token_supply, query_price,
+    query_cw20_balance_minus_staged, query_cw20_token_supply, query_native_balance_minus_staged,
+    query_price,
 };
 use crate::msg::{
     BasketStateResponse, ConfigResponse, QueryMsg, StagedAmountResponse, TargetResponse,
 };
-use crate::state::{
-    read_config, read_staged_asset, read_target_asset_data,
-};
+use crate::state::{read_config, read_staged_asset, read_target_asset_data};
 use basket_math::FPDecimal;
 use terraswap::asset::AssetInfo;
 
@@ -50,13 +49,6 @@ fn query_target<S: Storage, A: Api, Q: Querier>(
         .iter()
         .map(|x| x.target)
         .collect::<Vec<_>>();
-    // let assets = target_asset_data
-    //     .iter()
-    //     .map(|x| match &x.asset {
-    //         AssetInfo::Token { contract_addr } => contract_addr.clone(),
-    //         AssetInfo::NativeToken { denom } => h(denom).clone(),
-    //     })
-    //     .collect::<Vec<_>>();
     let assets = target_asset_data
         .iter()
         .map(|x| x.asset.clone())
@@ -98,10 +90,7 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
     // get prices for each asset
     let prices = assets
         .iter()
-        .map(|asset| match asset {
-            AssetInfo::Token { contract_addr } => query_price(&deps, &cfg.oracle, &contract_addr),
-            AssetInfo::NativeToken { denom } => query_price(&deps, &cfg.oracle, &h(denom)),
-        })
+        .map(|asset_info| query_price(&deps, &cfg.oracle, asset_info))
         .collect::<StdResult<Vec<FPDecimal>>>()?;
 
     // get inventory
@@ -112,11 +101,10 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
                 query_cw20_balance_minus_staged(&deps, &contract_addr, basket_contract_address)
             }
             AssetInfo::NativeToken { denom } => {
-                query_cw20_balance_minus_staged(&deps, &h(denom), basket_contract_address)
+                query_native_balance_minus_staged(&deps, denom, basket_contract_address)
             }
         })
         .collect::<StdResult<Vec<Uint128>>>()?;
-
 
     let target_asset_data = read_target_asset_data(&deps.storage)?;
 
@@ -127,19 +115,16 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
 
     let assets = target_asset_data
         .iter()
-        .map(|x| match &x.asset {
-            AssetInfo::Token { contract_addr } => contract_addr.clone(),
-            AssetInfo::NativeToken { denom } => h(denom).clone(),
-        })
+        .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
 
-    // TODO: RETURN ASSETINFO HERE
     Ok(BasketStateResponse {
         penalty_params,
         outstanding_balance_tokens,
         prices,
         inv,
         assets,
-        target
+        target,
+        basket_contract_address: basket_contract_address.clone(),
     })
 }

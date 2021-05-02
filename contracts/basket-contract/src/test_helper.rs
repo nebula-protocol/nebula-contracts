@@ -12,6 +12,7 @@ use cw20::TokenInfoResponse;
 use std::collections::HashMap;
 pub use std::str::FromStr;
 use terra_cosmwasm::*;
+use terraswap::asset::{AssetInfo};
 
 /// Convenience function for creating inline HumanAddr
 pub fn h(s: &str) -> HumanAddr {
@@ -30,6 +31,7 @@ macro_rules! q {
 pub struct CustomMockQuerier {
     pub base: MockQuerier<TerraQueryWrapper>,
     pub token_querier: TokenQuerier,   // token balances
+    pub balance_querier: BalanceQuerier, // native balances
     pub oracle_querier: OracleQuerier, // token registered prices
     pub canonical_length: usize,
 }
@@ -62,6 +64,23 @@ impl CustomMockQuerier {
                 route: _,
                 query_data: _,
             }) => panic!("Tried to access Terra query -- not implemented"),
+            QueryRequest::Bank(BankQuery::Balance{ address, denom }) => {
+                // Do for native
+                let denom_data = match self.balance_querier.balances.get(denom) {
+                    Some(v) => v,
+                    None => {
+                        return Err(SystemError::InvalidRequest{
+                            error: format!("Denom not found in balances"),
+                            request: Binary(vec![]),
+                        })
+                    }
+                };
+                let balance = match denom_data.get(&address) {
+                    Some(v) => v,
+                    None => &Uint128(0)
+                };
+                Ok(to_binary(&BalanceResponse{amount: coin(balance.u128(), denom)}))
+            },
             QueryRequest::Wasm(WasmQuery::Smart { contract_addr, msg }) => {
                 match from_binary(&msg).unwrap() {
                     ExtQueryMsg::Price {
@@ -177,6 +196,22 @@ impl TokenQuerier {
     }
 }
 
+#[derive(Default)]
+pub struct BalanceQuerier {
+    // this lets us iterate over all pairs that match the first string
+
+    // balances: denom -> account address -> amount 
+    pub balances: HashMap<String, HashMap<HumanAddr, Uint128>>,
+}
+
+impl BalanceQuerier {
+    pub fn new() -> Self {
+        BalanceQuerier {
+            balances: HashMap::new(),
+        }
+    }
+}
+
 #[derive(Clone, Default)]
 pub struct OracleQuerier {
     // this lets us iterate over all pairs that match the first string
@@ -201,6 +236,7 @@ impl CustomMockQuerier {
             base,
             token_querier: TokenQuerier::default(),
             oracle_querier: OracleQuerier::default(),
+            balance_querier: BalanceQuerier::default(),
             canonical_length,
         }
     }
@@ -216,6 +252,14 @@ impl CustomMockQuerier {
         T: Into<HumanAddr>,
     {
         self.token_querier.tokens.insert(token_address.into(), data);
+        self
+    }
+
+    pub fn set_denom<T>(&mut self, denom: T, balances: HashMap<HumanAddr, Uint128>) -> &mut Self
+    where
+        T: Into<String>,
+    {
+        self.balance_querier.balances.insert(denom.into(), balances);
         self
     }
 
@@ -242,6 +286,23 @@ impl CustomMockQuerier {
         if let Some(token) = self.token_querier.tokens.get_mut(&token_address.into()) {
             token
                 .balances
+                .insert(account_address.into(), Uint128(balance));
+        }
+        self
+    }
+
+    pub fn set_denom_balance<T, U>(
+        &mut self,
+        denom: T,
+        account_address: U,
+        balance: u128,
+    ) -> &mut Self
+    where
+        T: Into<String>,
+        U: Into<HumanAddr>,
+    {
+        if let Some(denom) = self.balance_querier.balances.get_mut(&denom.into()) {
+            denom
                 .insert(account_address.into(), Uint128(balance));
         }
         self
@@ -307,11 +368,35 @@ pub mod consts {
     pub fn oracle() -> HumanAddr {
         h("oracle")
     }
-    pub fn assets() -> Vec<HumanAddr> {
-        vec![h("mAAPL"), h("mGOOG"), h("mMSFT"), h("mNFLX")]
+    pub fn assets() -> Vec<AssetInfo> {
+        vec![AssetInfo::Token {
+            contract_addr: h("mAAPL"),
+        }, AssetInfo::Token {
+            contract_addr: h("mGOOG"),
+        }, AssetInfo::Token {
+            contract_addr: h("mMSFT"),
+        }, AssetInfo::Token {
+            contract_addr: h("mNFLX"),
+        }]
     }
     pub fn target() -> Vec<u32> {
         vec![20, 10, 65, 5]
+    }
+    pub fn assets_native_stage() -> Vec<AssetInfo> {
+        vec![
+            AssetInfo::Token {
+                contract_addr: h("wBTC"),
+            }, 
+            AssetInfo::NativeToken {
+                denom: "uluna".to_string(),
+            }, 
+            // AssetInfo::Token {
+            //     contract_addr: h("LUNA"),
+            // },
+        ]
+    }
+    pub fn target_native_stage() -> Vec<u32> {
+        vec![50, 50]
     }
     pub fn penalty_params() -> PenaltyParams {
         PenaltyParams {
@@ -334,6 +419,26 @@ pub fn mock_init() -> (
         owner: consts::owner(),
         basket_token: Some(consts::basket_token()),
         target: consts::target(),
+        oracle: consts::oracle(),
+        penalty_params: consts::penalty_params(),
+    };
+
+    let env = mock_env(consts::oracle().as_str(), &[]);
+    let res = init(&mut deps, env.clone(), msg).unwrap();
+    (deps, res)
+}
+
+pub fn mock_init_native_stage() -> (
+    Extern<MockStorage, MockApi, CustomMockQuerier>,
+    InitResponse,
+) {
+    let mut deps = mock_dependencies(20, &[]);
+    let msg = InitMsg {
+        name: consts::name().to_string(),
+        assets: consts::assets_native_stage(),
+        owner: consts::owner(),
+        basket_token: Some(consts::basket_token()),
+        target: consts::target_native_stage(),
         oracle: consts::oracle(),
         penalty_params: consts::penalty_params(),
     };
@@ -404,5 +509,38 @@ pub fn mock_querier_setup(deps: &mut Extern<MockStorage, MockApi, CustomMockQuer
         ("mGOOG", Decimal::from_str("1.0").unwrap()),
         ("mMSFT", Decimal::from_str("1.0").unwrap()),
         ("mNFLX", Decimal::from_str("1.0").unwrap()),
+    ]);
+}
+
+/// sets up mock queriers with basic setup
+pub fn mock_querier_setup_stage_native(deps: &mut Extern<MockStorage, MockApi, CustomMockQuerier>) {
+    deps.querier
+        .reset_token_querier()
+        .set_token(
+            consts::basket_token(),
+            token_data::<Vec<(&str, u128)>, &str>(
+                "Basket Token",
+                "BASKET",
+                6,
+                1_000_000_000,
+                vec![],
+            ),
+        )
+        .set_token(
+            "wBTC",
+            token_data(
+                "Wrapped BTC",
+                "wBTC",
+                6,
+                1_000_000_000_000,
+                vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
+            ),
+        )
+        .set_denom("uluna", HashMap::new());
+
+    deps.querier.reset_oracle_querier().set_oracle_prices(vec![
+        ("uusd", Decimal::one()),
+        ("wBTC", Decimal::from_str("1.0").unwrap()),
+        ("uluna", Decimal::from_str("1.0").unwrap()),
     ]);
 }

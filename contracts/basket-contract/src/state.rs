@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use basket_math::FPDecimal;
 use cosmwasm_std::{HumanAddr, StdError, StdResult, Storage, Uint128};
 use cosmwasm_storage::{bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket};
-use terraswap::asset::{Asset, AssetInfo};
+use terraswap::asset::{AssetInfo};
 
 /// config: BasketConfig
 pub static CONFIG_KEY: &[u8] = b"config";
@@ -80,7 +80,6 @@ pub fn read_total_staged_asset<S: Storage>(storage: &S, asset: &AssetInfo) -> St
         .or(Ok(Uint128(0)))
 }
 
-
 pub fn read_staged_asset<S: Storage>(
     storage: &S,
     account: &HumanAddr,
@@ -102,13 +101,7 @@ pub fn stage_asset<S: Storage>(
 ) -> StdResult<()> {
     let curr_amount = read_staged_asset(storage, account, asset)?;
 
-    let curr_total_staged = read_total_staged_asset(storage, asset);
-
-    // Check if zero
-    let curr_total_staged = match curr_total_staged {
-        Ok(v) => v,
-        Err(_) => Uint128::zero(),
-    };
+    let curr_total_staged = read_total_staged_asset(storage, asset)?;
 
     bucket(PREFIX_TOTAL_STAGING, storage)
         .save(asset.to_string().as_bytes(), &(curr_total_staged + amount))?;
