@@ -52,6 +52,10 @@ class Basket:
     @staticmethod
     def reset_target(new_assets, new_target):
         return {"reset_target": {"assets": new_assets, "target": new_target}}
+    
+    @staticmethod
+    def reset_owner(owner):
+        return {"__reset_owner": {"owner": owner}}
 
 class Governance:
     @staticmethod
@@ -64,8 +68,26 @@ class Governance:
                 "execute_msg": execute_msg
             }
         }
+
     def create_execute_msg(contract, msg_data=None):
         msg = None
         if msg_data is not None:
             msg = dict_to_b64(msg_data)
         return {"contract": contract, "msg": msg}
+    
+    @staticmethod
+    def stake_voting_tokens():
+        return {"stake_voting_tokens": {}}
+
+    @staticmethod
+    def cast_vote(poll_id, vote, amount):
+        assert (vote == "yes" or vote == "no")
+        return {"cast_vote": {"poll_id": poll_id, "vote": vote, "amount": amount}}
+
+    @staticmethod
+    def execute_poll(poll_id):
+        return {"execute_poll": {"poll_id": poll_id}}
+
+    @staticmethod
+    def end_poll(poll_id):
+        return {"end_poll": {"poll_id": poll_id}}

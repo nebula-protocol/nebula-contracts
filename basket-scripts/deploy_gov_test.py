@@ -14,6 +14,7 @@ incurs multiple CW20 transfers to the user may require more gas than permitted b
 fee estimation feature).
 """
 
+import time
 from terra_sdk.client.lcd import LCDClient
 from terra_sdk.client.localterra import LocalTerra
 from terra_sdk.core.auth import StdFee
@@ -29,10 +30,11 @@ from basket import Oracle, Basket, CW20, Asset, Governance
 # If True, use localterra. Otherwise, deploys on Tequila
 USE_LOCALTERRA = True
 
+DEFAULT_POLL_ID = 1
 DEFAULT_QUORUM = "0.3"
 DEFAULT_THRESHOLD = "0.5"
-DEFAULT_VOTING_PERIOD = 10000
-DEFAULT_EFFECTIVE_DELAY = 10000
+DEFAULT_VOTING_PERIOD = 4
+DEFAULT_EFFECTIVE_DELAY = 6
 DEFAULT_EXPIRATION_PERIOD = 20000
 DEFAULT_PROPOSAL_DEPOSIT = "10000000000"
 
@@ -240,6 +242,7 @@ def deploy():
     print(f"[deploy] - set basket token")
     execute_contract(deployer, basket, Basket.set_basket_token(basket_token), seq())
 
+    execute_contract(deployer, basket, Basket.reset_owner(nebula_gov), seq())
     # set oracle prices
     print(f"[deploy] - set oracle prices")
     execute_contract(
@@ -276,6 +279,11 @@ def deploy():
     result = terra.tx.broadcast(initial_balances_tx)
     print(result.logs[0].events_by_type)
 
+    # Create poll
+    print(
+        f"[deploy] - create poll"
+    )
+
     poll = Governance.create_poll(
         "Test", "Test", "TestLink1234",
         Governance.create_execute_msg(
@@ -288,7 +296,7 @@ def deploy():
         deployer,
         nebula_token,
         CW20.send(
-            nebula_gov, "10000000000", poll
+            nebula_gov, DEFAULT_PROPOSAL_DEPOSIT, poll
         ), 
         seq(),
         fee=StdFee(
@@ -296,7 +304,102 @@ def deploy():
         ),
     )
 
+    print(result.logs[0].events_by_type)
 
+    # Stake
+    print(
+        f"[deploy] - stake 50% of basket tokens"
+    )
+
+    # result = execute_contract(
+    #     deployer,
+    #     nebula_token,
+    #     CW20.send(
+    #         nebula_gov, "1000", Governance.stake_voting_tokens()
+    #     ), 
+    #     seq(),
+    #     fee=StdFee(
+    #         4000000, "20000000uluna"
+    #     ),
+    # )
+    # print(result.logs[0].events_by_type)
+    
+    stake_amount = "500000000000"
+    result = execute_contract(
+        deployer,
+        nebula_token,
+        CW20.send(
+            nebula_gov, stake_amount, Governance.stake_voting_tokens()
+        ), 
+        seq(),
+        fee=StdFee(
+            4000000, "20000000uluna"
+        ),
+    )
+
+    print(result.logs[0].events_by_type)
+
+    # cast vote
+    print(
+        f"[deploy] - cast vote for YES"
+    )
+    
+    result = execute_contract(
+        deployer,
+        nebula_gov,
+        Governance.cast_vote(DEFAULT_POLL_ID, "yes", stake_amount), 
+        seq(),
+        fee=StdFee(
+            4000000, "20000000uluna"
+        ),
+    )
+    print(result.logs[0].events_by_type)
+
+    # # increase block time (?)
+    # global sequence
+    # sequence += DEFAULT_EFFECTIVE_DELAY
+
+    # execute poll
+    print(f"sequence # is: {deployer.sequence()}")
+    print(
+        f"[deploy] - execute vote"
+    )
+    
+    time.sleep(5)
+
+    result = execute_contract(
+        deployer,
+        nebula_gov,
+        Governance.end_poll(DEFAULT_POLL_ID),
+        seq(),
+        fee=StdFee(
+            4000000, "20000000uluna"
+        ),
+    )
+
+    result = execute_contract(
+        deployer,
+        nebula_gov,
+        Governance.execute_poll(DEFAULT_POLL_ID),
+        seq(),
+        fee=StdFee(
+            4000000, "20000000uluna"
+        ),
+    )
+
+    print(result.logs[0].events_by_type)
+    
+    # Verify target has changed
+    print(
+        f"[deploy] - verify target changed"
+    )
+
+    print(
+        terra.wasm.contract_query(
+            basket, {"basket_state": {"basket_contract_address": basket}}
+        )
+    )
+    
     # ### EXAMPLE: how to query basket state
     # print("FIRST")
     # print(
