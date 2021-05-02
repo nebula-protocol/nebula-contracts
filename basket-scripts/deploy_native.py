@@ -17,6 +17,7 @@ fee estimation feature).
 from terra_sdk.client.lcd import LCDClient
 from terra_sdk.client.localterra import LocalTerra
 from terra_sdk.core.auth import StdFee
+from terra_sdk.core.bank.msgs import MsgSend
 from terra_sdk.core.wasm import (
     MsgStoreCode,
     MsgInstantiateContract,
@@ -120,21 +121,6 @@ def deploy():
     print(f"[deploy] - store basket_contract")
     basket_code_id = store_contract("basket_contract", seq())
 
-    # wrapped bitcoin
-    print(f"[deploy] - instantiate wBTC")
-    wBTC = instantiate_contract(
-        token_code_id,
-        {
-            "name": "Wrapped Bitcoin",
-            "symbol": "wBTC",
-            "decimals": 6,
-            "initial_balances": [
-                {"address": deployer.key.acc_address, "amount": "400000000"}
-            ],
-            "mint": None,
-        },
-        seq(),
-    )
 
     # instantiate oracle
     print(f"[deploy] - instantiate oracle")
@@ -147,7 +133,7 @@ def deploy():
         {
             "name": "Basket",
             "owner": deployer.key.acc_address,
-            "assets": [Asset.cw20_asset_info(wBTC)],
+            "assets": [Asset.native_asset_info('uluna')],
             "oracle": oracle,
             "penalty_params": {
                 "a_pos": "1",
@@ -187,22 +173,24 @@ def deploy():
         oracle,
         Oracle.set_prices(
             [
-                [wBTC, "30000.0"],
+                ['uluna', "15.00"],
             ]
         ),
         seq(),
     )
 
     # sets initial balance of basket contract
-    amount_wBTC = "1000000"
+    amount_uluna = "1000000"
 
     print(
-        f"[deploy] - give initial balances wBTC {amount_wBTC}"
+        f"[deploy] - give initial balances uluna {amount_uluna}"
     )
+
+    # TODO 
     initial_balances_tx = deployer.create_and_sign_tx(
         msgs=[
-            MsgExecuteContract(
-                deployer.key.acc_address, wBTC, CW20.transfer(basket, amount_wBTC)
+            MsgSend(
+                deployer.key.acc_address, basket, {"uluna": amount_uluna},
             ),
         ],
         sequence=seq(),
@@ -229,13 +217,15 @@ def deploy():
     )
 
     ### EXAMPLE: how to stage and mint
+
     print("[deploy] - basket:stage_asset")
     stage_and_mint_tx = deployer.create_and_sign_tx(
         msgs=[
             MsgExecuteContract(
                 deployer.key.acc_address,
-                wBTC,
-                CW20.send(basket, "1000000", Basket.stage_asset()),
+                basket,
+                Basket.stage_native_asset("uluna", "100000"),
+                {"uluna": 100000},
             ),
         ],
         sequence=seq(),
@@ -259,7 +249,7 @@ def deploy():
             MsgExecuteContract(
                 deployer.key.acc_address,
                 basket,
-                Basket.mint([Asset.asset(wBTC, "1000000")]),
+                Basket.mint([Asset.asset("uluna", "100000", native=True)]),
             ),
         ],
         sequence=seq(),

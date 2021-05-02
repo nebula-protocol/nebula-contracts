@@ -92,13 +92,7 @@ pub fn stage_asset<S: Storage>(
 ) -> StdResult<()> {
     let curr_amount = read_staged_asset(storage, account, asset)?;
 
-    let curr_total_staged = read_total_staged_asset(storage, asset);
-
-    // Check if zero
-    let curr_total_staged = match curr_total_staged {
-        Ok(v) => v,
-        Err(_) => Uint128::zero(),
-    };
+    let curr_total_staged = read_total_staged_asset(storage, asset)?;
 
     bucket(PREFIX_TOTAL_STAGING, storage)
         .save(asset.to_string().as_bytes(), &(curr_total_staged + amount))?;

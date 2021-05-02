@@ -4,7 +4,6 @@ use crate::{
     util::vec_to_string,
 };
 use cosmwasm_std::{log, Api, Env, Extern, InitResponse, Querier, StdResult, Storage};
-use terraswap::asset::AssetInfo;
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -35,9 +34,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     let mut asset_data: Vec<TargetAssetData> = Vec::new();
     for i in 0..msg.target.len() {
         let asset_elem = TargetAssetData {
-            asset: AssetInfo::Token {
-                contract_addr: assets[i].clone(),
-            },
+            asset: assets[i].clone(),
             target: target[i].clone(),
         };
         asset_data.push(asset_elem);

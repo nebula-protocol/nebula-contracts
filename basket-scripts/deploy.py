@@ -14,9 +14,11 @@ incurs multiple CW20 transfers to the user may require more gas than permitted b
 fee estimation feature).
 """
 
+import time
 from terra_sdk.client.lcd import LCDClient
 from terra_sdk.client.localterra import LocalTerra
 from terra_sdk.core.auth import StdFee
+from terra_sdk.core.bank.msgs import MsgSend
 from terra_sdk.core.wasm import (
     MsgStoreCode,
     MsgInstantiateContract,
@@ -25,6 +27,10 @@ from terra_sdk.core.wasm import (
 from terra_sdk.util.contract import get_code_id, get_contract_address, read_file_as_b64
 
 from basket import Oracle, Basket, CW20, Asset
+from oracle_feeder import get_prices
+from requests import Request, Session
+from requests.exceptions import ConnectionError, Timeout, TooManyRedirects
+import json
 
 # If True, use localterra. Otherwise, deploys on Tequila
 USE_LOCALTERRA = True
@@ -58,7 +64,6 @@ else:
         "https://tequila-fcd.terra.dev", "tequila-0004", gas_prices=gas_prices
     )
     deployer = terra.wallet(lt.wallets["test1"].key)
-
 
 def store_contract(contract_name, sequence):
     contract_bytes = read_file_as_b64(f"../artifacts/{contract_name}.wasm")
@@ -246,10 +251,15 @@ def deploy():
         {
             "name": "Basket",
             "owner": deployer.key.acc_address,
-            "assets": [wBTC, wETH, wXRP, wLUNA, MIR],
+            "assets": [Asset.cw20_asset_info(wBTC), 
+                       Asset.cw20_asset_info(wETH), 
+                       Asset.cw20_asset_info(wXRP), 
+                       Asset.cw20_asset_info(wLUNA), 
+                       Asset.cw20_asset_info(MIR),
+                       Asset.native_asset_info("uluna")],
             "oracle": oracle,
             "penalty": penalty_contract,
-            "target": [10, 20, 15, 30, 25],
+            "target": [10, 20, 15, 30, 20, 5],
         },
         seq(),
     )
@@ -273,24 +283,6 @@ def deploy():
     # set basket token
     print(f"[deploy] - set basket token")
     execute_contract(deployer, basket, Basket.set_basket_token(basket_token), seq())
-
-    # set oracle prices
-    print(f"[deploy] - set oracle prices")
-    execute_contract(
-        deployer,
-        oracle,
-        Oracle.set_prices(
-            [
-                [wBTC, "30000.0"],
-                [wETH, "1500.0"],
-                [wXRP, "0.45"],
-                [wLUNA, "2.1"],
-                [MIR, "5.06"],
-                [ANC, "3.18"],
-            ]
-        ),
-        seq(),
-    )
 
     # sets initial balance of basket contract
     total = 5000000
@@ -326,6 +318,49 @@ def deploy():
 
     result = terra.tx.broadcast(initial_balances_tx)
 
+    # Add native token uluna
+    amount_uluna = "1000000"
+    print(
+        f"[deploy] - give initial balances uluna {amount_uluna}"
+    )
+
+    # TODO 
+    initial_balances_tx = deployer.create_and_sign_tx(
+        msgs=[
+            MsgSend(
+                deployer.key.acc_address, basket, {"uluna": amount_uluna},
+            ),
+        ],
+        sequence=seq(),
+        fee=StdFee(4000000, "2000000uluna"),
+    )
+
+    result = terra.tx.broadcast(initial_balances_tx)
+    print(result.logs[0].events_by_type)
+
+    # set oracle prices
+    print(f"[deploy] - set oracle prices")
+    execute_contract(
+        deployer,
+        oracle,
+        Oracle.set_prices(
+            [
+                [wBTC, "30000.0"],
+                [wETH, "1500.0"],
+                [wXRP, "0.45"],
+                [wLUNA, "2.1"],
+                [MIR, "5.06"],
+                [ANC, "3.18"],
+                ["uluna", "15.00"],
+            ]
+        ),
+        seq(),
+    )
+
+    debug_print = terra.wasm.contract_query(
+            basket, {"basket_state": {"basket_contract_address": basket}}
+        )
+
     print('PREMINT')
     print(
         terra.wasm.contract_query(
@@ -347,7 +382,25 @@ def deploy():
 
     ### EXAMPLE: how to stage and mint
 
-    # wBTC wETH wXRP wLUNA MIR
+    # stage native here
+    print("[deploy] - basket:stage_native_asset")
+    stage_and_mint_tx = deployer.create_and_sign_tx(
+        msgs=[
+            MsgExecuteContract(
+                deployer.key.acc_address,
+                basket,
+                Basket.stage_native_asset("uluna", "100000"),
+                {"uluna": 100000},
+            ),
+        ],
+        sequence=seq(),
+        fee=StdFee(4000000, "2000000uluna"),
+    )
+    result = terra.tx.broadcast(stage_and_mint_tx)
+    print(f"stage native TXHASH: {result.txhash}")
+    print(result.logs[0].events_by_type)
+
+    # wBTC wETH wXRP wLUNA MIR uluna
     print("[deploy] - basket:stage_asset + basket:mint")
     stage_and_mint_tx = deployer.create_and_sign_tx(
         msgs=[
@@ -369,7 +422,8 @@ def deploy():
                     Asset.asset(wETH, "0"),
                     Asset.asset(wXRP, "0"),
                     Asset.asset(wLUNA, "4000000000"),
-                    Asset.asset(MIR, "0")]
+                    Asset.asset(MIR, "0"),
+                    Asset.asset("uluna", "100000", native=True),]
                 ),
             ),
         ],
@@ -379,6 +433,7 @@ def deploy():
 
     result = terra.tx.broadcast(stage_and_mint_tx)
     print(f"stage & mint TXHASH: {result.txhash}")
+    print(result.logs[0].events_by_type)
 
     ### EXAMPLE: how to query
     print(
@@ -445,7 +500,16 @@ def deploy():
     result = execute_contract(
         deployer,
         basket,
-        Basket.reset_target(Asset.asset_info_from_haddrs([wBTC, wETH, wXRP, wLUNA, MIR, ANC]), [10, 20, 15, 20, 20, 15]),
+        Basket.reset_target(
+            [
+                Asset.cw20_asset_info(wBTC), 
+                Asset.cw20_asset_info(wETH), 
+                Asset.cw20_asset_info(wXRP), 
+                Asset.cw20_asset_info(wLUNA), 
+                Asset.cw20_asset_info(MIR),
+                Asset.cw20_asset_info(ANC)
+            ],
+            [10, 20, 15, 20, 20, 15]),
         seq(),
         fee=StdFee(
             4000000, "20000000uluna"
@@ -503,6 +567,5 @@ def deploy():
             "basket_token": basket_token,
         }
     )
-
 
 deploy()

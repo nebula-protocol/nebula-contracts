@@ -5,7 +5,8 @@ use cosmwasm_std::{
 };
 use cw20::{BalanceResponse as Cw20BalanceResponse, TokenInfoResponse as Cw20TokenInfoResponse};
 use serde::{Deserialize, Serialize};
-use terraswap::asset::AssetInfo;
+use std::str::FromStr;
+use terraswap::{asset::AssetInfo, querier::query_balance};
 
 /// QueryMsgs to external contracts
 #[derive(Serialize, Deserialize)]
@@ -67,18 +68,37 @@ pub struct RedeemResponse {
 pub fn query_price<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     oracle_address: &HumanAddr,
-    asset_address: &HumanAddr,
-) -> StdResult<String> {
+    asset_info: &AssetInfo,
+) -> StdResult<FPDecimal> {
     // perform query
     let res: PriceResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: oracle_address.clone(),
         msg: to_binary(&ExtQueryMsg::Price {
-            base_asset: asset_address.to_string(),
+            base_asset: asset_info.to_string(),
             quote_asset: "uusd".to_string(),
         })?,
     }))?;
 
     Ok(res.rate.to_string().as_str().parse().unwrap())
+}
+
+// Query native balances
+pub fn query_native_balance_minus_staged<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    denom: &String,
+    account_address: &HumanAddr,
+) -> StdResult<Uint128> {
+    let tot_balance = query_balance(&deps, account_address, denom.clone())?;
+    // let all_balances = query_all_balances(&deps, account_address)?;
+    // println!("me balances {:?}", all_balances);
+    let staged_balance = read_total_staged_asset(
+        &deps.storage,
+        &AssetInfo::NativeToken {
+            denom: denom.clone(),
+        },
+    )?;
+
+    tot_balance - staged_balance
 }
 
 /// EXTERNAL QUERY

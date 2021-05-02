@@ -9,7 +9,8 @@ use error::bad_weight_values;
 use crate::error;
 use crate::ext_query::{
     query_mint_amount,
-    query_redeem_amount,
+    query_redeem_amount, query_cw20_balance_minus_staged, query_cw20_token_supply, query_native_balance_minus_staged,
+    query_price,
 };
 use crate::state::{read_config, save_config, stage_asset, unstage_asset, TargetAssetData};
 use crate::util::{vec_to_string};
@@ -23,10 +24,6 @@ use crate::{
 use terraswap::asset::{Asset, AssetInfo};
 use crate::contract::query_basket_state;
 
-/// Convenience function for creating inline HumanAddr
-pub fn h(s: &str) -> HumanAddr {
-    HumanAddr(s.to_string())
-}
 
 /*
     Match the incoming message to the right category: receive, mint,
@@ -51,9 +48,21 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::ResetPenalty { penalty } => {
             try_reset_penalty(deps, env, &penalty)
         }
-
-
         // HandleMsg::AddAssetType {asset} => try_add_asset_type(deps, env, asset),
+        // HandleMsg::AddAssetType {asset} => try_add_asset_type(deps, env, asset),
+        HandleMsg::StageNativeAsset { asset } => {
+            // only native token can be deposited directly
+            if !asset.is_native_token() {
+                return Err(StdError::unauthorized());
+            }
+
+            // Check the actual deposit happens
+            asset.assert_sent_native_token_balance(&env)?;
+
+            let sender = &env.message.sender.clone();
+
+            try_receive_stage_asset(deps, env, sender, &asset)
+        }
     }
 }
 
@@ -70,6 +79,12 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
     let sender = cw20_msg.sender;
     let sent_asset = env.message.sender.clone();
     let sent_amount = cw20_msg.amount;
+    let asset = Asset {
+        info: AssetInfo::Token {
+            contract_addr: sent_asset,
+        },
+        amount: sent_amount,
+    };
 
     // Using HumanAddr instead of AssetInfo for cw20
     if let Some(msg) = cw20_msg.msg {
@@ -80,13 +95,10 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
                 deps,
                 env,
                 &sender,
-                &sent_asset,
-                sent_amount,
+                &asset,
                 asset_amounts,
             ),
-            Cw20HookMsg::StageAsset {} => {
-                try_receive_stage_asset(deps, env, &sender, &sent_asset, sent_amount)
-            }
+            Cw20HookMsg::StageAsset {} => try_receive_stage_asset(deps, env, &sender, &asset),
         }
     } else {
         Err(error::missing_cw20_msg())
@@ -104,8 +116,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     sender: &HumanAddr,
-    sent_asset: &HumanAddr,
-    sent_amount: Uint128,
+    asset: &Asset,
     asset_amounts: Option<Vec<Asset>>,
 ) -> StdResult<HandleResponse> {
     let cfg = read_config(&deps.storage)?;
@@ -122,17 +133,25 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     let target = basket_state.target;
 
     let target_asset_data = read_target_asset_data(&deps.storage)?;
-    let assets = target_asset_data
+    let asset_infos = target_asset_data
         .iter()
         .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
 
+    let sent_asset = match &asset.info {
+        AssetInfo::Token { contract_addr } => contract_addr,
+        AssetInfo::NativeToken { denom: _ } => {
+            return Err(StdError::unauthorized());
+        }
+    };
+    let sent_amount = asset.amount;
+
     let asset_amounts: Vec<Uint128> = match &asset_amounts {
         Some(weights) => {
             let mut vec: Vec<Uint128> = Vec::new();
-            for i in 0..assets.len() {
+            for i in 0..asset_infos.len() {
                 for j in 0..weights.len() {
-                    if weights[j].info.clone() == assets[i].clone() {
+                    if weights[j].info.clone() == asset_infos[i].clone() {
                         vec.push(weights[j].amount);
                         break;
                     }
@@ -192,22 +211,16 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
 
     let transfer_msgs: Vec<CosmosMsg> = redeem_totals
         .iter()
-        .zip(assets.iter())
+        .zip(asset_infos.iter())
         .filter(|(amt, _asset)| !amt.is_zero()) // remove 0 amounts
-        .map(|(amt, asset)| {
-            Ok(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: {
-                    match asset {
-                        AssetInfo::Token { contract_addr } => contract_addr.clone(),
-                        AssetInfo::NativeToken { denom } => h(denom),
-                    }
-                },
-                msg: to_binary(&Cw20HandleMsg::Transfer {
-                    amount: amt.clone(),
-                    recipient: sender.clone(),
-                })?,
-                send: vec![],
-            }))
+        .map(|(amt, asset_info)| {
+            let asset = Asset {
+                info: asset_info.clone(),
+                amount: amt.clone(),
+            };
+
+            // TODO: Check if sender field is correct here (recipient should be sender.clone())
+            asset.into_msg(&deps, env.contract.address.clone(), sender.clone())
         })
         .collect::<StdResult<Vec<CosmosMsg>>>()?;
 
@@ -242,8 +255,7 @@ pub fn try_receive_stage_asset<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     _env: Env,
     sender: &HumanAddr,
-    sent_asset: &HumanAddr,
-    sent_amount: Uint128,
+    staged_asset: &Asset,
 ) -> StdResult<HandleResponse> {
     let cfg = read_config(&deps.storage)?;
     if let None = cfg.basket_token {
@@ -257,25 +269,24 @@ pub fn try_receive_stage_asset<S: Storage, A: Api, Q: Querier>(
         .collect::<Vec<_>>();
 
     // if sent asset is not a component asset of basket, reject
-    if !assets.iter().any(|asset| match asset {
-        AssetInfo::Token { contract_addr } => contract_addr == sent_asset,
-        AssetInfo::NativeToken { denom } => &h(denom) == sent_asset,
-    }) {
-        return Err(error::not_component_cw20(sent_asset));
+    if !assets.iter().any(|asset| *asset == staged_asset.info) {
+        return Err(error::not_component_cw20(&staged_asset.info));
     }
 
-    let sent_asset_info = AssetInfo::Token {
-        contract_addr: sent_asset.clone(),
-    };
-    stage_asset(&mut deps.storage, sender, &sent_asset_info, sent_amount)?;
+    stage_asset(
+        &mut deps.storage,
+        sender,
+        &staged_asset.info,
+        staged_asset.amount,
+    )?;
 
     Ok(HandleResponse {
         messages: vec![],
         log: vec![
             log("action", "receive:stage_asset"),
             log("sender", sender),
-            log("asset", sent_asset),
-            log("staged_amount", sent_amount),
+            log("asset", staged_asset.info.clone()),
+            log("staged_amount", staged_asset.amount),
         ],
         data: None,
     })
@@ -292,6 +303,9 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     assets: &Vec<AssetInfo>,
     target: &Vec<u32>,
 ) -> StdResult<HandleResponse> {
+
+    // allow removal / adding
+    
     let cfg = read_config(&deps.storage)?;
     if let None = cfg.basket_token {
         return Err(error::basket_token_not_set());
@@ -449,17 +463,23 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         .clone()
         .ok_or_else(|| error::basket_token_not_set())?;
 
+
+    // accommmodate inputs: subsets of target assets vector
+
+    let mut new_asset_weights = vec![Uint128(0); asset_infos.len()];
+
+    // list of 0's for vector (size of asset_infos) -> replace in the for loop
     let asset_weights: Vec<Uint128> = {
-        let mut vec: Vec<Uint128> = Vec::new();
         for i in 0..asset_infos.len() {
             for weight in asset_amounts {
                 if weight.info.clone() == asset_infos[i].clone() {
-                    vec.push(weight.amount);
+                    new_asset_weights[i] = weight.amount;
                     break;
                 }
             }
+            // 0 if else
         }
-        vec
+        new_asset_weights
     };
 
     // ensure that all tokens in asset_amounts have been staged beforehand
@@ -538,7 +558,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 pub fn try_unstage_asset<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    asset: &AssetInfo,
+    asset_info: &AssetInfo,
     amount: &Option<Uint128>,
 ) -> StdResult<HandleResponse> {
     let target_asset_data = read_target_asset_data(&deps.storage)?;
@@ -552,17 +572,17 @@ pub fn try_unstage_asset<S: Storage, A: Api, Q: Querier>(
     //     AssetInfo::NativeToken { denom } => &h(denom) == asset,
     // })
 
-    if !assets.iter().any(|x| x == asset) {
-        return Err(error::not_component_asset(asset));
+    if !assets.iter().any(|x| x == asset_info) {
+        return Err(error::not_component_asset(asset_info));
     }
 
-    let curr_staged = read_staged_asset(&deps.storage, &env.message.sender, asset)?;
+    let curr_staged = read_staged_asset(&deps.storage, &env.message.sender, asset_info)?;
     let to_unstage = match amount {
         Some(amt) => {
             if *amt > curr_staged {
                 return Err(error::insufficient_staged(
                     &env.message.sender,
-                    asset,
+                    asset_info,
                     *amt,
                     curr_staged,
                 ));
@@ -572,21 +592,26 @@ pub fn try_unstage_asset<S: Storage, A: Api, Q: Querier>(
         None => curr_staged,
     };
 
-    unstage_asset(&mut deps.storage, &env.message.sender, asset, to_unstage)?;
+    unstage_asset(
+        &mut deps.storage,
+        &env.message.sender,
+        asset_info,
+        to_unstage,
+    )?;
 
     // return asset
     let messages = if !to_unstage.is_zero() {
-        vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: match asset {
-                AssetInfo::Token { contract_addr } => contract_addr.clone(),
-                AssetInfo::NativeToken { denom } => h(denom),
-            },
-            msg: to_binary(&Cw20HandleMsg::Transfer {
-                amount: to_unstage.clone(),
-                recipient: env.message.sender.clone(),
-            })?,
-            send: vec![],
-        })]
+        let asset = Asset {
+            info: asset_info.clone(),
+            amount: to_unstage.clone(),
+        };
+
+        // TODO: Check if sender field is correct here (recipient should be sender.clone())
+        vec![asset.into_msg(
+            &deps,
+            env.contract.address.clone(),
+            env.message.sender.clone(),
+        )?]
     } else {
         vec![]
     };
@@ -595,7 +620,7 @@ pub fn try_unstage_asset<S: Storage, A: Api, Q: Querier>(
         messages,
         log: vec![
             log("action", "unstage_asset"),
-            log("asset", asset),
+            log("asset", asset_info),
             log("amount", to_unstage),
         ],
         data: None,

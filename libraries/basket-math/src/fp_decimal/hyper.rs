@@ -55,7 +55,7 @@ mod tests {
     fn test_sinh() {
         assert_eq!(
             FPDecimal::_sinh(FPDecimal::ONE),
-            FPDecimal::from_str("1.1752011935").unwrap()
+            FPDecimal::from_str("1.175201193643801457").unwrap()
         );
     }
 
@@ -63,7 +63,7 @@ mod tests {
     fn test_cosh() {
         assert_eq!(
             FPDecimal::_cosh(FPDecimal::ONE),
-            FPDecimal::from_str("1.5430806345").unwrap()
+            FPDecimal::from_str("1.543080634815243778").unwrap()
         );
     }
 
@@ -71,7 +71,7 @@ mod tests {
     fn test_tanh() {
         assert_eq!(
             FPDecimal::_tanh(FPDecimal::ONE),
-            FPDecimal::from_str("0.761594155554627386").unwrap()
+            FPDecimal::from_str("0.761594155955764888").unwrap()
         );
     }
 }

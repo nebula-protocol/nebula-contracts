@@ -2,9 +2,7 @@ use cosmwasm_std::{
     to_binary, Api, Binary, Extern, HumanAddr, Querier, StdError, StdResult, Storage, Uint128,
 };
 
-use crate::ext_query::{
-    query_cw20_balance_minus_staged, query_cw20_token_supply, query_price,
-};
+use crate::ext_query::{query_cw20_balance_minus_staged, query_cw20_token_supply, query_price, query_native_balance_minus_staged};
 use crate::msg::{
     BasketStateResponse, ConfigResponse, QueryMsg, StagedAmountResponse, TargetResponse,
 };
@@ -47,13 +45,6 @@ fn query_target<S: Storage, A: Api, Q: Querier>(
         .iter()
         .map(|x| x.target)
         .collect::<Vec<_>>();
-    // let assets = target_asset_data
-    //     .iter()
-    //     .map(|x| match &x.asset {
-    //         AssetInfo::Token { contract_addr } => contract_addr.clone(),
-    //         AssetInfo::NativeToken { denom } => h(denom).clone(),
-    //     })
-    //     .collect::<Vec<_>>();
     let assets = target_asset_data
         .iter()
         .map(|x| x.asset.clone())
@@ -95,11 +86,8 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
     // get prices for each asset
     let prices = assets
         .iter()
-        .map(|asset| match asset {
-            AssetInfo::Token { contract_addr } => query_price(&deps, &cfg.oracle, &contract_addr),
-            AssetInfo::NativeToken { denom } => query_price(&deps, &cfg.oracle, &h(denom)),
-        })
-        .collect::<StdResult<Vec<String>>>()?;
+        .map(|asset_info| query_price(&deps, &cfg.oracle, asset_info))
+        .collect::<StdResult<Vec<FPDecimal>>>()?;
 
     // get inventory
     let inv: Vec<Uint128> = assets
@@ -109,7 +97,7 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
                 query_cw20_balance_minus_staged(&deps, &contract_addr, basket_contract_address)
             }
             AssetInfo::NativeToken { denom } => {
-                query_cw20_balance_minus_staged(&deps, &h(denom), basket_contract_address)
+                query_native_balance_minus_staged(&deps, denom, basket_contract_address)
             }
         })
         .collect::<StdResult<Vec<Uint128>>>()?;
@@ -123,10 +111,7 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
 
     let assets = target_asset_data
         .iter()
-        .map(|x| match &x.asset {
-            AssetInfo::Token { contract_addr } => contract_addr.clone(),
-            AssetInfo::NativeToken { denom } => h(denom).clone(),
-        })
+        .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
 
     Ok(BasketStateResponse {
@@ -134,7 +119,8 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         prices,
         inv,
         assets,
-        penalty,
         target,
+        penalty,
+        basket_contract_address: basket_contract_address.clone(),
     })
 }
