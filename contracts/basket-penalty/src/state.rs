@@ -16,10 +16,19 @@ pub struct PenaltyConfig {
 
 #[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq, JsonSchema)]
 pub struct PenaltyParams {
-    pub a_pos: FPDecimal,
-    pub s_pos: FPDecimal,
-    pub a_neg: FPDecimal,
-    pub s_neg: FPDecimal,
+    // penalty_amt_lo -> amount of penalty when imbalance <= penalty_cutoff_lo * E
+    pub penalty_amt_lo: FPDecimal,
+    pub penalty_cutoff_lo: FPDecimal,
+
+    // penalty_amt_hi -> amount of penalty when imbalance >= penalty_cutoff_hi * E
+    pub penalty_amt_hi: FPDecimal,
+    pub penalty_cutoff_hi: FPDecimal,
+    // in between penalty_cutoff_hi and penalty_cutoff_lo, the amount of penalty increases linearly
+
+    // reward_amt -> amount of reward when imbalance >= reward_cutoff * E
+    // no reward everywhere else
+    pub reward_amt: FPDecimal,
+    pub reward_cutoff: FPDecimal,
 }
 
 pub fn read_config<S: Storage>(storage: &S) -> StdResult<PenaltyConfig> {

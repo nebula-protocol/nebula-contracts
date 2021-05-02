@@ -77,8 +77,7 @@ pub enum Cw20HookMsg {
     /// Burns assets
     Burn {
         /// optional proposed set of weights to use
-        asset_weights: Option<Vec<Asset>>,
-        redeem_mins: Option<Vec<Asset>>,
+        asset_amounts: Option<Vec<Asset>>,
     },
 }
 

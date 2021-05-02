@@ -1,4 +1,4 @@
-use cosmwasm_std::{Decimal, LogAttribute, Uint128};
+use cosmwasm_std::{LogAttribute, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use crate::state::PenaltyParams;
@@ -26,8 +26,8 @@ pub enum QueryMsg {
     Redeem {
         basket_token_supply: Uint128,
         inventory: Vec<Uint128>,
-        redeem_tokens: Uint128,
-        redeem_weights: Vec<Uint128>,
+        max_tokens: Uint128,
+        redeem_asset_amounts: Vec<Uint128>,
         asset_prices: Vec<String>,
         target_weights: Vec<u32>,
     },
@@ -46,6 +46,7 @@ pub struct MintResponse {
 #[derive(Serialize, Deserialize)]
 pub struct RedeemResponse {
     pub redeem_assets: Vec<Uint128>,
+    pub token_cost: Uint128,
     pub log: Vec<LogAttribute>,
 }
 

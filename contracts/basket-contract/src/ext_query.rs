@@ -1,13 +1,10 @@
 use crate::state::read_total_staged_asset;
-use basket_math::FPDecimal;
 use cosmwasm_std::{
     to_binary, Api, Decimal, Extern, HumanAddr, LogAttribute, Querier, QueryRequest, StdResult,
     Storage, Uint128, WasmQuery,
 };
 use cw20::{BalanceResponse as Cw20BalanceResponse, TokenInfoResponse as Cw20TokenInfoResponse};
-use log::info;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 use terraswap::asset::AssetInfo;
 
 /// QueryMsgs to external contracts
@@ -38,8 +35,8 @@ pub enum ExtQueryMsg {
     Redeem {
         basket_token_supply: Uint128,
         inventory: Vec<Uint128>,
-        redeem_tokens: Uint128,
-        redeem_weights: Vec<Uint128>,
+        max_tokens: Uint128,
+        redeem_asset_amounts: Vec<Uint128>,
         asset_prices: Vec<String>,
         target_weights: Vec<u32>,
     },
@@ -61,6 +58,7 @@ pub struct MintResponse {
 #[derive(Serialize, Deserialize)]
 pub struct RedeemResponse {
     pub redeem_assets: Vec<Uint128>,
+    pub token_cost: Uint128,
     pub log: Vec<LogAttribute>,
 }
 
@@ -166,8 +164,8 @@ pub fn query_redeem_amount<S: Storage, A: Api, Q: Querier>(
     asset_address: &HumanAddr,
     basket_token_supply: Uint128,
     inventory: Vec<Uint128>,
-    redeem_tokens: Uint128,
-    redeem_weights: Vec<Uint128>,
+    max_tokens: Uint128,
+    redeem_asset_amounts: Vec<Uint128>,
     asset_prices: Vec<String>,
     target_weights: Vec<u32>,
 ) -> StdResult<RedeemResponse> {
@@ -176,8 +174,8 @@ pub fn query_redeem_amount<S: Storage, A: Api, Q: Querier>(
         msg: to_binary(&ExtQueryMsg::Redeem {
             basket_token_supply,
             inventory,
-            redeem_tokens,
-            redeem_weights,
+            max_tokens,
+            redeem_asset_amounts,
             asset_prices,
             target_weights,
         })?,

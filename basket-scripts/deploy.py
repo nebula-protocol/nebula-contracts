@@ -128,10 +128,12 @@ def deploy():
         penalty_code_id,
         {
             "penalty_params": {
-                "a_pos": "1",
-                "s_pos": "1",
-                "a_neg": "0.005",
-                "s_neg": "0.5",
+                "penalty_amt_lo": "0.1",
+                "penalty_cutoff_lo": "0.01",
+                "penalty_amt_hi": "0.5",
+                "penalty_cutoff_hi": "0.1",
+                "reward_amt": "0.05",
+                "reward_cutoff": "0.02"
             }
         },
         seq()
@@ -406,11 +408,14 @@ def deploy():
         basket_token,
         CW20.send(
             basket, "10000000000", Basket.burn(
-                    [Asset.asset(wBTC, "1"),
+                [
+                    Asset.asset(wBTC, "1"),
                     Asset.asset(wETH, "2"),
                     Asset.asset(wXRP, "1"),
                     Asset.asset(wLUNA, "0"),
-                    Asset.asset(MIR, "7")])
+                    Asset.asset(MIR, "7")
+                ]
+            )
         ),  # asset weights must be integers
         seq(),
         fee=StdFee(
@@ -458,10 +463,12 @@ def deploy():
         penalty_code_id,
         {
             "penalty_params": {
-                "a_pos": "1",
-                "s_pos": "1",
-                "a_neg": "0.05",
-                "s_neg": "0.5",
+                "penalty_amt_lo": "0.1",
+                "penalty_cutoff_lo": "0.01",
+                "penalty_amt_hi": "0.5",
+                "penalty_cutoff_hi": "0.1",
+                "reward_amt": "0.05",
+                "reward_cutoff": "0.02"
             }
         },
         seq()

@@ -32,16 +32,14 @@ class StrategyBase(object):
                 raise Exception("MINT UHOH")
         return amount
 
-    async def redeem(self, amount, weights=None, min_tokens=None):
-        redeemed = await self.basket.redeem(
-            amount, weights=weights, min_tokens=min_tokens
+    async def redeem(self, max_tokens, asset_amounts=None):
+        bsk_cst, redeemed = await self.basket.redeem(
+            max_tokens, asset_amounts=asset_amounts
         )
-        if weights is not None:
-            assert (weights >= 0).all()
-        assert amount >= 0
+
         if self.inv is not None:
             self.inv += redeemed
-        self.basket_tokens -= amount
+        self.basket_tokens -= bsk_cst
         if not self.basket_tokens >= 0:
             raise Exception("REDEEM UHOH")
         return redeemed

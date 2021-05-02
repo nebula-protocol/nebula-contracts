@@ -104,17 +104,12 @@ class InterfaceLive(InterfaceBase):
         mint_total = mint_log["from_contract"]["mint_total"][0]
         return int(mint_total)
 
-    async def redeem(self, amount, weights=None, min_tokens=None):
+    # async def redeem(self, amount, weights=None, min_tokens=None):
+    async def redeem(self, max_tokens, asset_amounts=None):
 
-        amount = str(amount)
-        if weights is not None:
-            weights = [str(i) for i in weights]
-
-        if min_tokens is not None:
-            min_tokens = [
-                Asset.asset(asset, str(mn))
-                for asset, mn in zip(self.assets, min_tokens)
-            ]
+        amount = str(max_tokens)
+        if asset_amounts is not None:
+            asset_amounts = [str(i) for i in asset_amounts]
 
         result = await utils.execute_contract(
             self.basket_token,
@@ -124,11 +119,10 @@ class InterfaceLive(InterfaceBase):
                 Basket.burn(
                     [
                         Asset.asset(asset, weight)
-                        for asset, weight in zip(self.assets, weights)
+                        for asset, weight in zip(self.assets, asset_amounts)
                     ]
-                    if weights
+                    if asset_amounts
                     else None,
-                    redeem_mins=min_tokens,
                 ),
             ),  # asset weights must be integers
             fee=StdFee(
@@ -147,4 +141,6 @@ class InterfaceLive(InterfaceBase):
             pprint.pprint(thing.events_by_type)
 
         redeem_totals = redeem_log["from_contract"]["redeem_totals"]
-        return ast.literal_eval(redeem_totals[0])
+        token_cost = redeem_log["from_contract"]["token_cost"][0]
+
+        return int(token_cost), np.array(ast.literal_eval(redeem_totals[0]), dtype=np.int64)

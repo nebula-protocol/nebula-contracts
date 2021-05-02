@@ -28,10 +28,8 @@ async def create_and_test(basket_args, ops):
         elif op_type == "redeem":
             recv_local = await local.redeem(amt)
             recv_live = await live.redeem(amt)
-
-            assert (
-                recv_local == recv_live
-            ).all(), f"Local redeemed {recv_local} but live redeemed {recv_live}"
+            assert recv_local[0] == recv_live[0] and (recv_local[1] == recv_live[1]).all(),\
+                f"Local redeemed {recv_local} but live redeemed {recv_live}"
 
         print("Basket state: ", local_basket.summary())
 
@@ -41,7 +39,14 @@ basket_params = {
     "asset_tokens": [10000, 10000],
     "asset_prices": [1, 1],
     "target_weights": [1, 1],
-    "penalty_params": {"a_neg": 0.1, "a_pos": 0.5, "s_neg": 0.3, "s_pos": 0.5},
+    "penalty_params": {
+        "penalty_amt_lo": "0.1",
+        "penalty_cutoff_lo": "0.01",
+        "penalty_amt_hi": "0.5",
+        "penalty_cutoff_hi": "0.1",
+        "reward_amt": "0.05",
+        "reward_cutoff": "0.02",
+    },
 }
 
 ops = [["mint", [100, 100]], ["redeem", 200], ["mint", [3000, 1500]], ["redeem", 10000]]

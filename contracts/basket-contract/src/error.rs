@@ -1,5 +1,5 @@
 use cosmwasm_std::{HumanAddr, StdError, Uint128};
-use terraswap::asset::{Asset, AssetInfo};
+use terraswap::asset::{AssetInfo};
 
 pub fn missing_cw20_msg() -> StdError {
     StdError::generic_err("Receive Hook - missing expected .msg in body")
@@ -53,6 +53,13 @@ pub fn below_min_tokens(would_mint: Uint128, min_tokens: Uint128) -> StdError {
     StdError::generic_err(format!(
         "# basket tokens to be minted is below min_tokens specified: {} (would_mint) < {} (min_tokens)",
         would_mint, min_tokens
+    ))
+}
+
+pub fn above_max_tokens(would_cost: Uint128, max_tokens: Uint128) -> StdError {
+    StdError::generic_err(format!(
+        "cost of assets in basket tokens is above max_tokens specified: {} (would_cost) > {} (max_tokens)",
+        would_cost, max_tokens
     ))
 }
 

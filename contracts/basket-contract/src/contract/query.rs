@@ -3,13 +3,12 @@ use cosmwasm_std::{
 };
 
 use crate::ext_query::{
-    query_cw20_balance, query_cw20_balance_minus_staged, query_cw20_token_supply, query_price,
+    query_cw20_balance_minus_staged, query_cw20_token_supply, query_price,
 };
 use crate::msg::{
     BasketStateResponse, ConfigResponse, QueryMsg, StagedAmountResponse, TargetResponse,
 };
 use crate::state::{read_config, read_staged_asset, read_target_asset_data};
-use basket_math::FPDecimal;
 use terraswap::asset::AssetInfo;
 
 /// Convenience function for creating inline HumanAddr

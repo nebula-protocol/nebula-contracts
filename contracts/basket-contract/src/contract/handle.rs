@@ -8,7 +8,7 @@ use error::bad_weight_values;
 
 use crate::error;
 use crate::ext_query::{
-    query_cw20_balance_minus_staged, query_cw20_token_supply, query_mint_amount, query_price,
+    query_mint_amount,
     query_redeem_amount,
 };
 use crate::state::{read_config, save_config, stage_asset, unstage_asset, TargetAssetData};
@@ -20,7 +20,6 @@ use crate::{
 use crate::{
     state::{read_target_asset_data, save_target_asset_data},
 };
-use basket_math::{dot, sum};
 use terraswap::asset::{Asset, AssetInfo};
 use crate::contract::query_basket_state;
 
@@ -76,16 +75,14 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
     if let Some(msg) = cw20_msg.msg {
         match from_binary(&msg)? {
             Cw20HookMsg::Burn {
-                asset_weights,
-                redeem_mins,
+                asset_amounts,
             } => try_receive_burn(
                 deps,
                 env,
                 &sender,
                 &sent_asset,
                 sent_amount,
-                asset_weights,
-                redeem_mins,
+                asset_amounts,
             ),
             Cw20HookMsg::StageAsset {} => {
                 try_receive_stage_asset(deps, env, &sender, &sent_asset, sent_amount)
@@ -109,8 +106,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     sender: &HumanAddr,
     sent_asset: &HumanAddr,
     sent_amount: Uint128,
-    asset_weights: Option<Vec<Asset>>,
-    redeem_mins: Option<Vec<Asset>>,
+    asset_amounts: Option<Vec<Asset>>,
 ) -> StdResult<HandleResponse> {
     let cfg = read_config(&deps.storage)?;
     let basket_token = cfg
@@ -131,24 +127,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
 
-    // order min redeem and asset weights by ordering of target assets
-    let mut ordered_min_redeem: Option<Vec<Uint128>> = match &redeem_mins {
-        Some(mins) => {
-            let mut vec: Vec<Uint128> = Vec::new();
-            for i in 0..assets.len() {
-                for j in 0..mins.len() {
-                    if mins[j].info.clone() == assets[i].clone() {
-                        vec.push(mins[j].amount);
-                        break;
-                    }
-                }
-            }
-            Some(vec)
-        }
-        None => None,
-    };
-
-    let asset_weights: Vec<Uint128> = match &asset_weights {
+    let asset_amounts: Vec<Uint128> = match &asset_amounts {
         Some(weights) => {
             let mut vec: Vec<Uint128> = Vec::new();
             for i in 0..assets.len() {
@@ -161,7 +140,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
             }
             vec
         }
-        None => inv.clone(),
+        None => vec![]
     };
 
     // require that origin contract from Receive Hook is the associated Basket Token
@@ -169,12 +148,12 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::unauthorized());
     }
 
-    let burn_amount = sent_amount.clone();
+    let max_tokens = sent_amount.clone();
 
     let burn_msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: basket_token.clone(),
         msg: to_binary(&Cw20HandleMsg::Burn {
-            amount: burn_amount.clone(),
+            amount: max_tokens.clone(),
         })?,
         send: vec![],
     });
@@ -184,20 +163,31 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         &cfg.penalty,
         basket_token_supply,
         inv,
-        burn_amount,
-        asset_weights.clone(),
+        max_tokens,
+        asset_amounts.clone(),
         prices,
         target,
     )?;
 
     let redeem_totals = redeem_response.redeem_assets;
+    let token_cost = redeem_response.token_cost;
 
-    if let Some(order_mins) = ordered_min_redeem {
-        for i in 0..redeem_totals.len() {
-            if redeem_totals[i] < order_mins[i] {
-                return Err(error::below_min_tokens(redeem_totals[i], order_mins[i]));
-            }
-        }
+    if token_cost > max_tokens {
+        return Err(error::above_max_tokens(token_cost, max_tokens));
+    }
+
+    let minted_tokens = (max_tokens - token_cost)?;
+
+    if token_cost > max_tokens {
+        // why does this need type hint to compile?
+        let _mint_msg: CosmosMsg<WasmMsg> = CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: basket_token.clone(),
+            msg: to_binary(&Cw20HandleMsg::Mint {
+                amount: minted_tokens,
+                recipient: env.message.sender.clone(),
+            })?,
+            send: vec![],
+        });
     }
 
     let transfer_msgs: Vec<CosmosMsg> = redeem_totals
@@ -229,8 +219,10 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
                 log("sender", sender),
                 log("sent_asset", sent_asset),
                 log("sent_tokens", sent_amount),
-                log("burn_amount", burn_amount),
-                log("asset_weights", vec_to_string(&asset_weights)),
+                log("burn_amount", max_tokens),
+                log("token_cost", token_cost),
+                log("returned_tokens", minted_tokens),
+                log("asset_amounts", vec_to_string(&asset_amounts)),
                 log("redeem_totals", vec_to_string(&redeem_totals)),
             ],
             redeem_response.log,
@@ -377,7 +369,7 @@ pub fn try_reset_penalty<S: Storage, A: Api, Q: Querier>(
     }
 
     let mut new_cfg = cfg.clone();
-    new_cfg.penalty = penalty.clone();;
+    new_cfg.penalty = penalty.clone();
     save_config(&mut deps.storage, &new_cfg)?;
 
     Ok(HandleResponse {
@@ -549,7 +541,6 @@ pub fn try_unstage_asset<S: Storage, A: Api, Q: Querier>(
     asset: &AssetInfo,
     amount: &Option<Uint128>,
 ) -> StdResult<HandleResponse> {
-    let cfg = read_config(&deps.storage)?;
     let target_asset_data = read_target_asset_data(&deps.storage)?;
     let assets = target_asset_data
         .iter()
@@ -618,148 +609,6 @@ mod tests {
     use cw20::Cw20ReceiveMsg;
     use pretty_assertions::assert_eq;
     use terraswap::asset::{Asset, AssetInfo};
-
-    #[test]
-    fn mint() {
-        let (mut deps, _init_res) = mock_init();
-        mock_querier_setup(&mut deps);
-
-        // Asset :: UST Price :: Balance (µ)     (+ proposed   ) :: %
-        // ---
-        // mAAPL ::  135.18   ::  7_290_053_159  (+ 125_000_000) :: 0.20367359382 -> 0.20391741720
-        // mGOOG :: 1780.03   ::    319_710_128                  :: 0.11761841035 -> 0.11577407690
-        // mMSFT ::  222.42   :: 14_219_281_228  (+ 149_000_000) :: 0.65364669475 -> 0.65013907200
-        // mNFLX ::  540.82   ::    224_212_221  (+  50_090_272) :: 0.02506130106 -> 0.03016943389
-        deps.querier
-            .set_token_balance("mAAPL", consts::basket_token(), 7_290_053_159)
-            .set_token_balance("mGOOG", consts::basket_token(), 319_710_128)
-            .set_token_balance("mMSFT", consts::basket_token(), 14_219_281_228)
-            .set_token_balance("mNFLX", consts::basket_token(), 224_212_221)
-            .set_oracle_prices(vec![
-                ("mAAPL", Decimal::from_str("135.18").unwrap()),
-                ("mGOOG", Decimal::from_str("1780.03").unwrap()),
-                ("mMSFT", Decimal::from_str("222.42").unwrap()),
-                ("mNFLX", Decimal::from_str("540.82").unwrap()),
-            ]);
-
-        let asset_amounts = vec![
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: h("mAAPL"),
-                },
-                amount: Uint128(125_000_000),
-            },
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: h("mGOOG"),
-                },
-                amount: Uint128::zero(),
-            },
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: h("mMSFT"),
-                },
-                amount: Uint128(149_000_000),
-            },
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: h("mNFLX"),
-                },
-                amount: Uint128(50_090_272),
-            },
-        ];
-        let mint_msg = HandleMsg::Mint {
-            asset_amounts: asset_amounts.clone(),
-            min_tokens: None,
-        };
-
-        let env = mock_env(h("addr0000"), &[]);
-        let res = handle(&mut deps, env, mint_msg.clone());
-        match res {
-            Err(..) => (),
-            _ => panic!("requires staging"),
-        }
-
-        for asset in asset_amounts {
-            let env = mock_env(
-                match asset.info {
-                    AssetInfo::Token { contract_addr } => contract_addr,
-                    AssetInfo::NativeToken { denom } => h(&denom),
-                },
-                &[],
-            );
-            let stage_asset_msg = HandleMsg::Receive(Cw20ReceiveMsg {
-                sender: h("addr0000"),
-                msg: Some(to_binary(&Cw20HookMsg::StageAsset {}).unwrap()),
-                amount: asset.amount,
-            });
-            handle(&mut deps, env, stage_asset_msg).unwrap();
-        }
-
-        let env = mock_env(h("addr0000"), &[]);
-        let res = handle(&mut deps, env, mint_msg).unwrap();
-
-        // for _log in res.log.iter() {
-        //     //println!("{}: {}", log.key, log.value);
-        // }
-        assert_eq!(1, res.messages.len());
-    }
-
-    #[test]
-    fn burn() {
-        let (mut deps, _init_res) = mock_init();
-        mock_querier_setup(&mut deps);
-
-        deps.querier
-            .set_token_supply(consts::basket_token(), 100_000_000)
-            .set_token_balance(consts::basket_token(), "addr0000", 20_000_000);
-
-        let new_assets = vec![
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: h("mAAPL"),
-                },
-                amount: Uint128(10),
-            },
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: h("mGOOG"),
-                },
-                amount: Uint128(10),
-            },
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: h("mMSFT"),
-                },
-                amount: Uint128(10),
-            },
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: h("mNFLX"),
-                },
-                amount: Uint128(10),
-            },
-        ];
-
-        let msg = HandleMsg::Receive(cw20::Cw20ReceiveMsg {
-            msg: Some(
-                to_binary(&Cw20HookMsg::Burn {
-                    asset_weights: None,
-                    redeem_mins: Some(new_assets),
-                })
-                .unwrap(),
-            ),
-            sender: h("addr0000"),
-            amount: Uint128(20_000_000),
-        });
-
-        let env = mock_env(consts::basket_token(), &[]);
-        let res = handle(&mut deps, env, msg).unwrap();
-        for log in res.log.iter() {
-            println!("{}: {}", log.key, log.value);
-        }
-        assert_eq!(5, res.messages.len());
-    }
 
     #[test]
     fn reset_target() {

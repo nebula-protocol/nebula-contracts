@@ -25,7 +25,7 @@ class InterfaceBase:
     async def mint(self, amounts, min_tokens=None):
         raise NotImplementedError
 
-    async def redeem(self, amount, weights=None, min_tokens=None):
+    async def redeem(self, max_tokens, asset_amounts=None):
         raise NotImplementedError
 
     @property

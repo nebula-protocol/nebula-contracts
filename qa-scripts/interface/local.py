@@ -43,9 +43,9 @@ class InterfaceLocal(InterfaceBase):
         await self.get_delay()
         return self.__basket.mint(amounts, min_tokens=min_tokens)
 
-    async def redeem(self, amounts, weights=None, min_tokens=None):
+    async def redeem(self, max_tokens, asset_amounts=None):
         await self.get_delay()
-        return self.__basket.redeem(amounts, weights=weights, min_tokens=min_tokens)
+        return self.__basket.redeem(max_tokens, asset_amounts=asset_amounts)
 
     def _internal_summary(self):
         return self.__basket.summary()

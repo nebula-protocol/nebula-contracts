@@ -46,8 +46,8 @@ class Basket:
         return {"stage_asset": {}}
 
     @staticmethod
-    def burn(asset_weights=None, redeem_mins=None):
-        return {"burn": {"asset_weights": asset_weights, "redeem_mins": redeem_mins}}
+    def burn(asset_amounts=None):
+        return {"burn": {"asset_amounts": asset_amounts}}
 
     @staticmethod
     def reset_target(new_assets, new_target):
