@@ -29,6 +29,13 @@ from basket import Oracle, Basket, CW20, Asset
 # If True, use localterra. Otherwise, deploys on Tequila
 USE_LOCALTERRA = True
 
+DEFAULT_QUORUM = 30
+DEFAULT_THRESHOLD = 50
+DEFAULT_VOTING_PERIOD = 10000
+DEFAULT_EFFECTIVE_DELAY = 10000
+DEFAULT_EXPIRATION_PERIOD = 20000
+DEFAULT_PROPOSAL_DEPOSIT = 10000000000
+
 lt = LocalTerra(gas_prices = {
         "uluna": "0.15"
     })
@@ -120,6 +127,9 @@ def deploy():
     print(f"[deploy] - store basket_contract")
     basket_code_id = store_contract("basket_contract", seq())
 
+    print(f"[deploy] - store basket_gov")
+    nebula_gov_code_id = store_contract("basket_gov", seq())
+
     # wrapped bitcoin
     print(f"[deploy] - instantiate wBTC")
     wBTC = instantiate_contract(
@@ -136,9 +146,59 @@ def deploy():
         seq(),
     )
 
+    # wrapped ether
+    print(f"[deploy] - instantiate wETH")
+    wETH = instantiate_contract(
+        token_code_id,
+        {
+            "name": "Wrapped Ethereum",
+            "symbol": "wETH",
+            "decimals": 6,
+            "initial_balances": [
+                {"address": deployer.key.acc_address, "amount": "20000000000"}
+            ],
+            "mint": None,
+        },
+        seq(),
+    )
+
     # instantiate oracle
     print(f"[deploy] - instantiate oracle")
     oracle = instantiate_contract(oracle_code_id, {}, seq())
+
+
+    # instantiate nebula token
+    # INSTANTIATE NEBULA TOKEN SIMILAR TO BASKET TOKEN??
+    print(f"[deploy] - instantiate nebula token")
+    nebula_token = instantiate_contract(
+        token_code_id,
+        {
+            "name": "Nebula Token",
+            "symbol": "NEB",
+            "decimals": 6,
+            "initial_balances": [
+                {"address": deployer.key.acc_address, "amount": "100000000000"}
+            ],
+            "mint": None,
+        },
+        seq(),
+    )
+
+    # instantiate nebula governance contract
+    print(f"[deploy] - instantiate nebula governance")
+    nebula_gov = instantiate_contract(
+        nebula_gov_code_id,
+        {
+            "nebula_token": nebula_token,
+            "quorum": DEFAULT_QUORUM,
+            "threshold": DEFAULT_THRESHOLD,
+            "voting_period": DEFAULT_VOTING_PERIOD,
+            "effective_delay": DEFAULT_EFFECTIVE_DELAY,
+            "expiration_period": DEFAULT_EXPIRATION_PERIOD,
+            "proposal_deposit": DEFAULT_PROPOSAL_DEPOSIT
+        },
+        seq(),
+    )
 
     # instantiate basket
     print(f"[deploy] - instantiate basket")
@@ -147,7 +207,7 @@ def deploy():
         {
             "name": "Basket",
             "owner": deployer.key.acc_address,
-            "assets": [wBTC],
+            "assets": [wBTC, wETH],
             "oracle": oracle,
             "penalty_params": {
                 "a_pos": "1",
@@ -155,7 +215,7 @@ def deploy():
                 "a_neg": "0.005",
                 "s_neg": "0.5",
             },
-            "target": [100],
+            "target": [50, 50],
         },
         seq(),
     )
@@ -187,22 +247,26 @@ def deploy():
         oracle,
         Oracle.set_prices(
             [
-                [wBTC, "30000.0"],
+                [wBTC, "58000.0"],
+                [wETH, "2800.0"]
             ]
         ),
         seq(),
     )
 
     # sets initial balance of basket contract
-    amount_wBTC = "1000000"
+    amount = "1000000"
 
     print(
-        f"[deploy] - give initial balances wBTC {amount_wBTC}"
+        f"[deploy] - give initial balances wBTC and wETH {amount}"
     )
     initial_balances_tx = deployer.create_and_sign_tx(
         msgs=[
             MsgExecuteContract(
-                deployer.key.acc_address, wBTC, CW20.transfer(basket, amount_wBTC)
+                deployer.key.acc_address, wBTC, CW20.transfer(basket, amount)
+            ),
+            MsgExecuteContract(
+                deployer.key.acc_address, wETH, CW20.transfer(basket, amount)
             ),
         ],
         sequence=seq(),
@@ -211,6 +275,7 @@ def deploy():
 
     result = terra.tx.broadcast(initial_balances_tx)
     print(result.logs[0].events_by_type)
+
 
 
     ### EXAMPLE: how to query basket state
