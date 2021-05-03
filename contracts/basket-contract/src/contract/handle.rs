@@ -363,11 +363,7 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
 }
 
 
-/*
-    Changes the cluster target weights for different assets to the given
-    target weights and saves it. The ordering of the target weights is
-    determined by the given assets.
-*/
+// Changes the penalty contract for this basket
 pub fn try_reset_penalty<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
