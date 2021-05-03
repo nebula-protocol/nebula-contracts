@@ -155,7 +155,7 @@ pub fn query_cw20_token_supply<S: Storage, A: Api, Q: Querier>(
 /// -- Queries the penalty contract for the amount to mint
 pub fn query_mint_amount<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
-    asset_address: &HumanAddr,
+    penalty_address: &HumanAddr,
     basket_token_supply: Uint128,
     inventory: Vec<Uint128>,
     mint_asset_amounts: Vec<Uint128>,
@@ -163,7 +163,7 @@ pub fn query_mint_amount<S: Storage, A: Api, Q: Querier>(
     target_weights: Vec<u32>,
 ) -> StdResult<MintResponse> {
     let res: MintResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: asset_address.clone(),
+        contract_addr: penalty_address.clone(),
         msg: to_binary(&ExtQueryMsg::Mint {
             basket_token_supply,
             inventory,
@@ -180,7 +180,7 @@ pub fn query_mint_amount<S: Storage, A: Api, Q: Querier>(
 /// -- Queries the penalty contract for the amount to mint
 pub fn query_redeem_amount<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
-    asset_address: &HumanAddr,
+    penalty_address: &HumanAddr,
     basket_token_supply: Uint128,
     inventory: Vec<Uint128>,
     max_tokens: Uint128,
@@ -189,7 +189,7 @@ pub fn query_redeem_amount<S: Storage, A: Api, Q: Querier>(
     target_weights: Vec<u32>,
 ) -> StdResult<RedeemResponse> {
     let res: RedeemResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: asset_address.clone(),
+        contract_addr: penalty_address.clone(),
         msg: to_binary(&ExtQueryMsg::Redeem {
             basket_token_supply,
             inventory,
