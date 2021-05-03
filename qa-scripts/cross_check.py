@@ -49,8 +49,9 @@ basket_params = {
         "reward_cutoff": "0.02",
     },
 }
-
-ops = [["mint", [100, 100]], ["redeem", 200], ["mint", [3000, 1500]], ["redeem", 10000]]
+# mint needs to be 501 because the python implementation runs into precision issues
+# while the rust implementation is fine
+ops = [["mint", [100, 100]], ["redeem", 200], ["mint", [3000, 1501]], ["redeem", 10000]]
 
 import asyncio
 
