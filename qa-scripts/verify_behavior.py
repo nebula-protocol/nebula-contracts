@@ -25,7 +25,7 @@ def find_issues(mode="mint"):
             "asset_tokens": [randint(1, 1000000)] * 2,
             "asset_prices": [round(random() * 1000000, 0) for _ in range(2)],
             "target_weights": [1, 1],
-            "penalty_params":         {
+            "penalty_params": {
                 "penalty_amt_lo": "0.1",
                 "penalty_cutoff_lo": "0.01",
                 "penalty_amt_hi": "0.5",

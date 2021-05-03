@@ -28,8 +28,9 @@ async def create_and_test(basket_args, ops):
         elif op_type == "redeem":
             recv_local = await local.redeem(amt)
             recv_live = await live.redeem(amt)
-            assert recv_local[0] == recv_live[0] and (recv_local[1] == recv_live[1]).all(),\
-                f"Local redeemed {recv_local} but live redeemed {recv_live}"
+            assert (
+                recv_local[0] == recv_live[0] and (recv_local[1] == recv_live[1]).all()
+            ), f"Local redeemed {recv_local} but live redeemed {recv_live}"
 
         print("Basket state: ", local_basket.summary())
 

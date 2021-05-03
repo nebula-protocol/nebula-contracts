@@ -46,13 +46,16 @@ class Basket:
 
 class Asset:
     @staticmethod
-    def asset_info_from_haddrs(haddrs):
-        return [{"token": {"contract_addr": haddr}} for haddr in haddrs]
-
-    @staticmethod
-    def asset_info(haddr):
+    def cw20_asset_info(haddr):
         return {"token": {"contract_addr": haddr}}
 
     @staticmethod
-    def asset(haddr, amount):
-        return {"info": Asset.asset_info(haddr), "amount": amount}
+    def native_asset_info(denom):
+        return {"native_token": {"denom": denom}}
+
+    @staticmethod
+    def asset(string, amount, native=False):
+        if not native:
+            return {"info": Asset.cw20_asset_info(string), "amount": amount}
+        else:
+            return {"info": Asset.native_asset_info(string), "amount": amount}

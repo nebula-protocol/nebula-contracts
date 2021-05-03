@@ -87,7 +87,7 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
     let prices = assets
         .iter()
         .map(|asset_info| query_price(&deps, &cfg.oracle, asset_info))
-        .collect::<StdResult<Vec<FPDecimal>>>()?;
+        .collect::<StdResult<Vec<String>>>()?;
 
     // get inventory
     let inv: Vec<Uint128> = assets

@@ -143,4 +143,6 @@ class InterfaceLive(InterfaceBase):
         redeem_totals = redeem_log["from_contract"]["redeem_totals"]
         token_cost = redeem_log["from_contract"]["token_cost"][0]
 
-        return int(token_cost), np.array(ast.literal_eval(redeem_totals[0]), dtype=np.int64)
+        return int(token_cost), np.array(
+            ast.literal_eval(redeem_totals[0]), dtype=np.int64
+        )

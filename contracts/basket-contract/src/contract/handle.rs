@@ -7,11 +7,7 @@ use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
 use error::bad_weight_values;
 
 use crate::error;
-use crate::ext_query::{
-    query_mint_amount,
-    query_redeem_amount, query_cw20_balance_minus_staged, query_cw20_token_supply, query_native_balance_minus_staged,
-    query_price,
-};
+use crate::ext_query::{query_mint_amount, query_redeem_amount};
 use crate::state::{read_config, save_config, stage_asset, unstage_asset, TargetAssetData};
 use crate::util::{vec_to_string};
 use crate::{

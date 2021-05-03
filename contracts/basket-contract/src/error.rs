@@ -56,7 +56,7 @@ pub fn below_min_tokens(would_mint: Uint128, min_tokens: Uint128) -> StdError {
     ))
 }
 
-pub fn above_e_tokens(would_cost: Uint128, max_tokens: Uint128) -> StdError {
+pub fn above_max_tokens(would_cost: Uint128, max_tokens: Uint128) -> StdError {
     StdError::generic_err(format!(
         "cost of assets in basket tokens is above max_tokens specified: {} (would_cost) > {} (max_tokens)",
         would_cost, max_tokens

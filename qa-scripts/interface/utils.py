@@ -8,7 +8,7 @@ from terra_sdk.core.wasm import (
 )
 from terra_sdk.util.contract import get_code_id, get_contract_address, read_file_as_b64
 
-from .api import Oracle, Basket, CW20
+from .api import Oracle, Basket, CW20, Asset
 from functools import _make_key
 import shelve
 
@@ -66,7 +66,7 @@ shelf = shelve.open("cache.dat")
 
 def async_cache_on_disk(fxn):
     async def _ret(*args, **kwargs):
-        key = _make_key(args, kwargs, typed=None)
+        key = repr(args) + "|" + repr(kwargs)
         key = fxn.__name__ + "|" + str(key)
         if key not in shelf or fxn.__name__ in OVERWRITE_CACHE_ALLOWED:
             shelf[key] = await fxn(*args, **kwargs)
@@ -200,7 +200,7 @@ async def create_basket(
         {
             "name": "Basket",
             "owner": deployer.key.acc_address,
-            "assets": assets,
+            "assets": [Asset.cw20_asset_info(i) for i in assets],
             "oracle": oracle,
             "penalty": penalty_contract,
             "target": target_weights,

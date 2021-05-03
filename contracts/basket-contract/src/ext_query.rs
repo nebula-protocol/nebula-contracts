@@ -5,7 +5,6 @@ use cosmwasm_std::{
 };
 use cw20::{BalanceResponse as Cw20BalanceResponse, TokenInfoResponse as Cw20TokenInfoResponse};
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 use terraswap::{asset::AssetInfo, querier::query_balance};
 
 /// QueryMsgs to external contracts
@@ -69,7 +68,7 @@ pub fn query_price<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     oracle_address: &HumanAddr,
     asset_info: &AssetInfo,
-) -> StdResult<FPDecimal> {
+) -> StdResult<String> {
     // perform query
     let res: PriceResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: oracle_address.clone(),
