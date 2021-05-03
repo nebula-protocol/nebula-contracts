@@ -52,6 +52,11 @@ pub enum HandleMsg {
         basket_token: HumanAddr,
     },
 
+    /// Can be called by the owner to reset the basket owner
+    _ResetOwner {
+        owner: HumanAddr,
+    },
+
     /// Can be called by the owner to reset the basket weight target
     ResetTarget {
         assets: Vec<AssetInfo>,
