@@ -19,7 +19,7 @@ pub struct InitMsg {
     pub basket_token: Option<HumanAddr>,
 
     /// Asset addresses
-    pub assets: Vec<HumanAddr>,
+    pub assets: Vec<AssetInfo>,
 
     /// Oracle address
     pub oracle: HumanAddr,
@@ -40,6 +40,11 @@ pub enum HandleMsg {
     UnstageAsset {
         asset: AssetInfo,
         amount: Option<Uint128>,
+    },
+
+    /// Stages native asset
+    StageNativeAsset {
+        asset: Asset,
     },
 
     /// Called to set basket token after initialization
@@ -80,7 +85,7 @@ pub enum Cw20HookMsg {
     Burn {
         /// optional proposed set of weights to use
         asset_weights: Option<Vec<Asset>>,
-        redeem_mins:Option<Vec<Asset>>,
+        redeem_mins: Option<Vec<Asset>>,
     },
 }
 
@@ -120,6 +125,7 @@ pub struct BasketStateResponse {
     pub outstanding_balance_tokens: Uint128,
     pub prices: Vec<FPDecimal>,
     pub inv: Vec<Uint128>,
-    pub assets: Vec<HumanAddr>,
-    pub target: Vec<u32>
+    pub assets: Vec<AssetInfo>,
+    pub target: Vec<u32>,
+    pub basket_contract_address: HumanAddr,
 }

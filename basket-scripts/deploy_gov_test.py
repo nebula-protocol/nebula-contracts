@@ -209,7 +209,7 @@ def deploy():
         {
             "name": "Basket",
             "owner": deployer.key.acc_address,
-            "assets": [wBTC, wETH],
+            "assets": [Asset.cw20_asset_info(wBTC), Asset.cw20_asset_info(wETH)],
             "oracle": oracle,
             "penalty_params": {
                 "a_pos": "1",
@@ -288,7 +288,7 @@ def deploy():
         "Test", "Test", "TestLink1234",
         Governance.create_execute_msg(
             basket,
-            Basket.reset_target(Asset.asset_info_from_haddrs([wBTC, wETH]), [25, 75])
+            Basket.reset_target([Asset.cw20_asset_info(wBTC), Asset.cw20_asset_info(wETH)], [25, 75])
         )
     )
 
