@@ -92,41 +92,24 @@ class StrategyBase(object):
 
             if need_tokens > self.basket_tokens:
                 raise Exception(
-                    f"Attempting redeem op {order} which requires {need_tokens} basket tokens when inventory only has {self.basket_tokens}"
+                    f"Attempting redeem op {order} which requires {need_tokens} basket tokens "
+                    f"when inventory only has {self.basket_tokens}"
                 )
 
-            expected = await forked.redeem(need_tokens, weights=order)
+            await forked.redeem(need_tokens, asset_amounts=order)
 
             if check_profit and forked.notional < current_notional:
                 return False
 
-            if slippage == "exact":
-                min_tokens = expected
-            else:
-                in_value = self.basket.token_value * need_tokens
-                current_sum = np.dot(order, self.basket.asset_prices)
+            max_tokens = (
+                need_tokens
+                if slippage == "exact"
+                else int(
+                    np.dot(order, self.basket.asset_prices) / self.basket.token_value
+                )
+            )
 
-                lo = 0
-                hi = 1e9 + 7
-
-                while (
-                    (lo * order).astype(np.int64) != (hi * order).astype(np.int64)
-                ).any():
-
-                    mid = (lo + hi) / 2
-
-                    # limits of precision... just exit and go high
-                    if mid == lo or mid == hi:
-                        break
-                    if (
-                        np.dot(self.basket.asset_prices, (mid * order).astype(np.int64))
-                        < in_value
-                    ):
-                        lo = mid
-                    else:
-                        hi = mid
-                min_tokens = (hi * order).astype(np.int64)
-            await self.redeem(need_tokens, weights=order, min_tokens=min_tokens)
+            await self.redeem(max_tokens, asset_amounts=order)
 
         return True
 

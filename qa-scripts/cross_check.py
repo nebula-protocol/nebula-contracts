@@ -32,7 +32,7 @@ async def create_and_test(basket_args, ops):
                 recv_local[0] == recv_live[0] and (recv_local[1] == recv_live[1]).all()
             ), f"Local redeemed {recv_local} but live redeemed {recv_live}"
 
-        print("Basket state: ", local_basket.summary())
+        print("Basket state: ", local_basket.summary(), local_basket.token_value)
         await live.sync()
         print("Remote state: ", live.summary())
         print("Remote balance: ", await live.balance())
@@ -52,12 +52,11 @@ basket_params = {
         "reward_cutoff": "0.02",
     },
 }
-# mint needs to be 501 because the python implementation runs into precision issues
-# while the rust implementation is fine
+
 ops = [
     ["mint", [100, 100]],
     ["redeem", 200, [50, 50]],
-    ["mint", [3000, 1501]],
+    ["mint", [3000, 1500]],
     ["redeem", 10000, [3000, 1501]],
 ]
 
