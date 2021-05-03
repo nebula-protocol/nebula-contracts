@@ -34,14 +34,22 @@ class Basket:
         return {"stage_asset": {}}
 
     @staticmethod
-    def burn(asset_weights=None, redeem_mins=None):
+    def burn(asset_amounts=None):
+        return {"burn": {"asset_amounts": asset_amounts}}
+
+    @staticmethod
+    def stage_native_asset(denom, amount):
         return {
-            "burn": {
-                "asset_weights": asset_weights,
-                "redeem_mins": redeem_mins,
-                "random_fuckshit": None,
-            }
+            "stage_native_asset": {"asset": Asset.asset(denom, amount, native=True)}
         }
+
+    @staticmethod
+    def reset_target(new_assets, new_target):
+        return {"reset_target": {"assets": new_assets, "target": new_target}}
+
+    @staticmethod
+    def reset_owner(owner):
+        return {"__reset_owner": {"owner": owner}}
 
 
 class Asset:

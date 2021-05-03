@@ -16,23 +16,26 @@ async def create_and_test(basket_args, ops):
 
     print("Created basket with params", basket_args)
 
-    for op_type, amt in ops:
-        print(f"{op_type} with {amt}")
+    for op_type, *args in ops:
+        print(f"{op_type} with {args}")
         if op_type == "mint":
-            recv_local = await local.mint(amt)
-            recv_live = await live.mint(amt)
+            recv_local = await local.mint(*args)
+            recv_live = await live.mint(*args)
             assert (
                 recv_local == recv_live
             ), f"Local minted {recv_local} but live minted {recv_live}"
 
         elif op_type == "redeem":
-            recv_local = await local.redeem(amt)
-            recv_live = await live.redeem(amt)
+            recv_local = await local.redeem(*args)
+            recv_live = await live.redeem(*args)
             assert (
                 recv_local[0] == recv_live[0] and (recv_local[1] == recv_live[1]).all()
             ), f"Local redeemed {recv_local} but live redeemed {recv_live}"
 
         print("Basket state: ", local_basket.summary())
+        await live.sync()
+        print("Remote state: ", live.summary())
+        print("Remote balance: ", await live.balance())
 
 
 basket_params = {
@@ -51,7 +54,12 @@ basket_params = {
 }
 # mint needs to be 501 because the python implementation runs into precision issues
 # while the rust implementation is fine
-ops = [["mint", [100, 100]], ["redeem", 200], ["mint", [3000, 1501]], ["redeem", 10000]]
+ops = [
+    ["mint", [100, 100]],
+    ["redeem", 200, [50, 50]],
+    ["mint", [3000, 1501]],
+    ["redeem", 10000, [3000, 1501]],
+]
 
 import asyncio
 

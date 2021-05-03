@@ -192,18 +192,6 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
 
     let minted_tokens = (max_tokens - token_cost)?;
 
-    if token_cost > max_tokens {
-        // why does this need type hint to compile?
-        let _mint_msg: CosmosMsg<WasmMsg> = CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: basket_token.clone(),
-            msg: to_binary(&Cw20HandleMsg::Mint {
-                amount: minted_tokens,
-                recipient: env.message.sender.clone(),
-            })?,
-            send: vec![],
-        });
-    }
-
     let transfer_msgs: Vec<CosmosMsg> = redeem_totals
         .iter()
         .zip(asset_infos.iter())
@@ -219,8 +207,23 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         })
         .collect::<StdResult<Vec<CosmosMsg>>>()?;
 
+    let mut msgs = vec![vec![burn_msg], transfer_msgs].concat();
+
+    if minted_tokens > Uint128(0) {
+        let mint_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: basket_token.clone(),
+            msg: to_binary(&Cw20HandleMsg::Mint {
+                amount: minted_tokens,
+                recipient: sender.clone(),
+            })?,
+            send: vec![],
+        });
+        msgs = vec![msgs, vec![mint_msg]].concat();
+    }
+
+
     Ok(HandleResponse {
-        messages: vec![vec![burn_msg], transfer_msgs].concat(),
+        messages: msgs,
         log: vec![
             vec![
                 log("action", "receive:burn"),

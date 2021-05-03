@@ -66,13 +66,13 @@ class BasketLogic:
 
         e = np.dot(i0, p)
 
-        if imb0 > imb1:
+        if imb0 < imb1:
             cutoff_lo = penalty_cutoff_lo * e
             cutoff_hi = penalty_cutoff_hi * e
 
-            penalty_1 = (min(imb0, cutoff_lo) - min(imb1, cutoff_lo)) * penalty_amt_lo
+            penalty_1 = (min(imb1, cutoff_lo) - min(imb0, cutoff_lo)) * penalty_amt_lo
 
-            imb0_mid = min(max(imb1, cutoff_lo), cutoff_hi)
+            imb0_mid = min(max(imb0, cutoff_lo), cutoff_hi)
             imb1_mid = min(max(imb1, cutoff_lo), cutoff_hi)
 
             amt_gap = penalty_amt_hi - penalty_amt_lo
@@ -85,9 +85,9 @@ class BasketLogic:
                 imb1_mid - cutoff_lo
             ) * amt_gap / cutoff_gap + penalty_amt_lo
 
-            penalty_2 = (imb0_mid_height + imb1_mid_height) * (imb0_mid - imb1_mid) / 2
+            penalty_2 = (imb0_mid_height + imb1_mid_height) * (imb1_mid - imb0_mid) / 2
 
-            penalty_3 = (max(imb1, cutoff_hi) - max(imb1, cutoff_hi)) * penalty_amt_hi
+            penalty_3 = (max(imb1, cutoff_hi) - max(imb0, cutoff_hi)) * penalty_amt_hi
             return -(penalty_1 + penalty_2 + penalty_3)
         else:
             cutoff = reward_cutoff * e
@@ -142,7 +142,7 @@ class BasketLogic:
                     f"Basket would cost {cst}, but {m} requested"
                 )
             m = cst
-
+        m = math.ceil(m)
         self.basket_tokens -= m
         assert self.basket_tokens >= 0
 

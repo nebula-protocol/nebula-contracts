@@ -76,7 +76,7 @@ pub fn notional_penalty<S: Storage, A: Api, Q: Querier>(
         reward_cutoff,
     } = cfg.penalty_params;
 
-    return if imb0 > imb1 {
+    return if imb0 < imb1 {
         // use penalty function
         let cutoff_lo = penalty_cutoff_lo * e;
         let cutoff_hi = penalty_cutoff_hi * e;
@@ -84,10 +84,10 @@ pub fn notional_penalty<S: Storage, A: Api, Q: Querier>(
         // penalty function is broken into three pieces, where its flat, linear, and then flat
         // compute the area under each piece separately
 
-        let penalty_1 = (min(imb0, cutoff_lo) - min(imb1, cutoff_lo)) * penalty_amt_lo;
+        let penalty_1 = (min(imb1, cutoff_lo) - min(imb0, cutoff_lo)) * penalty_amt_lo;
 
         // clip to only middle portion
-        let imb0_mid = min(max(imb1, cutoff_lo), cutoff_hi);
+        let imb0_mid = min(max(imb0, cutoff_lo), cutoff_hi);
         let imb1_mid = min(max(imb1, cutoff_lo), cutoff_hi);
 
         let amt_gap = penalty_amt_hi - penalty_amt_lo;
@@ -98,9 +98,9 @@ pub fn notional_penalty<S: Storage, A: Api, Q: Querier>(
         let imb1_mid_height = (imb1_mid - cutoff_lo) * amt_gap / cutoff_gap + penalty_amt_lo;
 
         // area of a trapezoid
-        let penalty_2 = (imb0_mid_height + imb1_mid_height) * (imb0_mid - imb1_mid).div(2);
+        let penalty_2 = (imb0_mid_height + imb1_mid_height) * (imb1_mid - imb0_mid).div(2);
 
-        let penalty_3 = (max(imb1, cutoff_hi) - max(imb1, cutoff_hi)) * penalty_amt_hi;
+        let penalty_3 = (max(imb1, cutoff_hi) - max(imb0, cutoff_hi)) * penalty_amt_hi;
         Ok(FPDecimal::zero() - (penalty_1 + penalty_2 + penalty_3))
     } else {
         // use reward function

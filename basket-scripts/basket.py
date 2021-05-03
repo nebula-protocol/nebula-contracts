@@ -41,8 +41,8 @@ class Basket:
         return {"__set_basket_token": {"basket_token": basket_token}}
 
     @staticmethod
-    def mint(asset_amounts):
-        return {"mint": {"asset_amounts": asset_amounts}}
+    def mint(asset_amounts, min_tokens=None):
+        return {"mint": {"asset_amounts": asset_amounts, "min_tokens": min_tokens}}
 
     @staticmethod
     def stage_asset():

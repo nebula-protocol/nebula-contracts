@@ -57,6 +57,11 @@ class InterfaceLive(InterfaceBase):
 
         self.penalty_params = self.penalty_param_cache[self.penalty_contract]
 
+    async def balance(self):
+        return await terra.wasm.contract_query(
+            self.basket_token, {"balance": {"address": deployer.key.acc_address}}
+        )
+
     async def mint(self, amounts, min_tokens=None):
 
         amounts = [str(i) for i in amounts]
