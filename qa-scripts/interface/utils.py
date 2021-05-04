@@ -8,7 +8,7 @@ from terra_sdk.core.wasm import (
 )
 from terra_sdk.util.contract import get_code_id, get_contract_address, read_file_as_b64
 
-from .api import Oracle, Basket, CW20
+from .api import Oracle, Basket, CW20, Asset
 from functools import _make_key
 import shelve
 
@@ -20,9 +20,7 @@ OVERWRITE_CACHE_ALLOWED = set()
 
 USE_LOCALTERRA = True
 
-lt = AsyncLocalTerra(gas_prices = {
-    "uusd": "0.15"
-})
+lt = AsyncLocalTerra(gas_prices={"uusd": "0.15"})
 
 if USE_LOCALTERRA:
     terra = lt
@@ -68,7 +66,7 @@ shelf = shelve.open("cache.dat")
 
 def async_cache_on_disk(fxn):
     async def _ret(*args, **kwargs):
-        key = _make_key(args, kwargs, typed=None)
+        key = repr(args) + "|" + repr(kwargs)
         key = fxn.__name__ + "|" + str(key)
         if key not in shelf or fxn.__name__ in OVERWRITE_CACHE_ALLOWED:
             shelf[key] = await fxn(*args, **kwargs)
@@ -170,6 +168,13 @@ async def create_basket(
     basket_code_id = await store_contract("basket_contract")
     token_code_id = await store_contract("terraswap_token")
     oracle_code_id = await store_contract("basket_dummy_oracle")
+    penalty_code_id = await store_contract("basket_penalty")
+
+    print(f"Creating penalty contract")
+    penalty_contract = await instantiate_contract(
+        penalty_code_id,
+        {"penalty_params": penalty_params},
+    )
 
     print("Creating asset tokens...")
 
@@ -195,9 +200,9 @@ async def create_basket(
         {
             "name": "Basket",
             "owner": deployer.key.acc_address,
-            "assets": assets,
+            "assets": [Asset.cw20_asset_info(i) for i in assets],
             "oracle": oracle,
-            "penalty_params": penalty_params,
+            "penalty": penalty_contract,
             "target": target_weights,
         },
     )

@@ -1,4 +1,4 @@
-use crate::{error, msg::InitMsg, state::PenaltyParams};
+use crate::{error, msg::InitMsg};
 use crate::{
     state::{save_config, save_target_asset_data, BasketConfig, TargetAssetData},
     util::vec_to_string,
@@ -23,7 +23,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         owner: msg.owner.clone(),
         basket_token: msg.basket_token,
         oracle: msg.oracle.clone(),
-        penalty_params: msg.penalty_params,
+        penalty: msg.penalty.clone(),
     };
 
     // TODO: See if we need clone here
@@ -43,21 +43,11 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     save_config(&mut deps.storage, &cfg)?;
     save_target_asset_data(&mut deps.storage, &asset_data)?;
 
-    let PenaltyParams {
-        a_pos,
-        s_pos,
-        a_neg,
-        s_neg,
-    } = msg.penalty_params;
     Ok(InitResponse {
         log: vec![
             log("name", msg.name),
             log("owner", msg.owner),
             log("assets", vec_to_string(&msg.assets)),
-            log(
-                "penalty_params",
-                format!("({}, {}, {}, {})", a_pos, a_neg, s_pos, s_neg),
-            ),
         ],
         messages: vec![],
     })

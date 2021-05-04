@@ -24,7 +24,7 @@ class BasketLogic:
         self.asset_prices = np.array(asset_prices, dtype=np.longdouble)
         self.target_weights = np.array(target_weights, dtype=np.int64)
 
-        self.penalty_params = penalty_params
+        self.penalty_params = {k: float(v) for k, v in penalty_params.items()}
 
         self.main = main
 
@@ -49,89 +49,107 @@ class BasketLogic:
                 x / self.penalty_params["s_pos"]
             )
 
+    def notional_penalty(self, i0, i1, w, p):
+        def err(i, p, w):
+            u = w * p / np.dot(w, p)
+            return np.sum(np.abs(u * np.dot(i, p) - i * p))
+
+        imb0 = err(i0, p, w)
+        imb1 = err(i1, p, w)
+
+        penalty_amt_lo = self.penalty_params["penalty_amt_lo"]
+        penalty_cutoff_lo = self.penalty_params["penalty_cutoff_lo"]
+        penalty_amt_hi = self.penalty_params["penalty_amt_hi"]
+        penalty_cutoff_hi = self.penalty_params["penalty_cutoff_hi"]
+        reward_amt = self.penalty_params["reward_amt"]
+        reward_cutoff = self.penalty_params["reward_cutoff"]
+
+        e = np.dot(i0, p)
+
+        if imb0 < imb1:
+            cutoff_lo = penalty_cutoff_lo * e
+            cutoff_hi = penalty_cutoff_hi * e
+
+            penalty_1 = (min(imb1, cutoff_lo) - min(imb0, cutoff_lo)) * penalty_amt_lo
+
+            imb0_mid = min(max(imb0, cutoff_lo), cutoff_hi)
+            imb1_mid = min(max(imb1, cutoff_lo), cutoff_hi)
+
+            amt_gap = penalty_amt_hi - penalty_amt_lo
+            cutoff_gap = cutoff_hi - cutoff_lo
+
+            imb0_mid_height = (
+                imb0_mid - cutoff_lo
+            ) * amt_gap / cutoff_gap + penalty_amt_lo
+            imb1_mid_height = (
+                imb1_mid - cutoff_lo
+            ) * amt_gap / cutoff_gap + penalty_amt_lo
+
+            penalty_2 = (imb0_mid_height + imb1_mid_height) * (imb1_mid - imb0_mid) / 2
+
+            penalty_3 = (max(imb1, cutoff_hi) - max(imb0, cutoff_hi)) * penalty_amt_hi
+            return -(penalty_1 + penalty_2 + penalty_3)
+        else:
+            cutoff = reward_cutoff * e
+            return (max(imb0, cutoff) - max(imb1, cutoff)) * reward_amt
+
     def mint(self, amounts, min_tokens=None):
 
         amounts = np.array(amounts, dtype=np.int64)
         if not np.any(amounts):
             return 0
 
-        i = self.asset_tokens
+        i0 = self.asset_tokens
         w = self.target_weights
         c = amounts
         p = self.asset_prices
         n = self.basket_tokens
 
-        u = w * p / np.dot(w, p)
+        i1 = i0 + c
 
-        def err(i, p):
-            return u * np.dot(i, p) - i * p
-
-        d = np.abs(err(i + c, p)) - np.abs(err(i, p))
-        x = np.sum(d) / np.dot(c, p) / 2
-        m = int(self.penalty(x) * n * np.dot(c, p) / np.dot(i, p))
+        m = int(
+            n * (np.dot(c, p) + self.notional_penalty(i0, i1, w, p)) / np.dot(i0, p)
+        )
 
         if min_tokens is not None and m < min_tokens:
             raise MinimumNotMetException(
                 f"Basked would mint {m}, but {min_tokens} requested"
             )
 
-        self.asset_tokens = i + c
+        self.asset_tokens = i1
         self.basket_tokens += m
-
-        if DEBUG and self.main:
-            print("MINTING", amounts, m)
-
         return m
 
-    def redeem(self, amount, weights=None, min_tokens=None):
+    def redeem(self, max_tokens, asset_amounts=None):
 
-        amount = int(amount)
-
-        if not amount:
-            return np.zeros(shape=(len(self.asset_tokens),), dtype=np.int64)
-
-        r = weights
-        i = self.asset_tokens
+        r = asset_amounts
+        i0 = self.asset_tokens
         w = self.target_weights
-        m = amount
+        m = max_tokens
         p = self.asset_prices
         n = self.basket_tokens
 
         if r is None:
-            r = i
-
-        r = r / np.sum(r)
-
-        u = w * p / np.dot(w, p)
-        b = r * m / n * np.dot(i, p) / np.dot(r, p)
-
-        def err(i, p):
-            return u * np.dot(i, p) - i * p
-
-        d = np.abs(err(i - b, p)) - np.abs(err(i, p))
-        x = np.sum(d) / np.dot(b, p) / 2
-        print("redeem score is", x)
-        print("redeem penalty is", self.penalty(x))
-        r = b * self.penalty(x)
-
-        r = r.astype(np.int64)
-
-        if min_tokens is not None and (min_tokens > r).any():
-            raise MinimumNotMetException(
-                f"Basket would redeem {r}, but {min_tokens} requested"
+            r = m * np.dot(i0, p) * w / n / np.dot(w, p)
+            r = r.astype(np.int64)
+        else:
+            i1 = i0 - r
+            cst = (
+                n * (np.dot(r, p) - self.notional_penalty(i0, i1, w, p)) / np.dot(i0, p)
             )
-
+            if cst > m:
+                raise MinimumNotMetException(
+                    f"Basket would cost {cst}, but {m} requested"
+                )
+            m = cst
+        m = math.ceil(m)
         self.basket_tokens -= m
         assert self.basket_tokens >= 0
 
         self.asset_tokens -= r
-
         assert (self.asset_tokens >= 0).all()
 
-        if DEBUG and self.main:
-            print("REDEEMING", amount, weights, r)
-
-        return r
+        return m, r
 
     @property
     def notional(self):

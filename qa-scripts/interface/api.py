@@ -34,25 +34,36 @@ class Basket:
         return {"stage_asset": {}}
 
     @staticmethod
-    def burn(asset_weights=None, redeem_mins=None):
+    def burn(asset_amounts=None):
+        return {"burn": {"asset_amounts": asset_amounts}}
+
+    @staticmethod
+    def stage_native_asset(denom, amount):
         return {
-            "burn": {
-                "asset_weights": asset_weights,
-                "redeem_mins": redeem_mins,
-                "random_fuckshit": None,
-            }
+            "stage_native_asset": {"asset": Asset.asset(denom, amount, native=True)}
         }
+
+    @staticmethod
+    def reset_target(new_assets, new_target):
+        return {"reset_target": {"assets": new_assets, "target": new_target}}
+
+    @staticmethod
+    def reset_owner(owner):
+        return {"__reset_owner": {"owner": owner}}
 
 
 class Asset:
     @staticmethod
-    def asset_info_from_haddrs(haddrs):
-        return [{"token": {"contract_addr": haddr}} for haddr in haddrs]
-
-    @staticmethod
-    def asset_info(haddr):
+    def cw20_asset_info(haddr):
         return {"token": {"contract_addr": haddr}}
 
     @staticmethod
-    def asset(haddr, amount):
-        return {"info": Asset.asset_info(haddr), "amount": amount}
+    def native_asset_info(denom):
+        return {"native_token": {"denom": denom}}
+
+    @staticmethod
+    def asset(string, amount, native=False):
+        if not native:
+            return {"info": Asset.cw20_asset_info(string), "amount": amount}
+        else:
+            return {"info": Asset.native_asset_info(string), "amount": amount}

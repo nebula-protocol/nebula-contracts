@@ -1,11 +1,10 @@
-use basket_math::FPDecimal;
 use cosmwasm_std::{HumanAddr, Uint128};
 use cw20::Cw20ReceiveMsg;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use terraswap::asset::{Asset, AssetInfo};
 
-use crate::state::{BasketConfig, PenaltyParams};
+use crate::state::BasketConfig;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
@@ -24,8 +23,8 @@ pub struct InitMsg {
     /// Oracle address
     pub oracle: HumanAddr,
 
-    /// Penalty function params
-    pub penalty_params: PenaltyParams,
+    /// Penalty function address
+    pub penalty: HumanAddr,
 
     /// Target weight vector (not normalized)
     pub target: Vec<u32>,
@@ -63,6 +62,10 @@ pub enum HandleMsg {
         target: Vec<u32>,
     },
 
+    ResetPenalty {
+        penalty: HumanAddr,
+    },
+
     /// Mints new assets
     Mint {
         /// Asset amounts deposited for minting (must be staged)
@@ -84,8 +87,7 @@ pub enum Cw20HookMsg {
     /// Burns assets
     Burn {
         /// optional proposed set of weights to use
-        asset_weights: Option<Vec<Asset>>,
-        redeem_mins: Option<Vec<Asset>>,
+        asset_amounts: Option<Vec<Asset>>,
     },
 }
 
@@ -121,11 +123,11 @@ pub struct StagedAmountResponse {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct BasketStateResponse {
-    pub penalty_params: PenaltyParams,
     pub outstanding_balance_tokens: Uint128,
-    pub prices: Vec<FPDecimal>,
+    pub prices: Vec<String>,
     pub inv: Vec<Uint128>,
     pub assets: Vec<AssetInfo>,
+    pub penalty: HumanAddr,
     pub target: Vec<u32>,
     pub basket_contract_address: HumanAddr,
 }

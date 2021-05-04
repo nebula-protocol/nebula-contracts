@@ -2,7 +2,6 @@ from random import randint
 from interface.basket_logic import BasketLogic
 from interface.local import InterfaceLocal
 from interface.live import InterfaceLive
-from strategy.balancer import BalancerStrat
 from strategy.retail.normal import NormalFlow
 from strategy.sim import Simulator
 from interface.utils import create_basket
@@ -25,18 +24,25 @@ async def run_strategies():
         [1000000, 1000000],
         [1, 1],
         [1, 1],
-        {"a_neg": 0.1, "a_pos": 0.5, "s_neg": 0.3, "s_pos": 0.5},
+        {
+            "penalty_amt_lo": "0.1",
+            "penalty_cutoff_lo": "0.01",
+            "penalty_amt_hi": "0.5",
+            "penalty_cutoff_hi": "0.1",
+            "reward_amt": "0.05",
+            "reward_cutoff": "0.02",
+        },
     )
-    live = True
+    live = False
 
     def get():
         if live:
             return InterfaceLive(*BASKET_INFO)
         return basket
 
-    strat0 = BalancerStrat(get(), [1000, 1000], 0)
+    strat0 = NormalFlow(get(), threshold=0.95)
 
-    strat1 = BalancerStrat(get(), [1000, 1000], 0)
+    strat1 = NormalFlow(get(), threshold=0.95)
     strat2 = NormalFlow(get(), threshold=0.95)
 
     s = Simulator(
@@ -44,7 +50,8 @@ async def run_strategies():
         strategies=[strat1, strat2],
         update_prices=False,
     )
-    await s.go_sync(ticks=10)
+    await s.go_sync(ticks=100000)
+
 
 async def tiny_basket():
     basket_args = await create_basket(
@@ -52,13 +59,21 @@ async def tiny_basket():
         [0, 5000],
         [1, 1],
         [1, 1],
-        {"a_neg": 0.1, "a_pos": 0.5, "s_neg": 0.3, "s_pos": 0.5},
+        {
+            "penalty_amt_lo": "0.1",
+            "penalty_cutoff_lo": "0.01",
+            "penalty_amt_hi": "0.5",
+            "penalty_cutoff_hi": "0.1",
+            "reward_amt": "0.05",
+            "reward_cutoff": "0.02",
+        },
     )
 
     interface = InterfaceLive(*basket_args)
     await interface.sync()
     print(interface.summary())
     print(await interface.redeem(50))
+
 
 if __name__ == "__main__":
 

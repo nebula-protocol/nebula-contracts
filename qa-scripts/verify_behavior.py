@@ -23,9 +23,16 @@ def find_issues(mode="mint"):
         params = {
             "basket_tokens": randint(1, 1000000),
             "asset_tokens": [randint(1, 1000000)] * 2,
-            "asset_prices": [round(random() * 1000000, 2) for _ in range(2)],
+            "asset_prices": [round(random() * 1000000, 0) for _ in range(2)],
             "target_weights": [1, 1],
-            "penalty_params": {"a_neg": 0.1, "a_pos": 0.5, "s_neg": 0.3, "s_pos": 0.5},
+            "penalty_params": {
+                "penalty_amt_lo": "0.1",
+                "penalty_cutoff_lo": "0.01",
+                "penalty_amt_hi": "0.5",
+                "penalty_cutoff_hi": "0.1",
+                "reward_amt": "0.05",
+                "reward_cutoff": "0.02",
+            },
         }
 
         logic = BasketLogic(**params)
@@ -34,6 +41,7 @@ def find_issues(mode="mint"):
             logic.mint(params["asset_tokens"])
             if logic.basket_tokens != params["basket_tokens"] * 2:
                 print(params)
+                print(logic.basket_tokens, params["basket_tokens"] * 2)
                 continue
         elif mode == "redeem":
             logic.redeem(params["basket_tokens"])
@@ -41,6 +49,7 @@ def find_issues(mode="mint"):
                 print(params)
         else:
             raise Exception("Invalid mode")
+
 
 async def test_double_mint(basket_params):
     if live:
@@ -51,5 +60,6 @@ async def test_double_mint(basket_params):
 
     tokens = await interface.mint(basket_params["asset_tokens"])
     assert tokens == basket_params["basket_tokens"]
+
 
 find_issues()

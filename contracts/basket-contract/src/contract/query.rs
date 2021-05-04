@@ -2,15 +2,11 @@ use cosmwasm_std::{
     to_binary, Api, Binary, Extern, HumanAddr, Querier, StdError, StdResult, Storage, Uint128,
 };
 
-use crate::ext_query::{
-    query_cw20_balance_minus_staged, query_cw20_token_supply, query_native_balance_minus_staged,
-    query_price,
-};
+use crate::ext_query::{query_cw20_balance_minus_staged, query_cw20_token_supply, query_price, query_native_balance_minus_staged};
 use crate::msg::{
     BasketStateResponse, ConfigResponse, QueryMsg, StagedAmountResponse, TargetResponse,
 };
 use crate::state::{read_config, read_staged_asset, read_target_asset_data};
-use basket_math::FPDecimal;
 use terraswap::asset::AssetInfo;
 
 /// Convenience function for creating inline HumanAddr
@@ -77,7 +73,7 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
 
-    let penalty_params = cfg.penalty_params;
+    let penalty: HumanAddr = HumanAddr::from(&cfg.penalty);
 
     let basket_token = &cfg
         .basket_token
@@ -91,7 +87,7 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
     let prices = assets
         .iter()
         .map(|asset_info| query_price(&deps, &cfg.oracle, asset_info))
-        .collect::<StdResult<Vec<FPDecimal>>>()?;
+        .collect::<StdResult<Vec<String>>>()?;
 
     // get inventory
     let inv: Vec<Uint128> = assets
@@ -119,12 +115,12 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         .collect::<Vec<_>>();
 
     Ok(BasketStateResponse {
-        penalty_params,
         outstanding_balance_tokens,
         prices,
         inv,
         assets,
         target,
+        penalty,
         basket_contract_address: basket_contract_address.clone(),
     })
 }

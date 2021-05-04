@@ -7,6 +7,7 @@ class InterfaceBase:
         self.asset_tokens = None
         self.asset_prices = None
         self.target_weights = None
+        self.penalty_contract = None
         self.penalty_params = None
 
     @classmethod
@@ -24,7 +25,7 @@ class InterfaceBase:
     async def mint(self, amounts, min_tokens=None):
         raise NotImplementedError
 
-    async def redeem(self, amount, weights=None, min_tokens=None):
+    async def redeem(self, max_tokens, asset_amounts=None):
         raise NotImplementedError
 
     @property

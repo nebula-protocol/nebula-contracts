@@ -1,8 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use basket_math::FPDecimal;
-use cosmwasm_std::{HumanAddr, StdError, StdResult, Storage, Uint128};
+use cosmwasm_std::{HumanAddr, StdResult, Storage, Uint128};
 use cosmwasm_storage::{bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket};
 use terraswap::asset::{AssetInfo};
 
@@ -29,21 +28,13 @@ pub struct BasketConfig {
     pub owner: HumanAddr,
     pub basket_token: Option<HumanAddr>,
     pub oracle: HumanAddr,
-    pub penalty_params: PenaltyParams,
+    pub penalty: HumanAddr,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TargetAssetData {
     pub asset: AssetInfo,
     pub target: u32,
-}
-
-#[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq, JsonSchema)]
-pub struct PenaltyParams {
-    pub a_pos: FPDecimal,
-    pub s_pos: FPDecimal,
-    pub a_neg: FPDecimal,
-    pub s_neg: FPDecimal,
 }
 
 pub fn read_config<S: Storage>(storage: &S) -> StdResult<BasketConfig> {

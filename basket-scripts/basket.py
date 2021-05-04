@@ -41,20 +41,20 @@ class Basket:
         return {"__set_basket_token": {"basket_token": basket_token}}
 
     @staticmethod
-    def mint(asset_amounts):
-        return {"mint": {"asset_amounts": asset_amounts}}
+    def mint(asset_amounts, min_tokens=None):
+        return {"mint": {"asset_amounts": asset_amounts, "min_tokens": min_tokens}}
 
     @staticmethod
     def stage_asset():
         return {"stage_asset": {}}
 
     @staticmethod
-    def stage_native_asset(denom, amount):
-        return {"stage_native_asset": {"asset": Asset.asset(denom, amount, native=True)}}
+    def burn(asset_amounts=None):
+        return {"burn": {"asset_amounts": asset_amounts}}
 
     @staticmethod
-    def burn(asset_weights=None, redeem_mins=None):
-        return {"burn": {"asset_weights": asset_weights, "redeem_mins": redeem_mins}}
+    def stage_native_asset(denom, amount):
+        return {"stage_native_asset": {"asset": Asset.asset(denom, amount, native=True)}}
 
     @staticmethod
     def reset_target(new_assets, new_target):

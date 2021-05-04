@@ -31,6 +31,8 @@ class InterfaceLive(InterfaceBase):
         self.basket_token = basket_token
         self.assets = assets
 
+        self.penalty_param_cache = {}
+
     def fork(self):
         logic = BasketLogic.from_interface(self)
         return InterfaceLocal(logic)
@@ -43,10 +45,22 @@ class InterfaceLive(InterfaceBase):
         self.asset_prices = np.array(basket_state["prices"], dtype=np.longdouble)
         self.asset_tokens = np.array(basket_state["inv"], dtype=np.int64)
         self.target_weights = np.array(basket_state["target"], dtype=np.int64)
+        self.penalty_contract = basket_state["penalty"]
 
-        self.penalty_params = {
-            k: np.longdouble(v) for k, v in basket_state["penalty_params"].items()
-        }
+        if self.penalty_contract not in self.penalty_param_cache:
+            penalty_state = await terra.wasm.contract_query(
+                self.penalty_contract, {"params": {}}
+            )
+            self.penalty_param_cache[self.penalty_contract] = {
+                k: np.longdouble(v) for k, v in penalty_state["penalty_params"].items()
+            }
+
+        self.penalty_params = self.penalty_param_cache[self.penalty_contract]
+
+    async def balance(self):
+        return await terra.wasm.contract_query(
+            self.basket_token, {"balance": {"address": deployer.key.acc_address}}
+        )
 
     async def mint(self, amounts, min_tokens=None):
 
@@ -89,22 +103,18 @@ class InterfaceLive(InterfaceBase):
         mint_log = result.logs[-1].events_by_type
 
         import pprint
+
         pprint.pprint(mint_log)
 
         mint_total = mint_log["from_contract"]["mint_total"][0]
         return int(mint_total)
 
-    async def redeem(self, amount, weights=None, min_tokens=None):
+    # async def redeem(self, amount, weights=None, min_tokens=None):
+    async def redeem(self, max_tokens, asset_amounts=None):
 
-        amount = str(amount)
-        if weights is not None:
-            weights = [str(i) for i in weights]
-
-        if min_tokens is not None:
-            min_tokens = [
-                Asset.asset(asset, str(mn))
-                for asset, mn in zip(self.assets, min_tokens)
-            ]
+        amount = str(max_tokens)
+        if asset_amounts is not None:
+            asset_amounts = [str(i) for i in asset_amounts]
 
         result = await utils.execute_contract(
             self.basket_token,
@@ -114,11 +124,10 @@ class InterfaceLive(InterfaceBase):
                 Basket.burn(
                     [
                         Asset.asset(asset, weight)
-                        for asset, weight in zip(self.assets, weights)
+                        for asset, weight in zip(self.assets, asset_amounts)
                     ]
-                    if weights
+                    if asset_amounts
                     else None,
-                    redeem_mins=min_tokens,
                 ),
             ),  # asset weights must be integers
             fee=StdFee(
@@ -132,8 +141,13 @@ class InterfaceLive(InterfaceBase):
         redeem_log = result.logs[0].events_by_type
 
         import pprint
+
         for thing in result.logs:
             pprint.pprint(thing.events_by_type)
 
         redeem_totals = redeem_log["from_contract"]["redeem_totals"]
-        return ast.literal_eval(redeem_totals[0])
+        token_cost = redeem_log["from_contract"]["token_cost"][0]
+
+        return int(token_cost), np.array(
+            ast.literal_eval(redeem_totals[0]), dtype=np.int64
+        )

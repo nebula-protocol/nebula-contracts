@@ -125,6 +125,25 @@ def deploy():
     print(f"[deploy] - store basket_contract")
     basket_code_id = store_contract("basket_contract", seq())
 
+    print(f"[deploy] - store penalty_contract")
+    penalty_code_id = store_contract("basket_penalty", seq())
+
+    print(f"[deploy] - instantiate penalty contract")
+    penalty_contract = instantiate_contract(
+        penalty_code_id,
+        {
+            "penalty_params": {
+                "penalty_amt_lo": "0.1",
+                "penalty_cutoff_lo": "0.01",
+                "penalty_amt_hi": "0.5",
+                "penalty_cutoff_hi": "0.1",
+                "reward_amt": "0.05",
+                "reward_cutoff": "0.02"
+            }
+        },
+        seq()
+    )
+
     # wrapped bitcoin
     print(f"[deploy] - instantiate wBTC")
     wBTC = instantiate_contract(
@@ -239,12 +258,7 @@ def deploy():
                        Asset.cw20_asset_info(MIR),
                        Asset.native_asset_info("uluna")],
             "oracle": oracle,
-            "penalty_params": {
-                "a_pos": "1",
-                "s_pos": "1",
-                "a_neg": "0.005",
-                "s_neg": "0.5",
-            },
+            "penalty": penalty_contract,
             "target": [10, 20, 15, 30, 20, 5],
         },
         seq(),
@@ -354,11 +368,16 @@ def deploy():
         )
     )
 
-    ### EXAMPLE: how to query basket state
+    ### EXAMPLE: how to query basket state and penalty params
+    basket_state = terra.wasm.contract_query(
+        basket, {"basket_state": {"basket_contract_address": basket}}
+    )
     print(
-        terra.wasm.contract_query(
-            basket, {"basket_state": {"basket_contract_address": basket}}
-        )
+        basket_state
+    )
+
+    print(
+        terra.wasm.contract_query(basket_state["penalty"], {"params": {}})
     )
 
     ### EXAMPLE: how to stage and mint
@@ -444,11 +463,14 @@ def deploy():
         basket_token,
         CW20.send(
             basket, "10000000000", Basket.burn(
-                    [Asset.asset(wBTC, "1"),
+                [
+                    Asset.asset(wBTC, "1"),
                     Asset.asset(wETH, "2"),
                     Asset.asset(wXRP, "1"),
                     Asset.asset(wLUNA, "0"),
-                    Asset.asset(MIR, "7")])
+                    Asset.asset(MIR, "7")
+                ]
+            )
         ),  # asset weights must be integers
         seq(),
         fee=StdFee(
@@ -497,6 +519,35 @@ def deploy():
 
     ### EXAMPLE: getting event logs
     print("logs from reset target", result.logs[0].events_by_type)
+
+    ### EXAMPLE: how to reset basket penalty contract
+    print("[deploy] - basket: reset_penalty")
+    # create a new penalty contract
+    penalty_contract = instantiate_contract(
+        penalty_code_id,
+        {
+            "penalty_params": {
+                "penalty_amt_lo": "0.1",
+                "penalty_cutoff_lo": "0.01",
+                "penalty_amt_hi": "0.5",
+                "penalty_cutoff_hi": "0.1",
+                "reward_amt": "0.05",
+                "reward_cutoff": "0.02"
+            }
+        },
+        seq()
+    )
+    print("created new penalty contract", penalty_contract)
+    result = execute_contract(
+        deployer,
+        basket,
+        {"reset_penalty": {"penalty": penalty_contract}},
+        seq(),
+        fee=StdFee(
+            4000000, "20000000uluna"
+        ),  # burning may require a lot of gas if there are a lot of assets
+    )
+    print(f"reset penalty TXHASH: {result.txhash}")
 
     print("query new basket state ",
         terra.wasm.contract_query(
