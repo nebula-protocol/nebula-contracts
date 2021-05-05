@@ -59,7 +59,11 @@ class Basket:
     @staticmethod
     def reset_target(new_assets, new_target):
         return {"reset_target": {"assets": new_assets, "target": new_target}}
-    
+
+    @staticmethod
+    def reset_penalty(penalty_contract):
+        return {"reset_penalty": {"penalty": penalty_contract}}
+
     @staticmethod
     def reset_owner(owner):
         return {"__reset_owner": {"owner": owner}}

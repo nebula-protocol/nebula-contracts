@@ -132,6 +132,25 @@ def deploy():
     print(f"[deploy] - store basket_gov")
     nebula_gov_code_id = store_contract("basket_gov", seq())
 
+    print(f"[deploy] - store penalty_contract")
+    penalty_code_id = store_contract("basket_penalty", seq())
+
+    print(f"[deploy] - instantiate penalty contract")
+    penalty_contract = instantiate_contract(
+        penalty_code_id,
+        {
+            "penalty_params": {
+                "penalty_amt_lo": "0.1",
+                "penalty_cutoff_lo": "0.01",
+                "penalty_amt_hi": "0.5",
+                "penalty_cutoff_hi": "0.1",
+                "reward_amt": "0.05",
+                "reward_cutoff": "0.02"
+            }
+        },
+        seq()
+    )
+
     # wrapped bitcoin
     print(f"[deploy] - instantiate wBTC")
     wBTC = instantiate_contract(
@@ -211,12 +230,7 @@ def deploy():
             "owner": deployer.key.acc_address,
             "assets": [Asset.cw20_asset_info(wBTC), Asset.cw20_asset_info(wETH)],
             "oracle": oracle,
-            "penalty_params": {
-                "a_pos": "1",
-                "s_pos": "1",
-                "a_neg": "0.005",
-                "s_neg": "0.5",
-            },
+            "penalty": penalty_contract,
             "target": [50, 50],
         },
         seq(),
@@ -284,11 +298,27 @@ def deploy():
         f"[deploy] - create poll"
     )
 
+    print(f"[deploy] - create new penalty contract")
+    new_penalty_contract = instantiate_contract(
+        penalty_code_id,
+        {
+            "penalty_params": {
+                "penalty_amt_lo": "0.1",
+                "penalty_cutoff_lo": "0.01",
+                "penalty_amt_hi": "0.5",
+                "penalty_cutoff_hi": "0.1",
+                "reward_amt": "0.05",
+                "reward_cutoff": "0.02"
+            }
+        },
+        seq()
+    )
+
     poll = Governance.create_poll(
         "Test", "Test", "TestLink1234",
         Governance.create_execute_msg(
             basket,
-            Basket.reset_target([Asset.cw20_asset_info(wBTC), Asset.cw20_asset_info(wETH)], [25, 75])
+            Basket.reset_penalty(new_penalty_contract)
         )
     )
 
@@ -389,16 +419,18 @@ def deploy():
 
     print(result.logs[0].events_by_type)
     
-    # Verify target has changed
+    # Verify penalty has changed
     print(
-        f"[deploy] - verify target changed"
+        f"[deploy] - verify penalty changed"
     )
 
-    print(
-        terra.wasm.contract_query(
-            basket, {"basket_state": {"basket_contract_address": basket}}
-        )
+    basket_state = terra.wasm.contract_query(
+        basket, {"basket_state": {"basket_contract_address": basket}}
     )
+
+    print(basket_state)
+
+    assert basket_state["penalty"] != penalty_contract and basket_state["penalty"] == new_penalty_contract
     
     # ### EXAMPLE: how to query basket state
     # print("FIRST")
