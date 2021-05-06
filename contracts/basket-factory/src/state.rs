@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use cosmwasm_std::{CanonicalAddr, Order, StdError, StdResult, Storage, Uint128};
 use cosmwasm_storage::{singleton, singleton_read, Bucket, ReadonlyBucket, Singleton};
 
-use mirror_protocol::factory::Params;
+use crate::msg::Params;
 
 static KEY_CONFIG: &[u8] = b"config";
 static KEY_PARAMS: &[u8] = b"params";
@@ -16,13 +16,13 @@ static PREFIX_WEIGHT: &[u8] = b"weight";
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
     pub owner: CanonicalAddr,
-    pub mirror_token: CanonicalAddr,
-    pub mint_contract: CanonicalAddr,
+    pub nebula_token: CanonicalAddr,
     pub oracle_contract: CanonicalAddr,
     pub terraswap_factory: CanonicalAddr,
     pub staking_contract: CanonicalAddr,
     pub commission_collector: CanonicalAddr,
     pub token_code_id: u64, // used to create asset token
+    pub cluster_code_id: u64,
     pub base_denom: String,
     pub genesis_time: u64,
     pub distribution_schedule: Vec<(u64, u64, Uint128)>, // [[start_time, end_time, distribution_amount], [], ...]

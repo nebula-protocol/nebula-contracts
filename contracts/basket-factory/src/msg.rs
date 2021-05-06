@@ -3,9 +3,12 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{Binary, Decimal, HumanAddr, Uint128};
 
+use terraswap::asset::{AssetInfo};
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
     pub token_code_id: u64,
+    pub cluster_code_id: u64,
     pub base_denom: String,
     pub distribution_schedule: Vec<(u64, u64, Uint128)>, // [[start_time, end_time, distribution_amount], [], ...]
 }
@@ -27,13 +30,14 @@ pub enum HandleMsg {
     UpdateConfig {
         owner: Option<HumanAddr>,
         token_code_id: Option<u64>,
+        cluster_code_id: Option<u64>,
         distribution_schedule: Option<Vec<(u64, u64, Uint128)>>, // [[start_time, end_time, distribution_amount], [], ...]
     },
     UpdateWeight {
         asset_token: HumanAddr,
         weight: u32,
     },
-    Whitelist {
+    CreateCluster {
         /// asset name used to create token contract
         name: String,
         /// asset symbol used to create token contract
@@ -48,8 +52,12 @@ pub enum HandleMsg {
         oracle_feeder: HumanAddr,
     },
     /// Internal use except MIR registration
-    TerraswapCreationHook {
-        asset_token: HumanAddr,
+    // TerraswapCreationHook {
+    //     asset_token: HumanAddr,
+    // },
+    /// Internal use - Set Basket Token
+    SetBasketTokenHook {
+        cluster: HumanAddr,
     },
     PassCommand {
         contract_addr: HumanAddr,
@@ -57,29 +65,28 @@ pub enum HandleMsg {
     },
 
     //////////////////////
-    /// Feeder Operations
-    /// //////////////////
+    // Feeder Operations
+    //////////////////////
 
-    /// Revoke asset from MIR rewards pool
-    /// and register end_price to mint contract
-    RevokeAsset {
-        asset_token: HumanAddr,
-        end_price: Decimal,
-    },
-    /// Migrate asset to new asset by registering
-    /// end_price to mint contract and add
-    /// the new asset to MIR rewards pool
-    MigrateAsset {
-        name: String,
-        symbol: String,
-        from_token: HumanAddr,
-        end_price: Decimal,
-    },
+    // Revoke asset from MIR rewards pool
+    // and register end_price to mint contract
+    // RevokeAsset {
+    //     asset_token: HumanAddr,
+    //     end_price: Decimal,
+    // },
+    // Migrate asset to new asset by registering
+    // end_price to mint contract and add
+    // the new asset to MIR rewards pool
+    // MigrateAsset {
+    //     name: String,
+    //     symbol: String,
+    //     from_token: HumanAddr,
+    //     end_price: Decimal,
+    // },
 
     ///////////////////
-    /// User Operations
     ///////////////////
-    Distribute {},
+    // Distribute {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -118,14 +125,21 @@ pub struct MigrateMsg {}
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct Params {
-    /// Auction discount rate applied to asset mint
-    pub auction_discount: Decimal,
-    /// Minium collateral ratio applied to asset mint
-    pub min_collateral_ratio: Decimal,
-    /// Distribution weight (default is 30, which is 1/10 of MIR distribution weight)
+    // Name of basket 
+    pub name: String,
+
+    // Symbol of basket
+    pub symbol: String,
+    /// Distribution weight (default is 30, which is 1/10 of NEB distribution weight)
     pub weight: Option<u32>,
-    /// For pre-IPO assets, time period after asset creation in which minting is enabled
-    pub mint_period: Option<u64>,
-    /// For pre-IPO assets, collateral ratio for the asset after migration
-    pub min_collateral_ratio_after_migration: Option<Decimal>,
+
+    // Corresponding penalty contract to query for mint/redeem
+    pub penalty: HumanAddr,
+
+    /// Oracle address
+    pub oracle: HumanAddr,
+    
+    pub assets: Vec<AssetInfo>,
+
+    pub targets: Vec<u32>
 }

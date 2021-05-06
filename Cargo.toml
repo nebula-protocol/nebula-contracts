@@ -5,6 +5,6 @@ members = [
   "contracts/basket-dummy-oracle",
   "contracts/basket-penalty",
   "contracts/basket-gov",
-  "contracts/basket-factory"
+  "contracts/basket-factory",
   "libraries/*"
 ]

@@ -115,6 +115,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "basket-factory"
+version = "0.1.0"
+dependencies = [
+ "basket-contract",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw20",
+ "schemars",
+ "serde",
+ "snafu",
+ "terraswap",
+]
+
+[[package]]
 name = "basket-gov"
 version = "0.1.0"
 dependencies = [
