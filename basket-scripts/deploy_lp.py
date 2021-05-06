@@ -302,7 +302,6 @@ def deploy():
         {
             "owner": deployer.key.acc_address,
             "nebula_token": nebula_token,
-            "oracle_contract": nebula_token,  # this probably isn't relevant to nebula.. double check then remove
             "terraswap_factory": terraswap_factory_contract,
             "base_denom": "uusd",
             "premium_min_update_interval": 5,
