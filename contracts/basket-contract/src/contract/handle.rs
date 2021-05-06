@@ -20,7 +20,6 @@ use crate::{
 use terraswap::asset::{Asset, AssetInfo};
 use crate::contract::query_basket_state;
 
-
 /*
     Match the incoming message to the right category: receive, mint,
     unstage, reset_target, or  set basket token
