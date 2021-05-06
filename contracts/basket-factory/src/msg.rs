@@ -19,10 +19,9 @@ pub enum HandleMsg {
     PostInitialize {
         owner: HumanAddr,
         terraswap_factory: HumanAddr,
-        mirror_token: HumanAddr,
+        nebula_token: HumanAddr,
         staking_contract: HumanAddr,
         oracle_contract: HumanAddr,
-        mint_contract: HumanAddr,
         commission_collector: HumanAddr,
     },
     UpdateConfig {
@@ -95,7 +94,6 @@ pub enum QueryMsg {
 pub struct ConfigResponse {
     pub owner: HumanAddr,
     pub mirror_token: HumanAddr,
-    pub mint_contract: HumanAddr,
     pub staking_contract: HumanAddr,
     pub commission_collector: HumanAddr,
     pub oracle_contract: HumanAddr,

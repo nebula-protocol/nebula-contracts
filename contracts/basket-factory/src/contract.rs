@@ -14,13 +14,14 @@ use crate::state::{
 
 use basket_contracts::msg::HandleMsg;
 
-use mirror_protocol::factory::{
+use crate::msg::{
     ConfigResponse, DistributionInfoResponse, HandleMsg, InitMsg, MigrateMsg, Params, QueryMsg,
+    PostInitialize
 };
-use mirror_protocol::mint::HandleMsg as MintHandleMsg;
-use mirror_protocol::oracle::HandleMsg as OracleHandleMsg;
-use mirror_protocol::staking::Cw20HookMsg as StakingCw20HookMsg;
-use mirror_protocol::staking::HandleMsg as StakingHandleMsg;
+// use mirror_protocol::mint::HandleMsg as MintHandleMsg;
+// use mirror_protocol::oracle::HandleMsg as OracleHandleMsg;
+// use mirror_protocol::staking::Cw20HookMsg as StakingCw20HookMsg;
+// use mirror_protocol::staking::HandleMsg as StakingHandleMsg;
 
 use cw20::{Cw20HandleMsg, MinterResponse};
 use terraswap::asset::{AssetInfo, PairInfo};
@@ -42,8 +43,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         &mut deps.storage,
         &Config {
             owner: CanonicalAddr::default(),
-            mirror_token: CanonicalAddr::default(),
-            mint_contract: CanonicalAddr::default(),
+            nebula_token: CanonicalAddr::default(),
             oracle_contract: CanonicalAddr::default(),
             terraswap_factory: CanonicalAddr::default(),
             staking_contract: CanonicalAddr::default(),
@@ -68,8 +68,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     match msg {
         HandleMsg::PostInitialize {
             owner,
-            mirror_token,
-            mint_contract,
+            nebula_token,
             oracle_contract,
             terraswap_factory,
             staking_contract,
@@ -78,8 +77,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             deps,
             env,
             owner,
-            mirror_token,
-            mint_contract,
+            nebula_token,
             oracle_contract,
             terraswap_factory,
             staking_contract,
@@ -128,8 +126,7 @@ pub fn post_initialize<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     _env: Env,
     owner: HumanAddr,
-    mirror_token: HumanAddr,
-    mint_contract: HumanAddr,
+    nebula_token: HumanAddr,
     oracle_contract: HumanAddr,
     terraswap_factory: HumanAddr,
     staking_contract: HumanAddr,
@@ -404,8 +401,8 @@ pub fn terraswap_creation_hook<S: Storage, A: Api, Q: Querier>(
     let sender_raw = deps.api.canonical_address(&env.message.sender)?;
 
     if config.mirror_token == asset_token_raw {
-        store_weight(&mut deps.storage, &asset_token_raw, MIRROR_TOKEN_WEIGHT)?;
-        increase_total_weight(&mut deps.storage, MIRROR_TOKEN_WEIGHT)?;
+        store_weight(&mut deps.storage, &asset_token_raw, NEBULA_TOKEN_WEIGHT)?;
+        increase_total_weight(&mut deps.storage, NEBULA_TOKEN_WEIGHT)?;
     } else if config.terraswap_factory != sender_raw {
         return Err(StdError::unauthorized());
     }
