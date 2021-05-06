@@ -707,35 +707,36 @@ pub fn set_basket_token_hook<S: Storage, A: Api, Q: Querier>(
 //     })
 // }
 
-// pub fn query<S: Storage, A: Api, Q: Querier>(
-//     deps: &Extern<S, A, Q>,
-//     msg: QueryMsg,
-// ) -> StdResult<Binary> {
-//     match msg {
-//         QueryMsg::Config {} => to_binary(&query_config(deps)?),
-//         QueryMsg::DistributionInfo {} => to_binary(&query_distribution_info(deps)?),
-//     }
-// }
+pub fn query<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    msg: QueryMsg,
+) -> StdResult<Binary> {
+    match msg {
+        QueryMsg::Config {} => to_binary(&query_config(deps)?),
+        // QueryMsg::DistributionInfo {} => to_binary(&query_distribution_info(deps)?),
+    }
+}
 
-// pub fn query_config<S: Storage, A: Api, Q: Querier>(
-//     deps: &Extern<S, A, Q>,
-// ) -> StdResult<ConfigResponse> {
-//     let state = read_config(&deps.storage)?;
-//     let resp = ConfigResponse {
-//         owner: deps.api.human_address(&state.owner)?,
-//         nebula_token: deps.api.human_address(&state.nebula_token)?,
-//         oracle_contract: deps.api.human_address(&state.oracle_contract)?,
-//         terraswap_factory: deps.api.human_address(&state.terraswap_factory)?,
-//         staking_contract: deps.api.human_address(&state.staking_contract)?,
-//         commission_collector: deps.api.human_address(&state.commission_collector)?,
-//         token_code_id: state.token_code_id,
-//         base_denom: state.base_denom,
-//         genesis_time: state.genesis_time,
-//         distribution_schedule: state.distribution_schedule,
-//     };
+pub fn query_config<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+) -> StdResult<ConfigResponse> {
+    let state = read_config(&deps.storage)?;
+    let resp = ConfigResponse {
+        owner: deps.api.human_address(&state.owner)?,
+        nebula_token: deps.api.human_address(&state.nebula_token)?,
+        oracle_contract: deps.api.human_address(&state.oracle_contract)?,
+        terraswap_factory: deps.api.human_address(&state.terraswap_factory)?,
+        staking_contract: deps.api.human_address(&state.staking_contract)?,
+        commission_collector: deps.api.human_address(&state.commission_collector)?,
+        token_code_id: state.token_code_id,
+        cluster_code_id: state.cluster_code_id,
+        base_denom: state.base_denom,
+        genesis_time: state.genesis_time,
+        distribution_schedule: state.distribution_schedule,
+    };
 
-//     Ok(resp)
-// }
+    Ok(resp)
+}
 
 // pub fn query_distribution_info<S: Storage, A: Api, Q: Querier>(
 //     deps: &Extern<S, A, Q>,

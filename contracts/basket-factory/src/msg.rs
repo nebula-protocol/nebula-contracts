@@ -93,19 +93,20 @@ pub enum HandleMsg {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     Config {},
-    DistributionInfo {},
+    // DistributionInfo {},
 }
 
 // We define a custom struct for each query response
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ConfigResponse {
     pub owner: HumanAddr,
-    pub mirror_token: HumanAddr,
+    pub nebula_token: HumanAddr,
     pub staking_contract: HumanAddr,
     pub commission_collector: HumanAddr,
     pub oracle_contract: HumanAddr,
     pub terraswap_factory: HumanAddr,
     pub token_code_id: u64,
+    pub cluster_code_id: u64,
     pub base_denom: String,
     pub genesis_time: u64,
     pub distribution_schedule: Vec<(u64, u64, Uint128)>,
