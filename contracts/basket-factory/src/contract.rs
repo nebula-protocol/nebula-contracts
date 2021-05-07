@@ -30,7 +30,7 @@ use terraswap::token::InitMsg as TokenInitMsg;
 
 const NEBULA_TOKEN_WEIGHT: u32 = 300u32;
 const NORMAL_TOKEN_WEIGHT: u32 = 30u32;
-const DISTRIBUTION_INTERVAL: u64 = 60u64;
+const DISTRIBUTION_INTERVAL: u64 = 1u64;
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -336,21 +336,7 @@ pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
     };
 
     let cluster = env.message.sender;
-    let cluster_raw = deps.api.canonical_address(&cluster)?;
 
-    // If weight is given as params, we use that or just use default
-    let weight = if let Some(weight) = params.weight {
-        weight
-    } else {
-        NORMAL_TOKEN_WEIGHT
-    };
-
-    // Increase total weight
-    store_weight(&mut deps.storage, &cluster_raw, weight)?;
-    increase_total_weight(&mut deps.storage, weight)?;
-
-    // Remove params == clear flag
-    remove_params(&mut deps.storage);
 
     // Register asset to mint contract
     // Register asset to oracle contract
@@ -403,6 +389,31 @@ pub fn set_basket_token_hook<S: Storage, A: Api, Q: Querier>(
 ) -> HandleResult {
     let config: Config = read_config(&deps.storage)?;
     let token = env.message.sender;
+
+    let token_raw = deps.api.canonical_address(&token)?;
+
+    // If the param is not exists, it means there is no cluster registration process in progress
+    let params: Params = match read_params(&deps.storage) {
+        Ok(v) => v,
+        Err(_) => {
+            return Err(StdError::generic_err(
+                "No cluster registration process in progress",
+            ))
+        }
+    };
+
+    // If weight is given as params, we use that or just use default
+    let weight = if let Some(weight) = params.weight {
+        weight
+    } else {
+        NORMAL_TOKEN_WEIGHT
+    };
+
+    store_weight(&mut deps.storage, &token_raw, weight)?;
+    increase_total_weight(&mut deps.storage, weight)?;
+
+    // Remove params == clear flag
+    remove_params(&mut deps.storage);
 
     // Register asset to mint contract
     // Create terraswap pair

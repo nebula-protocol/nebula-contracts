@@ -149,6 +149,18 @@ def deploy():
         seq(),
     )
 
+    print(f"[deploy] - Instantiate factory")
+    factory_contract = instantiate_contract(
+        factory_code_id,
+        {
+            "token_code_id": int(token_code_id),
+            "cluster_code_id": int(basket_code_id),
+            "base_denom": "uusd",
+            "distribution_schedule": [[0, 100000, "1000000"]],
+        },
+        seq(),
+    )
+
     print(f"[deploy] - instantiate nebula token")
     nebula_token = instantiate_contract(
         token_code_id,
@@ -157,24 +169,16 @@ def deploy():
             "symbol": "NEB",
             "decimals": 6,
             "initial_balances": [
-                {"address": deployer.key.acc_address, "amount": "1000000000000"}
+                {"address": deployer.key.acc_address, "amount": "1000000000000",},
+                {"address": factory_contract, "amount": "10000000000",}
             ],
-            "mint": None,
+            # maybe ?
+            "minter": {"minter": factory_contract, "cap": None},
         },
         seq(),
     )
 
-    print(f"Instantiate factory")
-    factory_contract = instantiate_contract(
-        factory_code_id,
-        {
-            "token_code_id": int(token_code_id),
-            "cluster_code_id": int(basket_code_id),
-            "base_denom": "uusd",
-            "distribution_schedule": [[1, 2, "3"]],
-        },
-        seq(),
-    )
+    print(f"[deploy] - Send nebula to factory contract for distribution")
 
     print(f"[deploy] - create staking contract")
     staking_contract = instantiate_contract(
@@ -434,6 +438,32 @@ def deploy():
     )
 
     print(f"[deploy] - nebula token balance after withdrawing reward - {neb_balance}")
+
+    time.sleep(2)
+
+    print(f"[deploy] - asking factory contract to distribute rewards")
+    resp = execute_contract(
+        deployer,
+        factory_contract,
+        {"distribute": {}},
+        seq()
+    )
+
+    for event in resp.logs:
+        import pprint
+        pprint.pprint(event.events_by_type)
+    print(basket, basket_token, nebula_token, lp_token)
+    print(f"[deploy] - withdraw reward from staking contract")
+    execute_contract(
+        deployer, staking_contract, {"withdraw": {"asset_token": basket_token}}, seq()
+    )
+
+    neb_balance = terra.wasm.contract_query(
+        nebula_token, {"balance": {"address": deployer.key.acc_address}}
+    )
+
+    print(f"[deploy] - nebula token balance after withdrawing reward - {neb_balance}")
+
 
 
 deploy()
