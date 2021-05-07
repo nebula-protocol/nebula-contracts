@@ -84,7 +84,7 @@ pub enum HandleMsg {
 
     ///////////////////
     ///////////////////
-    // Distribute {},
+    Distribute {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -270,4 +270,11 @@ pub enum StakingHandleMsg {
         staker_addr: HumanAddr,
         amount: Uint128,
     },
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum StakingCw20HookMsg {
+    Bond { asset_token: HumanAddr },
+    DepositReward { rewards: Vec<(HumanAddr, Uint128)> },
 }

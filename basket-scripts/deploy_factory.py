@@ -350,9 +350,6 @@ def deploy():
         basket, {"basket_state": {"basket_contract_address": basket}}
     )
     print("Basket state after initialize --", debug_print)
-
-
-
     print(f"[deploy] - adding liquidity to pair contract")
     execute_contract(
         deployer,

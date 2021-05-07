@@ -14,7 +14,7 @@ use crate::state::{
 
 use crate::msg::{
     BasketHandleMsg, BasketInitMsg, ConfigResponse, DistributionInfoResponse, HandleMsg, InitMsg,
-    MigrateMsg, Params, QueryMsg, StakingHandleMsg
+    MigrateMsg, Params, QueryMsg, StakingHandleMsg, StakingCw20HookMsg
 };
 // use mirror_protocol::mint::HandleMsg as MintHandleMsg;
 // use mirror_protocol::oracle::HandleMsg as OracleHandleMsg;
@@ -106,8 +106,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::TerraswapCreationHook { asset_token } => {
             terraswap_creation_hook(deps, env, asset_token)
         }
-        // HandleMsg::Distribute {} => distribute(deps, env),
-        // HandleMsg::Distribute {} => {},
+        HandleMsg::Distribute {} => distribute(deps, env),
         HandleMsg::PassCommand { contract_addr, msg } => {
             pass_command(deps, env, contract_addr, msg)
         }
@@ -497,80 +496,81 @@ pub fn terraswap_creation_hook<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-// /// Distribute
-// /// Anyone can execute distribute operation to distribute
-// /// mirror inflation rewards on the staking pool
-// pub fn distribute<S: Storage, A: Api, Q: Querier>(
-//     deps: &mut Extern<S, A, Q>,
-//     env: Env,
-// ) -> HandleResult {
-//     let last_distributed = read_last_distributed(&deps.storage)?;
-//     if last_distributed + DISTRIBUTION_INTERVAL > env.block.time {
-//         return Err(StdError::generic_err(
-//             "Cannot distribute mirror token before interval",
-//         ));
-//     }
+/// Distribute
+/// Anyone can execute distribute operation to distribute
+/// nebula inflation rewards on the staking pool
+pub fn distribute<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+) -> HandleResult {
+    let last_distributed = read_last_distributed(&deps.storage)?;
+    if last_distributed + DISTRIBUTION_INTERVAL > env.block.time {
+        return Err(StdError::generic_err(
+            "Cannot distribute nebula token before interval",
+        ));
+    }
 
-//     let config: Config = read_config(&deps.storage)?;
-//     let time_elapsed = env.block.time - config.genesis_time;
-//     let last_time_elapsed = last_distributed - config.genesis_time;
-//     let mut distributed_amount: Uint128 = Uint128::zero();
-//     for s in config.distribution_schedule.iter() {
-//         if s.0 > time_elapsed || s.1 < last_time_elapsed {
-//             continue;
-//         }
+    let config: Config = read_config(&deps.storage)?;
+    let time_elapsed = env.block.time - config.genesis_time;
+    let last_time_elapsed = last_distributed - config.genesis_time;
+    let mut target_distribution_amount: Uint128 = Uint128::zero();
+    for s in config.distribution_schedule.iter() {
+        if s.0 > time_elapsed || s.1 < last_time_elapsed {
+            continue;
+        }
 
-//         // min(s.1, time_elpased) - max(s.0, last_time_elapsed)
-//         let time_duration =
-//             std::cmp::min(s.1, time_elapsed) - std::cmp::max(s.0, last_time_elapsed);
+        // min(s.1, time_elapsed) - max(s.0, last_time_elapsed)
+        let time_duration =
+            std::cmp::min(s.1, time_elapsed) - std::cmp::max(s.0, last_time_elapsed);
 
-//         let time_slot = s.1 - s.0;
-//         let distribution_amount_per_sec: Decimal = Decimal::from_ratio(s.2, time_slot);
-//         distributed_amount += distribution_amount_per_sec * Uint128(time_duration as u128);
-//     }
+        let time_slot = s.1 - s.0;
+        let distribution_amount_per_sec: Decimal = Decimal::from_ratio(s.2, time_slot);
+        target_distribution_amount += distribution_amount_per_sec * Uint128(time_duration as u128);
+    }
 
-//     let staking_contract = deps.api.human_address(&config.staking_contract)?;
-//     let mirror_token = deps.api.human_address(&config.mirror_token)?;
+    let staking_contract = deps.api.human_address(&config.staking_contract)?;
+    let nebula_token = deps.api.human_address(&config.nebula_token)?;
 
-//     let total_weight: u32 = read_total_weight(&deps.storage)?;
-//     let weights: Vec<(CanonicalAddr, u32)> = read_all_weight(&deps.storage)?;
-//     let messages: Vec<CosmosMsg> = weights
-//         .iter()
-//         .map(|w| {
-//             let amount =
-//                 distributed_amount * Decimal::from_ratio(w.1 as u128, total_weight as u128);
-//             if amount.is_zero() {
-//                 return Err(StdError::generic_err("cannot distribute zero amount"));
-//             }
+    let total_weight: u32 = read_total_weight(&deps.storage)?;
+    let mut distribution_amount: Uint128 = Uint128::zero();
+    let weights: Vec<(CanonicalAddr, u32)> = read_all_weight(&deps.storage)?;
+    let rewards: Vec<(HumanAddr, Uint128)> = weights
+        .iter()
+        .map(|w| {
+            let amount =
+                target_distribution_amount * Decimal::from_ratio(w.1 as u128, total_weight as u128);
 
-//             Ok(CosmosMsg::Wasm(WasmMsg::Execute {
-//                 contract_addr: mirror_token.clone(),
-//                 msg: to_binary(&Cw20HandleMsg::Send {
-//                     contract: staking_contract.clone(),
-//                     amount,
-//                     msg: Some(to_binary(&StakingCw20HookMsg::DepositReward {
-//                         asset_token: deps.api.human_address(&w.0)?,
-//                     })?),
-//                 })?,
-//                 send: vec![],
-//             }))
-//         })
-//         .filter(|m| m.is_ok())
-//         .collect::<StdResult<Vec<CosmosMsg>>>()?;
+            if amount.is_zero() {
+                return Err(StdError::generic_err("cannot distribute zero amount"));
+            }
 
-//     // store last distributed
-//     store_last_distributed(&mut deps.storage, env.block.time)?;
+            distribution_amount += amount;
+            Ok((deps.api.human_address(&w.0)?, amount))
+        })
+        .filter(|m| m.is_ok())
+        .collect::<StdResult<Vec<(HumanAddr, Uint128)>>>()?;
 
-//     // mint token to self and try send minted tokens to staking contract
-//     Ok(HandleResponse {
-//         messages,
-//         log: vec![
-//             log("action", "distribute"),
-//             log("distributed_amount", distributed_amount.to_string()),
-//         ],
-//         data: None,
-//     })
-// }
+    // store last distributed
+    store_last_distributed(&mut deps.storage, env.block.time)?;
+
+    // mint token to self and try send minted tokens to staking contract
+    Ok(HandleResponse {
+        messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: nebula_token.clone(),
+            msg: to_binary(&Cw20HandleMsg::Send {
+                contract: staking_contract.clone(),
+                amount: distribution_amount,
+                msg: Some(to_binary(&StakingCw20HookMsg::DepositReward { rewards })?),
+            })?,
+            send: vec![],
+        })],
+        log: vec![
+            log("action", "distribute"),
+            log("distribution_amount", distribution_amount.to_string()),
+        ],
+        data: None,
+    })
+}
 
 // pub fn revoke_asset<S: Storage, A: Api, Q: Querier>(
 //     deps: &mut Extern<S, A, Q>,
