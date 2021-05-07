@@ -3,7 +3,7 @@ use crate::{
     state::{save_config, save_target_asset_data, BasketConfig, TargetAssetData},
     util::vec_to_string,
 };
-use cosmwasm_std::{log, Api, Env, Extern, InitResponse, Querier, StdResult, Storage};
+use cosmwasm_std::{log, Api, Env, Extern, InitResponse, Querier, StdResult, Storage, CosmosMsg, WasmMsg};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -43,14 +43,27 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     save_config(&mut deps.storage, &cfg)?;
     save_target_asset_data(&mut deps.storage, &asset_data)?;
 
-    Ok(InitResponse {
-        log: vec![
-            log("name", msg.name),
-            log("owner", msg.owner),
-            log("assets", vec_to_string(&msg.assets)),
-        ],
-        messages: vec![],
-    })
+    let log = vec![
+        log("name", msg.name),
+        log("owner", msg.owner),
+        log("assets", vec_to_string(&msg.assets)),
+    ];
+
+    if let Some(hook) = msg.init_hook {
+        Ok(InitResponse {
+            log,
+            messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: hook.contract_addr,
+                msg: hook.msg,
+                send: vec![],
+            })],
+        })
+    } else {
+        Ok(InitResponse {
+            log,
+            messages: vec![]
+        })
+    }
 }
 
 #[cfg(test)]

@@ -107,7 +107,6 @@ dependencies = [
 name = "basket-factory"
 version = "0.1.0"
 dependencies = [
- "basket-contract",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",

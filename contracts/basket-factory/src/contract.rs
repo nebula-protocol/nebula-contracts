@@ -12,12 +12,9 @@ use crate::state::{
     store_weight, Config,
 };
 
-// init msg, handle msg
-use basket_contract::msg::HandleMsg as BasketHandleMsg;
-use basket_contract::msg::InitMsg as BasketInitMsg;
-
 use crate::msg::{
-    ConfigResponse, DistributionInfoResponse, HandleMsg, InitMsg, MigrateMsg, Params, QueryMsg,
+    BasketHandleMsg, BasketInitMsg, ConfigResponse, DistributionInfoResponse, HandleMsg, InitMsg,
+    MigrateMsg, Params, QueryMsg, StakingHandleMsg
 };
 // use mirror_protocol::mint::HandleMsg as MintHandleMsg;
 // use mirror_protocol::oracle::HandleMsg as OracleHandleMsg;
@@ -98,18 +95,17 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::CreateCluster {
             name,
             symbol,
-            oracle_feeder,
             params,
-        } => create_cluster(deps, env, oracle_feeder, params),
-        HandleMsg::TokenCreationHook { oracle_feeder } => {
-            token_creation_hook(deps, env, oracle_feeder)
+        } => create_cluster(deps, env, params),
+        HandleMsg::TokenCreationHook { } => {
+            token_creation_hook(deps, env)
         }
         HandleMsg::SetBasketTokenHook { cluster } => {
             set_basket_token_hook(deps, env, cluster)
         }
-        // HandleMsg::TerraswapCreationHook { asset_token } => {
-        //     terraswap_creation_hook(deps, env, asset_token)
-        // }
+        HandleMsg::TerraswapCreationHook { asset_token } => {
+            terraswap_creation_hook(deps, env, asset_token)
+        }
         // HandleMsg::Distribute {} => distribute(deps, env),
         // HandleMsg::Distribute {} => {},
         HandleMsg::PassCommand { contract_addr, msg } => {
@@ -259,9 +255,7 @@ pub fn pass_command<S: Storage, A: Api, Q: Querier>(
 pub fn create_cluster<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    oracle_feeder: HumanAddr,
     params: Params,
-    
 ) -> HandleResult {
     let config: Config = read_config(&deps.storage)?;
     if config.owner != deps.api.canonical_address(&env.message.sender)? {
@@ -276,44 +270,42 @@ pub fn create_cluster<S: Storage, A: Api, Q: Querier>(
 
     Ok(HandleResponse {
         messages: vec![
-        CosmosMsg::Wasm(WasmMsg::Instantiate {
-            code_id: config.cluster_code_id,
-            send: vec![],
-            label: None,
-            msg: to_binary(&BasketInitMsg {
-                name: params.name.clone(),
-                owner: deps.api.human_address(&config.owner)?,
-                assets: params.assets,
-                oracle: oracle_feeder.clone(),
-                penalty: params.penalty,
-                basket_token: None,
-                target: params.targets,
-                // TODO: Write separate init hook for basket
-                init_hook: Some(InitHook {
-                    contract_addr: env.contract.address,
-                    msg: to_binary(&HandleMsg::TokenCreationHook { oracle_feeder: oracle_feeder.clone() })?,
-                }),
-            })?,
-        })
-
-        // CosmosMsg::Wasm(WasmMsg::Instantiate {
-        //     code_id: config.token_code_id,
-        //     send: vec![],
-        //     label: None,
-        //     msg: to_binary(&TokenInitMsg {
-        //         name: name.clone(),
-        //         symbol: symbol.to_string(),
-        //         decimals: 6u8,
-        //         initial_balances: vec![],
-        //         mint: Some(MinterResponse {
-        //             minter: ????//deps.api.human_address(&config.mint_contract)?,
-        //             cap: None,
-        //         }),
-        //         init_hook: Some(InitHook {
-        //             contract_addr: env.contract.address,
-        //             msg: to_binary(&HandleMsg::TokenCreationHook { oracle_feeder })?,
-        //         }),
-        //     })?
+            CosmosMsg::Wasm(WasmMsg::Instantiate {
+                code_id: config.cluster_code_id,
+                send: vec![],
+                label: None,
+                msg: to_binary(&BasketInitMsg {
+                    name: params.name.clone(),
+                    owner: env.contract.address.clone(),
+                    assets: params.assets,
+                    oracle: params.oracle.clone(),
+                    penalty: params.penalty,
+                    basket_token: None,
+                    target: params.target,
+                    // TODO: Write separate init hook for basket
+                    init_hook: Some(InitHook {
+                        contract_addr: env.contract.address,
+                        msg: to_binary(&HandleMsg::TokenCreationHook {})?,
+                    }),
+                })?,
+            }), // CosmosMsg::Wasm(WasmMsg::Instantiate {
+                //     code_id: config.token_code_id,
+                //     send: vec![],
+                //     label: None,
+                //     msg: to_binary(&TokenInitMsg {
+                //         name: name.clone(),
+                //         symbol: symbol.to_string(),
+                //         decimals: 6u8,
+                //         initial_balances: vec![],
+                //         mint: Some(MinterResponse {
+                //             minter: ????//deps.api.human_address(&config.mint_contract)?,
+                //             cap: None,
+                //         }),
+                //         init_hook: Some(InitHook {
+                //             contract_addr: env.contract.address,
+                //             msg: to_binary(&HandleMsg::TokenCreationHook { oracle_feeder })?,
+                //         }),
+                //     })?
         ],
         log: vec![
             log("action", "create_cluster"),
@@ -331,14 +323,17 @@ pub fn create_cluster<S: Storage, A: Api, Q: Querier>(
 pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    oracle_feeder: HumanAddr,
 ) -> HandleResult {
     let config: Config = read_config(&deps.storage)?;
 
     // If the param is not exists, it means there is no cluster registration process in progress
     let params: Params = match read_params(&deps.storage) {
         Ok(v) => v,
-        Err(_) => return Err(StdError::generic_err("No cluster registration process in progress")),
+        Err(_) => {
+            return Err(StdError::generic_err(
+                "No cluster registration process in progress",
+            ))
+        }
     };
 
     let cluster = env.message.sender;
@@ -361,27 +356,31 @@ pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
     // Register asset to mint contract
     // Register asset to oracle contract
     // Create terraswap pair
+
     Ok(HandleResponse {
         messages: vec![
             // Instantiate token
             CosmosMsg::Wasm(WasmMsg::Instantiate {
-            code_id: config.token_code_id,
-            send: vec![],
-            label: None,
-            msg: to_binary(&TokenInitMsg {
-                name: params.name.clone(),
-                symbol: params.symbol.clone(),
-                decimals: 6u8,
-                initial_balances: vec![],
-                mint: Some(MinterResponse {
-                    minter: cluster.clone(), //deps.api.human_address(&config.mint_contract)?,
-                    cap: None,
-                }),
-                init_hook: Some(InitHook {
-                    contract_addr: env.contract.address,
-                    msg: to_binary(&HandleMsg::SetBasketTokenHook{ cluster: cluster.clone() })?,
-                }),
-            })?
+                code_id: config.token_code_id,
+                send: vec![],
+                label: None,
+                msg: to_binary(&TokenInitMsg {
+                    name: params.name.clone(),
+                    symbol: params.symbol.clone(),
+                    decimals: 6u8,
+                    initial_balances: vec![],
+                    mint: Some(MinterResponse {
+                        minter: cluster.clone(), //deps.api.human_address(&config.mint_contract)?,
+                        cap: None,
+                    }),
+                    // Set Basket Token
+                    init_hook: Some(InitHook {
+                        contract_addr: env.contract.address.clone(),
+                        msg: to_binary(&HandleMsg::SetBasketTokenHook {
+                            cluster: cluster.clone(),
+                        })?,
+                    }),
+                })?,
             }),
             // Reset cluster token
             CosmosMsg::Wasm(WasmMsg::Execute {
@@ -391,42 +390,11 @@ pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
                     owner: deps.api.human_address(&config.owner)?,
                 })?,
             }),
-            
-            // Set Basket Token
-            // CosmosMsg::Wasm(WasmMsg::Execute {
-            //     contract_addr: deps.api.human_address(&config.oracle_contract)?,
-            //     send: vec![],
-            //     msg: to_binary(&OracleHandleMsg::RegisterAsset {
-            //         asset_token: asset_token.clone(),
-            //         feeder: oracle_feeder,
-            //     })?,
-            // }),
-            // CosmosMsg::Wasm(WasmMsg::Execute {
-            //     contract_addr: deps.api.human_address(&config.terraswap_factory)?,
-            //     send: vec![],
-            //     msg: to_binary(&TerraswapFactoryHandleMsg::CreatePair {
-            //         asset_infos: [
-            //             AssetInfo::NativeToken {
-            //                 denom: config.base_denom,
-            //             },
-            //             AssetInfo::Token {
-            //                 contract_addr: asset_token.clone(),
-            //             },
-            //         ],
-            //         init_hook: Some(InitHook {
-            //             msg: to_binary(&HandleMsg::TerraswapCreationHook {
-            //                 asset_token: asset_token.clone(),
-            //             })?,
-            //             contract_addr: env.contract.address,
-            //         }),
-            //     })?,
-            // }),
-        ],// 
+        ],
         log: vec![log("cluster_addr", cluster.as_str())],
         data: None,
     })
 }
-
 
 /// Set Token Hook
 pub fn set_basket_token_hook<S: Storage, A: Api, Q: Querier>(
@@ -434,10 +402,10 @@ pub fn set_basket_token_hook<S: Storage, A: Api, Q: Querier>(
     env: Env,
     cluster: HumanAddr,
 ) -> HandleResult {
+    let config: Config = read_config(&deps.storage)?;
     let token = env.message.sender;
 
     // Register asset to mint contract
-    // Register asset to oracle contract
     // Create terraswap pair
     Ok(HandleResponse {
         messages: vec![
@@ -446,9 +414,29 @@ pub fn set_basket_token_hook<S: Storage, A: Api, Q: Querier>(
                 contract_addr: cluster.clone(),
                 send: vec![],
                 msg: to_binary(&BasketHandleMsg::_SetBasketToken {
-                    basket_token: token.clone()
+                    basket_token: token.clone(),
                 })?,
-            })
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: deps.api.human_address(&config.terraswap_factory)?,
+                send: vec![],
+                msg: to_binary(&TerraswapFactoryHandleMsg::CreatePair {
+                    asset_infos: [
+                        AssetInfo::NativeToken {
+                            denom: config.base_denom,
+                        },
+                        AssetInfo::Token {
+                            contract_addr: token.clone(),
+                        },
+                    ],
+                    init_hook: Some(InitHook {
+                        msg: to_binary(&HandleMsg::TerraswapCreationHook {
+                            asset_token: token.clone(),
+                        })?,
+                        contract_addr: env.contract.address,
+                    }),
+                })?,
+            }),
         ],
         log: vec![
             log("action", "set_cluster_token"),
@@ -458,55 +446,56 @@ pub fn set_basket_token_hook<S: Storage, A: Api, Q: Querier>(
         data: None,
     })
 }
-// /// 1. Register asset and liquidity(LP) token to staking contract
-// pub fn terraswap_creation_hook<S: Storage, A: Api, Q: Querier>(
-//     deps: &mut Extern<S, A, Q>,
-//     env: Env,
-//     asset_token: HumanAddr,
-// ) -> HandleResult {
-//     // Now terraswap contract is already created,
-//     // and liquidty token also created
-//     let config: Config = read_config(&deps.storage)?;
-//     let asset_token_raw = deps.api.canonical_address(&asset_token)?;
-//     let sender_raw = deps.api.canonical_address(&env.message.sender)?;
+/// 1. Register asset and liquidity(LP) token to staking contract
+pub fn terraswap_creation_hook<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    asset_token: HumanAddr,
+) -> HandleResult {
+    // Now terraswap contract is already created,
+    // and liquidty token also created
+    let config: Config = read_config(&deps.storage)?;
+    let asset_token_raw = deps.api.canonical_address(&asset_token)?;
+    let sender_raw = deps.api.canonical_address(&env.message.sender)?;
 
-//     if config.mirror_token == asset_token_raw {
-//         store_weight(&mut deps.storage, &asset_token_raw, NEBULA_TOKEN_WEIGHT)?;
-//         increase_total_weight(&mut deps.storage, NEBULA_TOKEN_WEIGHT)?;
-//     } else if config.terraswap_factory != sender_raw {
-//         return Err(StdError::unauthorized());
-//     }
+    if config.nebula_token == asset_token_raw {
+        store_weight(&mut deps.storage, &asset_token_raw, NEBULA_TOKEN_WEIGHT)?;
+        increase_total_weight(&mut deps.storage, NEBULA_TOKEN_WEIGHT)?;
+    } else if config.terraswap_factory != sender_raw {
+        return Err(StdError::unauthorized());
+    }
 
-//     let asset_infos = [
-//         AssetInfo::NativeToken {
-//             denom: "uusd".to_string(),
-//         },
-//         AssetInfo::Token {
-//             contract_addr: asset_token.clone(),
-//         },
-//     ];
+    let asset_infos = [
+        AssetInfo::NativeToken {
+            denom: "uusd".to_string(),
+        },
+        AssetInfo::Token {
+            contract_addr: asset_token.clone(),
+        },
+    ];
 
-//     // Load terraswap pair info
-//     let pair_info: PairInfo = query_pair_info(
-//         &deps,
-//         &deps.api.human_address(&config.terraswap_factory)?,
-//         &asset_infos,
-//     )?;
+    // Load terraswap pair info
+    let pair_info: PairInfo = query_pair_info(
+        &deps,
+        &deps.api.human_address(&config.terraswap_factory)?,
+        &asset_infos,
+    )?;
 
-//     // Execute staking contract to register staking token of newly created asset
-//     Ok(HandleResponse {
-//         messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
-//             contract_addr: deps.api.human_address(&config.staking_contract)?,
-//             send: vec![],
-//             msg: to_binary(&StakingHandleMsg::RegisterAsset {
-//                 asset_token,
-//                 staking_token: pair_info.liquidity_token,
-//             })?,
-//         })],
-//         log: vec![],
-//         data: None,
-//     })
-// }
+    // Execute staking contract to register staking token of newly created asset
+    Ok(HandleResponse {
+        // messages: vec![],
+        messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: deps.api.human_address(&config.staking_contract)?,
+            send: vec![],
+            msg: to_binary(&StakingHandleMsg::RegisterAsset {
+                asset_token,
+                staking_token: pair_info.liquidity_token,
+            })?,
+        })],
+        log: vec![],
+        data: None,
+    })
+}
 
 // /// Distribute
 // /// Anyone can execute distribute operation to distribute

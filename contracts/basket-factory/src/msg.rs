@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{Binary, Decimal, HumanAddr, Uint128};
 
-use terraswap::asset::{AssetInfo};
+use terraswap::asset::{AssetInfo, Asset};
+use cw20::Cw20ReceiveMsg;
+use terraswap::hook::InitHook;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
@@ -42,19 +44,15 @@ pub enum HandleMsg {
         name: String,
         /// asset symbol used to create token contract
         symbol: String,
-        /// authorized asset oracle feeder
-        oracle_feeder: HumanAddr,
         /// used to create all necessary contract or register asset
         params: Params,
     },
     /// Internal use
-    TokenCreationHook {
-        oracle_feeder: HumanAddr,
+    TokenCreationHook {},
+    /// Internal use
+    TerraswapCreationHook {
+        asset_token: HumanAddr,
     },
-    /// Internal use except MIR registration
-    // TerraswapCreationHook {
-    //     asset_token: HumanAddr,
-    // },
     /// Internal use - Set Basket Token
     SetBasketTokenHook {
         cluster: HumanAddr,
@@ -142,5 +140,134 @@ pub struct Params {
     
     pub assets: Vec<AssetInfo>,
 
-    pub targets: Vec<u32>
+    pub target: Vec<u32>
+}
+
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BasketHandleMsg {
+    Receive(Cw20ReceiveMsg),
+
+    /// Withdraws asset from staging
+    UnstageAsset {
+        asset: AssetInfo,
+        amount: Option<Uint128>,
+    },
+
+    /// Stages native asset
+    StageNativeAsset {
+        asset: Asset,
+    },
+
+    /// Called to set basket token after initialization
+    _SetBasketToken {
+        basket_token: HumanAddr,
+    },
+
+    /// Can be called by the owner to reset the basket owner
+    _ResetOwner {
+        owner: HumanAddr,
+    },
+
+    /// Can be called by the owner to reset the basket weight target
+    ResetTarget {
+        assets: Vec<AssetInfo>,
+        target: Vec<u32>,
+    },
+
+    ResetPenalty {
+        penalty: HumanAddr,
+    },
+
+    /// Mints new assets
+    Mint {
+        /// Asset amounts deposited for minting (must be staged)
+        asset_amounts: Vec<Asset>,
+        /// Minimum tokens to receive
+        min_tokens: Option<Uint128>,
+    },
+    // AddAssetType {
+    //     asset: HumanAddr,
+    // },
+}
+
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct BasketInitMsg {
+    /// Basket name (title)
+    pub name: String,
+
+    /// Basket's permissioned owner
+    pub owner: HumanAddr,
+
+    /// Basket token CW20 address
+    pub basket_token: Option<HumanAddr>,
+
+    /// Asset addresses
+    pub assets: Vec<AssetInfo>,
+
+    /// Oracle address
+    pub oracle: HumanAddr,
+
+    /// Penalty function address
+    pub penalty: HumanAddr,
+
+    /// Target weight vector (not normalized)
+    pub target: Vec<u32>,
+
+    pub init_hook: Option<InitHook>
+}
+
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum StakingHandleMsg {
+    Receive(Cw20ReceiveMsg),
+
+    ////////////////////////
+    /// Owner operations ///
+    ////////////////////////
+    UpdateConfig {
+        owner: Option<HumanAddr>,
+        premium_min_update_interval: Option<u64>,
+    },
+    RegisterAsset {
+        asset_token: HumanAddr,
+        staking_token: HumanAddr,
+    },
+
+    ////////////////////////
+    /// User operations ///
+    ////////////////////////
+    Unbond {
+        asset_token: HumanAddr,
+        amount: Uint128,
+    },
+    /// Withdraw pending rewards
+    Withdraw {
+        // If the asset token is not given, then all rewards are withdrawn
+        asset_token: Option<HumanAddr>,
+    },
+
+    //////////////////////////////////
+    /// Permission-less operations ///
+    //////////////////////////////////
+    AdjustPremium {
+        asset_tokens: Vec<HumanAddr>,
+    },
+
+    ////////////////////////////////
+    /// Mint contract operations ///
+    ////////////////////////////////
+    IncreaseShortToken {
+        asset_token: HumanAddr,
+        staker_addr: HumanAddr,
+        amount: Uint128,
+    },
+    DecreaseShortToken {
+        asset_token: HumanAddr,
+        staker_addr: HumanAddr,
+        amount: Uint128,
+    },
 }
