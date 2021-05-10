@@ -20,7 +20,6 @@ use crate::{
 use terraswap::asset::{Asset, AssetInfo};
 use crate::contract::query_basket_state;
 
-
 /*
     Match the incoming message to the right category: receive, mint,
     unstage, reset_target, or  set basket token
@@ -526,17 +525,50 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 
     let c = asset_weights;
 
-    let mint_response = query_mint_amount(
-        &deps,
-        &cfg.penalty,
-        basket_token_supply,
-        inv,
-        c,
-        prices,
-        target,
-    )?;
+    let mut mint_total;
 
-    let mint_total = mint_response.mint_tokens;
+    let mut extra_logs = vec![];
+
+    // do a regular mint
+    if basket_token_supply != Uint128(0) {
+        let mint_response = query_mint_amount(
+            &deps,
+            &cfg.penalty,
+            basket_token_supply,
+            inv,
+            c,
+            prices,
+            target,
+        )?;
+        mint_total = mint_response.mint_tokens;
+        extra_logs = mint_response.log;
+    } else {
+        // basket has no basket tokens -- basket is empty and needs to be initialized
+        // attempt to initialize it with min_tokens as the number of basket tokens
+        // and the mint basket c as the initial assets
+        // c is required to be in ratio with the target weights
+        if let Some(proposed_mint_total) = min_tokens {
+            let mut val = 0;
+            for i in 0..c.len() {
+                if inv[i].u128() % c[i].u128() != 0u128 {
+                    return Err(StdError::generic_err("Initial basket assets must be in target weights"));
+                }
+                let div = inv[i].u128() / c[i].u128();
+                if val == 0 {
+                    val = div;
+                }
+                if div != val {
+                    return Err(StdError::generic_err("Initial basket assets must be in target weights"))
+                }
+            }
+            mint_total = *proposed_mint_total;
+        } else {
+            return Err(StdError::generic_err("Basket is uninitialized. \
+            To initialize it with your mint basket, \
+            provide min_tokens as the amount of basket tokens you want to start with."))
+        }
+    }
+
 
     if let Some(min) = min_tokens {
         if mint_total < *min {
@@ -568,7 +600,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         log("sender", &env.message.sender),
         log("mint_total", mint_total),
     ];
-    logs.extend(mint_response.log);
+    logs.extend(extra_logs);
 
     // mint and send number of tokens to user
     Ok(HandleResponse {

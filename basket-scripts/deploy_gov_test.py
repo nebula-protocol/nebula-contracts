@@ -303,7 +303,7 @@ def deploy():
         penalty_code_id,
         {
             "penalty_params": {
-                "penalty_amt_lo": "0.1",
+                "penalty_amt_lo": "0.2",
                 "penalty_cutoff_lo": "0.01",
                 "penalty_amt_hi": "0.5",
                 "penalty_cutoff_hi": "0.1",
@@ -431,76 +431,5 @@ def deploy():
     print(basket_state)
 
     assert basket_state["penalty"] != penalty_contract and basket_state["penalty"] == new_penalty_contract
-    
-    # ### EXAMPLE: how to query basket state
-    # print("FIRST")
-    # print(
-    #     terra.wasm.contract_query(
-    #         basket, {"basket_state": {"basket_contract_address": basket}}
-    #     )
-    # )
-
-    # print("BALANCE")
-    # print(
-    #     terra.wasm.contract_query(
-    #         basket_token, {"balance": {"address": deployer.key.acc_address}}
-    #     )
-    # )
-
-    # ### EXAMPLE: how to stage and mint
-    # print("[deploy] - basket:stage_asset")
-    # stage_and_mint_tx = deployer.create_and_sign_tx(
-    #     msgs=[
-    #         MsgExecuteContract(
-    #             deployer.key.acc_address,
-    #             wBTC,
-    #             CW20.send(basket, "1000000", Basket.stage_asset()),
-    #         ),
-    #     ],
-    #     sequence=seq(),
-    #     fee=StdFee(4000000, "2000000uluna"),
-    # )
-    # result = terra.tx.broadcast(stage_and_mint_tx)
-    # print(f"stage TXHASH: {result.txhash}")
-    # print(result.logs[0].events_by_type)
-
-    # ### EXAMPLE: how to query basket state
-    # print(
-    #     terra.wasm.contract_query(
-    #         basket, {"basket_state": {"basket_contract_address": basket}}
-    #     )
-    # )
-
-    # ### EXAMPLE: how to stage and mint
-    # print("[deploy] - basket:mint")
-    # stage_and_mint_tx = deployer.create_and_sign_tx(
-    #     msgs=[
-    #         MsgExecuteContract(
-    #             deployer.key.acc_address,
-    #             basket,
-    #             Basket.mint([Asset.asset(wBTC, "1000000")]),
-    #         ),
-    #     ],
-    #     sequence=seq(),
-    #     fee=StdFee(4000000, "2000000uluna"),
-    # )
-    # result = terra.tx.broadcast(stage_and_mint_tx)
-    # print(f"mint TXHASH: {result.txhash}")
-    # print(result.logs[0].events_by_type)
-
-    # print("BALANCE after")
-    # print(
-    #     terra.wasm.contract_query(
-    #         basket_token, {"balance": {"address": deployer.key.acc_address}}
-    #     )
-    # )
-
-
-    # ### EXAMPLE: how to query basket state
-    # print(
-    #     terra.wasm.contract_query(
-    #         basket, {"basket_state": {"basket_contract_address": basket}}
-    #     )
-    # )
 
 deploy()

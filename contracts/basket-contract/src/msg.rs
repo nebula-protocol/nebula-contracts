@@ -3,7 +3,7 @@ use cw20::Cw20ReceiveMsg;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use terraswap::asset::{Asset, AssetInfo};
-
+use terraswap::hook::InitHook;
 use crate::state::BasketConfig;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -28,6 +28,8 @@ pub struct InitMsg {
 
     /// Target weight vector (not normalized)
     pub target: Vec<u32>,
+
+    pub init_hook: Option<InitHook>
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
