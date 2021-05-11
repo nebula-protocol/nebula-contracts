@@ -5,8 +5,8 @@ use cosmwasm_std::{HumanAddr, Uint128};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
-    pub owner: HumanAddr,        // mirror gov contract
-    pub mirror_token: HumanAddr, // mirror token address
+    pub owner: HumanAddr,        // nebula gov contract
+    pub nebula_token: HumanAddr, // nebula token address
     pub spend_limit: Uint128,    // spend limit per each `spend` request
 }
 
@@ -39,6 +39,6 @@ pub enum QueryMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ConfigResponse {
     pub owner: HumanAddr,
-    pub mirror_token: HumanAddr,
+    pub nebula_token: HumanAddr,
     pub spend_limit: Uint128,
 }

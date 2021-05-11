@@ -102,3 +102,8 @@ class Governance:
     @staticmethod
     def end_poll(poll_id):
         return {"end_poll": {"poll_id": poll_id}}
+
+class Community:
+    @staticmethod
+    def spend(recipient, amount):
+        return {"spend": { "recipient": recipient, "amount": amount }}

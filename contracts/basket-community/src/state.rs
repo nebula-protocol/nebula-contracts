@@ -8,8 +8,8 @@ static KEY_CONFIG: &[u8] = b"config";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
-    pub owner: CanonicalAddr,        // mirror gov address
-    pub mirror_token: CanonicalAddr, // mirror token address
+    pub owner: CanonicalAddr,        // nebula gov address
+    pub nebula_token: CanonicalAddr, // nebula token address
     pub spend_limit: Uint128,        // spend limit per each `spend` request
 }
 

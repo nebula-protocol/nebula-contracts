@@ -6,7 +6,9 @@ use cosmwasm_std::{
     WasmMsg,
 };
 
-use mirror_protocol::community::{ConfigResponse, HandleMsg, InitMsg, MigrateMsg, QueryMsg};
+use crate::msg::{
+    ConfigResponse, HandleMsg, InitMsg, MigrateMsg, QueryMsg,
+};
 
 use cw20::Cw20HandleMsg;
 
@@ -19,7 +21,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         &mut deps.storage,
         &Config {
             owner: deps.api.canonical_address(&msg.owner)?,
-            mirror_token: deps.api.canonical_address(&msg.mirror_token)?,
+            nebula_token: deps.api.canonical_address(&msg.nebula_token)?,
             spend_limit: msg.spend_limit,
         },
     )?;
@@ -34,13 +36,13 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
     match msg {
         HandleMsg::UpdateConfig { owner, spend_limit } => {
-            udpate_config(deps, env, owner, spend_limit)
+            update_config(deps, env, owner, spend_limit)
         }
         HandleMsg::Spend { recipient, amount } => spend(deps, env, recipient, amount),
     }
 }
 
-pub fn udpate_config<S: Storage, A: Api, Q: Querier>(
+pub fn update_config<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     owner: Option<HumanAddr>,
@@ -86,10 +88,10 @@ pub fn spend<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::generic_err("Cannot spend more than spend_limit"));
     }
 
-    let mirror_token = deps.api.human_address(&config.mirror_token)?;
+    let nebula_token = deps.api.human_address(&config.nebula_token)?;
     Ok(HandleResponse {
         messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: mirror_token,
+            contract_addr: nebula_token,
             send: vec![],
             msg: to_binary(&Cw20HandleMsg::Transfer {
                 recipient: recipient.clone(),
@@ -120,7 +122,7 @@ pub fn query_config<S: Storage, A: Api, Q: Querier>(
     let state = read_config(&deps.storage)?;
     let resp = ConfigResponse {
         owner: deps.api.human_address(&state.owner)?,
-        mirror_token: deps.api.human_address(&state.mirror_token)?,
+        nebula_token: deps.api.human_address(&state.nebula_token)?,
         spend_limit: state.spend_limit,
     };
 

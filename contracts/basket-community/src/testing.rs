@@ -3,7 +3,7 @@ use crate::contract::{handle, init, query};
 use cosmwasm_std::testing::{mock_dependencies, mock_env};
 use cosmwasm_std::{from_binary, to_binary, CosmosMsg, HumanAddr, StdError, Uint128, WasmMsg};
 use cw20::Cw20HandleMsg;
-use mirror_protocol::community::{ConfigResponse, HandleMsg, InitMsg, QueryMsg};
+use crate::msg::{ConfigResponse, HandleMsg, InitMsg, QueryMsg};
 
 #[test]
 fn proper_initialization() {
@@ -11,7 +11,7 @@ fn proper_initialization() {
 
     let msg = InitMsg {
         owner: HumanAddr("owner0000".to_string()),
-        mirror_token: HumanAddr("mirror0000".to_string()),
+        nebula_token: HumanAddr("nebula0000".to_string()),
         spend_limit: Uint128::from(1000000u128),
     };
 
@@ -23,7 +23,7 @@ fn proper_initialization() {
     // it worked, let's query the state
     let config: ConfigResponse = from_binary(&query(&deps, QueryMsg::Config {}).unwrap()).unwrap();
     assert_eq!("owner0000", config.owner.as_str());
-    assert_eq!("mirror0000", config.mirror_token.as_str());
+    assert_eq!("nebula0000", config.nebula_token.as_str());
     assert_eq!(Uint128::from(1000000u128), config.spend_limit);
 }
 
@@ -33,7 +33,7 @@ fn update_config() {
 
     let msg = InitMsg {
         owner: HumanAddr("owner0000".to_string()),
-        mirror_token: HumanAddr("mirror0000".to_string()),
+        nebula_token: HumanAddr("nebula0000".to_string()),
         spend_limit: Uint128::from(1000000u128),
     };
 
@@ -45,7 +45,7 @@ fn update_config() {
     // it worked, let's query the state
     let config: ConfigResponse = from_binary(&query(&deps, QueryMsg::Config {}).unwrap()).unwrap();
     assert_eq!("owner0000", config.owner.as_str());
-    assert_eq!("mirror0000", config.mirror_token.as_str());
+    assert_eq!("nebula0000", config.nebula_token.as_str());
     assert_eq!(Uint128::from(1000000u128), config.spend_limit);
 
     let msg = HandleMsg::UpdateConfig {
@@ -67,7 +67,7 @@ fn update_config() {
         config,
         ConfigResponse {
             owner: HumanAddr::from("owner0001"),
-            mirror_token: HumanAddr::from("mirror0000"),
+            nebula_token: HumanAddr::from("nebula0000"),
             spend_limit: Uint128::from(1000000u128),
         }
     );
@@ -84,7 +84,7 @@ fn update_config() {
         config,
         ConfigResponse {
             owner: HumanAddr::from("owner0001"),
-            mirror_token: HumanAddr::from("mirror0000"),
+            nebula_token: HumanAddr::from("nebula0000"),
             spend_limit: Uint128::from(2000000u128),
         }
     );
@@ -96,7 +96,7 @@ fn test_spend() {
 
     let msg = InitMsg {
         owner: HumanAddr("owner0000".to_string()),
-        mirror_token: HumanAddr("mirror0000".to_string()),
+        nebula_token: HumanAddr("nebula0000".to_string()),
         spend_limit: Uint128::from(1000000u128),
     };
 
@@ -143,7 +143,7 @@ fn test_spend() {
     assert_eq!(
         res.messages,
         vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: HumanAddr::from("mirror0000"),
+            contract_addr: HumanAddr::from("nebula0000"),
             send: vec![],
             msg: to_binary(&Cw20HandleMsg::Transfer {
                 recipient: HumanAddr::from("addr0000"),

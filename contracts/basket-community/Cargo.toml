@@ -31,6 +31,7 @@ overflow-checks = true
 backtraces = ["cosmwasm-std/backtraces"]
 
 [dependencies]
+cw20 = "0.2"
 cosmwasm-std = { version = "0.10.1" }
 cosmwasm-storage = { version = "0.10.1" }
 schemars = "0.7"
