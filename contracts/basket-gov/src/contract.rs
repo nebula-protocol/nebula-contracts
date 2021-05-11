@@ -4,7 +4,8 @@ use crate::msg::{
     VotersResponseItem,
 };
 use crate::querier::load_token_balance;
-use crate::staking::{query_staker, stake_voting_tokens, withdraw_voting_tokens};
+use crate::staking::{query_staker, stake_voting_tokens, withdraw_voting_tokens,
+                     deposit_reward, withdraw_voting_rewards, stake_voting_rewards};
 use crate::state::{
     bank_read, bank_store, config_read, config_store, poll_indexer_store, poll_read, poll_store,
     poll_voter_read, poll_voter_store, read_poll_voters, read_polls, state_read, state_store,
@@ -44,6 +45,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         effective_delay: msg.effective_delay,
         expiration_period: msg.expiration_period,
         proposal_deposit: msg.proposal_deposit,
+        voter_weight: msg.voter_weight,
     };
 
     let state = State {
@@ -51,6 +53,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         poll_count: 0,
         total_share: Uint128::zero(),
         total_deposit: Uint128::zero(),
+        pending_voting_rewards: Uint128::zero(),
     };
 
     config_store(&mut deps.storage).save(&config)?;
@@ -86,6 +89,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             proposal_deposit,
         ),
         HandleMsg::WithdrawVotingTokens { amount } => withdraw_voting_tokens(deps, env, amount),
+        HandleMsg::WithdrawVotingRewards {} => withdraw_voting_rewards(deps, env),
+        HandleMsg::StakeVotingRewards {} => stake_voting_rewards(deps, env),
         HandleMsg::CastVote {
             poll_id,
             vote,
@@ -128,6 +133,13 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
                 link,
                 execute_msg,
             ),
+            Cw20HookMsg::DepositReward {} => {
+                // only reward token contract can execute this message
+                if config.nebula_token != deps.api.canonical_address(&env.message.sender)? {
+                    return Err(StdError::unauthorized());
+                }
+                deposit_reward(deps, env, cw20_msg.sender, cw20_msg.amount)
+            }
         }
     } else {
         Err(StdError::generic_err("data should be given"))
@@ -296,6 +308,8 @@ pub fn create_poll<S: Storage, A: Api, Q: Querier>(
         execute_data,
         deposit_amount,
         total_balance_at_end_poll: None,
+        voters_reward: Uint128::zero(),
+        staked_amount: None,
     };
 
     poll_store(&mut deps.storage).save(&poll_id.to_be_bytes(), &new_poll)?;
@@ -680,7 +694,7 @@ fn query_polls<S: Storage, A: Api, Q: Querier>(
     limit: Option<u32>,
     order_by: Option<OrderBy>,
 ) -> StdResult<PollsResponse> {
-    let polls = read_polls(&deps.storage, filter, start_after, limit, order_by)?;
+    let polls = read_polls(&deps.storage, filter, start_after, limit, order_by, None)?;
     let poll_responses: StdResult<Vec<PollResponse>> = polls
         .iter()
         .map(|poll| {

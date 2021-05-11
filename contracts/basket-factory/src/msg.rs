@@ -12,6 +12,7 @@ pub struct InitMsg {
     pub token_code_id: u64,
     pub cluster_code_id: u64,
     pub base_denom: String,
+    pub protocol_fee_rate: String,
     pub distribution_schedule: Vec<(u64, u64, Uint128)>, // [[start_time, end_time, distribution_amount], [], ...]
 }
 
@@ -101,6 +102,7 @@ pub struct ConfigResponse {
     pub nebula_token: HumanAddr,
     pub staking_contract: HumanAddr,
     pub commission_collector: HumanAddr,
+    pub protocol_fee_rate: String,
     pub oracle_contract: HumanAddr,
     pub terraswap_factory: HumanAddr,
     pub token_code_id: u64,
@@ -206,6 +208,9 @@ pub struct BasketInitMsg {
 
     /// Asset addresses
     pub assets: Vec<AssetInfo>,
+
+    /// Factory address
+    pub factory: HumanAddr,
 
     /// Oracle address
     pub oracle: HumanAddr,

@@ -27,6 +27,7 @@ pub struct BasketConfig {
     pub name: String,
     pub owner: HumanAddr,
     pub basket_token: Option<HumanAddr>,
+    pub factory: HumanAddr,
     pub oracle: HumanAddr,
     pub penalty: HumanAddr,
 }

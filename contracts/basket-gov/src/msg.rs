@@ -15,6 +15,7 @@ pub struct InitMsg {
     pub effective_delay: u64,
     pub expiration_period: u64,
     pub proposal_deposit: Uint128,
+    pub voter_weight: Decimal,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -38,6 +39,8 @@ pub enum HandleMsg {
     WithdrawVotingTokens {
         amount: Option<Uint128>,
     },
+    WithdrawVotingRewards {},
+    StakeVotingRewards {},
     EndPoll {
         poll_id: u64,
     },
@@ -62,6 +65,9 @@ pub enum Cw20HookMsg {
         link: Option<String>,
         execute_msg: Option<ExecuteMsg>,
     },
+    /// Deposit rewards to be distributed among stakers and voters
+    DepositReward {},
+
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

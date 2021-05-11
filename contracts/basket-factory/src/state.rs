@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{CanonicalAddr, Order, StdError, StdResult, Storage, Uint128};
+use cosmwasm_std::{CanonicalAddr, Order, StdError, StdResult, Storage, Uint128, Decimal};
 use cosmwasm_storage::{singleton, singleton_read, Bucket, ReadonlyBucket, Singleton};
 
 use crate::msg::Params;
@@ -21,6 +21,7 @@ pub struct Config {
     pub terraswap_factory: CanonicalAddr,
     pub staking_contract: CanonicalAddr,
     pub commission_collector: CanonicalAddr,
+    pub protocol_fee_rate: String,
     pub token_code_id: u64, // used to create asset token
     pub cluster_code_id: u64,
     pub base_denom: String,

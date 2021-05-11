@@ -5,6 +5,7 @@ use cosmwasm_std::{
 };
 use cw20::{BalanceResponse as Cw20BalanceResponse, TokenInfoResponse as Cw20TokenInfoResponse};
 use serde::{Deserialize, Serialize};
+use schemars::JsonSchema;
 use terraswap::{asset::AssetInfo, querier::query_balance};
 
 /// QueryMsgs to external contracts
@@ -21,6 +22,9 @@ pub enum ExtQueryMsg {
         address: HumanAddr,
     },
     TokenInfo {},
+
+    // get factory config
+    Config {},
 
     // Penalty mint
     Mint {
@@ -40,6 +44,22 @@ pub enum ExtQueryMsg {
         asset_prices: Vec<String>,
         target_weights: Vec<u32>,
     },
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+pub struct FactoryConfigResponse {
+    pub owner: HumanAddr,
+    pub nebula_token: HumanAddr,
+    pub staking_contract: HumanAddr,
+    pub commission_collector: HumanAddr,
+    pub protocol_fee_rate: String,
+    pub oracle_contract: HumanAddr,
+    pub terraswap_factory: HumanAddr,
+    pub token_code_id: u64,
+    pub cluster_code_id: u64,
+    pub base_denom: String,
+    pub genesis_time: u64,
+    pub distribution_schedule: Vec<(u64, u64, Uint128)>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -149,6 +169,21 @@ pub fn query_cw20_token_supply<S: Storage, A: Api, Q: Querier>(
     }))?;
 
     Ok(res.total_supply)
+}
+
+
+/// EXTERNAL QUERY
+/// -- Queries the basket factory contract for the current total supply
+pub fn query_collector_contract_address<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    factory_address: &HumanAddr,
+) -> StdResult<(HumanAddr, String)> {
+    let res: FactoryConfigResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+        contract_addr: factory_address.clone(),
+        msg: to_binary(&ExtQueryMsg::Config {})?,
+    }))?;
+
+    Ok((res.commission_collector, res.protocol_fee_rate))
 }
 
 /// EXTERNAL QUERY

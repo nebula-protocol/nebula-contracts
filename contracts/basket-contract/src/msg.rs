@@ -20,6 +20,9 @@ pub struct InitMsg {
     /// Asset addresses
     pub assets: Vec<AssetInfo>,
 
+    /// Factory address
+    pub factory: HumanAddr,
+
     /// Oracle address
     pub oracle: HumanAddr,
 

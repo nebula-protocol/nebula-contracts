@@ -1,10 +1,10 @@
 use crate::querier::load_token_balance;
 use crate::state::{
-    bank_read, bank_store, config_read, config_store, poll_read, poll_voter_store, state_read,
-    state_store, Config, Poll, State, TokenManager,
+    bank_read, bank_store, config_read, config_store, poll_read, poll_voter_store, poll_voter_read, state_read,
+    read_polls, poll_store, state_store, Config, Poll, State, TokenManager,
 };
 
-use crate::msg::{PollStatus, StakerResponse};
+use crate::msg::{PollStatus, StakerResponse, VoterInfo};
 use cosmwasm_std::{
     log, to_binary, Api, CanonicalAddr, CosmosMsg, Env, Extern, HandleResponse, HandleResult,
     HumanAddr, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
@@ -145,6 +145,195 @@ fn compute_locked_balance<S: Storage, A: Api, Q: Querier>(
         .map(|(_, v)| v.balance.u128())
         .max()
         .unwrap_or_default())
+}
+
+pub fn deposit_reward<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    _env: Env,
+    _sender: HumanAddr,
+    amount: Uint128,
+) -> HandleResult {
+    let config = config_read(&deps.storage).load()?;
+
+    let mut polls_in_progress = read_polls(
+        &deps.storage,
+        Some(PollStatus::InProgress),
+        None,
+        None,
+        None,
+        Some(true), // remove hard cap to get all polls
+    )?;
+
+    if config.voter_weight.is_zero() || polls_in_progress.is_empty() {
+        return Ok(HandleResponse {
+            messages: vec![],
+            log: vec![
+                log("action", "deposit_reward"),
+                log("amount", amount.to_string()),
+            ],
+            data: None,
+        });
+    }
+
+    let voter_rewards = amount * config.voter_weight;
+    let rewards_per_poll =
+        voter_rewards.multiply_ratio(Uint128(1), polls_in_progress.len() as u128);
+    if rewards_per_poll.is_zero() {
+        return Err(StdError::generic_err("Reward deposited is too small"));
+    }
+    for poll in polls_in_progress.iter_mut() {
+        poll.voters_reward += rewards_per_poll;
+        poll_store(&mut deps.storage)
+            .save(&poll.id.to_be_bytes(), &poll)
+            .unwrap()
+    }
+
+    state_store(&mut deps.storage).update(|mut state| {
+        state.pending_voting_rewards += voter_rewards;
+        Ok(state)
+    })?;
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![
+            log("action", "deposit_reward"),
+            log("amount", amount.to_string()),
+        ],
+        data: None,
+    })
+}
+
+pub fn withdraw_voting_rewards<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+) -> HandleResult {
+    let config: Config = config_store(&mut deps.storage).load()?;
+    let sender_address_raw = deps.api.canonical_address(&env.message.sender)?;
+    let key = sender_address_raw.as_slice();
+
+    let token_manager = bank_read(&deps.storage)
+        .load(key)
+        .or(Err(StdError::generic_err("Nothing staked")))?;
+
+    let user_reward_amount: u128 =
+        withdraw_user_voting_rewards(&mut deps.storage, &sender_address_raw, &token_manager);
+    if user_reward_amount.eq(&0u128) {
+        return Err(StdError::generic_err("Nothing to withdraw"));
+    }
+
+    state_store(&mut deps.storage).update(|mut state| {
+        state.pending_voting_rewards =
+            (state.pending_voting_rewards - Uint128(user_reward_amount))?;
+        Ok(state)
+    })?;
+
+    send_tokens(
+        &deps.api,
+        &config.nebula_token,
+        &sender_address_raw,
+        user_reward_amount,
+        "withdraw_voting_rewards",
+    )
+}
+
+pub fn stake_voting_rewards<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+) -> HandleResult {
+    let config: Config = config_store(&mut deps.storage).load()?;
+    let mut state: State = state_store(&mut deps.storage).load()?;
+    let sender_address_raw = deps.api.canonical_address(&env.message.sender)?;
+    let key = sender_address_raw.as_slice();
+
+    let mut token_manager = bank_read(&deps.storage)
+        .load(key)
+        .or(Err(StdError::generic_err("Nothing staked")))?;
+
+    let user_reward_amount: u128 =
+        withdraw_user_voting_rewards(&mut deps.storage, &sender_address_raw, &token_manager);
+    if user_reward_amount.eq(&0u128) {
+        return Err(StdError::generic_err("Nothing to withdraw"));
+    }
+
+    // add the withdrawn rewards to stake pool and calculate share
+    let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
+    let total_balance = (load_token_balance(
+        &deps,
+        &deps.api.human_address(&config.nebula_token)?,
+        &state.contract_addr,
+    )? - total_locked_balance)?;
+
+    state.pending_voting_rewards = (state.pending_voting_rewards - Uint128(user_reward_amount))?;
+
+    let share: Uint128 = if total_balance.is_zero() || state.total_share.is_zero() {
+        Uint128(user_reward_amount)
+    } else {
+        Uint128(user_reward_amount).multiply_ratio(state.total_share, total_balance)
+    };
+
+    token_manager.share += share;
+    state.total_share += share;
+
+    state_store(&mut deps.storage).save(&state)?;
+    bank_store(&mut deps.storage).save(key, &token_manager)?;
+
+    Ok(HandleResponse {
+        messages: vec![],
+        data: None,
+        log: vec![
+            log("action", "stake_voting_rewards"),
+            log("staker", env.message.sender.as_str()),
+            log("share", share.to_string()),
+            log("amount", user_reward_amount.to_string()),
+        ],
+    })
+}
+
+fn withdraw_user_voting_rewards<S: Storage>(
+    storage: &mut S,
+    user_address: &CanonicalAddr,
+    token_manager: &TokenManager,
+) -> u128 {
+    let w_polls: Vec<(Poll, VoterInfo)> =
+        get_withdrawable_polls(storage, token_manager, user_address);
+    let user_reward_amount: u128 = w_polls
+        .iter()
+        .map(|(poll, voting_info)| {
+            // remove voter info from the poll
+            poll_voter_store(storage, poll.id).remove(user_address.as_slice());
+
+            // calculate reward share
+            let total_votes =
+                poll.no_votes.u128() + poll.yes_votes.u128();
+            let poll_voting_reward = poll
+                .voters_reward
+                .multiply_ratio(voting_info.balance, total_votes);
+            poll_voting_reward.u128()
+        })
+        .sum();
+    user_reward_amount
+}
+
+fn get_withdrawable_polls<S: Storage>(
+    storage: &S,
+    token_manager: &TokenManager,
+    user_address: &CanonicalAddr,
+) -> Vec<(Poll, VoterInfo)> {
+    let w_polls: Vec<(Poll, VoterInfo)> = token_manager
+        .locked_balance
+        .iter()
+        .map(|(poll_id, _)| {
+            let poll: Poll = poll_read(storage).load(&poll_id.to_be_bytes()).unwrap();
+            let voter_info_res: StdResult<VoterInfo> =
+                poll_voter_read(storage, *poll_id).load(&user_address.as_slice());
+            (poll, voter_info_res)
+        })
+        .filter(|(poll, voter_info_res)| {
+            poll.status != PollStatus::InProgress && voter_info_res.is_ok()
+        })
+        .map(|(poll, voter_info_res)| (poll, voter_info_res.unwrap()))
+        .collect();
+    w_polls
 }
 
 fn send_tokens<A: Api>(

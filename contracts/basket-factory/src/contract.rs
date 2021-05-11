@@ -46,6 +46,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
             terraswap_factory: CanonicalAddr::default(),
             staking_contract: CanonicalAddr::default(),
             commission_collector: CanonicalAddr::default(),
+            protocol_fee_rate: msg.protocol_fee_rate,
             token_code_id: msg.token_code_id,
             cluster_code_id: msg.cluster_code_id,
             base_denom: msg.base_denom,
@@ -279,6 +280,7 @@ pub fn create_cluster<S: Storage, A: Api, Q: Querier>(
                     assets: params.assets,
                     oracle: params.oracle.clone(),
                     penalty: params.penalty,
+                    factory: env.contract.address.clone(),
                     basket_token: None,
                     target: params.target,
                     // TODO: Write separate init hook for basket
@@ -728,6 +730,7 @@ pub fn query_config<S: Storage, A: Api, Q: Querier>(
         terraswap_factory: deps.api.human_address(&state.terraswap_factory)?,
         staking_contract: deps.api.human_address(&state.staking_contract)?,
         commission_collector: deps.api.human_address(&state.commission_collector)?,
+        protocol_fee_rate: state.protocol_fee_rate,
         token_code_id: state.token_code_id,
         cluster_code_id: state.cluster_code_id,
         base_denom: state.base_denom,

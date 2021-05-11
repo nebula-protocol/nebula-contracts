@@ -22,6 +22,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         name: msg.name.clone(),
         owner: msg.owner.clone(),
         basket_token: msg.basket_token,
+        factory: msg.factory,
         oracle: msg.oracle.clone(),
         penalty: msg.penalty.clone(),
     };
