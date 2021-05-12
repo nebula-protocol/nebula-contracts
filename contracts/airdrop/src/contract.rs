@@ -1,22 +1,38 @@
 use cosmwasm_std::{
-    to_binary, Api, Binary, Env, Extern, HandleResponse, InitResponse, Querier, StdError,
-    StdResult, Storage,
+    log, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr,
+    InitResponse, InitResult, MigrateResponse, MigrateResult, Querier, StdError, StdResult,
+    Storage, Uint128, WasmMsg,
 };
 
-use crate::msg::{CountResponse, HandleMsg, InitMsg, QueryMsg};
-use crate::state::{config, config_read, State};
+use crate::msg::{
+    ConfigResponse, HandleMsg, InitMsg, IsClaimedResponse, LatestStageResponse, MerkleRootResponse,
+    MigrateMsg, QueryMsg,
+};
+use crate::state::{
+    read_claimed, read_config, read_latest_stage, read_merkle_root, store_claimed, store_config,
+    store_latest_stage, store_merkle_root, Config,
+};
+
+use cw20::Cw20HandleMsg;
+use hex;
+use sha3::Digest;
+use std::convert::TryInto;
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    env: Env,
+    _env: Env,
     msg: InitMsg,
-) -> StdResult<InitResponse> {
-    let state = State {
-        count: msg.count,
-        owner: deps.api.canonical_address(&env.message.sender)?,
-    };
+) -> InitResult {
+    store_config(
+        &mut deps.storage,
+        &Config {
+            owner: deps.api.canonical_address(&msg.owner)?,
+            nebula_token: deps.api.canonical_address(&msg.nebula_token)?,
+        },
+    )?;
 
-    config(&mut deps.storage).save(&state)?;
+    let stage: u8 = 0;
+    store_latest_stage(&mut deps.storage, stage)?;
 
     Ok(InitResponse::default())
 }
@@ -25,39 +41,176 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     msg: HandleMsg,
-) -> StdResult<HandleResponse> {
+) -> HandleResult {
     match msg {
-        HandleMsg::Increment {} => try_increment(deps, env),
-        HandleMsg::Reset { count } => try_reset(deps, env, count),
+        HandleMsg::UpdateConfig { owner } => update_config(deps, env, owner),
+        HandleMsg::UpdateMerkleRoot { stage, merkle_root } => {
+            update_merkle_root(deps, env, stage, merkle_root)
+        }
+        HandleMsg::RegisterMerkleRoot { merkle_root } => {
+            register_merkle_root(deps, env, merkle_root)
+        }
+        HandleMsg::Claim {
+            stage,
+            amount,
+            proof,
+        } => claim(deps, env, stage, amount, proof),
     }
 }
 
-pub fn try_increment<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    _env: Env,
-) -> StdResult<HandleResponse> {
-    config(&mut deps.storage).update(|mut state| {
-        state.count += 1;
-        Ok(state)
-    })?;
-
-    Ok(HandleResponse::default())
-}
-
-pub fn try_reset<S: Storage, A: Api, Q: Querier>(
+pub fn update_merkle_root<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    count: i32,
+    stage: u8,
+    merkle_root: String,
 ) -> StdResult<HandleResponse> {
-    let api = &deps.api;
-    config(&mut deps.storage).update(|mut state| {
-        if api.canonical_address(&env.message.sender)? != state.owner {
-            return Err(StdError::unauthorized());
+    let config: Config = read_config(&deps.storage)?;
+    if deps.api.canonical_address(&env.message.sender)? != config.owner {
+        return Err(StdError::unauthorized());
+    }
+
+    store_merkle_root(&mut deps.storage, stage, merkle_root.to_string())?;
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![
+            log("action", "update_merkle_root"),
+            log("stage", stage),
+            log("merkle_root", merkle_root),
+        ],
+        data: None,
+    })
+}
+
+pub fn update_config<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    owner: Option<HumanAddr>,
+) -> StdResult<HandleResponse> {
+    let mut config: Config = read_config(&deps.storage)?;
+    if deps.api.canonical_address(&env.message.sender)? != config.owner {
+        return Err(StdError::unauthorized());
+    }
+
+    if let Some(owner) = owner {
+        config.owner = deps.api.canonical_address(&owner)?;
+    }
+
+    store_config(&mut deps.storage, &config)?;
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![log("action", "update_config")],
+        data: None,
+    })
+}
+
+pub fn register_merkle_root<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    merkle_root: String,
+) -> StdResult<HandleResponse> {
+    let config: Config = read_config(&deps.storage)?;
+    if deps.api.canonical_address(&env.message.sender)? != config.owner {
+        return Err(StdError::unauthorized());
+    }
+
+    let latest_stage: u8 = read_latest_stage(&deps.storage)?;
+    let stage = latest_stage + 1;
+
+    store_merkle_root(&mut deps.storage, stage, merkle_root.to_string())?;
+    store_latest_stage(&mut deps.storage, stage)?;
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![
+            log("action", "register_merkle_root"),
+            log("stage", stage),
+            log("merkle_root", merkle_root),
+        ],
+        data: None,
+    })
+}
+
+pub fn claim<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    stage: u8,
+    amount: Uint128,
+    proof: Vec<String>,
+) -> StdResult<HandleResponse> {
+    let config: Config = read_config(&deps.storage)?;
+    let merkle_root: String = read_merkle_root(&deps.storage, stage)?;
+
+    let user_raw = deps.api.canonical_address(&env.message.sender)?;
+
+    // If user claimed target stage, return err
+    if read_claimed(&deps.storage, &user_raw, stage)? {
+        return Err(StdError::generic_err("Already claimed"));
+    }
+
+    let user_input: String = env.message.sender.to_string() + &amount.to_string();
+    let mut hash: [u8; 32] = sha3::Keccak256::digest(user_input.as_bytes())
+        .as_slice()
+        .try_into()
+        .expect("Wrong length");
+
+    for p in proof {
+        let mut proof_buf: [u8; 32] = [0; 32];
+        hex::decode_to_slice(p, &mut proof_buf).unwrap();
+        hash = if bytes_cmp(hash, proof_buf) == std::cmp::Ordering::Less {
+            sha3::Keccak256::digest(&[hash, proof_buf].concat())
+                .as_slice()
+                .try_into()
+                .expect("Wrong length")
+        } else {
+            sha3::Keccak256::digest(&[proof_buf, hash].concat())
+                .as_slice()
+                .try_into()
+                .expect("Wrong length")
+        };
+    }
+
+    let mut root_buf: [u8; 32] = [0; 32];
+    hex::decode_to_slice(merkle_root, &mut root_buf).unwrap();
+    if root_buf != hash {
+        return Err(StdError::generic_err("Verification is failed"));
+    }
+
+    // Update claim index to the current stage
+    store_claimed(&mut deps.storage, &user_raw, stage)?;
+
+    Ok(HandleResponse {
+        messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: deps.api.human_address(&config.nebula_token)?,
+            send: vec![],
+            msg: to_binary(&Cw20HandleMsg::Transfer {
+                recipient: env.message.sender.clone(),
+                amount,
+            })?,
+        })],
+        log: vec![
+            log("action", "claim"),
+            log("stage", stage),
+            log("address", env.message.sender),
+            log("amount", amount),
+        ],
+        data: None,
+    })
+}
+
+fn bytes_cmp(a: [u8; 32], b: [u8; 32]) -> std::cmp::Ordering {
+    let mut i = 0;
+    while i < 32 {
+        if a[i] > b[i] {
+            return std::cmp::Ordering::Greater;
+        } else if a[i] < b[i] {
+            return std::cmp::Ordering::Less;
         }
-        state.count = count;
-        Ok(state)
-    })?;
-    Ok(HandleResponse::default())
+
+        i += 1;
+    }
+
+    return std::cmp::Ordering::Equal;
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
@@ -65,82 +218,66 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
-        QueryMsg::GetCount {} => to_binary(&query_count(deps)?),
-    }
-}
-
-fn query_count<S: Storage, A: Api, Q: Querier>(deps: &Extern<S, A, Q>) -> StdResult<CountResponse> {
-    let state = config_read(&deps.storage).load()?;
-    Ok(CountResponse { count: state.count })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use cosmwasm_std::testing::{mock_dependencies, mock_env};
-    use cosmwasm_std::{coins, from_binary, StdError};
-
-    #[test]
-    fn proper_initialization() {
-        let mut deps = mock_dependencies(20, &[]);
-
-        let msg = InitMsg { count: 17 };
-        let env = mock_env("creator", &coins(1000, "earth"));
-
-        // we can just call .unwrap() to assert this was a success
-        let res = init(&mut deps, env, msg).unwrap();
-        assert_eq!(0, res.messages.len());
-
-        // it worked, let's query the state
-        let res = query(&deps, QueryMsg::GetCount {}).unwrap();
-        let value: CountResponse = from_binary(&res).unwrap();
-        assert_eq!(17, value.count);
-    }
-
-    #[test]
-    fn increment() {
-        let mut deps = mock_dependencies(20, &coins(2, "token"));
-
-        let msg = InitMsg { count: 17 };
-        let env = mock_env("creator", &coins(2, "token"));
-        let _res = init(&mut deps, env, msg).unwrap();
-
-        // beneficiary can release it
-        let env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::Increment {};
-        let _res = handle(&mut deps, env, msg).unwrap();
-
-        // should increase counter by 1
-        let res = query(&deps, QueryMsg::GetCount {}).unwrap();
-        let value: CountResponse = from_binary(&res).unwrap();
-        assert_eq!(18, value.count);
-    }
-
-    #[test]
-    fn reset() {
-        let mut deps = mock_dependencies(20, &coins(2, "token"));
-
-        let msg = InitMsg { count: 17 };
-        let env = mock_env("creator", &coins(2, "token"));
-        let _res = init(&mut deps, env, msg).unwrap();
-
-        // beneficiary can release it
-        let unauth_env = mock_env("anyone", &coins(2, "token"));
-        let msg = HandleMsg::Reset { count: 5 };
-        let res = handle(&mut deps, unauth_env, msg);
-        match res {
-            Err(StdError::Unauthorized { .. }) => {}
-            _ => panic!("Must return unauthorized error"),
+        QueryMsg::Config {} => to_binary(&query_config(deps)?),
+        QueryMsg::MerkleRoot { stage } => to_binary(&query_merkle_root(deps, stage)?),
+        QueryMsg::LatestStage {} => to_binary(&query_latest_stage(deps)?),
+        QueryMsg::IsClaimed { stage, address } => {
+            to_binary(&query_is_claimed(deps, stage, address)?)
         }
-
-        // only the original creator can reset the counter
-        let auth_env = mock_env("creator", &coins(2, "token"));
-        let msg = HandleMsg::Reset { count: 5 };
-        let _res = handle(&mut deps, auth_env, msg).unwrap();
-
-        // should now be 5
-        let res = query(&deps, QueryMsg::GetCount {}).unwrap();
-        let value: CountResponse = from_binary(&res).unwrap();
-        assert_eq!(5, value.count);
     }
+}
+
+pub fn query_config<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+) -> StdResult<ConfigResponse> {
+    let state = read_config(&deps.storage)?;
+    let resp = ConfigResponse {
+        owner: deps.api.human_address(&state.owner)?,
+        nebula_token: deps.api.human_address(&state.nebula_token)?,
+    };
+
+    Ok(resp)
+}
+
+pub fn query_merkle_root<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    stage: u8,
+) -> StdResult<MerkleRootResponse> {
+    let merkle_root = read_merkle_root(&deps.storage, stage)?;
+    let resp = MerkleRootResponse {
+        stage: stage,
+        merkle_root: merkle_root,
+    };
+
+    Ok(resp)
+}
+
+pub fn query_latest_stage<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+) -> StdResult<LatestStageResponse> {
+    let latest_stage = read_latest_stage(&deps.storage)?;
+    let resp = LatestStageResponse { latest_stage };
+
+    Ok(resp)
+}
+
+pub fn query_is_claimed<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    stage: u8,
+    address: HumanAddr,
+) -> StdResult<IsClaimedResponse> {
+    let user_raw = deps.api.canonical_address(&address)?;
+    let resp = IsClaimedResponse {
+        is_claimed: read_claimed(&deps.storage, &user_raw, stage)?,
+    };
+
+    Ok(resp)
+}
+
+pub fn migrate<S: Storage, A: Api, Q: Querier>(
+    _deps: &mut Extern<S, A, Q>,
+    _env: Env,
+    _msg: MigrateMsg,
+) -> MigrateResult {
+    Ok(MigrateResponse::default())
 }
