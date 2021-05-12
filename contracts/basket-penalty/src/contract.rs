@@ -46,10 +46,11 @@ pub fn str_vec_to_fpdec(arr: &Vec<String>) -> StdResult<Vec<FPDecimal>> {
 }
 
 pub fn imbalance(i: &Vec<FPDecimal>, p: &Vec<FPDecimal>, w: &Vec<FPDecimal>) -> FPDecimal {
-    let u = div_const(&mul(w, p), dot(w, p));
-    let err_portfolio = sub(&mul_const(&u, dot(i, p)), &mul(i, p));
+    let wp =  dot(w, p);
+    let u = mul(w, p);
+    let err_portfolio = sub(&mul_const(&u, dot(i, p)), &mul_const(&mul(i, p), wp));
 
-    sum(&abs(&err_portfolio))
+    sum(&abs(&err_portfolio)) / wp
 }
 
 pub fn notional_penalty<S: Storage, A: Api, Q: Querier>(

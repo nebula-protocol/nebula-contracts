@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+  "contracts/basket-collector",
   "contracts/basket-contract",
   "contracts/basket-dummy-oracle",
   "contracts/basket-penalty",

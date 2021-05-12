@@ -1,24 +1,24 @@
 use cosmwasm_std::{
-    from_binary, log, to_binary, Api, CosmosMsg, Env, Extern, HandleResponse, HandleResult,
-    HumanAddr, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
+    from_binary, log, to_binary, Api, CosmosMsg, Env, Extern, HandleResponse,
+    HandleResult, HumanAddr, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 
 use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
 use error::bad_weight_values;
 
+use crate::contract::query_basket_state;
 use crate::error;
-use crate::ext_query::{query_mint_amount, query_redeem_amount};
+use crate::ext_query::{query_collector_contract_address, query_mint_amount, query_redeem_amount};
 use crate::state::{read_config, save_config, stage_asset, unstage_asset, TargetAssetData};
-use crate::util::{vec_to_string};
+use crate::state::{read_target_asset_data, save_target_asset_data};
+use crate::util::vec_to_string;
 use crate::{
     msg::{Cw20HookMsg, HandleMsg},
     state::read_staged_asset,
 };
-use crate::{
-    state::{read_target_asset_data, save_target_asset_data},
-};
 use terraswap::asset::{Asset, AssetInfo};
-use crate::contract::query_basket_state;
+use basket_math::FPDecimal;
+use std::str::FromStr;
 
 /*
     Match the incoming message to the right category: receive, mint,
@@ -40,9 +40,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::_SetBasketToken { basket_token } => {
             try_set_basket_token(deps, env, &basket_token)
         }
-        HandleMsg::ResetPenalty { penalty } => {
-            try_reset_penalty(deps, env, &penalty)
-        }
+        HandleMsg::ResetPenalty { penalty } => try_reset_penalty(deps, env, &penalty),
         HandleMsg::_ResetOwner { owner } => try_reset_owner(deps, env, &owner),
         HandleMsg::StageNativeAsset { asset } => {
             // only native token can be deposited directly
@@ -83,15 +81,9 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
     // Using HumanAddr instead of AssetInfo for cw20
     if let Some(msg) = cw20_msg.msg {
         match from_binary(&msg)? {
-            Cw20HookMsg::Burn {
-                asset_amounts,
-            } => try_receive_burn(
-                deps,
-                env,
-                &sender,
-                &asset,
-                asset_amounts,
-            ),
+            Cw20HookMsg::Burn { asset_amounts } => {
+                try_receive_burn(deps, env, &sender, &asset, asset_amounts)
+            }
             Cw20HookMsg::StageAsset {} => try_receive_stage_asset(deps, env, &sender, &asset),
         }
     } else {
@@ -153,7 +145,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
             }
             vec
         }
-        None => vec![]
+        None => vec![],
     };
 
     // require that origin contract from Receive Hook is the associated Basket Token
@@ -163,35 +155,52 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
 
     let max_tokens = sent_amount.clone();
 
-    let burn_msg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: basket_token.clone(),
-        msg: to_binary(&Cw20HandleMsg::Burn {
-            amount: max_tokens.clone(),
-        })?,
-        send: vec![],
-    });
+
+    let (collector_address, fee_rate) =
+        query_collector_contract_address(&deps, &cfg.factory)?;
+    let fee_rate: FPDecimal = FPDecimal::from_str(&*fee_rate)?;
+    let keep_rate: FPDecimal = FPDecimal::one() - fee_rate;
+
+    let token_cap = Uint128((FPDecimal::from(max_tokens.u128()) * keep_rate).into());
 
     let redeem_response = query_redeem_amount(
         &deps,
         &cfg.penalty,
         basket_token_supply,
         inv,
-        max_tokens,
+        token_cap,
         asset_amounts.clone(),
         prices,
         target,
     )?;
 
     let redeem_totals = redeem_response.redeem_assets;
-    let token_cost = redeem_response.token_cost;
+
+    let estimated_cst = FPDecimal::from(redeem_response.token_cost.u128()) / keep_rate;
+    let mut token_cost = estimated_cst.into();
+
+    if FPDecimal::from(token_cost) != estimated_cst {
+        token_cost += 1;
+    }
+
+    let token_cost = Uint128(token_cost);
 
     if token_cost > max_tokens {
         return Err(error::above_max_tokens(token_cost, max_tokens));
     }
 
-    let minted_tokens = (max_tokens - token_cost)?;
+    let _fee_amt = FPDecimal::from(token_cost.u128()) * fee_rate;
 
-    let transfer_msgs: Vec<CosmosMsg> = redeem_totals
+    let mut fee_amt = _fee_amt.into();
+    if FPDecimal::from(fee_amt) != _fee_amt {
+        fee_amt += 1
+    }
+
+    let fee_amt = Uint128(fee_amt);
+
+    let mint_to_sender = (max_tokens - token_cost)?;
+
+    let mut messages: Vec<CosmosMsg> = redeem_totals
         .iter()
         .zip(asset_infos.iter())
         .filter(|(amt, _asset)| !amt.is_zero()) // remove 0 amounts
@@ -206,23 +215,40 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         })
         .collect::<StdResult<Vec<CosmosMsg>>>()?;
 
-    let mut msgs = vec![vec![burn_msg], transfer_msgs].concat();
+    messages.push(
+        CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: basket_token.clone(),
+            msg: to_binary(&Cw20HandleMsg::Burn {
+                amount: max_tokens.clone(),
+            })?,
+            send: vec![],
+        })
+    );
 
-    if minted_tokens > Uint128(0) {
-        let mint_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+    if mint_to_sender > Uint128(0) {
+        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: basket_token.clone(),
             msg: to_binary(&Cw20HandleMsg::Mint {
-                amount: minted_tokens,
+                amount: mint_to_sender,
                 recipient: sender.clone(),
             })?,
             send: vec![],
-        });
-        msgs = vec![msgs, vec![mint_msg]].concat();
+        }));
     }
 
+    if fee_amt > Uint128(0) {
+        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: basket_token.clone(),
+            msg: to_binary(&Cw20HandleMsg::Mint {
+                amount: fee_amt,
+                recipient: collector_address.clone(),
+            })?,
+            send: vec![],
+        }));
+    }
 
     Ok(HandleResponse {
-        messages: msgs,
+        messages,
         log: vec![
             vec![
                 log("action", "receive:burn"),
@@ -231,7 +257,8 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
                 log("sent_tokens", sent_amount),
                 log("burn_amount", max_tokens),
                 log("token_cost", token_cost),
-                log("returned_tokens", minted_tokens),
+                log("returned_to_sender", mint_to_sender),
+                log("kept_as_fee", fee_amt),
                 log("asset_amounts", vec_to_string(&asset_amounts)),
                 log("redeem_totals", vec_to_string(&redeem_totals)),
             ],
@@ -300,9 +327,8 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     assets: &Vec<AssetInfo>,
     target: &Vec<u32>,
 ) -> StdResult<HandleResponse> {
-
     // allow removal / adding
-    
+
     let cfg = read_config(&deps.storage)?;
     if let None = cfg.basket_token {
         return Err(error::basket_token_not_set());
@@ -361,7 +387,6 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-
 // Changes the penalty contract for this basket
 pub fn try_reset_penalty<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -381,14 +406,10 @@ pub fn try_reset_penalty<S: Storage, A: Api, Q: Querier>(
 
     Ok(HandleResponse {
         messages: vec![],
-        log: vec![
-            log("action", "reset_penalty"),
-            log("penalty", &penalty),
-        ],
+        log: vec![log("action", "reset_penalty"), log("penalty", &penalty)],
         data: None,
     })
 }
-
 
 /*
      May be called by the Basket contract owner to set the basket token for first time
@@ -424,7 +445,7 @@ pub fn try_set_basket_token<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-/* 
+/*
      May be called by the Basket contract owner to reset the owner
 */
 pub fn try_reset_owner<S: Storage, A: Api, Q: Querier>(
@@ -458,7 +479,7 @@ pub fn try_reset_owner<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-/* 
+/*
     Tries to mint cluster tokens from the asset amounts given.
     Throws error if there can only be less than 'min_tokens' minted from the assets.
     Note that the corresponding asset amounts need to be staged before in order to
@@ -470,7 +491,6 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     asset_amounts: &Vec<Asset>,
     min_tokens: &Option<Uint128>,
 ) -> StdResult<HandleResponse> {
-
     let basket_state = query_basket_state(&deps, &env.contract.address)?;
 
     let prices = basket_state.prices;
@@ -489,7 +509,6 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         .basket_token
         .clone()
         .ok_or_else(|| error::basket_token_not_set())?;
-
 
     // accommmodate inputs: subsets of target assets vector
 
@@ -525,10 +544,10 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 
     let c = asset_weights;
 
-    let mut mint_total;
+    let mint_to_sender;
 
     let mut extra_logs = vec![];
-
+    let mut messages = vec![];
     // do a regular mint
     if basket_token_supply != Uint128(0) {
         let mint_response = query_mint_amount(
@@ -540,8 +559,27 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
             prices,
             target,
         )?;
-        mint_total = mint_response.mint_tokens;
+        let mint_total = mint_response.mint_tokens;
+
+        let (collector_address, fee_rate) =
+            query_collector_contract_address(&deps, &cfg.factory)?;
+        let fee_rate = FPDecimal::from_str(&*fee_rate)?;
+
+        // Decimal doesn't give the ability to subtract...
+        mint_to_sender = Uint128((FPDecimal::from(mint_total.u128()) * (FPDecimal::one() - fee_rate)).into());
+        let protocol_fee = (mint_total - mint_to_sender)?;
+
+        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: basket_token.clone(),
+            msg: to_binary(&Cw20HandleMsg::Mint {
+                amount: protocol_fee,
+                recipient: collector_address,
+            })?,
+            send: vec![],
+        }));
+
         extra_logs = mint_response.log;
+        extra_logs.push(log("fee_amt", protocol_fee))
     } else {
         // basket has no basket tokens -- basket is empty and needs to be initialized
         // attempt to initialize it with min_tokens as the number of basket tokens
@@ -551,28 +589,34 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
             let mut val = 0;
             for i in 0..c.len() {
                 if inv[i].u128() % c[i].u128() != 0u128 {
-                    return Err(StdError::generic_err("Initial basket assets must be in target weights"));
+                    return Err(StdError::generic_err(
+                        "Initial basket assets must be in target weights",
+                    ));
                 }
                 let div = inv[i].u128() / c[i].u128();
                 if val == 0 {
                     val = div;
                 }
                 if div != val {
-                    return Err(StdError::generic_err("Initial basket assets must be in target weights"))
+                    return Err(StdError::generic_err(
+                        "Initial basket assets must be in target weights",
+                    ));
                 }
             }
-            mint_total = *proposed_mint_total;
+
+            mint_to_sender = *proposed_mint_total;
         } else {
-            return Err(StdError::generic_err("Basket is uninitialized. \
+            return Err(StdError::generic_err(
+                "Basket is uninitialized. \
             To initialize it with your mint basket, \
-            provide min_tokens as the amount of basket tokens you want to start with."))
+            provide min_tokens as the amount of basket tokens you want to start with.",
+            ));
         }
     }
 
-
     if let Some(min) = min_tokens {
-        if mint_total < *min {
-            return Err(error::below_min_tokens(mint_total, *min));
+        if mint_to_sender < *min {
+            return Err(error::below_min_tokens(mint_to_sender, *min));
         }
     }
 
@@ -586,25 +630,25 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         )?;
     }
 
-    let mint_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: basket_token.clone(),
         msg: to_binary(&Cw20HandleMsg::Mint {
-            amount: mint_total,
+            amount: mint_to_sender,
             recipient: env.message.sender.clone(),
         })?,
         send: vec![],
-    });
+    }));
 
     let mut logs = vec![
         log("action", "mint"),
         log("sender", &env.message.sender),
-        log("mint_total", mint_total),
+        log("mint_to_sender", mint_to_sender),
     ];
     logs.extend(extra_logs);
 
     // mint and send number of tokens to user
     Ok(HandleResponse {
-        messages: vec![mint_msg],
+        messages,
         log: logs,
         data: None,
     })
