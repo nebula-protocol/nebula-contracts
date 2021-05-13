@@ -119,9 +119,6 @@ async def execute_contract(contract_address, execute_msg, fee=None):
     return result
 
 
-# basket specific contract helpers
-
-
 @async_cache_on_disk
 async def instantiate_token_contract(token_code_id, name, symbol, initial_amount):
     return await instantiate_contract(
@@ -169,15 +166,77 @@ async def create_basket(
     token_code_id = await store_contract("terraswap_token")
     oracle_code_id = await store_contract("basket_dummy_oracle")
     penalty_code_id = await store_contract("basket_penalty")
+    factory_code_id = await store_contract("basket_factory")
+    terraswap_factory_code_id = await store_contract("terraswap_factory")
+    pair_code_id = await store_contract("terraswap_pair")
+    staking_code_id = await store_contract("basket_staking")
 
-    print(f"Creating penalty contract")
-    penalty_contract = await instantiate_contract(
-        penalty_code_id,
-        {"penalty_params": penalty_params},
+    terraswap_factory_contract = await instantiate_contract(
+        terraswap_factory_code_id,
+        {"pair_code_id": int(pair_code_id), "token_code_id": int(token_code_id)},
+    )
+
+    print("Creating factory...")
+    factory_contract = await instantiate_contract(
+        factory_code_id,
+        {
+            "token_code_id": int(token_code_id),
+            "cluster_code_id": int(basket_code_id),
+            "base_denom": "uusd",
+            "protocol_fee_rate": "0.001",
+            "distribution_schedule": [[0, 100000, "1000000"]],
+        },
+    )
+
+    print("Creating nebula token...")
+    nebula_token = await instantiate_contract(
+        token_code_id,
+        {
+            "name": "Nebula Token",
+            "symbol": "NEB",
+            "decimals": 6,
+            "initial_balances": [
+                {
+                    "address": deployer.key.acc_address,
+                    "amount": "1000000000000",
+                },
+                {
+                    "address": factory_contract,
+                    "amount": "10000000000",
+                },
+            ],
+            # maybe ?
+            "minter": {"minter": factory_contract, "cap": None},
+        },
+    )
+
+    print(f"Create staking contract")
+    staking_contract = await instantiate_contract(
+        staking_code_id,
+        {
+            "owner": factory_contract,
+            "nebula_token": nebula_token,
+            "terraswap_factory": terraswap_factory_contract,
+            "base_denom": "uusd",
+            "premium_min_update_interval": 5,
+        },
+    )
+
+    await execute_contract(
+        factory_contract,
+        {
+            "post_initialize": {
+                "owner": deployer.key.acc_address,
+                "nebula_token": nebula_token,
+                "oracle_contract": nebula_token,  # ??? provide arbitrary contract for now
+                "terraswap_factory": terraswap_factory_contract,
+                "staking_contract": staking_contract,
+                "commission_collector": nebula_token,
+            }
+        },
     )
 
     print("Creating asset tokens...")
-
     assets = [
         (
             await instantiate_token_contract(
@@ -194,60 +253,39 @@ async def create_basket(
     print("Creating oracle...")
     oracle = await instantiate_oracle(oracle_code_id, assets, asset_prices)
 
-    print("Creating basket contract...")
-    basket = await instantiate_contract(
-        basket_code_id,
+    print(f"Creating penalty contract")
+    penalty_contract = await instantiate_contract(
+        penalty_code_id,
+        {"penalty_params": penalty_params, "owner": factory_contract},
+    )
+
+    resp = await execute_contract(
+        factory_contract,
         {
-            "name": "Basket",
-            "owner": deployer.key.acc_address,
-            "assets": [Asset.cw20_asset_info(i) for i in assets],
-            "oracle": oracle,
-            "penalty": penalty_contract,
-            "target": target_weights,
-        },
+            "create_cluster": {
+                "name": "BASKET",
+                "symbol": "BSK",
+                "params": {
+                    "name": "BASKET",
+                    "symbol": "BSK",
+                    "penalty": penalty_contract,
+                    "target": target_weights,
+                    "assets": [Asset.cw20_asset_info(i) for i in assets],
+                    "oracle": oracle,
+                },
+            }
+        }
     )
+    if resp.is_tx_error():
+        raise Exception(resp.raw_log)
 
-    print("Creating basket token...")
-    basket_token = await instantiate_contract(
-        token_code_id,
-        {
-            "name": "Basket Token",
-            "symbol": "BASKET",
-            "decimals": 6,
-            "initial_balances": [
-                {
-                    "address": deployer.key.acc_address,
-                    "amount": basket_tokens,
-                }
-            ],
-            "mint": {"minter": basket, "cap": None},
-        },
-    )
+    logs = resp.logs[0].events_by_type
 
-    print(f"Setting basket token...")
-    await execute_contract(basket, Basket.set_basket_token(basket_token))
+    instantiation_logs = logs["instantiate_contract"]
+    addresses = instantiation_logs["contract_address"]
 
-    print(f"Transferring initial coins...")
-    initial_transfer_msgs = []
-    for asset, initial_amount in zip(assets, asset_tokens):
-        if initial_amount != "0":
-            initial_transfer_msgs.append(
-                MsgExecuteContract(
-                    deployer.key.acc_address,
-                    asset,
-                    CW20.transfer(basket, initial_amount),
-                )
-            )
-
-    initial_balances_tx = await deployer.create_and_sign_tx(
-        msgs=initial_transfer_msgs,
-        sequence=seq(),
-        fee=StdFee(4000000, "2000000uusd"),
-    )
-
-    result = await terra.tx.broadcast(initial_balances_tx)
-    if result.is_tx_error():
-        raise Exception(result.raw_log)
+    basket = addresses[3]
+    basket_token = addresses[2]
 
     print("Basket details", basket, basket_token, assets)
     return basket, basket_token, assets

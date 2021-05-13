@@ -62,7 +62,7 @@ pub fn get_ema<S: Storage, A: Api, Q: Querier>(
 
         // hard code one hour (600 blocks)
         let tau = FPDecimal::from(-600i128);
-        let factor = FPDecimal::_exp(tau * dt);
+        let factor = FPDecimal::_exp(dt / tau);
         Ok(factor * prev_ema + (FPDecimal::one() - factor) * net_asset_val)
     } else {
         Ok(net_asset_val)

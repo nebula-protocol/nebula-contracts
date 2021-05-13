@@ -70,9 +70,21 @@ async def tiny_basket():
     )
 
     interface = InterfaceLive(*basket_args)
+    await interface.mint([10, 10], min_tokens=300)
     await interface.sync()
     print(interface.summary())
-    print(await interface.redeem(50))
+
+    await interface.mint([100000, 100000])
+    await interface.sync()
+    print(interface.summary())
+
+    for _ in range(50):
+        await interface.mint([10, 10])
+        await interface.sync()
+        print(interface.summary())
+        await asyncio.sleep(10)
+
+    # print(await interface.redeem(50))
 
 
 if __name__ == "__main__":
@@ -80,4 +92,4 @@ if __name__ == "__main__":
     import asyncio
 
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(run_strategies())
+    loop.run_until_complete(tiny_basket())
