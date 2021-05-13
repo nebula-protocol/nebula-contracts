@@ -28,6 +28,7 @@ pub enum ExtQueryMsg {
 
     // Penalty mint
     Mint {
+        block_height: u64,
         basket_token_supply: Uint128,
         inventory: Vec<Uint128>,
         mint_asset_amounts: Vec<Uint128>,
@@ -37,6 +38,7 @@ pub enum ExtQueryMsg {
 
     // Penalty redeem
     Redeem {
+        block_height: u64,
         basket_token_supply: Uint128,
         inventory: Vec<Uint128>,
         max_tokens: Uint128,
@@ -191,6 +193,7 @@ pub fn query_collector_contract_address<S: Storage, A: Api, Q: Querier>(
 pub fn query_mint_amount<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     penalty_address: &HumanAddr,
+    block_height: u64,
     basket_token_supply: Uint128,
     inventory: Vec<Uint128>,
     mint_asset_amounts: Vec<Uint128>,
@@ -200,6 +203,7 @@ pub fn query_mint_amount<S: Storage, A: Api, Q: Querier>(
     let res: MintResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: penalty_address.clone(),
         msg: to_binary(&ExtQueryMsg::Mint {
+            block_height,
             basket_token_supply,
             inventory,
             mint_asset_amounts,
@@ -216,6 +220,7 @@ pub fn query_mint_amount<S: Storage, A: Api, Q: Querier>(
 pub fn query_redeem_amount<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     penalty_address: &HumanAddr,
+    block_height: u64,
     basket_token_supply: Uint128,
     inventory: Vec<Uint128>,
     max_tokens: Uint128,
@@ -226,6 +231,7 @@ pub fn query_redeem_amount<S: Storage, A: Api, Q: Querier>(
     let res: RedeemResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: penalty_address.clone(),
         msg: to_binary(&ExtQueryMsg::Redeem {
+            block_height,
             basket_token_supply,
             inventory,
             max_tokens,

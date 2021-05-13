@@ -316,7 +316,8 @@ def deploy():
                 "penalty_cutoff_hi": "0.1",
                 "reward_amt": "0.05",
                 "reward_cutoff": "0.02",
-            }
+            },
+            "owner": factory_contract
         },
         seq(),
     )
@@ -562,7 +563,8 @@ def deploy():
                 "penalty_cutoff_hi": "0.1",
                 "reward_amt": "0.05",
                 "reward_cutoff": "0.02",
-            }
+            },
+            "owner": basket,
         },
         seq(),
     )

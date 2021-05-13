@@ -1,7 +1,4 @@
-use cosmwasm_std::{
-    log, to_binary, Api, Binary, Env, Extern, HandleResponse, InitResponse, Querier, StdResult,
-    Storage, Uint128,
-};
+use cosmwasm_std::{log, to_binary, Api, Binary, Env, Extern, HandleResponse, InitResponse, Querier, StdResult, Storage, Uint128, HumanAddr, StdError};
 
 use crate::msg::{HandleMsg, InitMsg, MintResponse, ParamsResponse, QueryMsg, RedeemResponse};
 use crate::state::{read_config, save_config, PenaltyConfig, PenaltyParams};
@@ -15,18 +12,17 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
     let cfg = PenaltyConfig {
+        owner: msg.owner.clone(),
         penalty_params: msg.penalty_params.clone(),
+
+        ema: FPDecimal::zero(),
+
+        // know to fast forward to current net asset value if last_block == 0
+        last_block: 0u64,
+
     };
     save_config(&mut deps.storage, &cfg)?;
     Ok(InitResponse::default())
-}
-
-pub fn handle<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
-    _env: Env,
-    _msg: HandleMsg,
-) -> StdResult<HandleResponse> {
-    Ok(HandleResponse::default())
 }
 
 pub fn int32_vec_to_fpdec(arr: &Vec<u32>) -> Vec<FPDecimal> {
@@ -53,8 +49,30 @@ pub fn imbalance(i: &Vec<FPDecimal>, p: &Vec<FPDecimal>, w: &Vec<FPDecimal>) -> 
     sum(&abs(&err_portfolio)) / wp
 }
 
+pub fn get_ema<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    block_height: u64,
+    net_asset_val: FPDecimal,
+) -> StdResult<FPDecimal> {
+    let cfg = read_config(&deps.storage)?;
+    let prev_ema = cfg.ema;
+    let prev_block = cfg.last_block;
+    if prev_block != 0u64 {
+        let dt = FPDecimal::from((block_height - prev_block) as u128);
+
+        // hard code one hour (600 blocks)
+        let tau = FPDecimal::from(-600i128);
+        let factor = FPDecimal::_exp(tau * dt);
+        Ok(factor * prev_ema + (FPDecimal::one() - factor) * net_asset_val)
+    } else {
+        Ok(net_asset_val)
+    }
+
+}
+
 pub fn notional_penalty<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
+    block_height: u64,
     i0: &Vec<FPDecimal>,
     i1: &Vec<FPDecimal>,
     w: &Vec<FPDecimal>,
@@ -66,7 +84,7 @@ pub fn notional_penalty<S: Storage, A: Api, Q: Querier>(
     let imb1 = imbalance(&i1, &p, &w);
 
     // for now just use the value of the original basket as e...
-    let e = dot(&i0, &p);
+    let e = get_ema(&deps, block_height, dot(&i0, &p))?;
 
     let PenaltyParams {
         penalty_amt_lo,
@@ -112,6 +130,7 @@ pub fn notional_penalty<S: Storage, A: Api, Q: Querier>(
 
 pub fn compute_mint<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
+    block_height: u64,
     basket_token_supply: &Uint128,
     inventory: &Vec<Uint128>,
     mint_asset_amounts: &Vec<Uint128>,
@@ -126,7 +145,7 @@ pub fn compute_mint<S: Storage, A: Api, Q: Querier>(
 
     let i1 = add(&i0, &c);
 
-    let penalty = notional_penalty(&deps, &i0, &i1, &w, &p)?;
+    let penalty = notional_penalty(&deps, block_height, &i0, &i1, &w, &p)?;
     let notional_value = dot(&c, &p) + penalty;
 
     let mint_subtotal = n * notional_value / dot(&i0, &p);
@@ -139,6 +158,7 @@ pub fn compute_mint<S: Storage, A: Api, Q: Querier>(
 
 pub fn compute_redeem<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
+    block_height: u64,
     basket_token_supply: &Uint128,
     inventory: &Vec<Uint128>,
     max_tokens: &Uint128,
@@ -167,7 +187,7 @@ pub fn compute_redeem<S: Storage, A: Api, Q: Querier>(
     } else {
         let i1 = sub(&i0, &r);
 
-        let penalty = notional_penalty(&deps, &i0, &i1, &w, &p)?;
+        let penalty = notional_penalty(&deps, block_height, &i0, &i1, &w, &p)?;
         let notional_value = dot(&r, &p) - penalty;
 
         let needed_tokens = n * notional_value / dot(&i0, &p);
@@ -203,6 +223,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<Binary> {
     match msg {
         QueryMsg::Mint {
+            block_height,
             basket_token_supply,
             inventory,
             mint_asset_amounts,
@@ -210,6 +231,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
             target_weights,
         } => to_binary(&compute_mint(
             deps,
+            block_height,
             &basket_token_supply,
             &inventory,
             &mint_asset_amounts,
@@ -217,6 +239,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
             &target_weights,
         )?),
         QueryMsg::Redeem {
+            block_height,
             basket_token_supply,
             inventory,
             max_tokens,
@@ -225,6 +248,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
             target_weights,
         } => to_binary(&compute_redeem(
             deps,
+            block_height,
             &basket_token_supply,
             &inventory,
             &max_tokens,
@@ -233,5 +257,124 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
             &target_weights,
         )?),
         QueryMsg::Params {} => to_binary(&get_params(deps)?),
+    }
+}
+
+pub fn try_reset_owner<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    owner: &HumanAddr,
+) -> StdResult<HandleResponse> {
+    let cfg = read_config(&deps.storage)?;
+    let mut new_cfg = cfg.clone();
+    new_cfg.owner = owner.clone();
+    save_config(&mut deps.storage, &new_cfg)?;
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![
+            log("action", "_try_reset_owner"),
+        ],
+        data: None,
+    })
+}
+
+pub fn update_ema<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    block_height: u64,
+    net_asset_val: FPDecimal,
+) -> StdResult<HandleResponse>{
+    let cfg = read_config(&deps.storage)?;
+    let mut new_cfg = cfg.clone();
+    new_cfg.ema = get_ema(&deps, block_height, net_asset_val)?;
+    new_cfg.last_block = block_height;
+    save_config(&mut deps.storage, &new_cfg)?;
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![log("new_ema", new_cfg.ema)],
+        data: None
+    })
+}
+
+
+pub fn handle_mint<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    block_height: u64,
+    basket_token_supply: &Uint128,
+    inventory: &Vec<Uint128>,
+    mint_asset_amounts: &Vec<Uint128>,
+    asset_prices: &Vec<String>,
+    target_weights: &Vec<u32>,
+) -> StdResult<HandleResponse> {
+    let i = int_vec_to_fpdec(inventory);
+    let p = str_vec_to_fpdec(asset_prices)?;
+    update_ema(deps, block_height, dot(&i, &p))
+}
+
+pub fn handle_redeem<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    block_height: u64,
+    basket_token_supply: &Uint128,
+    inventory: &Vec<Uint128>,
+    max_tokens: &Uint128,
+    redeem_asset_amounts: &Vec<Uint128>,
+    asset_prices: &Vec<String>,
+    target_weights: &Vec<u32>,
+) -> StdResult<HandleResponse> {
+    let i = int_vec_to_fpdec(inventory);
+    let p = str_vec_to_fpdec(asset_prices)?;
+    update_ema(deps, block_height, dot(&i, &p))
+}
+
+pub fn handle<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    msg: HandleMsg,
+) -> StdResult<HandleResponse> {
+
+    let cfg = read_config(&deps.storage)?;
+
+    // check permission
+    if env.message.sender != cfg.owner {
+        return Err(StdError::unauthorized());
+    }
+
+    match msg {
+        HandleMsg::_ResetOwner {
+            owner
+        } => try_reset_owner(deps, &owner),
+        HandleMsg::Mint {
+            block_height,
+            basket_token_supply,
+            inventory,
+            mint_asset_amounts,
+            asset_prices,
+            target_weights,
+        } => handle_mint(
+            deps,
+            block_height,
+            &basket_token_supply,
+            &inventory,
+            &mint_asset_amounts,
+            &asset_prices,
+            &target_weights,
+        ),
+        HandleMsg::Redeem {
+            block_height,
+            basket_token_supply,
+            inventory,
+            max_tokens,
+            redeem_asset_amounts,
+            asset_prices,
+            target_weights,
+        } => handle_redeem(
+            deps,
+            block_height,
+            &basket_token_supply,
+            &inventory,
+            &max_tokens,
+            &redeem_asset_amounts,
+            &asset_prices,
+            &target_weights,
+        ),
     }
 }

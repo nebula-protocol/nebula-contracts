@@ -139,7 +139,8 @@ def deploy():
                 "penalty_cutoff_hi": "0.1",
                 "reward_amt": "0.05",
                 "reward_cutoff": "0.02"
-            }
+            },
+            "owner": deployer.key.acc_address
         },
         seq()
     )
@@ -283,6 +284,10 @@ def deploy():
     # set basket token
     print(f"[deploy] - set basket token")
     execute_contract(deployer, basket, Basket.set_basket_token(basket_token), seq())
+
+    # set penalty contract owner
+    print(f"[deploy] - set penalty owner")
+    execute_contract(deployer, penalty_contract, Basket.reset_owner(basket), seq())
 
     # sets initial balance of basket contract
     total = 5000000
@@ -533,7 +538,8 @@ def deploy():
                 "penalty_cutoff_hi": "0.1",
                 "reward_amt": "0.05",
                 "reward_cutoff": "0.02"
-            }
+            },
+            "owner": basket,
         },
         seq()
     )

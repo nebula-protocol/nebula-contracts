@@ -337,15 +337,22 @@ pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
         }
     };
 
+    let penalty = params.penalty;
+
     let cluster = env.message.sender;
-
-
-    // Register asset to mint contract
-    // Register asset to oracle contract
-    // Create terraswap pair
 
     Ok(HandleResponse {
         messages: vec![
+
+            // tell penalty contract to set owner to basket
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: penalty,
+                send: vec![],
+                msg: to_binary(&BasketHandleMsg::_ResetOwner {
+                    owner: cluster.clone(),
+                })?,
+            }),
+
             // Instantiate token
             CosmosMsg::Wasm(WasmMsg::Instantiate {
                 code_id: config.token_code_id,
@@ -369,7 +376,7 @@ pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
                     }),
                 })?,
             }),
-            // Reset cluster token
+            // Set basket owner (should end up being governance)
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: cluster.clone(),
                 send: vec![],
@@ -377,6 +384,8 @@ pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
                     owner: deps.api.human_address(&config.owner)?,
                 })?,
             }),
+            // Set penalty contract owner to basket contract
+
         ],
         log: vec![log("cluster_addr", cluster.as_str())],
         data: None,
@@ -417,8 +426,6 @@ pub fn set_basket_token_hook<S: Storage, A: Api, Q: Querier>(
     // Remove params == clear flag
     remove_params(&mut deps.storage);
 
-    // Register asset to mint contract
-    // Create terraswap pair
     Ok(HandleResponse {
         messages: vec![
             //Set cluster token
@@ -429,6 +436,7 @@ pub fn set_basket_token_hook<S: Storage, A: Api, Q: Querier>(
                     basket_token: token.clone(),
                 })?,
             }),
+            // set up terraswap pair
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: deps.api.human_address(&config.terraswap_factory)?,
                 send: vec![],

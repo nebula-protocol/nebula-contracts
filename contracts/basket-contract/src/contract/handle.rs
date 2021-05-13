@@ -8,7 +8,7 @@ use error::bad_weight_values;
 
 use crate::contract::query_basket_state;
 use crate::error;
-use crate::ext_query::{query_collector_contract_address, query_mint_amount, query_redeem_amount};
+use crate::ext_query::{query_collector_contract_address, query_mint_amount, query_redeem_amount, ExtQueryMsg};
 use crate::state::{read_config, save_config, stage_asset, unstage_asset, TargetAssetData};
 use crate::state::{read_target_asset_data, save_target_asset_data};
 use crate::util::vec_to_string;
@@ -166,12 +166,13 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     let redeem_response = query_redeem_amount(
         &deps,
         &cfg.penalty,
+        env.block.height,
         basket_token_supply,
-        inv,
+        inv.clone(),
         token_cap,
         asset_amounts.clone(),
-        prices,
-        target,
+        prices.clone(),
+        target.clone(),
     )?;
 
     let redeem_totals = redeem_response.redeem_assets;
@@ -224,6 +225,22 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
             send: vec![],
         })
     );
+
+    // afterwards, notify the penalty contract that this update happened so
+    // it can make stateful updates...
+    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: cfg.penalty.clone(),
+        msg: to_binary(&ExtQueryMsg::Redeem {
+            block_height: env.block.height,
+            basket_token_supply,
+            inventory: inv,
+            max_tokens,
+            redeem_asset_amounts: asset_amounts.clone(),
+            asset_prices: prices,
+            target_weights: target
+        })?,
+        send: vec![],
+    }));
 
     if mint_to_sender > Uint128(0) {
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -552,12 +569,13 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     if basket_token_supply != Uint128(0) {
         let mint_response = query_mint_amount(
             &deps,
-            &cfg.penalty,
+            &cfg.penalty.clone(),
+            env.block.height,
             basket_token_supply,
-            inv,
-            c,
-            prices,
-            target,
+            inv.clone(),
+            c.clone(),
+            prices.clone(),
+            target.clone(),
         )?;
         let mint_total = mint_response.mint_tokens;
 
@@ -568,6 +586,21 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         // Decimal doesn't give the ability to subtract...
         mint_to_sender = Uint128((FPDecimal::from(mint_total.u128()) * (FPDecimal::one() - fee_rate)).into());
         let protocol_fee = (mint_total - mint_to_sender)?;
+
+        // afterwards, notify the penalty contract that this update happened so
+        // it can make stateful updates...
+        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: cfg.penalty.clone(),
+            msg: to_binary(&ExtQueryMsg::Mint {
+                block_height: env.block.height,
+                basket_token_supply,
+                inventory: inv,
+                mint_asset_amounts: c,
+                asset_prices: prices,
+                target_weights: target
+            })?,
+            send: vec![],
+        }));
 
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: basket_token.clone(),
