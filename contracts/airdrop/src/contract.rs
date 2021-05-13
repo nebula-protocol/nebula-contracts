@@ -16,7 +16,7 @@ use crate::state::{
 use cw20::Cw20HandleMsg;
 use hex;
 use sha3::Digest;
-use std::convert::TryInto;
+use std::{convert::TryInto, str::from_utf8};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -172,6 +172,7 @@ pub fn claim<S: Storage, A: Api, Q: Querier>(
 
     let mut root_buf: [u8; 32] = [0; 32];
     hex::decode_to_slice(merkle_root, &mut root_buf).unwrap();
+
     if root_buf != hash {
         return Err(StdError::generic_err("Verification is failed"));
     }
