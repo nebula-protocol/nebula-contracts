@@ -107,3 +107,18 @@ class Community:
     @staticmethod
     def spend(recipient, amount):
         return {"spend": { "recipient": recipient, "amount": amount }}
+
+class Airdrop:
+    @staticmethod
+    def register_merkle_root(root):
+        return { "register_merkle_root": { "merkle_root": root }}
+
+    @staticmethod
+    def claim(stage, amount, proof):
+        return {
+            "claim": {
+                "stage": 1,
+                "amount": amount,
+                "proof": proof
+            }
+        }

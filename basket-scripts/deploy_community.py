@@ -33,14 +33,12 @@ USE_LOCALTERRA = True
 DEFAULT_POLL_ID = 1
 DEFAULT_QUORUM = "0.3"
 DEFAULT_THRESHOLD = "0.5"
-DEFAULT_VOTING_PERIOD = 4
-DEFAULT_EFFECTIVE_DELAY = 2
+DEFAULT_VOTING_PERIOD = 3
+DEFAULT_EFFECTIVE_DELAY = 3
 DEFAULT_EXPIRATION_PERIOD = 20000
 DEFAULT_PROPOSAL_DEPOSIT = "10000000000"
 
-lt = LocalTerra(gas_prices = {
-        "uluna": "0.15"
-    })
+lt = LocalTerra(gas_prices={"uluna": "0.15"})
 
 if USE_LOCALTERRA:
     terra = lt
@@ -129,14 +127,143 @@ def deploy():
     print(f"[deploy] - store basket_contract")
     basket_code_id = store_contract("basket_contract", seq())
 
+    print(f"[deploy] - store penalty_contract")
+    penalty_code_id = store_contract("basket_penalty", seq())
+
     print(f"[deploy] - store basket_gov")
-    nebula_gov_code_id = store_contract("basket_gov", seq())
+    gov_code_id = store_contract("basket_gov", seq())
+
+    print(f"[deploy] - store basket_factory")
+    factory_code_id = store_contract("basket_factory", seq())
 
     print(f"[deploy] - store basket_community")
     community_id = store_contract("basket_community", seq())
 
-    print(f"[deploy] - store penalty_contract")
-    penalty_code_id = store_contract("basket_penalty", seq())
+    print(f"[deploy] - store terraswap_factory")
+    terraswap_factory_code_id = store_contract("terraswap_factory", seq())
+
+    print(f"[deploy] - store terraswap_pair")
+    pair_code_id = store_contract("terraswap_pair", seq())
+
+    print(f"[deploy] - store basket_staking")
+    staking_code_id = store_contract("basket_staking", seq())
+
+    print(f"[deploy] - store basket_collector")
+    collector_code_id = store_contract("basket_collector", seq())
+
+    print(f"[deploy] - instantiate terraswap factory contract")
+    terraswap_factory_contract = instantiate_contract(
+        terraswap_factory_code_id,
+        {"pair_code_id": int(pair_code_id), "token_code_id": int(token_code_id)},
+        seq(),
+    )
+
+
+    print(f"[deploy] - instantiate factory")
+    factory_contract = instantiate_contract(
+        factory_code_id,
+        {
+            "token_code_id": int(token_code_id),
+            "cluster_code_id": int(basket_code_id),
+            "base_denom": "uusd",
+            "protocol_fee_rate": "0.001",
+            "distribution_schedule": [[0, 100000, "1000000"]],
+        },
+        seq(),
+    )
+
+    print(f"[deploy] - instantiate nebula token")
+    nebula_token = instantiate_contract(
+        token_code_id,
+        {
+            "name": "Nebula Token",
+            "symbol": "NEB",
+            "decimals": 6,
+            "initial_balances": [
+                {
+                    "address": deployer.key.acc_address,
+                    "amount": "1000000000000",
+                },
+                {
+                    "address": factory_contract,
+                    "amount": "10000000000",
+                },
+            ],
+            # maybe ?
+            "minter": {"minter": factory_contract, "cap": None},
+        },
+        seq(),
+    )
+
+    print(f"[deploy] - create staking contract")
+    staking_contract = instantiate_contract(
+        staking_code_id,
+        {
+            "owner": factory_contract,
+            "nebula_token": nebula_token,
+            "terraswap_factory": terraswap_factory_contract,
+            "base_denom": "uusd",
+            "premium_min_update_interval": 5,
+        },
+        seq(),
+    )
+
+    # instantiate nebula governance contract
+    print(f"[deploy] - instantiate nebula governance")
+    gov_contract = instantiate_contract(
+        gov_code_id,
+        {
+            "nebula_token": nebula_token,
+            "quorum": DEFAULT_QUORUM,
+            "threshold": DEFAULT_THRESHOLD,
+            "voting_period": DEFAULT_VOTING_PERIOD,
+            "effective_delay": DEFAULT_EFFECTIVE_DELAY,
+            "expiration_period": DEFAULT_EXPIRATION_PERIOD,
+            "proposal_deposit": DEFAULT_PROPOSAL_DEPOSIT,
+            "voter_weight": "0.1",
+        },
+        seq(),
+    )
+
+    # instantiate community pool
+    print(f"[deploy] - instantiate community pool")
+    nebula_community = instantiate_contract(
+        community_id,
+        {
+            "owner": gov_contract,
+            "nebula_token": nebula_token,
+            "spend_limit": "1000000"
+        },
+        seq(),
+    )
+
+    collector_contract = instantiate_contract(
+        collector_code_id,
+        {
+            "distribution_contract": gov_contract,
+            "terraswap_factory": terraswap_factory_contract,
+            "nebula_token": nebula_token,
+            "base_denom": "uusd",
+        },
+        seq(),
+    )
+
+    print(f"[deploy] - post initialize factory")
+    resp = execute_contract(
+        deployer,
+        factory_contract,
+        {
+            "post_initialize": {
+                "owner": deployer.key.acc_address,
+                "nebula_token": nebula_token,
+                "oracle_contract": nebula_token,  # ??? provide arbitrary contract for now
+                "terraswap_factory": terraswap_factory_contract,
+                "staking_contract": staking_contract,
+                "commission_collector": collector_contract,
+            }
+        },
+        seq(),
+    )
 
     print(f"[deploy] - instantiate penalty contract")
     penalty_contract = instantiate_contract(
@@ -148,13 +275,12 @@ def deploy():
                 "penalty_amt_hi": "0.5",
                 "penalty_cutoff_hi": "0.1",
                 "reward_amt": "0.05",
-                "reward_cutoff": "0.02"
+                "reward_cutoff": "0.02",
             }
         },
-        seq()
+        seq(),
     )
 
-    # wrapped bitcoin
     print(f"[deploy] - instantiate wBTC")
     wBTC = instantiate_contract(
         token_code_id,
@@ -190,50 +316,90 @@ def deploy():
     print(f"[deploy] - instantiate oracle")
     oracle = instantiate_contract(oracle_code_id, {}, seq())
 
+    execute_contract(
+        deployer,
+        oracle,
+        Oracle.set_prices(
+            [
+                [wBTC, "30000.0"],
+                [wETH, "1500.0"],
+                ["uluna", "15.00"],
+            ]
+        ),
+        seq(),
+    )
 
-    # instantiate nebula token
-    print(f"[deploy] - instantiate nebula token")
-    nebula_token = instantiate_contract(
-        token_code_id,
+    resp = execute_contract(
+        deployer,
+        factory_contract,
         {
-            "name": "Nebula Token",
-            "symbol": "NEB",
-            "decimals": 6,
-            "initial_balances": [
-                {"address": deployer.key.acc_address, "amount": "1000000000000"}
-            ],
-            "mint": None,
+            "create_cluster": {
+                "name": "BASKET",
+                "symbol": "BSK",
+                "params": {
+                    "name": "BASKET",
+                    "symbol": "BSK",
+                    "penalty": penalty_contract,
+                    "target": [50, 50],
+                    "assets": [
+                        Asset.cw20_asset_info(wBTC),
+                        Asset.cw20_asset_info(wETH),
+                    ],
+                    "oracle": oracle,
+                },
+            }
         },
         seq(),
     )
 
-    # instantiate nebula governance contract
-    print(f"[deploy] - instantiate nebula governance")
-    nebula_gov = instantiate_contract(
-        nebula_gov_code_id,
-        {
-            "nebula_token": nebula_token,
-            "quorum": DEFAULT_QUORUM,
-            "threshold": DEFAULT_THRESHOLD,
-            "voting_period": DEFAULT_VOTING_PERIOD,
-            "effective_delay": DEFAULT_EFFECTIVE_DELAY,
-            "expiration_period": DEFAULT_EXPIRATION_PERIOD,
-            "proposal_deposit": DEFAULT_PROPOSAL_DEPOSIT
-        },
-        seq(),
+    if resp.is_tx_error():
+        raise Exception(resp.raw_log)
+
+    logs = resp.logs[0].events_by_type
+
+    instantiation_logs = logs["instantiate_contract"]
+    code_ids = instantiation_logs["code_id"]
+    addresses = instantiation_logs["contract_address"]
+    assert code_ids[3] == basket_code_id
+    basket = addresses[3]
+    assert code_ids[2] == token_code_id
+    basket_token = addresses[2]
+    assert code_ids[1] == pair_code_id
+    pair_contract = addresses[1]
+    assert code_ids[0] == token_code_id
+    lp_token = addresses[0]
+
+    print("[deploy] - initialize basket with tokens via mint")
+    stage_and_mint_tx = deployer.create_and_sign_tx(
+        msgs=[
+            MsgExecuteContract(
+                deployer.key.acc_address,
+                wBTC,
+                CW20.send(basket, "1000000", Basket.stage_asset()),
+            ),
+            MsgExecuteContract(
+                deployer.key.acc_address,
+                wETH,
+                CW20.send(basket, "1000000", Basket.stage_asset()),
+            ),
+            MsgExecuteContract(
+                deployer.key.acc_address,
+                basket,
+                Basket.mint(
+                    [Asset.asset(wBTC, "1000000"), Asset.asset(wETH, "1000000")],
+                    min_tokens="100",
+                ),
+            ),
+        ],
+        sequence=seq(),
+        fee=StdFee(4000000, "2000000uluna"),
     )
 
-    # instantiate community pool
-    print(f"[deploy] - instantiate community pool")
-    nebula_community = instantiate_contract(
-        community_id,
-        {
-            "owner": nebula_gov,
-            "nebula_token": nebula_token,
-            "spend_limit": "1000000"
-        },
-        seq(),
-    )
+    terra.tx.broadcast(stage_and_mint_tx)
+
+    # GOVERNANCE VOTING FOR NEB REWARDS
+    # set the owner of the basket contract for governence so this message actually works...
+    execute_contract(deployer, basket, Basket.reset_owner(gov_contract), seq())
 
     # transfer some to community pool
     initial_community_neb_amt = "100000000"
@@ -251,79 +417,6 @@ def deploy():
     )
 
     result = terra.tx.broadcast(initial_balances_tx)
-    print(result.logs[0].events_by_type)
-
-    # instantiate basket
-    print(f"[deploy] - instantiate basket")
-    basket = instantiate_contract(
-        basket_code_id,
-        {
-            "name": "Basket",
-            "owner": deployer.key.acc_address,
-            "assets": [Asset.cw20_asset_info(wBTC), Asset.cw20_asset_info(wETH)],
-            "oracle": oracle,
-            "penalty": penalty_contract,
-            "target": [50, 50],
-        },
-        seq(),
-    )
-
-    # instantiate basket token
-    print(f"[deploy] - instantiate basket token")
-    basket_token = instantiate_contract(
-        token_code_id,
-        {
-            "name": "Basket Token",
-            "symbol": "BASKET",
-            "decimals": 6,
-            "initial_balances": [
-                {"address": deployer.key.acc_address, "amount": "100000000"}
-            ],
-            "mint": {"minter": basket, "cap": None},
-        },
-        seq(),
-    )
-
-    # set basket token
-    print(f"[deploy] - set basket token")
-    execute_contract(deployer, basket, Basket.set_basket_token(basket_token), seq())
-
-    execute_contract(deployer, basket, Basket.reset_owner(nebula_gov), seq())
-    # set oracle prices
-    print(f"[deploy] - set oracle prices")
-    execute_contract(
-        deployer,
-        oracle,
-        Oracle.set_prices(
-            [
-                [wBTC, "58000.0"],
-                [wETH, "2800.0"]
-            ]
-        ),
-        seq(),
-    )
-
-    # sets initial balance of basket contract
-    amount = "1000000"
-
-    print(
-        f"[deploy] - give initial balances wBTC and wETH {amount}"
-    )
-    initial_balances_tx = deployer.create_and_sign_tx(
-        msgs=[
-            MsgExecuteContract(
-                deployer.key.acc_address, wBTC, CW20.transfer(basket, amount)
-            ),
-            MsgExecuteContract(
-                deployer.key.acc_address, wETH, CW20.transfer(basket, amount)
-            ),
-        ],
-        sequence=seq(),
-        fee=StdFee(4000000, "2000000uluna"),
-    )
-
-    result = terra.tx.broadcast(initial_balances_tx)
-    print(result.logs[0].events_by_type)
 
     # Create poll
     print(
@@ -343,7 +436,7 @@ def deploy():
         deployer,
         nebula_token,
         CW20.send(
-            nebula_gov, DEFAULT_PROPOSAL_DEPOSIT, poll
+            gov_contract, DEFAULT_PROPOSAL_DEPOSIT, poll
         ), 
         seq(),
         fee=StdFee(
@@ -358,12 +451,12 @@ def deploy():
         f"[deploy] - stake 50% of basket tokens"
     )
     
-    stake_amount = "500000000000"
+    stake_amount = "800000000000"
     result = execute_contract(
         deployer,
         nebula_token,
         CW20.send(
-            nebula_gov, stake_amount, Governance.stake_voting_tokens()
+            gov_contract, stake_amount, Governance.stake_voting_tokens()
         ), 
         seq(),
         fee=StdFee(
@@ -380,7 +473,7 @@ def deploy():
     
     result = execute_contract(
         deployer,
-        nebula_gov,
+        gov_contract,
         Governance.cast_vote(DEFAULT_POLL_ID, "yes", stake_amount), 
         seq(),
         fee=StdFee(
@@ -403,7 +496,7 @@ def deploy():
 
     result = execute_contract(
         deployer,
-        nebula_gov,
+        gov_contract,
         Governance.end_poll(DEFAULT_POLL_ID),
         seq(),
         fee=StdFee(
@@ -415,7 +508,7 @@ def deploy():
 
     result = execute_contract(
         deployer,
-        nebula_gov,
+        gov_contract,
         Governance.execute_poll(DEFAULT_POLL_ID),
         seq(),
         fee=StdFee(
