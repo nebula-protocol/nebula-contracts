@@ -4,7 +4,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use terraswap::asset::{Asset, AssetInfo};
 use terraswap::hook::InitHook;
-use crate::state::BasketConfig;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
@@ -135,4 +134,14 @@ pub struct BasketStateResponse {
     pub penalty: HumanAddr,
     pub target: Vec<u32>,
     pub basket_contract_address: HumanAddr,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct BasketConfig {
+    pub name: String,
+    pub owner: HumanAddr,
+    pub basket_token: Option<HumanAddr>,
+    pub factory: HumanAddr,
+    pub oracle: HumanAddr,
+    pub penalty: HumanAddr,
 }

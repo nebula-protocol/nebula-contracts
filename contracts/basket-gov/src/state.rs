@@ -6,8 +6,8 @@ use cosmwasm_storage::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::common::OrderBy;
-use crate::msg::{PollStatus, VoterInfo};
+use nebula_protocol::common::OrderBy;
+use nebula_protocol::gov::{PollStatus, VoterInfo};
 
 static KEY_CONFIG: &[u8] = b"config";
 static KEY_STATE: &[u8] = b"state";

@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{Binary, Decimal, HumanAddr, Uint128};
+use cosmwasm_std::{Binary, HumanAddr, Uint128};
 
 use terraswap::asset::{AssetInfo, Asset};
 use cw20::Cw20ReceiveMsg;

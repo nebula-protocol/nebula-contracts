@@ -4,7 +4,8 @@ use crate::state::{
     read_polls, poll_store, state_store, Config, Poll, State, TokenManager,
 };
 
-use crate::msg::{PollStatus, StakerResponse, VoterInfo};
+use nebula_protocol::gov::{PollStatus, StakerResponse, VoterInfo};
+
 use cosmwasm_std::{
     log, to_binary, Api, CanonicalAddr, CosmosMsg, Env, Extern, HandleResponse, HandleResult,
     HumanAddr, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,

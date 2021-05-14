@@ -3,8 +3,8 @@ use crate::mock_querier::mock_dependencies;
 use cosmwasm_std::testing::{mock_env, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{to_binary, Coin, CosmosMsg, Decimal, HumanAddr, Uint128, WasmMsg};
 use cw20::Cw20HandleMsg;
-use mirror_protocol::collector::{ConfigResponse, HandleMsg, InitMsg};
-use mirror_protocol::gov::Cw20HookMsg::DepositReward;
+use nebula_protocol::collector::{ConfigResponse, HandleMsg, InitMsg};
+use nebula_protocol::gov::Cw20HookMsg::DepositReward;
 use terraswap::asset::{Asset, AssetInfo};
 use terraswap::pair::{Cw20HookMsg as TerraswapCw20HookMsg, HandleMsg as TerraswapHandleMsg};
 
@@ -15,7 +15,7 @@ fn proper_initialization() {
     let msg = InitMsg {
         terraswap_factory: HumanAddr("terraswapfactory".to_string()),
         distribution_contract: HumanAddr("gov0000".to_string()),
-        mirror_token: HumanAddr("mirror0000".to_string()),
+        nebula_token: HumanAddr("nebula0000".to_string()),
         base_denom: "uusd".to_string(),
     };
 
@@ -52,15 +52,15 @@ fn test_convert() {
     deps.querier.with_terraswap_pairs(&[
         (&"uusdtokenAPPL".to_string(), &HumanAddr::from("pairAPPL")),
         (
-            &"uusdtokenMIRROR".to_string(),
-            &HumanAddr::from("pairMIRROR"),
+            &"uusdtokennebula".to_string(),
+            &HumanAddr::from("pairnebula"),
         ),
     ]);
 
     let msg = InitMsg {
         terraswap_factory: HumanAddr("terraswapfactory".to_string()),
         distribution_contract: HumanAddr("gov0000".to_string()),
-        mirror_token: HumanAddr("tokenMIRROR".to_string()),
+        nebula_token: HumanAddr("tokennebula".to_string()),
         base_denom: "uusd".to_string(),
     };
 
@@ -95,7 +95,7 @@ fn test_convert() {
     );
 
     let msg = HandleMsg::Convert {
-        asset_token: HumanAddr::from("tokenMIRROR"),
+        asset_token: HumanAddr::from("tokennebula"),
     };
 
     let env = mock_env("addr0000", &[]);
@@ -105,7 +105,7 @@ fn test_convert() {
     assert_eq!(
         res.messages,
         vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: HumanAddr::from("pairMIRROR"),
+            contract_addr: HumanAddr::from("pairnebula"),
             msg: to_binary(&TerraswapHandleMsg::Swap {
                 offer_asset: Asset {
                     info: AssetInfo::NativeToken {
@@ -130,14 +130,14 @@ fn test_convert() {
 fn test_send() {
     let mut deps = mock_dependencies(20, &[]);
     deps.querier.with_token_balances(&[(
-        &HumanAddr::from("mirror0000"),
+        &HumanAddr::from("nebula0000"),
         &[(&HumanAddr::from(MOCK_CONTRACT_ADDR), &Uint128(100u128))],
     )]);
 
     let msg = InitMsg {
         terraswap_factory: HumanAddr("terraswapfactory".to_string()),
         distribution_contract: HumanAddr("gov0000".to_string()),
-        mirror_token: HumanAddr("mirror0000".to_string()),
+        nebula_token: HumanAddr("nebula0000".to_string()),
         base_denom: "uusd".to_string(),
     };
 
@@ -151,7 +151,7 @@ fn test_send() {
     assert_eq!(
         res.messages,
         vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: HumanAddr::from("mirror0000"),
+            contract_addr: HumanAddr::from("nebula0000"),
             msg: to_binary(&Cw20HandleMsg::Send {
                 contract: HumanAddr::from("gov0000"),
                 amount: Uint128(100u128),

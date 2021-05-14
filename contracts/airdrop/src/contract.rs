@@ -4,7 +4,7 @@ use cosmwasm_std::{
     Storage, Uint128, WasmMsg,
 };
 
-use crate::msg::{
+use nebula_protocol::airdrop::{
     ConfigResponse, HandleMsg, InitMsg, IsClaimedResponse, LatestStageResponse, MerkleRootResponse,
     MigrateMsg, QueryMsg,
 };
@@ -16,7 +16,7 @@ use crate::state::{
 use cw20::Cw20HandleMsg;
 use hex;
 use sha3::Digest;
-use std::{convert::TryInto, str::from_utf8};
+use std::convert::TryInto;
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,

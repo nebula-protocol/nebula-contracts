@@ -8,7 +8,7 @@ use crate::state::{
     read_config, read_pool_info, rewards_read, rewards_store, store_pool_info, Config, PoolInfo,
     RewardInfo,
 };
-use crate::msg::{RewardInfoResponse, RewardInfoResponseItem};
+use nebula_protocol::staking::{RewardInfoResponse, RewardInfoResponseItem};
 
 use cw20::Cw20HandleMsg;
 

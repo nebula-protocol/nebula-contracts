@@ -1,7 +1,7 @@
 use cosmwasm_std::{log, to_binary, Api, Binary, Env, Extern, HandleResponse, InitResponse, Querier, StdResult, Storage, Uint128, HumanAddr, StdError};
 
-use crate::msg::{HandleMsg, InitMsg, MintResponse, ParamsResponse, QueryMsg, RedeemResponse};
-use crate::state::{read_config, save_config, PenaltyConfig, PenaltyParams};
+use nebula_protocol::penalty::{HandleMsg, InitMsg, MintResponse, ParamsResponse, QueryMsg, RedeemResponse, PenaltyParams};
+use crate::state::{read_config, save_config, PenaltyConfig};
 use basket_math::{abs, add, div_const, dot, mul, mul_const, sub, sum, FPDecimal};
 use std::cmp::{max, min};
 use std::str::FromStr;

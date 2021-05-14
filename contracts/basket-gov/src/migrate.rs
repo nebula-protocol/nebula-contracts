@@ -1,7 +1,7 @@
 use cosmwasm_std::{Order, StdError, StdResult, Storage};
 use cosmwasm_storage::Bucket;
 
-use crate::msg::PollStatus;
+use nebula_protocol::gov::PollStatus;
 
 use std::convert::TryInto;
 

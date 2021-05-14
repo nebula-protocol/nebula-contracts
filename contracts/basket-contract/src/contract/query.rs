@@ -3,7 +3,7 @@ use cosmwasm_std::{
 };
 
 use crate::ext_query::{query_cw20_balance_minus_staged, query_cw20_token_supply, query_price, query_native_balance_minus_staged};
-use crate::msg::{
+use nebula_protocol::cluster::{
     BasketStateResponse, ConfigResponse, QueryMsg, StagedAmountResponse, TargetResponse,
 };
 use crate::state::{read_config, read_staged_asset, read_target_asset_data};
