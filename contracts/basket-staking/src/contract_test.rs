@@ -5,7 +5,7 @@ mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_env};
     use cosmwasm_std::{from_binary, log, Decimal, HumanAddr, StdError, Uint128};
 
-    use crate::msg::{
+    use nebula_protocol::staking::{
         ConfigResponse, HandleMsg, InitMsg, PoolInfoResponse, QueryMsg,
     };
 

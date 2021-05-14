@@ -1,8 +1,3 @@
-use crate::msg::{
-    ConfigResponse, Cw20HookMsg, ExecuteMsg, HandleMsg, InitMsg, MigrateMsg, PollResponse,
-    PollStatus, PollsResponse, QueryMsg, StateResponse, VoteOption, VoterInfo, VotersResponse,
-    VotersResponseItem,
-};
 use crate::querier::load_token_balance;
 use crate::staking::{query_staker, stake_voting_tokens, withdraw_voting_tokens,
                      deposit_reward, withdraw_voting_rewards, stake_voting_rewards};
@@ -19,7 +14,13 @@ use cosmwasm_std::{
 };
 use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
 
-use crate::common::OrderBy;
+use nebula_protocol::gov::{
+    ConfigResponse, Cw20HookMsg, ExecuteMsg, HandleMsg, InitMsg, MigrateMsg, PollResponse,
+    PollStatus, PollsResponse, QueryMsg, StateResponse, VoteOption, VoterInfo, VotersResponse,
+    VotersResponseItem,
+};
+
+use nebula_protocol::common::OrderBy;
 
 const MIN_TITLE_LENGTH: usize = 4;
 const MAX_TITLE_LENGTH: usize = 64;

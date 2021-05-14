@@ -34,6 +34,7 @@ backtraces = ["cosmwasm-std/backtraces"]
 cosmwasm-std = { version = "0.10.1" }
 cosmwasm-storage = { version = "0.10.1" }
 schemars = "0.7"
+nebula-protocol = { version = "0.1.0", path = "../../packages/nebula_protocol" }
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 snafu = { version = "0.6.3" }
 basket-math = { path = "../../libraries/basket-math" }

@@ -1,6 +1,7 @@
-use crate::{error, msg::InitMsg};
+use crate::error;
+use nebula_protocol::cluster::{InitMsg, BasketConfig};
 use crate::{
-    state::{save_config, save_target_asset_data, BasketConfig, TargetAssetData},
+    state::{save_config, save_target_asset_data, TargetAssetData},
     util::vec_to_string,
 };
 use cosmwasm_std::{log, Api, Env, Extern, InitResponse, Querier, StdResult, Storage, CosmosMsg, WasmMsg};
@@ -69,6 +70,8 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 
 #[cfg(test)]
 mod tests {
+    use nebula_protocol::cluster::{QueryMsg, TargetResponse};
+
     use crate::{q, test_helper::*};
 
     #[test]

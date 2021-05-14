@@ -10,5 +10,6 @@ members = [
   "contracts/basket-staking",
   "contracts/basket-community",
   "contracts/airdrop",
-  "libraries/*"
+  "libraries/*",
+  "packages/*"
 ]

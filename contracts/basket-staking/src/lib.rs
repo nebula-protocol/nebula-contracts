@@ -1,6 +1,4 @@
 pub mod contract;
-pub mod msg;
-pub mod common;
 mod math;
 mod migration;
 mod rewards;

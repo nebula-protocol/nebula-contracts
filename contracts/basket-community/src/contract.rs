@@ -6,7 +6,7 @@ use cosmwasm_std::{
     WasmMsg,
 };
 
-use crate::msg::{
+use nebula_protocol::community::{
     ConfigResponse, HandleMsg, InitMsg, MigrateMsg, QueryMsg,
 };
 

@@ -12,10 +12,8 @@ use crate::ext_query::{query_collector_contract_address, query_mint_amount, quer
 use crate::state::{read_config, save_config, stage_asset, unstage_asset, TargetAssetData};
 use crate::state::{read_target_asset_data, save_target_asset_data};
 use crate::util::vec_to_string;
-use crate::{
-    msg::{Cw20HookMsg, HandleMsg},
-    state::read_staged_asset,
-};
+use nebula_protocol::cluster::{Cw20HookMsg, HandleMsg};
+use crate::state::read_staged_asset;
 use terraswap::asset::{Asset, AssetInfo};
 use basket_math::FPDecimal;
 use std::str::FromStr;
@@ -771,6 +769,7 @@ mod tests {
     use cw20::Cw20ReceiveMsg;
     use pretty_assertions::assert_eq;
     use terraswap::asset::{Asset, AssetInfo};
+    use nebula_protocol::cluster::{HandleMsg};
 
     // #[test]
     // fn mint() {

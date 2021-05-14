@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use cosmwasm_std::{HumanAddr, StdResult, Storage, Uint128};
 use cosmwasm_storage::{bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket};
 use terraswap::asset::{AssetInfo};
+use nebula_protocol::cluster::BasketConfig;
 
 /// config: BasketConfig
 pub static CONFIG_KEY: &[u8] = b"config";
@@ -21,16 +22,6 @@ pub static ASSETS_KEY: &[u8] = b"assets";
 pub static PREFIX_STAGING: &[u8] = b"staging";
 
 pub static PREFIX_TOTAL_STAGING: &[u8] = b"total_staging";
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct BasketConfig {
-    pub name: String,
-    pub owner: HumanAddr,
-    pub basket_token: Option<HumanAddr>,
-    pub factory: HumanAddr,
-    pub oracle: HumanAddr,
-    pub penalty: HumanAddr,
-}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TargetAssetData {

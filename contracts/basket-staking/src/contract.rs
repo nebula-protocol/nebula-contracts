@@ -4,7 +4,7 @@ use cosmwasm_std::{
     Uint128,
 };
 
-use crate::msg::{
+use nebula_protocol::staking::{
     ConfigResponse, Cw20HookMsg, HandleMsg, InitMsg, MigrateMsg, PoolInfoResponse, QueryMsg,
 };
 

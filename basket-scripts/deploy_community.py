@@ -269,6 +269,7 @@ def deploy():
     penalty_contract = instantiate_contract(
         penalty_code_id,
         {
+            "owner": factory_contract,
             "penalty_params": {
                 "penalty_amt_lo": "0.1",
                 "penalty_cutoff_lo": "0.01",

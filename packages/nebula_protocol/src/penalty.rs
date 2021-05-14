@@ -1,7 +1,7 @@
 use cosmwasm_std::{LogAttribute, Uint128, HumanAddr};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use crate::state::PenaltyParams;
+use basket_math::FPDecimal;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
@@ -81,4 +81,21 @@ pub struct RedeemResponse {
 #[derive(Serialize, Deserialize)]
 pub struct ParamsResponse {
     pub penalty_params: PenaltyParams,
+}
+
+#[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq, JsonSchema)]
+pub struct PenaltyParams {
+    // penalty_amt_lo -> amount of penalty when imbalance <= penalty_cutoff_lo * E
+    pub penalty_amt_lo: FPDecimal,
+    pub penalty_cutoff_lo: FPDecimal,
+
+    // penalty_amt_hi -> amount of penalty when imbalance >= penalty_cutoff_hi * E
+    pub penalty_amt_hi: FPDecimal,
+    pub penalty_cutoff_hi: FPDecimal,
+    // in between penalty_cutoff_hi and penalty_cutoff_lo, the amount of penalty increases linearly
+
+    // reward_amt -> amount of reward when imbalance >= reward_cutoff * E
+    // no reward everywhere else
+    pub reward_amt: FPDecimal,
+    pub reward_cutoff: FPDecimal,
 }

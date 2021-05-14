@@ -1,7 +1,6 @@
 pub mod contract;
 pub mod error;
 pub mod ext_query;
-pub mod msg;
 pub mod state;
 #[macro_use]
 #[cfg(test)]

@@ -4,7 +4,7 @@ use cosmwasm_std::{
 };
 
 use crate::state::{read_config, store_config, Config};
-use crate::msg::{ConfigResponse, HandleMsg, InitMsg, MigrateMsg, QueryMsg, Cw20HookMsg::DepositReward};
+use nebula_protocol::collector::{ConfigResponse, HandleMsg, InitMsg, MigrateMsg, QueryMsg, Cw20HookMsg::DepositReward};
 
 use cw20::Cw20HandleMsg;
 use terraswap::asset::{Asset, AssetInfo, PairInfo};
