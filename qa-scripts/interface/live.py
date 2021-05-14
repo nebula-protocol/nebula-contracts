@@ -106,7 +106,7 @@ class InterfaceLive(InterfaceBase):
 
         pprint.pprint(mint_log)
 
-        mint_total = mint_log["from_contract"]["mint_total"][0]
+        mint_total = mint_log["from_contract"]["mint_to_sender"][0]
         return int(mint_total)
 
     # async def redeem(self, amount, weights=None, min_tokens=None):

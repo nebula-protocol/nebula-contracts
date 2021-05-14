@@ -9,6 +9,13 @@ impl FPDecimal {
 
     // e^(a)
     pub fn _exp(a: FPDecimal) -> FPDecimal {
+        // this throws underflow with a sufficiently large negative exponent
+        // short circuit and just return 0 above a certain threshold
+        // otherwise if there is a long enough delay between updates on a basket
+        // the penalty function will be bricked
+        if a.sign == 0 && a.num >= FPDecimal::from(45i128).num {
+            return FPDecimal::zero();
+        }
         let mut x = a.num;
         let mut r = FPDecimal::ONE;
         while x >= U256([10, 0, 0, 0]) * FPDecimal::ONE.num {
