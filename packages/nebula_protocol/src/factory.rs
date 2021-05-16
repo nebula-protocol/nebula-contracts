@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{Binary, HumanAddr, Uint128};
 
-use terraswap::asset::{AssetInfo, Asset};
 use cw20::Cw20ReceiveMsg;
+use terraswap::asset::{Asset, AssetInfo};
 use terraswap::hook::InitHook;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -14,6 +14,7 @@ pub struct InitMsg {
     pub base_denom: String,
     pub protocol_fee_rate: String,
     pub distribution_schedule: Vec<(u64, u64, Uint128)>, // [[start_time, end_time, distribution_amount], [], ...]
+    pub distribution_schedule_rebalancers: Vec<(u64, u64, Uint128)>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -86,12 +87,15 @@ pub enum HandleMsg {
     ///////////////////
     ///////////////////
     Distribute {},
+
+    DistributeRebalancers {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     Config {},
+    ClusterExists {contract_addr: HumanAddr}
     // DistributionInfo {},
 }
 
@@ -110,6 +114,13 @@ pub struct ConfigResponse {
     pub base_denom: String,
     pub genesis_time: u64,
     pub distribution_schedule: Vec<(u64, u64, Uint128)>,
+    pub distribution_schedule_rebalancers: Vec<(u64, u64, Uint128)>,
+
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct ClusterExistsResponse {
+    pub exists: bool,
 }
 
 // We define a custom struct for each query response
@@ -126,7 +137,7 @@ pub struct MigrateMsg {}
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct Params {
-    // Name of basket 
+    // Name of basket
     pub name: String,
 
     // Symbol of basket
@@ -139,12 +150,11 @@ pub struct Params {
 
     /// Oracle address
     pub oracle: HumanAddr,
-    
+
     pub assets: Vec<AssetInfo>,
 
-    pub target: Vec<u32>
+    pub target: Vec<u32>,
 }
-
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -194,7 +204,6 @@ pub enum BasketHandleMsg {
     // },
 }
 
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct BasketInitMsg {
     /// Basket name (title)
@@ -221,9 +230,8 @@ pub struct BasketInitMsg {
     /// Target weight vector (not normalized)
     pub target: Vec<u32>,
 
-    pub init_hook: Option<InitHook>
+    pub init_hook: Option<InitHook>,
 }
-
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -282,4 +290,15 @@ pub enum StakingHandleMsg {
 pub enum StakingCw20HookMsg {
     Bond { asset_token: HumanAddr },
     DepositReward { rewards: Vec<(HumanAddr, Uint128)> },
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum CollectorHandleMsg {
+    DepositReward {},
+    NewPenaltyPeriod {},
+    RecordPenalty {
+        reward_owner: HumanAddr,
+        penalty_amount: Uint128,
+    },
 }

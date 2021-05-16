@@ -166,7 +166,8 @@ def deploy():
             # rewards for lp stakers
             "distribution_schedule": [[0, 100000, "1000000"]],
             # rewards for rebalance miners
-            "distribution_schedule_rebalancers": [[0, 100000, "1000000"]],        },
+            "distribution_schedule_rebalancers": [[0, 100000, "1000000"]],
+        },
         seq(),
     )
 
@@ -443,25 +444,55 @@ def deploy():
     if result.is_tx_error():
         raise Exception(result.raw_log)
 
-    print("[deploy] - try to mint")
+    print("[deploy] - try to mint / unbalance")
     stage_and_mint_tx = deployer.create_and_sign_tx(
         msgs=[
             MsgExecuteContract(
                 deployer.key.acc_address,
                 wBTC,
-                CW20.send(basket, "10000000", Basket.stage_asset()),
+                CW20.send(basket, "100000", Basket.stage_asset()),
             ),
             MsgExecuteContract(
                 deployer.key.acc_address,
                 wETH,
-                CW20.send(basket, "10000000", Basket.stage_asset()),
+                CW20.send(basket, "100000000", Basket.stage_asset()),
             ),
             MsgExecuteContract(
                 deployer.key.acc_address,
                 basket,
                 Basket.mint(
-                    [Asset.asset(wBTC, "10000000"), Asset.asset(wETH, "10000000")],
-                    min_tokens="9990000",
+                    [Asset.asset(wBTC, "100000"), Asset.asset(wETH, "100000000")],
+                ),
+            ),
+        ],
+        sequence=seq(),
+        fee=StdFee(4000000, "2000000uluna"),
+    )
+    result = terra.tx.broadcast(stage_and_mint_tx)
+    if result.is_tx_error():
+        raise Exception(result.raw_log)
+    for log in result.logs:
+        import pprint
+        pprint.pprint(log.events_by_type)
+
+    print("[deploy] - try to mint / rebalance")
+    stage_and_mint_tx = deployer.create_and_sign_tx(
+        msgs=[
+            MsgExecuteContract(
+                deployer.key.acc_address,
+                wBTC,
+                CW20.send(basket, "100000000", Basket.stage_asset()),
+            ),
+            MsgExecuteContract(
+                deployer.key.acc_address,
+                wETH,
+                CW20.send(basket, "100000", Basket.stage_asset()),
+            ),
+            MsgExecuteContract(
+                deployer.key.acc_address,
+                basket,
+                Basket.mint(
+                    [Asset.asset(wBTC, "100000000"), Asset.asset(wETH, "100000")],
                 ),
             ),
         ],
@@ -472,6 +503,11 @@ def deploy():
     result = terra.tx.broadcast(stage_and_mint_tx)
     if result.is_tx_error():
         raise Exception(result.raw_log)
+
+    for log in result.logs:
+        import pprint
+        pprint.pprint(log.events_by_type)
+
 
     basket_tokens = terra.wasm.contract_query(
         basket_token, {"balance": {"address": collector_contract}}
@@ -541,138 +577,6 @@ def deploy():
 
     print(f"[deploy] - collector nebula balance {nebula_tokens}")
 
-    # GOVERNANCE VOTING FOR NEB REWARDS
-    # set the owner of the basket contract for governence so this message actually works...
-    execute_contract(deployer, basket, Basket.reset_owner(gov_contract), seq())
-
-    print(f"[deploy] stake voting tokens")
-    execute_contract(
-        deployer,
-        nebula_token,
-        CW20.send(gov_contract, "100", {"stake_voting_tokens": {}}),
-        seq(),
-    )
-
-    print(f"[deploy] - create poll")
-
-    print(f"[deploy] - create new penalty contract")
-    new_penalty_contract = instantiate_contract(
-        penalty_code_id,
-        {
-            "penalty_params": {
-                "penalty_amt_lo": "0.2",
-                "penalty_cutoff_lo": "0.01",
-                "penalty_amt_hi": "0.5",
-                "penalty_cutoff_hi": "0.1",
-                "reward_amt": "0.05",
-                "reward_cutoff": "0.02",
-            },
-            "owner": basket,
-        },
-        seq(),
-    )
-
-    poll = Governance.create_poll(
-        "Test",
-        "Test",
-        "TestLink1234",
-        Governance.create_execute_msg(
-            basket, Basket.reset_penalty(new_penalty_contract)
-        ),
-    )
-
-    result = execute_contract(
-        deployer,
-        nebula_token,
-        CW20.send(gov_contract, DEFAULT_PROPOSAL_DEPOSIT, poll),
-        seq(),
-        fee=StdFee(4000000, "20000000uluna"),
-    )
-
-    print(result.logs[0].events_by_type)
-
-    # Stake
-    print(f"[deploy] - stake 50% of nebula tokens")
-
-    stake_amount = "500000000000"
-    result = execute_contract(
-        deployer,
-        nebula_token,
-        CW20.send(gov_contract, stake_amount, Governance.stake_voting_tokens()),
-        seq(),
-        fee=StdFee(4000000, "20000000uluna"),
-    )
-
-    print(result.logs[0].events_by_type)
-
-    # cast vote
-    print(f"[deploy] - cast vote for YES")
-
-    result = execute_contract(
-        deployer,
-        gov_contract,
-        Governance.cast_vote(DEFAULT_POLL_ID, "yes", stake_amount),
-        seq(),
-        fee=StdFee(4000000, "20000000uluna"),
-    )
-
-    print(result.logs[0].events_by_type)
-
-    # # increase block time (?)
-    # global sequence
-    # sequence += DEFAULT_EFFECTIVE_DELAY
-
-    # execute poll
-    print(f"sequence # is: {deployer.sequence()}")
-
-    print(f"[deploy] - commissioner distributes neb to gov contract")
-    execute_contract(deployer, collector_contract, {"distribute": {}}, seq())
-
-    nebula_tokens = terra.wasm.contract_query(
-        nebula_token, {"balance": {"address": collector_contract}}
-    )
-
-    print(f"[deploy] - collector nebula balance {nebula_tokens}")
-    nebula_tokens = terra.wasm.contract_query(
-        nebula_token, {"balance": {"address": gov_contract}}
-    )
-
-    print(f"[deploy] - gov nebula balance {nebula_tokens}")
-
-    print(f"[deploy] - execute vote")
-
-    time.sleep(5)
-
-    result = execute_contract(
-        deployer,
-        gov_contract,
-        Governance.end_poll(DEFAULT_POLL_ID),
-        seq(),
-        fee=StdFee(4000000, "20000000uluna"),
-    )
-
-    result = execute_contract(
-        deployer,
-        gov_contract,
-        Governance.execute_poll(DEFAULT_POLL_ID),
-        seq(),
-        fee=StdFee(4000000, "20000000uluna"),
-    )
-
-    nebula_tokens = terra.wasm.contract_query(
-        nebula_token, {"balance": {"address": deployer.key.acc_address}}
-    )
-
-    print(f"[deploy] - neb balance before withdrawing voting rewards {nebula_tokens}")
-
-    execute_contract(deployer, gov_contract, {"withdraw_voting_rewards": {}}, seq())
-
-    nebula_tokens = terra.wasm.contract_query(
-        nebula_token, {"balance": {"address": deployer.key.acc_address}}
-    )
-
-    print(f"[deploy] - neb balance after withdrawing voting rewards {nebula_tokens}")
-
     # LP STAKING FOR NEB REWARDS
     lp_tokens = terra.wasm.contract_query(
         lp_token, {"balance": {"address": deployer.key.acc_address}}
@@ -704,6 +608,27 @@ def deploy():
     print(
         f"[deploy] - nebula token balance after withdrawing staking reward - {neb_balance}"
     )
+
+    print(f"[deploy] - asking factory contract to distribute rebalancing rewards")
+    resp = execute_contract(deployer, factory_contract, {"distribute_rebalancers": {}}, seq())
+    for log in resp.logs:
+        import pprint
+        pprint.pprint(log.events_by_type)
+    print(f"[deploy] - withdraw reward from collector contract")
+
+    resp = execute_contract(
+        deployer, collector_contract, {"withdraw": {}}, seq()
+    )
+
+    for log in resp.logs:
+        import pprint
+        pprint.pprint(log.events_by_type)
+
+    neb_balance = terra.wasm.contract_query(
+        nebula_token, {"balance": {"address": deployer.key.acc_address}}
+    )
+    print(neb_balance)
+
 
 
 deploy()

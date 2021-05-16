@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{CanonicalAddr, Order, StdError, StdResult, Storage, Uint128, Decimal};
+use cosmwasm_std::{CanonicalAddr, Order, StdError, StdResult, Storage, Uint128, Decimal, HumanAddr};
 use cosmwasm_storage::{singleton, singleton_read, Bucket, ReadonlyBucket, Singleton};
 
 use nebula_protocol::factory::Params;
@@ -10,8 +10,10 @@ static KEY_CONFIG: &[u8] = b"config";
 static KEY_PARAMS: &[u8] = b"params";
 static KEY_TOTAL_WEIGHT: &[u8] = b"total_weight";
 static KEY_LAST_DISTRIBUTED: &[u8] = b"last_distributed";
+static KEY_LAST_DISTRIBUTED_REBALANCERS: &[u8] = b"last_distributed_rebalancers";
 
 static PREFIX_WEIGHT: &[u8] = b"weight";
+static PREFIX_CLUSTERS: &[u8] = b"clusters";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
@@ -27,6 +29,7 @@ pub struct Config {
     pub base_denom: String,
     pub genesis_time: u64,
     pub distribution_schedule: Vec<(u64, u64, Uint128)>, // [[start_time, end_time, distribution_amount], [], ...]
+    pub distribution_schedule_rebalancers: Vec<(u64, u64, Uint128)>,
 }
 
 pub fn store_config<S: Storage>(storage: &mut S, config: &Config) -> StdResult<()> {
@@ -35,6 +38,18 @@ pub fn store_config<S: Storage>(storage: &mut S, config: &Config) -> StdResult<(
 
 pub fn read_config<S: Storage>(storage: &S) -> StdResult<Config> {
     singleton_read(storage, KEY_CONFIG).load()
+}
+
+pub fn cluster_exists<S: Storage>(storage: &S, contract_addr: &CanonicalAddr) -> StdResult<bool> {
+
+    match ReadonlyBucket::new(PREFIX_CLUSTERS, storage).load(&contract_addr.as_slice()) {
+        Ok(res) => Ok(res),
+        Err(_) => Ok(false),
+    }
+}
+
+pub fn record_cluster<S: Storage>(storage: &mut S, contract_addr: &CanonicalAddr) -> StdResult<()> {
+    Bucket::new(PREFIX_CLUSTERS, storage).save(&contract_addr.as_slice(), &true)
 }
 
 pub fn store_params<S: Storage>(storage: &mut S, init_data: &Params) -> StdResult<()> {
@@ -75,6 +90,15 @@ pub fn store_last_distributed<S: Storage>(storage: &mut S, last_distributed: u64
 
 pub fn read_last_distributed<S: Storage>(storage: &S) -> StdResult<u64> {
     singleton_read(storage, KEY_LAST_DISTRIBUTED).load()
+}
+
+pub fn store_last_distributed_rebalancers<S: Storage>(storage: &mut S, last_distributed: u64) -> StdResult<()> {
+    let mut store: Singleton<S, u64> = singleton(storage, KEY_LAST_DISTRIBUTED_REBALANCERS);
+    store.save(&last_distributed)
+}
+
+pub fn read_last_distributed_rebalancers<S: Storage>(storage: &S) -> StdResult<u64> {
+    singleton_read(storage, KEY_LAST_DISTRIBUTED_REBALANCERS).load()
 }
 
 pub fn store_weight<S: Storage>(
