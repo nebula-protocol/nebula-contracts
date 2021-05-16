@@ -152,6 +152,7 @@ pub fn compute_mint<S: Storage, A: Api, Q: Querier>(
 
     Ok(MintResponse {
         mint_tokens: Uint128(mint_subtotal.into()),
+        penalty: Uint128((if penalty.sign == 1 { penalty } else { FPDecimal::zero()}).into()),
         log: vec![log("penalty", penalty)],
     })
 }
@@ -178,6 +179,7 @@ pub fn compute_redeem<S: Storage, A: Api, Q: Querier>(
         let redeem_arr = div_const(&mul_const(&w, m * dot(&i0, &p)), n * dot(&w, &p));
         Ok(RedeemResponse {
             token_cost: Uint128(m.into()),
+            penalty: Uint128::zero(),
             redeem_assets: redeem_arr
                 .iter()
                 .map(|&x| Uint128(x.into()))
@@ -199,6 +201,7 @@ pub fn compute_redeem<S: Storage, A: Api, Q: Querier>(
 
         Ok(RedeemResponse {
             token_cost: Uint128(token_cost),
+            penalty: Uint128((if penalty.sign == 1 { penalty } else { FPDecimal::zero()}).into()),
             redeem_assets: r
                 .iter()
                 .map(|&x| Uint128(x.into()))

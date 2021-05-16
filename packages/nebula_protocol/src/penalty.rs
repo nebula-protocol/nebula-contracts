@@ -68,12 +68,14 @@ pub enum QueryMsg {
 #[derive(Serialize, Deserialize)]
 pub struct MintResponse {
     pub mint_tokens: Uint128,
+    pub penalty: Uint128,
     pub log: Vec<LogAttribute>,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct RedeemResponse {
     pub redeem_assets: Vec<Uint128>,
+    pub penalty: Uint128,
     pub token_cost: Uint128,
     pub log: Vec<LogAttribute>,
 }

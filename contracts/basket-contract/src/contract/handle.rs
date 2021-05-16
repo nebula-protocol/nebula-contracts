@@ -17,6 +17,7 @@ use crate::state::read_staged_asset;
 use terraswap::asset::{Asset, AssetInfo};
 use basket_math::FPDecimal;
 use std::str::FromStr;
+use nebula_protocol::factory::CollectorHandleMsg;
 
 /*
     Match the incoming message to the right category: receive, mint,
@@ -240,7 +241,8 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         send: vec![],
     }));
 
-    if mint_to_sender > Uint128(0) {
+    // send remaining basket tokens back to the sender
+    if mint_to_sender > Uint128::zero() {
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: basket_token.clone(),
             msg: to_binary(&Cw20HandleMsg::Mint {
@@ -251,7 +253,8 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         }));
     }
 
-    if fee_amt > Uint128(0) {
+    // send fees to collector contract
+    if fee_amt > Uint128::zero() {
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: basket_token.clone(),
             msg: to_binary(&Cw20HandleMsg::Mint {
@@ -261,6 +264,19 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
             send: vec![],
         }));
     }
+
+    if redeem_response.penalty > Uint128::zero() {
+        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: collector_address.clone(),
+            msg: to_binary(&CollectorHandleMsg::RecordPenalty {
+                reward_owner: env.message.sender.clone(),
+                penalty_amount: redeem_response.penalty,
+            })?,
+            send: vec![],
+        }));
+    }
+
+
 
     Ok(HandleResponse {
         messages,
@@ -564,7 +580,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     let mut extra_logs = vec![];
     let mut messages = vec![];
     // do a regular mint
-    if basket_token_supply != Uint128(0) {
+    if basket_token_supply != Uint128::zero() {
         let mint_response = query_mint_amount(
             &deps,
             &cfg.penalty.clone(),
@@ -604,10 +620,22 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
             contract_addr: basket_token.clone(),
             msg: to_binary(&Cw20HandleMsg::Mint {
                 amount: protocol_fee,
-                recipient: collector_address,
+                recipient: collector_address.clone(),
             })?,
             send: vec![],
         }));
+
+        if mint_response.penalty > Uint128::zero() {
+            messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: collector_address.clone(),
+                msg: to_binary(&CollectorHandleMsg::RecordPenalty {
+                    reward_owner: env.message.sender.clone(),
+                    penalty_amount: mint_response.penalty,
+                })?,
+                send: vec![],
+            }));
+        }
+
 
         extra_logs = mint_response.log;
         extra_logs.push(log("fee_amt", protocol_fee))
