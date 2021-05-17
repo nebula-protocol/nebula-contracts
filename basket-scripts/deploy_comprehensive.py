@@ -1,0 +1,757 @@
+"""Test governance deploy script.
+
+NOTE: Normally, we can use fee estimation in Tequila, as well as rely on Wallet to auto
+fetch the sequence number from the blockchain. Here, we have manual options for sequence
+number and fee.
+
+Why manually incrementing sequence number: tequila endpoint is load-balanced so in successive
+transactions, the nodes may not have had time to catch up to each other, which may result
+in a signature (chain id, account, sequence) mismatch.
+
+Why manually setting fee: tequila node allows simulating (auto-estimating) fee up to
+3000000 gas. Some transactions such as code uploads and burning basket token (which
+incurs multiple CW20 transfers to the user may require more gas than permitted by the
+fee estimation feature).
+"""
+
+import time
+from terra_sdk.client.lcd import LCDClient
+from terra_sdk.client.localterra import LocalTerra
+from terra_sdk.core.auth import StdFee
+from terra_sdk.core.wasm import (
+    MsgStoreCode,
+    MsgInstantiateContract,
+    MsgExecuteContract,
+)
+from terra_sdk.util.contract import get_code_id, get_contract_address, read_file_as_b64
+
+from basket import Oracle, Basket, CW20, Asset, Governance
+import pprint
+
+# If True, use localterra. Otherwise, deploys on Tequila
+USE_LOCALTERRA = True
+
+DEFAULT_POLL_ID = 1
+DEFAULT_QUORUM = "0.3"
+DEFAULT_THRESHOLD = "0.5"
+DEFAULT_VOTING_PERIOD = 4
+DEFAULT_EFFECTIVE_DELAY = 6
+DEFAULT_EXPIRATION_PERIOD = 20000
+DEFAULT_PROPOSAL_DEPOSIT = "10000000000"
+
+lt = LocalTerra(gas_prices={"uluna": "0.15"})
+
+if USE_LOCALTERRA:
+    terra = lt
+    deployer = lt.wallets["test1"]
+else:
+    gas_prices = {
+        "uluna": "0.15",
+        "usdr": "0.1018",
+        "uusd": "0.15",
+        "ukrw": "178.05",
+        "umnt": "431.6259",
+        "ueur": "0.125",
+        "ucny": "0.97",
+        "ujpy": "16",
+        "ugbp": "0.11",
+        "uinr": "11",
+        "ucad": "0.19",
+        "uchf": "0.13",
+        "uaud": "0.19",
+        "usgd": "0.2",
+    }
+
+    terra = LCDClient(
+        "https://tequila-fcd.terra.dev", "tequila-0004", gas_prices=gas_prices
+    )
+    deployer = terra.wallet(lt.wallets["test1"].key)
+
+
+def store_contract(contract_name, sequence):
+    contract_bytes = read_file_as_b64(f"../artifacts/{contract_name}.wasm")
+    store_code = MsgStoreCode(deployer.key.acc_address, contract_bytes)
+    store_code_tx = deployer.create_and_sign_tx(
+        msgs=[store_code], fee=StdFee(5000000, "2000000uluna"), sequence=sequence
+    )
+    result = terra.tx.broadcast(store_code_tx)
+    if result.is_tx_error():
+        print(result.raw_log)
+    return get_code_id(result)
+
+
+def instantiate_contract(code_id, init_msg, sequence):
+    instantiate = MsgInstantiateContract(deployer.key.acc_address, code_id, init_msg)
+    instantiate_tx = deployer.create_and_sign_tx(
+        msgs=[instantiate], sequence=sequence, fee_denoms=["uluna"]
+    )
+    result = terra.tx.broadcast(instantiate_tx)
+    if result.is_tx_error():
+        print(result.raw_log)
+    return get_contract_address(result)
+
+
+def execute_contract(wallet, contract_address, execute_msg, sequence, fee=None):
+    execute = MsgExecuteContract(wallet.key.acc_address, contract_address, execute_msg)
+    execute_tx = wallet.create_and_sign_tx(
+        msgs=[execute], sequence=sequence, fee_denoms=["uluna"], fee=fee
+    )
+    result = terra.tx.broadcast(execute_tx)
+    if result.is_tx_error():
+        print(result.raw_log)
+    return result
+
+
+def get_amount(value, price):
+    """Gets Uint128 amount of coin in order to get total value, assuming price."""
+    return str(int(value / float(price) * 1000000))
+
+
+sequence = deployer.sequence()
+
+
+def seq():
+    """Increments global sequence."""
+    global sequence
+    sequence += 1
+    return sequence - 1
+
+
+def deploy():
+    print(f"DEPLOYING WITH ACCCOUNT: {deployer.key.acc_address}")
+    print(f"[deploy] - store terraswap_token")
+    token_code_id = store_contract("terraswap_token", seq())
+
+    print(f"[deploy] - store basket_dummy_oracle")
+    oracle_code_id = store_contract("basket_dummy_oracle", seq())
+
+    print(f"[deploy] - store basket_contract")
+    basket_code_id = store_contract("basket_contract", seq())
+
+    print(f"[deploy] - store penalty_contract")
+    penalty_code_id = store_contract("basket_penalty", seq())
+
+    print(f"[deploy] - store terraswap_factory")
+    terraswap_factory_code_id = store_contract("terraswap_factory", seq())
+
+    print(f"[deploy] - store terraswap_pair")
+    pair_code_id = store_contract("terraswap_pair", seq())
+
+    print(f"[deploy] - store basket_staking")
+    staking_code_id = store_contract("basket_staking", seq())
+
+    print(f"[deploy] - store basket_collector")
+    collector_code_id = store_contract("basket_collector", seq())
+
+    print(f"[deploy] - store basket_gov")
+    gov_code_id = store_contract("basket_gov", seq())
+
+    print(f"[deploy] - store basket_factory")
+    factory_code_id = store_contract("basket_factory", seq())
+
+    print(f"[deploy] - instantiate terraswap factory contract")
+    terraswap_factory_contract = instantiate_contract(
+        terraswap_factory_code_id,
+        {"pair_code_id": int(pair_code_id), "token_code_id": int(token_code_id)},
+        seq(),
+    )
+
+    print(f"[deploy] - instantiate factory")
+    factory_contract = instantiate_contract(
+        factory_code_id,
+        {
+            "token_code_id": int(token_code_id),
+            "cluster_code_id": int(basket_code_id),
+            "base_denom": "uusd",
+            "protocol_fee_rate": "0.001",
+            # rewards for lp stakers
+            "distribution_schedule": [[0, 100000, "1000000"]],
+            # rewards for rebalance miners
+            "distribution_schedule_rebalancers": [[0, 100000, "1000000"]],        },
+        seq(),
+    )
+
+    print(f"[deploy] - instantiate nebula token")
+    nebula_token = instantiate_contract(
+        token_code_id,
+        {
+            "name": "Nebula Token",
+            "symbol": "NEB",
+            "decimals": 6,
+            "initial_balances": [
+                {
+                    "address": deployer.key.acc_address,
+                    "amount": "1000000000000",
+                },
+                {
+                    "address": factory_contract,
+                    "amount": "10000000000",
+                },
+            ],
+            # maybe ?
+            "minter": {"minter": factory_contract, "cap": None},
+        },
+        seq(),
+    )
+
+    print(f"[deploy] - create terraswap pair from factory for neb token")
+    resp = execute_contract(
+        deployer,
+        terraswap_factory_contract,
+        {
+            "create_pair": {
+                "asset_infos": [
+                    {"token": {"contract_addr": nebula_token}},
+                    {"native_token": {"denom": "uusd"}},
+                ]
+            }
+        },
+        seq(),
+    )
+
+    log = resp.logs[0].events_by_type
+    neb_pair_contract = log["from_contract"]["pair_contract_addr"][0]
+
+    print(f"[deploy] - adding liquidity to nebula pair contract")
+    execute_contract(
+        deployer,
+        nebula_token,
+        {"increase_allowance": {"spender": neb_pair_contract, "amount": "100"}},
+        seq(),
+    )
+
+    stage_and_mint_tx = deployer.create_and_sign_tx(
+        msgs=[
+            MsgExecuteContract(
+                deployer.key.acc_address,
+                neb_pair_contract,
+                {
+                    "provide_liquidity": {
+                        "assets": [
+                            {
+                                "info": {"token": {"contract_addr": nebula_token}},
+                                "amount": "100",
+                            },
+                            {
+                                "info": {"native_token": {"denom": "uusd"}},
+                                "amount": "100",
+                            },
+                        ]
+                    },
+                },
+                {"uusd": "100"},
+            ),
+        ],
+        sequence=seq(),
+        fee=StdFee(4000000, "2000000uluna"),
+    )
+
+    resp = terra.tx.broadcast(stage_and_mint_tx)
+    if resp.is_tx_error():
+        raise Exception(resp.raw_log)
+
+    print(f"[deploy] - create staking contract")
+    staking_contract = instantiate_contract(
+        staking_code_id,
+        {
+            "owner": factory_contract,
+            "nebula_token": nebula_token,
+            "terraswap_factory": terraswap_factory_contract,
+            "base_denom": "uusd",
+            "premium_min_update_interval": 5,
+        },
+        seq(),
+    )
+
+    # instantiate nebula governance contract
+    print(f"[deploy] - instantiate nebula governance")
+    gov_contract = instantiate_contract(
+        gov_code_id,
+        {
+            "nebula_token": nebula_token,
+            "quorum": DEFAULT_QUORUM,
+            "threshold": DEFAULT_THRESHOLD,
+            "voting_period": DEFAULT_VOTING_PERIOD,
+            "effective_delay": DEFAULT_EFFECTIVE_DELAY,
+            "expiration_period": DEFAULT_EXPIRATION_PERIOD,
+            "proposal_deposit": DEFAULT_PROPOSAL_DEPOSIT,
+            "voter_weight": "0.1",
+        },
+        seq(),
+    )
+
+    collector_contract = instantiate_contract(
+        collector_code_id,
+        {
+            "distribution_contract": gov_contract,
+            "terraswap_factory": terraswap_factory_contract,
+            "nebula_token": nebula_token,
+            "base_denom": "uusd",
+            "owner": factory_contract
+        },
+        seq(),
+    )
+
+    print(f"[deploy] - post initialize factory")
+    resp = execute_contract(
+        deployer,
+        factory_contract,
+        {
+            "post_initialize": {
+                "owner": gov_contract,
+                "nebula_token": nebula_token,
+                "oracle_contract": nebula_token,  # ??? provide arbitrary contract for now
+                "terraswap_factory": terraswap_factory_contract,
+                "staking_contract": staking_contract,
+                "commission_collector": collector_contract,
+            }
+        },
+        seq(),
+    )
+
+    print(f"[deploy] - instantiate penalty contract")
+    penalty_contract = instantiate_contract(
+        penalty_code_id,
+        {
+            "penalty_params": {
+                "penalty_amt_lo": "0.1",
+                "penalty_cutoff_lo": "0.01",
+                "penalty_amt_hi": "0.5",
+                "penalty_cutoff_hi": "0.1",
+                "reward_amt": "0.05",
+                "reward_cutoff": "0.02",
+            },
+            "owner": factory_contract
+        },
+        seq(),
+    )
+
+    print(f"[deploy] - instantiate wBTC")
+    wBTC = instantiate_contract(
+        token_code_id,
+        {
+            "name": "Wrapped Bitcoin",
+            "symbol": "wBTC",
+            "decimals": 6,
+            "initial_balances": [
+                {"address": deployer.key.acc_address, "amount": "400000000"}
+            ],
+            "mint": None,
+        },
+        seq(),
+    )
+
+    # wrapped ether
+    print(f"[deploy] - instantiate wETH")
+    wETH = instantiate_contract(
+        token_code_id,
+        {
+            "name": "Wrapped Ethereum",
+            "symbol": "wETH",
+            "decimals": 6,
+            "initial_balances": [
+                {"address": deployer.key.acc_address, "amount": "20000000000"}
+            ],
+            "mint": None,
+        },
+        seq(),
+    )
+
+    # instantiate oracle
+    print(f"[deploy] - instantiate oracle")
+    oracle = instantiate_contract(oracle_code_id, {}, seq())
+
+    execute_contract(
+        deployer,
+        oracle,
+        Oracle.set_prices(
+            [
+                [wBTC, "30000.0"],
+                [wETH, "1500.0"],
+                ["uluna", "15.00"],
+            ]
+        ),
+        seq(),
+    )
+    stake_amount = "500000000000"
+
+    gov_create_basket_msg = {
+            "create_cluster": {
+                "name": "GOVBASKET",
+                "symbol": "GVB",
+                "params": {
+                    "name": "GOVBASKET",
+                    "symbol": "GVB",
+                    "penalty": penalty_contract,
+                    "target": [50, 50],
+                    "assets": [
+                        Asset.cw20_asset_info(wBTC),
+                        Asset.cw20_asset_info(wETH),
+                    ],
+                    "oracle": oracle,
+                },
+            }
+        }
+
+    poll_two = Governance.create_poll(
+        "Test_two",
+        "Test_two",
+        "TestLink12345",
+        Governance.create_execute_msg(
+            factory_contract, gov_create_basket_msg
+        ),
+    )
+
+    result = execute_contract(
+        deployer,
+        nebula_token,
+        CW20.send(gov_contract, DEFAULT_PROPOSAL_DEPOSIT, poll_two),
+        seq(),
+        fee=StdFee(4000000, "20000000uluna"),
+    )
+    print("HI")
+    print(result)
+    print(result.logs[0].events_by_type)
+
+        # Stake
+    print(f"[deploy] - stake 50% of nebula tokens")
+
+    stake_amount = "500000000000"
+    result = execute_contract(
+        deployer,
+        nebula_token,
+        CW20.send(gov_contract, stake_amount, Governance.stake_voting_tokens()),
+        seq(),
+        fee=StdFee(4000000, "20000000uluna"),
+    )
+
+    print(result.logs[0].events_by_type)
+
+    print(f"[deploy] - cast vote for YES")
+
+    result = execute_contract(
+        deployer,
+        gov_contract,
+        Governance.cast_vote(1, "yes", stake_amount),
+        seq(),
+        fee=StdFee(4000000, "200000uluna"),
+    )
+    print("REACHED")
+    print(factory_code_id, factory_contract, gov_contract)
+
+    time.sleep(5)
+
+    result = execute_contract(
+        deployer,
+        gov_contract,
+        Governance.end_poll(1),
+        seq(),
+        fee=StdFee(4000000, "20000000uluna"),
+    )
+
+    result = execute_contract(
+        deployer,
+        gov_contract,
+        Governance.execute_poll(1),
+        seq(),
+        fee=StdFee(4000000, "20000000uluna"),
+    )
+
+    logs = result.logs[0].events_by_type
+    instantiation_logs = logs["instantiate_contract"]
+    code_ids = instantiation_logs["code_id"]
+    addresses = instantiation_logs["contract_address"]
+    assert code_ids[3] == basket_code_id
+    basket = addresses[3]
+    assert code_ids[2] == token_code_id
+    basket_token = addresses[2]
+    assert code_ids[1] == pair_code_id
+    pair_contract = addresses[1]
+    assert code_ids[0] == token_code_id
+    lp_token = addresses[0]
+    print(basket, basket_token, pair_contract, lp_token)
+
+    print("Cluster created through governance")
+
+
+    print("[deploy] - initialize basket with tokens via mint")
+    stage_and_mint_tx = deployer.create_and_sign_tx(
+        msgs=[
+            MsgExecuteContract(
+                deployer.key.acc_address,
+                wBTC,
+                CW20.send(basket, "100", Basket.stage_asset()),
+            ),
+            MsgExecuteContract(
+                deployer.key.acc_address,
+                wETH,
+                CW20.send(basket, "100", Basket.stage_asset()),
+            ),
+            MsgExecuteContract(
+                deployer.key.acc_address,
+                basket,
+                Basket.mint(
+                    [Asset.asset(wBTC, "100"), Asset.asset(wETH, "100")],
+                    min_tokens="100",
+                ),
+            ),
+        ],
+        sequence=seq(),
+        fee=StdFee(4000000, "2000000uluna"),
+    )
+
+    result = terra.tx.broadcast(stage_and_mint_tx)
+    if result.is_tx_error():
+        raise Exception(result.raw_log)
+
+    print("[deploy] - try to mint")
+    stage_and_mint_tx = deployer.create_and_sign_tx(
+        msgs=[
+            MsgExecuteContract(
+                deployer.key.acc_address,
+                wBTC,
+                CW20.send(basket, "10000000", Basket.stage_asset()),
+            ),
+            MsgExecuteContract(
+                deployer.key.acc_address,
+                wETH,
+                CW20.send(basket, "10000000", Basket.stage_asset()),
+            ),
+            MsgExecuteContract(
+                deployer.key.acc_address,
+                basket,
+                Basket.mint(
+                    [Asset.asset(wBTC, "10000000"), Asset.asset(wETH, "10000000")],
+                    min_tokens="9990000",
+                ),
+            ),
+        ],
+        sequence=seq(),
+        fee=StdFee(4000000, "2000000uluna"),
+    )
+
+    result = terra.tx.broadcast(stage_and_mint_tx)
+    if result.is_tx_error():
+        raise Exception(result.raw_log)
+
+    basket_tokens = terra.wasm.contract_query(
+        basket_token, {"balance": {"address": collector_contract}}
+    )
+    print(f"[deploy] - after minting collector has {basket_tokens}")
+
+    debug_print = terra.wasm.contract_query(
+        basket, {"basket_state": {"basket_contract_address": basket}}
+    )
+    print("Basket state after initialize --", debug_print)
+
+    print(f"[deploy] - adding liquidity to basket pair contract")
+    execute_contract(
+        deployer,
+        basket_token,
+        {"increase_allowance": {"spender": pair_contract, "amount": "100"}},
+        seq(),
+    )
+
+    stage_and_mint_tx = deployer.create_and_sign_tx(
+        msgs=[
+            MsgExecuteContract(
+                deployer.key.acc_address,
+                pair_contract,
+                {
+                    "provide_liquidity": {
+                        "assets": [
+                            {
+                                "info": {"token": {"contract_addr": basket_token}},
+                                "amount": "100",
+                            },
+                            {
+                                "info": {"native_token": {"denom": "uusd"}},
+                                "amount": "100",
+                            },
+                        ]
+                    },
+                },
+                {"uusd": "100"},
+            ),
+        ],
+        sequence=seq(),
+        fee=StdFee(4000000, "2000000uluna"),
+    )
+
+    terra.tx.broadcast(stage_and_mint_tx)
+
+    # COLLECTOR SWAPS BASKET INTO NEBULA
+    print(f"[deploy] telling collector to convert basket to uusd")
+    execute_contract(
+        deployer, collector_contract, {"convert": {"asset_token": basket_token}}, seq()
+    )
+
+    basket_tokens = terra.wasm.contract_query(
+        basket_token, {"balance": {"address": collector_contract}}
+    )
+
+    print(f"[deploy] - collector basket balance {basket_tokens}")
+    print(f"[deploy] telling collector to convert uusd to nebula")
+    execute_contract(
+        deployer, collector_contract, {"convert": {"asset_token": nebula_token}}, seq()
+    )
+
+    nebula_tokens = terra.wasm.contract_query(
+        nebula_token, {"balance": {"address": collector_contract}}
+    )
+
+    print(f"[deploy] - collector nebula balance {nebula_tokens}")
+
+    # GOVERNANCE VOTING FOR NEB REWARDS
+
+    print(f"[deploy] stake voting tokens")
+    execute_contract(
+        deployer,
+        nebula_token,
+        CW20.send(gov_contract, "100", {"stake_voting_tokens": {}}),
+        seq(),
+    )
+
+    print(f"[deploy] - create poll")
+
+    print(f"[deploy] - create new penalty contract")
+    new_penalty_contract = instantiate_contract(
+        penalty_code_id,
+        {
+            "penalty_params": {
+                "penalty_amt_lo": "0.2",
+                "penalty_cutoff_lo": "0.01",
+                "penalty_amt_hi": "0.5",
+                "penalty_cutoff_hi": "0.1",
+                "reward_amt": "0.05",
+                "reward_cutoff": "0.02",
+            },
+            "owner": basket,
+        },
+        seq(),
+    )
+
+    poll = Governance.create_poll(
+        "Test",
+        "Test",
+        "TestLink1234",
+        Governance.create_execute_msg(
+            basket, Basket.reset_penalty(new_penalty_contract)
+        ),
+    )
+
+    result = execute_contract(
+        deployer,
+        nebula_token,
+        CW20.send(gov_contract, DEFAULT_PROPOSAL_DEPOSIT, poll),
+        seq(),
+        fee=StdFee(4000000, "20000000uluna"),
+    )
+
+    print(result.logs[0].events_by_type)
+
+    # cast vote
+    print(f"[deploy] - cast vote for YES")
+
+    result = execute_contract(
+        deployer,
+        gov_contract,
+        Governance.cast_vote(2, "yes", stake_amount),
+        seq(),
+        fee=StdFee(4000000, "20000000uluna"),
+    )
+
+    print(result.logs[0].events_by_type)
+
+    # # increase block time (?)
+    # global sequence
+    # sequence += DEFAULT_EFFECTIVE_DELAY
+
+    # execute poll
+    print(f"sequence # is: {deployer.sequence()}")
+
+    print(f"[deploy] - commissioner distributes neb to gov contract")
+    execute_contract(deployer, collector_contract, {"distribute": {}}, seq())
+
+    nebula_tokens = terra.wasm.contract_query(
+        nebula_token, {"balance": {"address": collector_contract}}
+    )
+
+    print(f"[deploy] - collector nebula balance {nebula_tokens}")
+    nebula_tokens = terra.wasm.contract_query(
+        nebula_token, {"balance": {"address": gov_contract}}
+    )
+
+    print(f"[deploy] - gov nebula balance {nebula_tokens}")
+
+    print(f"[deploy] - execute vote")
+
+    time.sleep(2)
+
+    result = execute_contract(
+        deployer,
+        gov_contract,
+        Governance.end_poll(2),
+        seq(),
+        fee=StdFee(4000000, "20000000uluna"),
+    )
+
+    result = execute_contract(
+        deployer,
+        gov_contract,
+        Governance.execute_poll(2),
+        seq(),
+        fee=StdFee(4000000, "20000000uluna"),
+    )
+
+    nebula_tokens = terra.wasm.contract_query(
+        nebula_token, {"balance": {"address": deployer.key.acc_address}}
+    )
+
+    print(f"[deploy] - neb balance before withdrawing voting rewards {nebula_tokens}")
+
+    execute_contract(deployer, gov_contract, {"withdraw_voting_rewards": {}}, seq())
+
+    nebula_tokens = terra.wasm.contract_query(
+        nebula_token, {"balance": {"address": deployer.key.acc_address}}
+    )
+
+    print(f"[deploy] - neb balance after withdrawing voting rewards {nebula_tokens}")
+
+    # LP STAKING FOR NEB REWARDS
+    lp_tokens = terra.wasm.contract_query(
+        lp_token, {"balance": {"address": deployer.key.acc_address}}
+    )
+
+    print(f"[deploy] - LP token balance after adding liquidity {lp_tokens}")
+
+    print(f"[deploy] - bond lp tokens to staking contract")
+    execute_contract(
+        deployer,
+        lp_token,
+        CW20.send(staking_contract, "100", {"bond": {"asset_token": basket_token}}),
+        seq(),
+    )
+
+    print(f"[deploy] - asking factory contract to distribute rewards")
+    resp = execute_contract(deployer, factory_contract, {"distribute": {}}, seq())
+
+    print(f"[deploy] - withdraw reward from staking contract")
+
+    execute_contract(
+        deployer, staking_contract, {"withdraw": {"asset_token": basket_token}}, seq()
+    )
+
+    neb_balance = terra.wasm.contract_query(
+        nebula_token, {"balance": {"address": deployer.key.acc_address}}
+    )
+
+    print(
+        f"[deploy] - nebula token balance after withdrawing staking reward - {neb_balance}"
+    )
+
+
+
+
+
+deploy()
