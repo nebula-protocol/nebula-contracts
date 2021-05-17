@@ -12,10 +12,12 @@ use crate::state::{
 };
 
 use nebula_protocol::factory::{
-    BasketHandleMsg, BasketInitMsg, ClusterExistsResponse, CollectorHandleMsg, ConfigResponse,
-    DistributionInfoResponse, HandleMsg, InitMsg, Params, QueryMsg, StakingCw20HookMsg,
-    StakingHandleMsg,
+    BasketInitMsg, ClusterExistsResponse, CollectorHandleMsg, ConfigResponse,
+    DistributionInfoResponse, HandleMsg, InitMsg, Params, QueryMsg, StakingCw20HookMsg
 };
+
+use nebula_protocol::staking::HandleMsg as StakingHandleMsg;
+use nebula_protocol::cluster::HandleMsg as BasketHandleMsg;
 
 use cw20::{Cw20HandleMsg, MinterResponse};
 use terraswap::asset::{AssetInfo, PairInfo};

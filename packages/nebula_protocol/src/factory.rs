@@ -3,8 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{Binary, HumanAddr, Uint128};
 
-use cw20::Cw20ReceiveMsg;
-use terraswap::asset::{Asset, AssetInfo};
+use terraswap::asset::{AssetInfo};
 use terraswap::hook::InitHook;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -64,28 +63,6 @@ pub enum HandleMsg {
         msg: Binary,
     },
 
-    //////////////////////
-    // Feeder Operations
-    //////////////////////
-
-    // Revoke asset from MIR rewards pool
-    // and register end_price to mint contract
-    // RevokeAsset {
-    //     asset_token: HumanAddr,
-    //     end_price: Decimal,
-    // },
-    // Migrate asset to new asset by registering
-    // end_price to mint contract and add
-    // the new asset to MIR rewards pool
-    // MigrateAsset {
-    //     name: String,
-    //     symbol: String,
-    //     from_token: HumanAddr,
-    //     end_price: Decimal,
-    // },
-
-    ///////////////////
-    ///////////////////
     Distribute {},
 
     DistributeRebalancers {},
@@ -96,7 +73,6 @@ pub enum HandleMsg {
 pub enum QueryMsg {
     Config {},
     ClusterExists {contract_addr: HumanAddr}
-    // DistributionInfo {},
 }
 
 // We define a custom struct for each query response
@@ -157,54 +133,6 @@ pub struct Params {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum BasketHandleMsg {
-    Receive(Cw20ReceiveMsg),
-
-    /// Withdraws asset from staging
-    UnstageAsset {
-        asset: AssetInfo,
-        amount: Option<Uint128>,
-    },
-
-    /// Stages native asset
-    StageNativeAsset {
-        asset: Asset,
-    },
-
-    /// Called to set basket token after initialization
-    _SetBasketToken {
-        basket_token: HumanAddr,
-    },
-
-    /// Can be called by the owner to reset the basket owner
-    _ResetOwner {
-        owner: HumanAddr,
-    },
-
-    /// Can be called by the owner to reset the basket weight target
-    ResetTarget {
-        assets: Vec<AssetInfo>,
-        target: Vec<u32>,
-    },
-
-    ResetPenalty {
-        penalty: HumanAddr,
-    },
-
-    /// Mints new assets
-    Mint {
-        /// Asset amounts deposited for minting (must be staged)
-        asset_amounts: Vec<Asset>,
-        /// Minimum tokens to receive
-        min_tokens: Option<Uint128>,
-    },
-    // AddAssetType {
-    //     asset: HumanAddr,
-    // },
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct BasketInitMsg {
     /// Basket name (title)
     pub name: String,
@@ -231,58 +159,6 @@ pub struct BasketInitMsg {
     pub target: Vec<u32>,
 
     pub init_hook: Option<InitHook>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum StakingHandleMsg {
-    Receive(Cw20ReceiveMsg),
-
-    ////////////////////////
-    /// Owner operations ///
-    ////////////////////////
-    UpdateConfig {
-        owner: Option<HumanAddr>,
-        premium_min_update_interval: Option<u64>,
-    },
-    RegisterAsset {
-        asset_token: HumanAddr,
-        staking_token: HumanAddr,
-    },
-
-    ////////////////////////
-    /// User operations ///
-    ////////////////////////
-    Unbond {
-        asset_token: HumanAddr,
-        amount: Uint128,
-    },
-    /// Withdraw pending rewards
-    Withdraw {
-        // If the asset token is not given, then all rewards are withdrawn
-        asset_token: Option<HumanAddr>,
-    },
-
-    //////////////////////////////////
-    /// Permission-less operations ///
-    //////////////////////////////////
-    AdjustPremium {
-        asset_tokens: Vec<HumanAddr>,
-    },
-
-    ////////////////////////////////
-    /// Mint contract operations ///
-    ////////////////////////////////
-    IncreaseShortToken {
-        asset_token: HumanAddr,
-        staker_addr: HumanAddr,
-        amount: Uint128,
-    },
-    DecreaseShortToken {
-        asset_token: HumanAddr,
-        staker_addr: HumanAddr,
-        amount: Uint128,
-    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
