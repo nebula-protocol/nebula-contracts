@@ -1,10 +1,9 @@
-use cosmwasm_std::{log, to_binary, Api, CanonicalAddr, CosmosMsg, Decimal, Env, Extern, HandleResponse, HandleResult, HumanAddr, Order, Querier, StdResult, Storage, Uint128, WasmMsg, QueryRequest, WasmQuery, StdError};
+use cosmwasm_std::{log, to_binary, Api, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr, Querier, StdResult, Storage, Uint128, WasmMsg, QueryRequest, WasmQuery, StdError};
 
 use crate::state::{
     read_config, read_current_n, read_pool_info, rewards_read, rewards_store, store_current_n,
     store_pool_info, Config, PoolInfo, RewardInfo,
 };
-use nebula_protocol::staking::{RewardInfoResponse, RewardInfoResponseItem};
 use nebula_protocol::factory::{ClusterExistsResponse, QueryMsg::ClusterExists};
 
 use cw20::Cw20HandleMsg;

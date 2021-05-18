@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 use cosmwasm_std::{Binary, HumanAddr, Uint128};
 
 use terraswap::asset::{AssetInfo};
-use terraswap::hook::InitHook;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
@@ -118,6 +117,7 @@ pub struct Params {
 
     // Symbol of basket
     pub symbol: String,
+
     /// Distribution weight (default is 30, which is 1/10 of NEB distribution weight)
     pub weight: Option<u32>,
 
@@ -132,42 +132,7 @@ pub struct Params {
     pub target: Vec<u32>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct BasketInitMsg {
-    /// Basket name (title)
-    pub name: String,
-
-    /// Basket's permissioned owner
-    pub owner: HumanAddr,
-
-    /// Basket token CW20 address
-    pub basket_token: Option<HumanAddr>,
-
-    /// Asset addresses
-    pub assets: Vec<AssetInfo>,
-
-    /// Factory address
-    pub factory: HumanAddr,
-
-    /// Oracle address
-    pub oracle: HumanAddr,
-
-    /// Penalty function address
-    pub penalty: HumanAddr,
-
-    /// Target weight vector (not normalized)
-    pub target: Vec<u32>,
-
-    pub init_hook: Option<InitHook>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum StakingCw20HookMsg {
-    Bond { asset_token: HumanAddr },
-    DepositReward { rewards: Vec<(HumanAddr, Uint128)> },
-}
-
+// Potentially remove (Seems to be the same as handle msg in collector but less params)??
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum CollectorHandleMsg {
@@ -176,5 +141,5 @@ pub enum CollectorHandleMsg {
     RecordPenalty {
         reward_owner: HumanAddr,
         penalty_amount: Uint128,
-    },
+    }
 }
