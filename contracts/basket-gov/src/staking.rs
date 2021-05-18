@@ -1,16 +1,15 @@
 use crate::querier::load_token_balance;
 use crate::state::{
-    bank_read, bank_store, config_read, config_store, poll_read, poll_voter_store, poll_voter_read, state_read,
-    read_polls, poll_store, state_store, Config, Poll, State, TokenManager,
+    bank_read, bank_store, config_read, config_store, poll_read, poll_store, poll_voter_read,
+    poll_voter_store, read_polls, state_read, state_store, Config, Poll, State, TokenManager,
 };
-
-use nebula_protocol::gov::{PollStatus, StakerResponse, VoterInfo};
 
 use cosmwasm_std::{
     log, to_binary, Api, CanonicalAddr, CosmosMsg, Env, Extern, HandleResponse, HandleResult,
     HumanAddr, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 use cw20::Cw20HandleMsg;
+use nebula_protocol::gov::{PollStatus, StakerResponse, VoterInfo};
 
 pub fn stake_voting_tokens<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -30,11 +29,12 @@ pub fn stake_voting_tokens<S: Storage, A: Api, Q: Querier>(
     let mut state: State = state_store(&mut deps.storage).load()?;
 
     // balance already increased, so subtract deposit amount
+    let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
     let total_balance = (load_token_balance(
         &deps,
         &deps.api.human_address(&config.nebula_token)?,
         &state.contract_addr,
-    )? - (state.total_deposit + amount))?;
+    )? - (total_locked_balance + amount))?;
 
     let share = if total_balance.is_zero() || state.total_share.is_zero() {
         amount
@@ -75,25 +75,26 @@ pub fn withdraw_voting_tokens<S: Storage, A: Api, Q: Querier>(
 
         // Load total share & total balance except proposal deposit amount
         let total_share = state.total_share.u128();
+        let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
         let total_balance = (load_token_balance(
             &deps,
             &deps.api.human_address(&config.nebula_token)?,
             &state.contract_addr,
-        )? - state.total_deposit)?
+        )? - total_locked_balance)?
             .u128();
 
-        let locked_balance = compute_locked_balance(deps, &mut token_manager, &sender_address_raw)?;
-        let locked_share = locked_balance * total_share / total_balance;
+        let user_locked_balance = compute_locked_balance(deps, &mut token_manager)?;
+        let user_locked_share = user_locked_balance * total_share / total_balance;
         let user_share = token_manager.share.u128();
 
         let withdraw_share = amount
             .map(|v| std::cmp::max(v.multiply_ratio(total_share, total_balance).u128(), 1u128))
-            .unwrap_or_else(|| user_share - locked_share);
+            .unwrap_or_else(|| user_share - user_locked_share);
         let withdraw_amount = amount
             .map(|v| v.u128())
             .unwrap_or_else(|| withdraw_share * total_balance / total_share);
 
-        if locked_share + withdraw_share > user_share {
+        if user_locked_share + withdraw_share > user_share {
             Err(StdError::generic_err(
                 "User is trying to withdraw too many tokens.",
             ))
@@ -119,23 +120,16 @@ pub fn withdraw_voting_tokens<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-// removes not in-progress poll voter info & unlock tokens
-// and returns the largest locked amount in participated polls.
+// returns the largest locked amount in participated polls.
 fn compute_locked_balance<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     token_manager: &mut TokenManager,
-    voter: &CanonicalAddr,
 ) -> StdResult<u128> {
     // filter out not in-progress polls
     token_manager.locked_balance.retain(|(poll_id, _)| {
         let poll: Poll = poll_read(&deps.storage)
             .load(&poll_id.to_be_bytes())
             .unwrap();
-
-        if poll.status != PollStatus::InProgress {
-            // remove voter info from the poll
-            poll_voter_store(&mut deps.storage, *poll_id).remove(&voter.as_slice());
-        }
 
         poll.status == PollStatus::InProgress
     });
@@ -305,7 +299,7 @@ fn withdraw_user_voting_rewards<S: Storage>(
 
             // calculate reward share
             let total_votes =
-                poll.no_votes.u128() + poll.yes_votes.u128();
+                poll.no_votes.u128() + poll.yes_votes.u128() + poll.abstain_votes.u128();
             let poll_voting_reward = poll
                 .voters_reward
                 .multiply_ratio(voting_info.balance, total_votes);
@@ -378,6 +372,22 @@ pub fn query_staker<S: Storage, A: Api, Q: Querier>(
         .may_load(addr_raw.as_slice())?
         .unwrap_or_default();
 
+    // calculate pending voting rewards
+    let w_polls: Vec<(Poll, VoterInfo)> =
+        get_withdrawable_polls(&deps.storage, &token_manager, &addr_raw);
+    let user_reward_amount: u128 = w_polls
+        .iter()
+        .map(|(poll, voting_info)| {
+            // calculate reward share
+            let total_votes =
+                poll.no_votes.u128() + poll.yes_votes.u128() + poll.abstain_votes.u128();
+            let poll_voting_reward = poll
+                .voters_reward
+                .multiply_ratio(voting_info.balance, total_votes);
+            poll_voting_reward.u128()
+        })
+        .sum();
+
     // filter out not in-progress polls
     token_manager.locked_balance.retain(|(poll_id, _)| {
         let poll: Poll = poll_read(&deps.storage)
@@ -387,11 +397,12 @@ pub fn query_staker<S: Storage, A: Api, Q: Querier>(
         poll.status == PollStatus::InProgress
     });
 
+    let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
     let total_balance = (load_token_balance(
         &deps,
         &deps.api.human_address(&config.nebula_token)?,
         &state.contract_addr,
-    )? - state.total_deposit)?;
+    )? - total_locked_balance)?;
 
     Ok(StakerResponse {
         balance: if !state.total_share.is_zero() {
@@ -403,5 +414,6 @@ pub fn query_staker<S: Storage, A: Api, Q: Querier>(
         },
         share: token_manager.share,
         locked_balance: token_manager.locked_balance,
+        pending_voting_rewards: Uint128(user_reward_amount),
     })
 }

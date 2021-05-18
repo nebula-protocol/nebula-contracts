@@ -27,7 +27,8 @@ pub struct Config {
     pub effective_delay: u64,
     pub expiration_period: u64,
     pub proposal_deposit: Uint128,
-    pub voter_weight: Decimal
+    pub voter_weight: Decimal,
+    pub snapshot_period: u64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -53,6 +54,7 @@ pub struct Poll {
     pub status: PollStatus,
     pub yes_votes: Uint128,
     pub no_votes: Uint128,
+    pub abstain_votes: Uint128,
     pub end_height: u64,
     pub title: String,
     pub description: String,
@@ -151,8 +153,7 @@ pub fn read_polls<'a, S: ReadonlyStorage>(
     order_by: Option<OrderBy>,
     remove_hard_cap: Option<bool>,
 ) -> StdResult<Vec<Poll>> {
-
-    let mut limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
+    let mut limit: usize = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
     if let Some(remove_hard_cap) = remove_hard_cap {
         if remove_hard_cap {
             limit = usize::MAX;
