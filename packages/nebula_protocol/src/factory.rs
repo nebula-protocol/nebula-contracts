@@ -40,12 +40,8 @@ pub enum HandleMsg {
         weight: u32,
     },
     CreateCluster {
-        /// asset name used to create token contract
-        name: String,
-        /// asset symbol used to create token contract
-        symbol: String,
         /// used to create all necessary contract or register asset
-        params: Params,
+        params: Params
     },
     /// Internal use
     TokenCreationHook {},
@@ -130,16 +126,4 @@ pub struct Params {
     pub assets: Vec<AssetInfo>,
 
     pub target: Vec<u32>,
-}
-
-// Potentially remove (Seems to be the same as handle msg in collector but less params)??
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum CollectorHandleMsg {
-    DepositReward {},
-    NewPenaltyPeriod {},
-    RecordPenalty {
-        reward_owner: HumanAddr,
-        penalty_amount: Uint128,
-    }
 }

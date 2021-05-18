@@ -12,12 +12,13 @@ use crate::state::{
 };
 
 use nebula_protocol::factory::{
-    ClusterExistsResponse, CollectorHandleMsg, ConfigResponse,
+    ClusterExistsResponse, ConfigResponse,
     HandleMsg, InitMsg, Params, QueryMsg
 };
 
 use nebula_protocol::staking::{HandleMsg as StakingHandleMsg, Cw20HookMsg as StakingCw20HookMsg};
 use nebula_protocol::cluster::{InitMsg as BasketInitMsg, HandleMsg as BasketHandleMsg};
+use nebula_protocol::collector::{HandleMsg as CollectorHandleMsg, Cw20HookMsg as CollectorCw20HookMsg};
 
 use cw20::{Cw20HandleMsg, MinterResponse};
 use terraswap::asset::{AssetInfo, PairInfo};
@@ -101,9 +102,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             weight,
         } => update_weight(deps, env, asset_token, weight),
         HandleMsg::CreateCluster {
-            name,
-            symbol,
-            params,
+            params
         } => create_cluster(deps, env, params),
         HandleMsg::TokenCreationHook { } => {
             token_creation_hook(deps, env)
@@ -626,7 +625,7 @@ pub fn distribute_rebalancers<S: Storage, A: Api, Q: Querier>(
                 msg: to_binary(&Cw20HandleMsg::Send {
                     contract: collector_contract.clone(),
                     amount: distribution_amount,
-                    msg: Some(to_binary(&CollectorHandleMsg::DepositReward {})?),
+                    msg: Some(to_binary(&CollectorCw20HookMsg::DepositReward {})?),
                 })?,
                 send: vec![],
             }),
