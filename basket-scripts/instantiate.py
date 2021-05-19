@@ -8,6 +8,8 @@ DEFAULT_VOTING_PERIOD = 4
 DEFAULT_EFFECTIVE_DELAY = 6
 DEFAULT_EXPIRATION_PERIOD = 20000
 DEFAULT_PROPOSAL_DEPOSIT = "10000000000"
+DEFAULT_SNAPSHOT_PERIOD = 0
+DEFAULT_VOTER_WEIGHT = "0.1"
 
 
 def instantiate_terraswap_factory_contract(terraswap_factory_code_id, pair_code_id, token_code_id):
@@ -89,7 +91,8 @@ def instantiate_gov_contract(gov_code_id, nebula_token):
             "effective_delay": DEFAULT_EFFECTIVE_DELAY,
             "expiration_period": DEFAULT_EXPIRATION_PERIOD,
             "proposal_deposit": DEFAULT_PROPOSAL_DEPOSIT,
-            "voter_weight": "0.1",
+            "voter_weight": DEFAULT_VOTER_WEIGHT,
+            "snapshot_period": DEFAULT_SNAPSHOT_PERIOD,
         },
         seq(),
     )

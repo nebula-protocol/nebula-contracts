@@ -45,7 +45,7 @@ def store_contract(contract_name, sequence):
     contract_bytes = read_file_as_b64(f"../artifacts/{contract_name}.wasm")
     store_code = MsgStoreCode(deployer.key.acc_address, contract_bytes)
     store_code_tx = deployer.create_and_sign_tx(
-        msgs=[store_code], fee=StdFee(5000000, "2000000uluna"), sequence=sequence
+        msgs=[store_code], fee=StdFee(5500000, "2000000uluna"), sequence=sequence
     )
     result = terra.tx.broadcast(store_code_tx)
     if result.is_tx_error():
