@@ -34,6 +34,8 @@ from create_cluster import create_cluster_through_governance
 from basket_interactions import basket_operations
 from governance_penalty_ops import create_new_penalty_with_gov
 from liquidity_providing_ops import lp_staking_queries
+from community_ops import community_operations
+from airdrop_ops import airdrop_operation
 
 # If True, use localterra. Otherwise, deploys on Tequila
 USE_LOCALTERRA = True
@@ -54,7 +56,7 @@ sequence = deployer.sequence()
 
 def deploy():
     print(f"DEPLOYING WITH ACCCOUNT: {deployer.key.acc_address}")
-    token_code_id, oracle_code_id, basket_code_id, penalty_code_id, terraswap_factory_code_id, pair_code_id, staking_code_id, collector_code_id, gov_code_id, factory_code_id = get_contract_ids()
+    token_code_id, oracle_code_id, basket_code_id, penalty_code_id, terraswap_factory_code_id, pair_code_id, staking_code_id, collector_code_id, gov_code_id, factory_code_id, community_id, airdrop_id = get_contract_ids()
 
     terraswap_factory_contract = instantiate_terraswap_factory_contract(terraswap_factory_code_id, pair_code_id, token_code_id)
 
@@ -92,6 +94,10 @@ def deploy():
 
     # instantiate nebula governance contract
     gov_contract = instantiate_gov_contract(gov_code_id, nebula_token)
+
+    community_contract = insantiate_community_contract(community_id, gov_contract, nebula_token)
+
+    airdrop_contract = instantiate_airdrop_contract(airdrop_id, nebula_token)
 
     collector_contract = instantiate_collector_contract(collector_code_id, gov_contract, terraswap_factory_contract, nebula_token, factory_contract)
 
@@ -180,6 +186,12 @@ def deploy():
     # QUERY BALANCES POST OPERATIONS
     lp_staking_queries(lp_token, staking_contract, basket_token, factory_contract, nebula_token)
 
+
+    # TEST COMMUNITY VOTING
+    community_operations(nebula_token, community_contract, gov_contract)
+
+    # TEST AIRDROP OPERATIONS
+    airdrop_operation(nebula_token, airdrop_contract)
 
 
 
