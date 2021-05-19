@@ -48,7 +48,7 @@ def instantiate_nebula_token(token_code_id, factory_contract):
             "initial_balances": [
                 {
                     "address": deployer.key.acc_address,
-                    "amount": "1000000000000",
+                    "amount": "100000000000000",
                 },
                 {
                     "address": factory_contract,
@@ -167,3 +167,30 @@ def instantiate_oracle_contract(oracle_code_id):
     print(f"[deploy] - instantiate oracle")
     oracle = instantiate_contract(oracle_code_id, {}, seq())
     return oracle
+
+def insantiate_community_contract(community_id, gov_contract, nebula_token):
+    # instantiate community pool
+    print(f"[deploy] - instantiate community pool")
+    nebula_community = instantiate_contract(
+        community_id,
+        {
+            "owner": gov_contract,
+            "nebula_token": nebula_token,
+            "spend_limit": "1000000"
+        },
+        seq(),
+    )
+    return nebula_community
+
+def instantiate_airdrop_contract(airdrop_id, nebula_token):
+    # instantiate airdrop contract
+    print(f"[deploy] - instantiate airdrop contract")
+    airdrop = instantiate_contract(
+        airdrop_id,
+        {
+            "owner": deployer.key.acc_address,
+            "nebula_token": nebula_token,
+        },
+        seq(),
+    )
+    return airdrop
