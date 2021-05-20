@@ -4,18 +4,21 @@ use cosmwasm_std::{
 };
 
 use crate::state::{
-    cluster_exists, decrease_total_weight, increase_total_weight, read_all_weight, read_config,
+    cluster_exists, increase_total_weight, read_all_weight, read_config,
     read_last_distributed, read_last_distributed_rebalancers, read_params, read_total_weight,
-    read_weight, record_cluster, remove_params, remove_weight, store_config,
+    read_weight, record_cluster, remove_params, store_config,
     store_last_distributed, store_last_distributed_rebalancers, store_params, store_total_weight,
     store_weight, Config,
 };
 
 use nebula_protocol::factory::{
-    BasketHandleMsg, BasketInitMsg, ClusterExistsResponse, CollectorHandleMsg, ConfigResponse,
-    DistributionInfoResponse, HandleMsg, InitMsg, Params, QueryMsg, StakingCw20HookMsg,
-    StakingHandleMsg,
+    ClusterExistsResponse, ConfigResponse,
+    HandleMsg, InitMsg, Params, QueryMsg
 };
+
+use nebula_protocol::staking::{HandleMsg as StakingHandleMsg, Cw20HookMsg as StakingCw20HookMsg};
+use nebula_protocol::cluster::{InitMsg as BasketInitMsg, HandleMsg as BasketHandleMsg};
+use nebula_protocol::collector::{HandleMsg as CollectorHandleMsg, Cw20HookMsg as CollectorCw20HookMsg};
 
 use cw20::{Cw20HandleMsg, MinterResponse};
 use terraswap::asset::{AssetInfo, PairInfo};
@@ -99,9 +102,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             weight,
         } => update_weight(deps, env, asset_token, weight),
         HandleMsg::CreateCluster {
-            name,
-            symbol,
-            params,
+            params
         } => create_cluster(deps, env, params),
         HandleMsg::TokenCreationHook { } => {
             token_creation_hook(deps, env)
@@ -117,16 +118,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::PassCommand { contract_addr, msg } => {
             pass_command(deps, env, contract_addr, msg)
         }
-        // HandleMsg::RevokeAsset {
-        //     asset_token,
-        //     end_price,
-        // } => revoke_asset(deps, env, asset_token, end_price),
-        // HandleMsg::MigrateAsset {
-        //     name,
-        //     symbol,
-        //     from_token,
-        //     end_price,
-        // } => migrate_asset(deps, env, name, symbol, from_token, end_price),
     }
 }
 
@@ -250,14 +241,16 @@ pub fn pass_command<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-/// Whitelisting process
-/// 1. Create asset token contract with `config.token_code_id` with `minter` argument
-/// 2. Call `TokenCreationHook`
-///    2-1. Initialize distribution info
-///    2-2. Register asset and oracle feeder to oracle contract
-///    2-3. Create terraswap pair through terraswap factory
-/// 3. Call `TerraswapCreationHook`
-///    3-1. Register asset to staking contract
+/* 
+Whitelisting process
+1. Create asset token contract with `config.token_code_id` with `minter` argument
+2. Call `TokenCreationHook`
+    2-1. Initialize distribution info
+    2-2. Register asset and oracle feeder to oracle contract
+    2-3. Create terraswap pair through terraswap factory
+3. Call `TerraswapCreationHook`
+    3-1. Register asset to staking contract 
+*/
 pub fn create_cluster<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -295,24 +288,7 @@ pub fn create_cluster<S: Storage, A: Api, Q: Querier>(
                         msg: to_binary(&HandleMsg::TokenCreationHook {})?,
                     }),
                 })?,
-            }), // CosmosMsg::Wasm(WasmMsg::Instantiate {
-                //     code_id: config.token_code_id,
-                //     send: vec![],
-                //     label: None,
-                //     msg: to_binary(&TokenInitMsg {
-                //         name: name.clone(),
-                //         symbol: symbol.to_string(),
-                //         decimals: 6u8,
-                //         initial_balances: vec![],
-                //         mint: Some(MinterResponse {
-                //             minter: ????//deps.api.human_address(&config.mint_contract)?,
-                //             cap: None,
-                //         }),
-                //         init_hook: Some(InitHook {
-                //             contract_addr: env.contract.address,
-                //             msg: to_binary(&HandleMsg::TokenCreationHook { oracle_feeder })?,
-                //         }),
-                //     })?
+            })
         ],
         log: vec![
             log("action", "create_cluster"),
@@ -323,10 +299,12 @@ pub fn create_cluster<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-/// TokenCreationHook
-/// 1. Initialize distribution info
-/// 2. Register asset and oracle feeder to oracle contract
-/// 3. Create terraswap pair through terraswap factory with `TerraswapCreationHook`
+/*
+TokenCreationHook
+1. Initialize distribution info
+2. Register asset and oracle feeder to oracle contract
+3. Create terraswap pair through terraswap factory with `TerraswapCreationHook`
+*/
 pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -370,7 +348,7 @@ pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
                     decimals: 6u8,
                     initial_balances: vec![],
                     mint: Some(MinterResponse {
-                        minter: cluster.clone(), //deps.api.human_address(&config.mint_contract)?,
+                        minter: cluster.clone(),
                         cap: None,
                     }),
                     // Set Basket Token
@@ -522,9 +500,11 @@ pub fn terraswap_creation_hook<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-/// Distribute
-/// Anyone can execute distribute operation to distribute
-/// nebula inflation rewards on the staking pool
+/* 
+Distribute
+Anyone can execute distribute operation to distribute
+nebula inflation rewards on the staking pool
+*/
 pub fn distribute<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -645,7 +625,7 @@ pub fn distribute_rebalancers<S: Storage, A: Api, Q: Querier>(
                 msg: to_binary(&Cw20HandleMsg::Send {
                     contract: collector_contract.clone(),
                     amount: distribution_amount,
-                    msg: Some(to_binary(&CollectorHandleMsg::DepositReward {})?),
+                    msg: Some(to_binary(&CollectorCw20HookMsg::DepositReward {})?),
                 })?,
                 send: vec![],
             }),
@@ -663,130 +643,6 @@ pub fn distribute_rebalancers<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-// pub fn revoke_asset<S: Storage, A: Api, Q: Querier>(
-//     deps: &mut Extern<S, A, Q>,
-//     env: Env,
-//     asset_token: HumanAddr,
-//     end_price: Decimal,
-// ) -> HandleResult {
-//     let config: Config = read_config(&deps.storage)?;
-//     let asset_token_raw: CanonicalAddr = deps.api.canonical_address(&asset_token)?;
-//     let oracle_feeder: HumanAddr = deps.api.human_address(&load_oracle_feeder(
-//         &deps,
-//         &deps.api.human_address(&config.oracle_contract)?,
-//         &asset_token_raw,
-//     )?)?;
-
-//     if oracle_feeder != env.message.sender {
-//         return Err(StdError::unauthorized());
-//     }
-
-//     remove_weight(&mut deps.storage, &asset_token_raw);
-//     decrease_total_weight(&mut deps.storage, NORMAL_TOKEN_WEIGHT)?;
-
-//     Ok(HandleResponse {
-//         messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
-//             contract_addr: deps.api.human_address(&config.mint_contract)?,
-//             send: vec![],
-//             msg: to_binary(&MintHandleMsg::RegisterMigration {
-//                 asset_token: asset_token.clone(),
-//                 end_price,
-//             })?,
-//         })],
-//         log: vec![
-//             log("action", "revoke_asset"),
-//             log("end_price", end_price.to_string()),
-//             log("asset_token", asset_token.to_string()),
-//         ],
-//         data: None,
-//     })
-// }
-
-// pub fn migrate_asset<S: Storage, A: Api, Q: Querier>(
-//     deps: &mut Extern<S, A, Q>,
-//     env: Env,
-//     name: String,
-//     symbol: String,
-//     asset_token: HumanAddr,
-//     end_price: Decimal,
-// ) -> HandleResult {
-//     let config: Config = read_config(&deps.storage)?;
-//     let asset_token_raw: CanonicalAddr = deps.api.canonical_address(&asset_token)?;
-//     let oracle_feeder: HumanAddr = deps.api.human_address(&load_oracle_feeder(
-//         &deps,
-//         &deps.api.human_address(&config.oracle_contract)?,
-//         &asset_token_raw,
-//     )?)?;
-
-//     if oracle_feeder != env.message.sender {
-//         return Err(StdError::unauthorized());
-//     }
-
-//     let weight = read_weight(&deps.storage, &asset_token_raw)?;
-//     remove_weight(&mut deps.storage, &asset_token_raw);
-//     decrease_total_weight(&mut deps.storage, NORMAL_TOKEN_WEIGHT)?;
-
-//     let mint_contract = deps.api.human_address(&config.mint_contract)?;
-//     let mint_config: (Decimal, Decimal, Option<Decimal>) =
-//         load_mint_asset_config(&deps, &mint_contract, &asset_token_raw)?;
-
-//     // check if the asset being migrated specifies a min CR after migration
-//     let min_collateral_ratio = if let Some(min_collateral_ratio_after_migration) = mint_config.2 {
-//         min_collateral_ratio_after_migration
-//     } else {
-//         mint_config.1
-//     };
-
-//     store_params(
-//         &mut deps.storage,
-//         &Params {
-//             auction_discount: mint_config.0,
-//             min_collateral_ratio,
-//             weight: Some(weight),
-//             mint_period: None,
-//             min_collateral_ratio_after_migration: None,
-//         },
-//     )?;
-
-//     Ok(HandleResponse {
-//         messages: vec![
-//             CosmosMsg::Wasm(WasmMsg::Execute {
-//                 contract_addr: mint_contract,
-//                 send: vec![],
-//                 msg: to_binary(&MintHandleMsg::RegisterMigration {
-//                     asset_token: asset_token.clone(),
-//                     end_price,
-//                 })?,
-//             }),
-//             CosmosMsg::Wasm(WasmMsg::Instantiate {
-//                 code_id: config.token_code_id,
-//                 send: vec![],
-//                 label: None,
-//                 msg: to_binary(&TokenInitMsg {
-//                     name,
-//                     symbol,
-//                     decimals: 6u8,
-//                     initial_balances: vec![],
-//                     mint: Some(MinterResponse {
-//                         minter: deps.api.human_address(&config.mint_contract)?,
-//                         cap: None,
-//                     }),
-//                     init_hook: Some(InitHook {
-//                         contract_addr: env.contract.address,
-//                         msg: to_binary(&HandleMsg::TokenCreationHook { oracle_feeder })?,
-//                     }),
-//                 })?,
-//             }),
-//         ],
-//         log: vec![
-//             log("action", "migration"),
-//             log("end_price", end_price.to_string()),
-//             log("asset_token", asset_token.to_string()),
-//         ],
-//         data: None,
-//     })
-// }
-
 pub fn query<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     msg: QueryMsg,
@@ -796,7 +652,6 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
         QueryMsg::ClusterExists { contract_addr } => {
             to_binary(&query_cluster_exists(deps, contract_addr)?)
         }
-        // QueryMsg::DistributionInfo {} => to_binary(&query_distribution_info(deps)?),
     }
 }
 
@@ -833,33 +688,3 @@ pub fn query_cluster_exists<S: Storage, A: Api, Q: Querier>(
         exists: cluster_exists(&deps.storage, &cluster_raw)?,
     })
 }
-// pub fn query_distribution_info<S: Storage, A: Api, Q: Querier>(
-//     deps: &Extern<S, A, Q>,
-// ) -> StdResult<DistributionInfoResponse> {
-//     let weights: Vec<(CanonicalAddr, u32)> = read_all_weight(&deps.storage)?;
-//     let last_distributed = read_last_distributed(&deps.storage)?;
-//     let resp = DistributionInfoResponse {
-//         last_distributed,
-//         weights: weights
-//             .iter()
-//             .map(|w| Ok((deps.api.human_address(&w.0)?, w.1)))
-//             .collect::<StdResult<Vec<(HumanAddr, u32)>>>()?,
-//     };
-
-//     Ok(resp)
-// }
-
-// pub fn migrate<S: Storage, A: Api, Q: Querier>(
-//     deps: &mut Extern<S, A, Q>,
-//     _env: Env,
-//     _msg: MigrateMsg,
-// ) -> MigrateResult {
-//     let weights = read_all_weight(&deps.storage)?;
-//     for (asset_token, weight) in weights.iter() {
-//         store_weight(&mut deps.storage, &asset_token, weight * 100)?;
-//     }
-
-//     let total_weight = read_total_weight(&deps.storage)?;
-//     store_total_weight(&mut deps.storage, total_weight * 100)?;
-//     Ok(MigrateResponse::default())
-// }

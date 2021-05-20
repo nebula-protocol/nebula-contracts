@@ -17,7 +17,7 @@ use crate::state::read_staged_asset;
 use terraswap::asset::{Asset, AssetInfo};
 use basket_math::FPDecimal;
 use std::str::FromStr;
-use nebula_protocol::factory::CollectorHandleMsg;
+use nebula_protocol::collector::HandleMsg as CollectorHandleMsg;
 
 /*
     Match the incoming message to the right category: receive, mint,
