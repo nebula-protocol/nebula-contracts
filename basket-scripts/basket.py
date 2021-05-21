@@ -65,6 +65,10 @@ class Basket:
         return {"reset_penalty": {"penalty": penalty_contract}}
 
     @staticmethod
+    def reset_composition_oracle(penalty_contract):
+        return {"reset_composition_oracle": {"composition_oracle": penalty_contract}}
+
+    @staticmethod
     def reset_owner(owner):
         return {"__reset_owner": {"owner": owner}}
 
