@@ -40,14 +40,6 @@ from airdrop_ops import airdrop_operation
 # If True, use localterra. Otherwise, deploys on Tequila
 USE_LOCALTERRA = True
 
-DEFAULT_POLL_ID = 1
-DEFAULT_QUORUM = "0.3"
-DEFAULT_THRESHOLD = "0.5"
-DEFAULT_VOTING_PERIOD = 4
-DEFAULT_EFFECTIVE_DELAY = 6
-DEFAULT_EXPIRATION_PERIOD = 20000
-DEFAULT_PROPOSAL_DEPOSIT = "10000000000"
-
 terra = get_terra()
 deployer = get_deployer()
 
