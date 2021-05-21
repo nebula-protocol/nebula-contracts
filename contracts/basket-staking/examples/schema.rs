@@ -2,7 +2,7 @@ use std::env::current_dir;
 use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
-use mirror_protocol::staking::{
+use nebula_protocol::staking::{
     ConfigResponse, Cw20HookMsg, HandleMsg, InitMsg, MigrateMsg, PoolInfoResponse, QueryMsg,
     RewardInfoResponse,
 };
