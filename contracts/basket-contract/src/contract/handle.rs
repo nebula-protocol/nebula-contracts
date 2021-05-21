@@ -17,7 +17,7 @@ use crate::state::read_staged_asset;
 use terraswap::asset::{Asset, AssetInfo};
 use basket_math::FPDecimal;
 use std::str::FromStr;
-use nebula_protocol::factory::CollectorHandleMsg;
+use nebula_protocol::collector::HandleMsg as CollectorHandleMsg;
 
 /*
     Match the incoming message to the right category: receive, mint,
@@ -269,6 +269,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: collector_address.clone(),
             msg: to_binary(&CollectorHandleMsg::RecordPenalty {
+                asset_address: basket_token.clone(),
                 reward_owner: env.message.sender.clone(),
                 penalty_amount: redeem_response.penalty,
             })?,
@@ -629,6 +630,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
             messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: collector_address.clone(),
                 msg: to_binary(&CollectorHandleMsg::RecordPenalty {
+                    asset_address: basket_token.clone(),
                     reward_owner: env.message.sender.clone(),
                     penalty_amount: mint_response.penalty,
                 })?,
