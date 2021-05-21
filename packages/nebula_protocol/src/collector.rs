@@ -25,6 +25,7 @@ pub enum HandleMsg {
     },
     Distribute {},
     RecordPenalty {
+        asset_address: HumanAddr,
         reward_owner: HumanAddr,
         penalty_amount: Uint128,
     },
@@ -52,7 +53,7 @@ pub struct ConfigResponse {
 #[serde(rename_all = "snake_case")]
 pub enum Cw20HookMsg {
     /// Deposit rewards to be distributed among stakers and voters
-    DepositReward {},
+    DepositReward { rewards: Vec<(HumanAddr, Uint128)> },
 }
 
 /// We currently take no arguments for migrations
