@@ -49,8 +49,8 @@ class Basket:
         return {"stage_asset": {}}
 
     @staticmethod
-    def burn(max_tokens, asset_amounts=None):
-        return {"burn": {"max_tokens": max_tokens, "asset_amounts": asset_amounts}}
+    def burn(asset_amounts=None):
+        return {"burn": {"asset_amounts": asset_amounts}}
 
     @staticmethod
     def stage_native_asset(denom, amount):

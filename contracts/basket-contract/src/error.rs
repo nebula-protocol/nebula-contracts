@@ -37,18 +37,6 @@ pub fn existing_asset(asset: &AssetInfo) -> StdError {
     ))
 }
 
-pub fn insufficient_staged(
-    account: &HumanAddr,
-    asset: &AssetInfo,
-    requested: Uint128,
-    staged: Uint128,
-) -> StdError {
-    StdError::generic_err(format!(
-        "account {} - insufficient amount of asset {} to unstage: {} (staged) < {} (requested)",
-        account, asset, staged, requested
-    ))
-}
-
 pub fn below_min_tokens(would_mint: Uint128, min_tokens: Uint128) -> StdError {
     StdError::generic_err(format!(
         "# basket tokens to be minted is below min_tokens specified: {} (would_mint) < {} (min_tokens)",

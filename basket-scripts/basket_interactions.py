@@ -24,12 +24,12 @@ def mint(wBTC, wETH, basket):
             MsgExecuteContract(
                 deployer.key.acc_address,
                 wBTC,
-                CW20.send(basket, "10000000", Basket.stage_asset()),
+                {"increase_allowance": {"spender": basket, "amount": "10000000"}},
             ),
             MsgExecuteContract(
                 deployer.key.acc_address,
                 wETH,
-                CW20.send(basket, "10000000", Basket.stage_asset()),
+                {"increase_allowance": {"spender": basket, "amount": "10000000"}},
             ),
             MsgExecuteContract(
                 deployer.key.acc_address,
@@ -55,12 +55,12 @@ def init_mint(wBTC, wETH, basket):
             MsgExecuteContract(
                 deployer.key.acc_address,
                 wBTC,
-                CW20.send(basket, "100", Basket.stage_asset()),
+                {"increase_allowance": {"spender": basket, "amount": "100"}},
             ),
             MsgExecuteContract(
                 deployer.key.acc_address,
                 wETH,
-                CW20.send(basket, "100", Basket.stage_asset()),
+                {"increase_allowance": {"spender": basket, "amount": "100"}},
             ),
             MsgExecuteContract(
                 deployer.key.acc_address,
@@ -79,6 +79,38 @@ def init_mint(wBTC, wETH, basket):
     if result.is_tx_error():
         raise Exception(result.raw_log)
     return result
+
+
+def redeem(basket, basket_token, wBTC, wETH):
+    print("[deploy] - basket:burn")
+
+    redeem_tx = deployer.create_and_sign_tx(
+        msgs=[
+            MsgExecuteContract(
+                deployer.key.acc_address,
+                basket_token,
+                {"increase_allowance": {"spender": basket, "amount": "100"}},
+            ),
+            MsgExecuteContract(
+                deployer.key.acc_address,
+                basket,
+                Basket.burn(
+                    "100",
+                    [
+                        Asset.asset(wBTC, "1"),
+                        Asset.asset(wETH, "2"),
+                    ]
+                )
+            )
+        ],
+        sequence=seq(),
+        fee=StdFee(4000000, "2000000uluna"),
+    )
+    result = terra.tx.broadcast(redeem_tx)
+    if result.is_tx_error():
+        raise Exception(result.raw_log)
+    return result
+
 
 def add_liquidity(basket_token, pair_contract):
     print(f"[deploy] - adding liquidity to basket pair contract")
@@ -160,3 +192,15 @@ def basket_operations(wBTC, wETH, basket_token, collector_contract, pair_contrac
     )
 
     print(f"[deploy] - collector nebula balance {nebula_tokens}")
+
+    basket_tokens = terra.wasm.contract_query(
+        basket_token, {"balance": {"address": deployer.key.acc_address}}
+    )
+    print("Before redeem", basket_tokens)
+    redeem(basket, basket_token, wBTC, wETH)
+
+    basket_tokens = terra.wasm.contract_query(
+        basket_token, {"balance": {"address": deployer.key.acc_address}}
+    )
+
+    print("After redeem", basket_tokens)
