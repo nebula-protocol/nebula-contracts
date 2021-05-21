@@ -1,5 +1,4 @@
 use cosmwasm_std::{HumanAddr, Uint128};
-use cw20::Cw20ReceiveMsg;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use terraswap::asset::{Asset, AssetInfo};
@@ -37,19 +36,6 @@ pub struct InitMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
-    Receive(Cw20ReceiveMsg),
-
-    /// Withdraws asset from staging
-    UnstageAsset {
-        asset: AssetInfo,
-        amount: Option<Uint128>,
-    },
-
-    /// Stages native asset
-    StageNativeAsset {
-        asset: Asset,
-    },
-
     /// Called to set basket token after initialization
     _SetBasketToken {
         basket_token: HumanAddr,
@@ -77,19 +63,18 @@ pub enum HandleMsg {
         /// Minimum tokens to receive
         min_tokens: Option<Uint128>,
     },
+    /// Burns assets
+    Burn {
+        /// optional proposed set of weights to use
+        max_tokens: Uint128,
+        asset_amounts: Option<Vec<Asset>>,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Cw20HookMsg {
-    /// After received, registers the received amount and prepares it to be used for minting
-    StageAsset {},
 
-    /// Burns assets
-    Burn {
-        /// optional proposed set of weights to use
-        asset_amounts: Option<Vec<Asset>>,
-    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -97,10 +82,6 @@ pub enum Cw20HookMsg {
 pub enum QueryMsg {
     Config {},
     Target {},
-    StagedAmount {
-        account: HumanAddr,
-        asset: AssetInfo,
-    },
     BasketState {
         basket_contract_address: HumanAddr,
     },
@@ -115,11 +96,6 @@ pub struct ConfigResponse {
 pub struct TargetResponse {
     pub assets: Vec<AssetInfo>,
     pub target: Vec<u32>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct StagedAmountResponse {
-    pub staged_amount: Uint128,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

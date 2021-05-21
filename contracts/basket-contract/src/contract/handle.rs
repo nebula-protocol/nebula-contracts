@@ -1,19 +1,18 @@
 use cosmwasm_std::{
-    from_binary, log, to_binary, Api, CosmosMsg, Env, Extern, HandleResponse,
-    HandleResult, HumanAddr, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
+    log, to_binary, Api, CosmosMsg, Env, Extern, HandleResponse,
+    HumanAddr, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 
-use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
+use cw20::{Cw20HandleMsg};
 use error::bad_weight_values;
 
 use crate::contract::query_basket_state;
 use crate::error;
 use crate::ext_query::{query_collector_contract_address, query_mint_amount, query_redeem_amount, ExtQueryMsg};
-use crate::state::{read_config, save_config, stage_asset, unstage_asset, TargetAssetData};
+use crate::state::{read_config, save_config, TargetAssetData};
 use crate::state::{read_target_asset_data, save_target_asset_data};
 use crate::util::vec_to_string;
-use nebula_protocol::cluster::{Cw20HookMsg, HandleMsg};
-use crate::state::read_staged_asset;
+use nebula_protocol::cluster::{HandleMsg};
 use terraswap::asset::{Asset, AssetInfo};
 use basket_math::FPDecimal;
 use std::str::FromStr;
@@ -21,7 +20,7 @@ use nebula_protocol::collector::HandleMsg as CollectorHandleMsg;
 
 /*
     Match the incoming message to the right category: receive, mint,
-    unstage, reset_target, or  set basket token
+    reset_target, or  set basket token
 */
 pub fn handle<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -29,64 +28,20 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     match msg {
-        HandleMsg::Receive(msg) => receive_cw20(deps, env, msg),
         HandleMsg::Mint {
             asset_amounts,
             min_tokens,
         } => try_mint(deps, env, &asset_amounts, &min_tokens),
-        HandleMsg::UnstageAsset { amount, asset } => try_unstage_asset(deps, env, &asset, &amount),
+        HandleMsg::Burn {
+            max_tokens,
+            asset_amounts,
+        } => try_receive_burn(deps, env, max_tokens, asset_amounts),
         HandleMsg::ResetTarget { assets, target } => try_reset_target(deps, env, &assets, &target),
         HandleMsg::_SetBasketToken { basket_token } => {
             try_set_basket_token(deps, env, &basket_token)
         }
         HandleMsg::ResetPenalty { penalty } => try_reset_penalty(deps, env, &penalty),
         HandleMsg::_ResetOwner { owner } => try_reset_owner(deps, env, &owner),
-        HandleMsg::StageNativeAsset { asset } => {
-            // only native token can be deposited directly
-            if !asset.is_native_token() {
-                return Err(StdError::unauthorized());
-            }
-
-            // Check the actual deposit happens
-            asset.assert_sent_native_token_balance(&env)?;
-
-            let sender = &env.message.sender.clone();
-
-            try_receive_stage_asset(deps, env, sender, &asset)
-        }
-    }
-}
-
-/*
-    Receives CW20 tokens which can either be cluster tokens that are burned
-    to receive assets, or assets that can be staged for the process of minting
-    cluster tokens.
-*/
-pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    cw20_msg: Cw20ReceiveMsg,
-) -> HandleResult {
-    let sender = cw20_msg.sender;
-    let sent_asset = env.message.sender.clone();
-    let sent_amount = cw20_msg.amount;
-    let asset = Asset {
-        info: AssetInfo::Token {
-            contract_addr: sent_asset,
-        },
-        amount: sent_amount,
-    };
-
-    // Using HumanAddr instead of AssetInfo for cw20
-    if let Some(msg) = cw20_msg.msg {
-        match from_binary(&msg)? {
-            Cw20HookMsg::Burn { asset_amounts } => {
-                try_receive_burn(deps, env, &sender, &asset, asset_amounts)
-            }
-            Cw20HookMsg::StageAsset {} => try_receive_stage_asset(deps, env, &sender, &asset),
-        }
-    } else {
-        Err(error::missing_cw20_msg())
     }
 }
 
@@ -100,10 +55,12 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
 pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    sender: &HumanAddr,
-    asset: &Asset,
+    max_tokens: Uint128,
     asset_amounts: Option<Vec<Asset>>,
 ) -> StdResult<HandleResponse> {
+
+    let sender = env.message.sender.clone();
+
     let cfg = read_config(&deps.storage)?;
     let basket_token = cfg
         .basket_token
@@ -123,14 +80,6 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
 
-    let sent_asset = match &asset.info {
-        AssetInfo::Token { contract_addr } => contract_addr,
-        AssetInfo::NativeToken { denom: _ } => {
-            return Err(StdError::unauthorized());
-        }
-    };
-    let sent_amount = asset.amount;
-
     let asset_amounts: Vec<Uint128> = match &asset_amounts {
         Some(weights) => {
             let mut vec: Vec<Uint128> = Vec::new();
@@ -146,14 +95,6 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         }
         None => vec![],
     };
-
-    // require that origin contract from Receive Hook is the associated Basket Token
-    if *sent_asset != basket_token {
-        return Err(StdError::unauthorized());
-    }
-
-    let max_tokens = sent_amount.clone();
-
 
     let (collector_address, fee_rate) =
         query_collector_contract_address(&deps, &cfg.factory)?;
@@ -198,8 +139,6 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
 
     let fee_amt = Uint128(fee_amt);
 
-    let mint_to_sender = (max_tokens - token_cost)?;
-
     let mut messages: Vec<CosmosMsg> = redeem_totals
         .iter()
         .zip(asset_infos.iter())
@@ -215,11 +154,34 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         })
         .collect::<StdResult<Vec<CosmosMsg>>>()?;
 
+
+    // extract basket tokens from allowance
+    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: basket_token.clone(),
+        msg: to_binary(&Cw20HandleMsg::TransferFrom {
+            owner: sender.clone(),
+            recipient: env.contract.address.clone(),
+            amount: token_cost,
+        })?,
+        send: vec![],
+    }));
+
+    // send fee to collector
+    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: basket_token.clone(),
+        msg: to_binary(&Cw20HandleMsg::Mint {
+            amount: fee_amt,
+            recipient: collector_address.clone(),
+        })?,
+        send: vec![],
+    }));
+
+    // burn the rest
     messages.push(
         CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: basket_token.clone(),
             msg: to_binary(&Cw20HandleMsg::Burn {
-                amount: max_tokens.clone(),
+                amount: (token_cost - fee_amt)?,
             })?,
             send: vec![],
         })
@@ -241,36 +203,13 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         send: vec![],
     }));
 
-    // send remaining basket tokens back to the sender
-    if mint_to_sender > Uint128::zero() {
-        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: basket_token.clone(),
-            msg: to_binary(&Cw20HandleMsg::Mint {
-                amount: mint_to_sender,
-                recipient: sender.clone(),
-            })?,
-            send: vec![],
-        }));
-    }
-
-    // send fees to collector contract
-    if fee_amt > Uint128::zero() {
-        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: basket_token.clone(),
-            msg: to_binary(&Cw20HandleMsg::Mint {
-                amount: fee_amt,
-                recipient: collector_address.clone(),
-            })?,
-            send: vec![],
-        }));
-    }
-
+    // record this penalty
     if redeem_response.penalty > Uint128::zero() {
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: collector_address.clone(),
             msg: to_binary(&CollectorHandleMsg::RecordPenalty {
                 asset_address: basket_token.clone(),
-                reward_owner: env.message.sender.clone(),
+                reward_owner: sender.clone(),
                 penalty_amount: redeem_response.penalty,
             })?,
             send: vec![],
@@ -284,12 +223,9 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         log: vec![
             vec![
                 log("action", "receive:burn"),
-                log("sender", sender),
-                log("sent_asset", sent_asset),
-                log("sent_tokens", sent_amount),
-                log("burn_amount", max_tokens),
+                log("sender", sender.clone()),
+                log("burn_amount", (token_cost - fee_amt)?),
                 log("token_cost", token_cost),
-                log("returned_to_sender", mint_to_sender),
                 log("kept_as_fee", fee_amt),
                 log("asset_amounts", vec_to_string(&asset_amounts)),
                 log("redeem_totals", vec_to_string(&redeem_totals)),
@@ -297,53 +233,6 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
             redeem_response.log,
         ]
         .concat(),
-        data: None,
-    })
-}
-
-/*
-    Receives an asset which is part of the cluster and stages it such that
-    the contract records the sender of the asset and the balance sent. This
-    balance is later looked up when this sender wants to mint cluster tokens from
-    the a number of staged assets.
-*/
-pub fn try_receive_stage_asset<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    _env: Env,
-    sender: &HumanAddr,
-    staged_asset: &Asset,
-) -> StdResult<HandleResponse> {
-    let cfg = read_config(&deps.storage)?;
-    if let None = cfg.basket_token {
-        return Err(error::basket_token_not_set());
-    }
-
-    let target_asset_data = read_target_asset_data(&deps.storage)?;
-    let assets = target_asset_data
-        .iter()
-        .map(|x| x.asset.clone())
-        .collect::<Vec<_>>();
-
-    // if sent asset is not a component asset of basket, reject
-    if !assets.iter().any(|asset| *asset == staged_asset.info) {
-        return Err(error::not_component_cw20(&staged_asset.info));
-    }
-
-    stage_asset(
-        &mut deps.storage,
-        sender,
-        &staged_asset.info,
-        staged_asset.amount,
-    )?;
-
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![
-            log("action", "receive:stage_asset"),
-            log("sender", sender),
-            log("asset", staged_asset.info.clone()),
-            log("staged_amount", staged_asset.amount),
-        ],
         data: None,
     })
 }
@@ -514,8 +403,6 @@ pub fn try_reset_owner<S: Storage, A: Api, Q: Querier>(
 /*
     Tries to mint cluster tokens from the asset amounts given.
     Throws error if there can only be less than 'min_tokens' minted from the assets.
-    Note that the corresponding asset amounts need to be staged before in order to
-    successfully mint tokens.
 */
 pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -527,11 +414,13 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 
     let prices = basket_state.prices;
     let basket_token_supply = basket_state.outstanding_balance_tokens;
-    let inv = basket_state.inv;
+    let mut inv = basket_state.inv;
     let target = basket_state.target;
 
     let cfg = read_config(&deps.storage)?;
+
     let target_asset_data = read_target_asset_data(&deps.storage)?;
+
     let asset_infos = &target_asset_data
         .iter()
         .map(|x| x.asset.clone())
@@ -543,43 +432,42 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         .ok_or_else(|| error::basket_token_not_set())?;
 
     // accommmodate inputs: subsets of target assets vector
+    let mut asset_weights = vec![Uint128(0); asset_infos.len()];
+    let mut messages = vec![];
 
-    let mut new_asset_weights = vec![Uint128(0); asset_infos.len()];
+    for i in 0..asset_infos.len() {
+        for asset in asset_amounts.iter() {
+            if asset.info.clone() == asset_infos[i].clone() {
+                asset_weights[i] = asset.amount;
 
-    // list of 0's for vector (size of asset_infos) -> replace in the for loop
-    let asset_weights: Vec<Uint128> = {
-        for i in 0..asset_infos.len() {
-            for weight in asset_amounts {
-                if weight.info.clone() == asset_infos[i].clone() {
-                    new_asset_weights[i] = weight.amount;
-                    break;
+                // validate that native token balance is correct
+                asset.assert_sent_native_token_balance(&env)?;
+                // pick up allowance from smart contracts
+                if let AssetInfo::Token { contract_addr, .. } = &asset.info {
+                    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+                        contract_addr: contract_addr.clone(),
+                        msg: to_binary(&Cw20HandleMsg::TransferFrom {
+                            owner: env.message.sender.clone(),
+                            recipient: env.contract.address.clone(),
+                            amount: asset.amount,
+                        })?,
+                        send: vec![],
+                    }));
+                } else {
+                    // inventory should not include native assets sent in this transaction
+                    inv[i] = (inv[i] - asset.amount)?;
                 }
+                break;
             }
-            // 0 if else
-        }
-        new_asset_weights
-    };
-
-    // ensure that all tokens in asset_amounts have been staged beforehand
-    for asset in asset_amounts {
-        let staged = read_staged_asset(&deps.storage, &env.message.sender, &asset.info)?;
-        //println!("asset {} amount {} staged {}", asset, amount, staged);
-        if asset.amount > staged {
-            return Err(error::insufficient_staged(
-                &env.message.sender,
-                &asset.info,
-                asset.amount,
-                staged,
-            ));
         }
     }
+    let asset_weights = asset_weights.clone();
 
     let c = asset_weights;
 
     let mint_to_sender;
 
     let mut extra_logs = vec![];
-    let mut messages = vec![];
     // do a regular mint
     if basket_token_supply != Uint128::zero() {
         let mint_response = query_mint_amount(
@@ -617,6 +505,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
             send: vec![],
         }));
 
+        // actually mint the tokens
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: basket_token.clone(),
             msg: to_binary(&Cw20HandleMsg::Mint {
@@ -626,6 +515,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
             send: vec![],
         }));
 
+        // record this penalty for neb token rewards
         if mint_response.penalty > Uint128::zero() {
             messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: collector_address.clone(),
@@ -637,7 +527,6 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
                 send: vec![],
             }));
         }
-
 
         extra_logs = mint_response.log;
         extra_logs.push(log("fee_amt", protocol_fee))
@@ -681,16 +570,6 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         }
     }
 
-    // Unstage after everything works
-    for asset in asset_amounts {
-        unstage_asset(
-            &mut deps.storage,
-            &env.message.sender,
-            &asset.info,
-            asset.amount,
-        )?;
-    }
-
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: basket_token.clone(),
         msg: to_binary(&Cw20HandleMsg::Mint {
@@ -711,83 +590,6 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     Ok(HandleResponse {
         messages,
         log: logs,
-        data: None,
-    })
-}
-
-/*
-    Tries to unstage the given asset by the given amount by giving back
-    the user the requested amount of asset only if the user has enough
-    previously staged asset. Throws an error otherwise.
-*/
-pub fn try_unstage_asset<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    asset_info: &AssetInfo,
-    amount: &Option<Uint128>,
-) -> StdResult<HandleResponse> {
-    let target_asset_data = read_target_asset_data(&deps.storage)?;
-    let assets = target_asset_data
-        .iter()
-        .map(|x| x.asset.clone())
-        .collect::<Vec<_>>();
-    // if sent asset is not a component asset of basket, reject
-    // if !assets.iter().any(|x| match x {
-    //     AssetInfo::Token { contract_addr } => contract_addr == asset,
-    //     AssetInfo::NativeToken { denom } => &h(denom) == asset,
-    // })
-
-    if !assets.iter().any(|x| x == asset_info) {
-        return Err(error::not_component_asset(asset_info));
-    }
-
-    let curr_staged = read_staged_asset(&deps.storage, &env.message.sender, asset_info)?;
-    let to_unstage = match amount {
-        Some(amt) => {
-            if *amt > curr_staged {
-                return Err(error::insufficient_staged(
-                    &env.message.sender,
-                    asset_info,
-                    *amt,
-                    curr_staged,
-                ));
-            }
-            *amt
-        }
-        None => curr_staged,
-    };
-
-    unstage_asset(
-        &mut deps.storage,
-        &env.message.sender,
-        asset_info,
-        to_unstage,
-    )?;
-
-    // return asset
-    let messages = if !to_unstage.is_zero() {
-        let asset = Asset {
-            info: asset_info.clone(),
-            amount: to_unstage.clone(),
-        };
-
-        // TODO: Check if sender field is correct here (recipient should be sender.clone())
-        vec![asset.into_msg(
-            &deps,
-            env.contract.address.clone(),
-            env.message.sender.clone(),
-        )?]
-    } else {
-        vec![]
-    };
-
-    Ok(HandleResponse {
-        messages,
-        log: vec![
-            log("action", "unstage_asset"),
-            log("asset", asset_info),
-            log("amount", to_unstage),
-        ],
         data: None,
     })
 }

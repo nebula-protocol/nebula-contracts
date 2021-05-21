@@ -422,12 +422,12 @@ def deploy():
             MsgExecuteContract(
                 deployer.key.acc_address,
                 wBTC,
-                CW20.send(basket, "100", Basket.stage_asset()),
+                {"increase_allowance": {"spender": basket, "amount": "100"}},
             ),
             MsgExecuteContract(
                 deployer.key.acc_address,
                 wETH,
-                CW20.send(basket, "100", Basket.stage_asset()),
+                {"increase_allowance": {"spender": basket, "amount": "100"}},
             ),
             MsgExecuteContract(
                 deployer.key.acc_address,
@@ -452,12 +452,12 @@ def deploy():
             MsgExecuteContract(
                 deployer.key.acc_address,
                 wBTC,
-                CW20.send(basket, "10000000", Basket.stage_asset()),
+                {"increase_allowance": {"spender": basket, "amount": "10000000"}},
             ),
             MsgExecuteContract(
                 deployer.key.acc_address,
                 wETH,
-                CW20.send(basket, "10000000", Basket.stage_asset()),
+                {"increase_allowance": {"spender": basket, "amount": "10000000"}},
             ),
             MsgExecuteContract(
                 deployer.key.acc_address,

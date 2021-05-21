@@ -1,4 +1,3 @@
-use crate::state::read_total_staged_asset;
 use cosmwasm_std::{
     to_binary, Api, Decimal, Extern, HumanAddr, LogAttribute, Querier, QueryRequest, StdResult,
     Storage, Uint128, WasmQuery,
@@ -6,7 +5,7 @@ use cosmwasm_std::{
 use cw20::{BalanceResponse as Cw20BalanceResponse, TokenInfoResponse as Cw20TokenInfoResponse};
 use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
-use terraswap::{asset::AssetInfo, querier::query_balance};
+use terraswap::{asset::AssetInfo};
 
 /// QueryMsgs to external contracts
 #[derive(Serialize, Deserialize)]
@@ -103,45 +102,6 @@ pub fn query_price<S: Storage, A: Api, Q: Querier>(
     }))?;
 
     Ok(res.rate.to_string().as_str().parse().unwrap())
-}
-
-// Query native balances
-pub fn query_native_balance_minus_staged<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    denom: &String,
-    account_address: &HumanAddr,
-) -> StdResult<Uint128> {
-    let tot_balance = query_balance(&deps, account_address, denom.clone())?;
-    // let all_balances = query_all_balances(&deps, account_address)?;
-    // println!("me balances {:?}", all_balances);
-    let staged_balance = read_total_staged_asset(
-        &deps.storage,
-        &AssetInfo::NativeToken {
-            denom: denom.clone(),
-        },
-    )?;
-
-    tot_balance - staged_balance
-}
-
-/// EXTERNAL QUERY
-/// -- Queries the token_address contract for the current balance of an account without
-/// the counting the staged amount
-pub fn query_cw20_balance_minus_staged<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    asset_address: &HumanAddr,
-    account_address: &HumanAddr,
-) -> StdResult<Uint128> {
-    let tot_balance = query_cw20_balance(&deps, &asset_address, &account_address)?;
-
-    let staged_balance = read_total_staged_asset(
-        &deps.storage,
-        &AssetInfo::Token {
-            contract_addr: asset_address.clone(),
-        },
-    )?;
-
-    tot_balance - staged_balance
 }
 
 /// EXTERNAL QUERY

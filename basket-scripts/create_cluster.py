@@ -41,7 +41,6 @@ def create_cluster_through_governance(penalty_contract, factory_contract, oracle
         seq(),
         fee=StdFee(4000000, "20000000uluna"),
     )
-
     print(result.logs[0].events_by_type)
 
         # Stake
