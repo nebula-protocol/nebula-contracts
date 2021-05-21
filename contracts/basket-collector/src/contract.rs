@@ -1,8 +1,9 @@
 use cosmwasm_std::{log, to_binary, Api, Binary, Coin, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr, InitResponse, MigrateResponse, MigrateResult, Querier, StdResult, Storage, WasmMsg, from_binary, StdError, Uint128};
 
-use crate::state::{read_config, store_config, Config, store_current_n, store_pool_info, PoolInfo};
+use crate::state::{read_config, store_config, Config, store_current_n};
 use crate::rewards::{deposit_reward, record_penalty, withdraw_reward, increment_n};
 use nebula_protocol::collector::{ConfigResponse, HandleMsg, InitMsg, MigrateMsg, QueryMsg, Cw20HookMsg};
+use nebula_protocol::gov::{Cw20HookMsg as GovCw20HookMsg};
 
 use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
 use terraswap::asset::{Asset, AssetInfo, PairInfo};
@@ -26,12 +27,6 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     )?;
 
     store_current_n(&mut deps.storage, 0)?;
-    store_pool_info(&mut deps.storage, 0, &PoolInfo {
-        n: 0,
-        penalty_sum: Uint128::zero(),
-        reward_sum: Uint128::zero(),
-    })?;
-
     Ok(InitResponse::default())
 }
 
@@ -45,7 +40,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::Receive(msg) => receive_cw20(deps, env, msg),
         HandleMsg::Convert { asset_token } => convert(deps, env, asset_token),
         HandleMsg::Distribute {} => distribute(deps, env),
-        HandleMsg::RecordPenalty {reward_owner, penalty_amount} => record_penalty(deps, env, reward_owner, penalty_amount),
+        HandleMsg::RecordPenalty {asset_address, reward_owner, penalty_amount} => record_penalty(deps, env, &reward_owner, &asset_address, penalty_amount),
         HandleMsg::Withdraw {} => withdraw_reward(deps, env),
         HandleMsg::NewPenaltyPeriod {} => new_penalty_period(deps, env),
     }
@@ -85,12 +80,22 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
         let config: Config = read_config(&deps.storage)?;
 
         match from_binary(&msg)? {
-            Cw20HookMsg::DepositReward {} => {
+            Cw20HookMsg::DepositReward { rewards } => {
                 // only reward token contract can execute this message
                 if config.nebula_token != deps.api.canonical_address(&env.message.sender)? {
                     return Err(StdError::unauthorized());
                 }
-                deposit_reward(deps, cw20_msg.amount)
+
+                let mut rewards_amount = Uint128::zero();
+                for (_, amount) in rewards.iter() {
+                    rewards_amount += *amount;
+                }
+
+                if rewards_amount != cw20_msg.amount {
+                    return Err(StdError::generic_err("rewards amount miss matched"));
+                }
+
+                deposit_reward(deps, rewards, cw20_msg.amount)
             }
         }
     } else {
@@ -200,7 +205,7 @@ pub fn distribute<S: Storage, A: Api, Q: Querier>(
             msg: to_binary(&Cw20HandleMsg::Send {
                 contract: deps.api.human_address(&config.distribution_contract)?,
                 amount,
-                msg: Some(to_binary(&Cw20HookMsg::DepositReward {})?),
+                msg: Some(to_binary(&GovCw20HookMsg::DepositReward {})?),
             })?,
             send: vec![],
         })],

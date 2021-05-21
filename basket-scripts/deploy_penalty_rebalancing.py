@@ -36,6 +36,7 @@ DEFAULT_THRESHOLD = "0.5"
 DEFAULT_VOTING_PERIOD = 4
 DEFAULT_EFFECTIVE_DELAY = 6
 DEFAULT_EXPIRATION_PERIOD = 20000
+DEFAULT_SNAPSHOT_PERIOD = 0
 DEFAULT_PROPOSAL_DEPOSIT = "10000000000"
 
 lt = LocalTerra(gas_prices={"uluna": "0.15"})
@@ -71,7 +72,7 @@ def store_contract(contract_name, sequence):
     contract_bytes = read_file_as_b64(f"../artifacts/{contract_name}.wasm")
     store_code = MsgStoreCode(deployer.key.acc_address, contract_bytes)
     store_code_tx = deployer.create_and_sign_tx(
-        msgs=[store_code], fee=StdFee(5000000, "2000000uluna"), sequence=sequence
+        msgs=[store_code], fee=StdFee(30000000, "12000000uluna"), sequence=sequence
     )
     result = terra.tx.broadcast(store_code_tx)
     if result.is_tx_error():
@@ -276,6 +277,7 @@ def deploy():
             "expiration_period": DEFAULT_EXPIRATION_PERIOD,
             "proposal_deposit": DEFAULT_PROPOSAL_DEPOSIT,
             "voter_weight": "0.1",
+            "snapshot_period": DEFAULT_SNAPSHOT_PERIOD,
         },
         seq(),
     )
