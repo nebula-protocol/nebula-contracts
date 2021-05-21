@@ -22,8 +22,11 @@ pub struct InitMsg {
     /// Factory address
     pub factory: HumanAddr,
 
-    /// Oracle address
-    pub oracle: HumanAddr,
+    /// Pricing oracle address
+    pub pricing_oracle: HumanAddr,
+
+    /// Target composition oracle address
+    pub composition_oracle: HumanAddr,
 
     /// Penalty function address
     pub penalty: HumanAddr,
@@ -139,6 +142,7 @@ pub struct BasketConfig {
     pub owner: HumanAddr,
     pub basket_token: Option<HumanAddr>,
     pub factory: HumanAddr,
-    pub oracle: HumanAddr,
+    pub pricing_oracle: HumanAddr,
+    pub composition_oracle: HumanAddr,
     pub penalty: HumanAddr,
 }

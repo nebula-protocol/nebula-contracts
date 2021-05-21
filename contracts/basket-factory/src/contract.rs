@@ -269,26 +269,29 @@ pub fn create_cluster<S: Storage, A: Api, Q: Querier>(
     store_params(&mut deps.storage, &params)?;
 
     Ok(HandleResponse {
-        messages: vec![CosmosMsg::Wasm(WasmMsg::Instantiate {
-            code_id: config.cluster_code_id,
-            send: vec![],
-            label: None,
-            msg: to_binary(&BasketInitMsg {
-                name: params.name.clone(),
-                owner: env.contract.address.clone(),
-                assets: params.assets,
-                oracle: params.oracle.clone(),
-                penalty: params.penalty,
-                factory: env.contract.address.clone(),
-                basket_token: None,
-                target: params.target,
-                // TODO: Write separate init hook for basket
-                init_hook: Some(InitHook {
-                    contract_addr: env.contract.address,
-                    msg: to_binary(&HandleMsg::TokenCreationHook {})?,
-                }),
-            })?,
-        })],
+        messages: vec![
+            CosmosMsg::Wasm(WasmMsg::Instantiate {
+                code_id: config.cluster_code_id,
+                send: vec![],
+                label: None,
+                msg: to_binary(&BasketInitMsg {
+                    name: params.name.clone(),
+                    owner: env.contract.address.clone(),
+                    assets: params.assets,
+                    pricing_oracle: params.pricing_oracle.clone(),
+                    composition_oracle: params.composition_oracle.clone(),
+                    penalty: params.penalty,
+                    factory: env.contract.address.clone(),
+                    basket_token: None,
+                    target: params.target,
+                    // TODO: Write separate init hook for basket
+                    init_hook: Some(InitHook {
+                        contract_addr: env.contract.address,
+                        msg: to_binary(&HandleMsg::TokenCreationHook {})?,
+                    }),
+                })?,
+            })
+        ],
         log: vec![
             log("action", "create_cluster"),
             log("symbol", params.symbol.clone()),

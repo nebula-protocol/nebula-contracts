@@ -90,12 +90,12 @@ pub struct RedeemResponse {
 /// -- Queries the oracle contract for the current asset price
 pub fn query_price<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
-    oracle_address: &HumanAddr,
+    pricing_oracle_address: &HumanAddr,
     asset_info: &AssetInfo,
 ) -> StdResult<String> {
     // perform query
     let res: PriceResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: oracle_address.clone(),
+        contract_addr: pricing_oracle_address.clone(),
         msg: to_binary(&ExtQueryMsg::Price {
             base_asset: asset_info.to_string(),
             quote_asset: "uusd".to_string(),

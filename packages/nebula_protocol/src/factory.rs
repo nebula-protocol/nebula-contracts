@@ -120,8 +120,11 @@ pub struct Params {
     // Corresponding penalty contract to query for mint/redeem
     pub penalty: HumanAddr,
 
-    /// Oracle address
-    pub oracle: HumanAddr,
+    /// Pricing oracle address
+    pub pricing_oracle: HumanAddr,
+
+    /// Composition oracle address
+    pub composition_oracle: HumanAddr,
 
     pub assets: Vec<AssetInfo>,
 
