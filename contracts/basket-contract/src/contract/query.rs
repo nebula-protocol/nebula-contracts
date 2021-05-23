@@ -2,12 +2,13 @@ use cosmwasm_std::{
     to_binary, Api, Binary, Extern, HumanAddr, Querier, StdError, StdResult, Storage, Uint128,
 };
 
-use crate::ext_query::{query_cw20_balance_minus_staged, query_cw20_token_supply, query_price, query_native_balance_minus_staged};
+use crate::ext_query::{query_cw20_balance, query_cw20_token_supply, query_price};
 use nebula_protocol::cluster::{
-    BasketStateResponse, ConfigResponse, QueryMsg, StagedAmountResponse, TargetResponse,
+    BasketStateResponse, ConfigResponse, QueryMsg, TargetResponse,
 };
-use crate::state::{read_config, read_staged_asset, read_target_asset_data};
+use crate::state::{read_config, read_target_asset_data};
 use terraswap::asset::AssetInfo;
+use terraswap::querier::query_balance;
 
 /// Convenience function for creating inline HumanAddr
 pub fn h(s: &str) -> HumanAddr {
@@ -21,9 +22,6 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     match msg {
         QueryMsg::Target {} => to_binary(&query_target(deps)?),
         QueryMsg::Config {} => to_binary(&query_config(deps)?),
-        QueryMsg::StagedAmount { account, asset } => {
-            to_binary(&query_staged_amount(deps, &account, &asset)?)
-        }
         QueryMsg::BasketState {
             basket_contract_address,
         } => to_binary(&query_basket_state(deps, &basket_contract_address)?),
@@ -50,15 +48,6 @@ fn query_target<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
     Ok(TargetResponse { assets, target })
-}
-
-fn query_staged_amount<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    account: &HumanAddr,
-    asset: &AssetInfo,
-) -> StdResult<StagedAmountResponse> {
-    let staged_amount = read_staged_asset(&deps.storage, account, asset)?;
-    Ok(StagedAmountResponse { staged_amount })
 }
 
 pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
@@ -94,10 +83,10 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         .iter()
         .map(|asset| match asset {
             AssetInfo::Token { contract_addr } => {
-                query_cw20_balance_minus_staged(&deps, &contract_addr, basket_contract_address)
+                query_cw20_balance(&deps, &contract_addr, basket_contract_address)
             }
             AssetInfo::NativeToken { denom } => {
-                query_native_balance_minus_staged(&deps, denom, basket_contract_address)
+                query_balance(&deps, basket_contract_address, denom.clone())
             }
         })
         .collect::<StdResult<Vec<Uint128>>>()?;

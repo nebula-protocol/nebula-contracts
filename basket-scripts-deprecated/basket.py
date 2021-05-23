@@ -49,8 +49,8 @@ class Basket:
         return {"stage_asset": {}}
 
     @staticmethod
-    def burn(max_tokens, asset_amounts=None):
-        return {"burn": {"max_tokens": max_tokens, "asset_amounts": asset_amounts}}
+    def burn(asset_amounts=None):
+        return {"burn": {"asset_amounts": asset_amounts}}
 
     @staticmethod
     def stage_native_asset(denom, amount):
@@ -63,10 +63,6 @@ class Basket:
     @staticmethod
     def reset_penalty(penalty_contract):
         return {"reset_penalty": {"penalty": penalty_contract}}
-
-    @staticmethod
-    def reset_composition_oracle(penalty_contract):
-        return {"reset_composition_oracle": {"composition_oracle": penalty_contract}}
 
     @staticmethod
     def reset_owner(owner):

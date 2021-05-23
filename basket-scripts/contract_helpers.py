@@ -71,7 +71,7 @@ def execute_contract(wallet, contract_address, execute_msg, sequence, fee=None):
     )
     result = terra.tx.broadcast(execute_tx)
     if result.is_tx_error():
-        print(result.raw_log)
+        raise Exception(result.raw_log)
     return result
 
 

@@ -1,8 +1,8 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{HumanAddr, StdResult, Storage, Uint128};
-use cosmwasm_storage::{bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket};
+use cosmwasm_std::{StdResult, Storage};
+use cosmwasm_storage::{singleton, singleton_read};
 use terraswap::asset::{AssetInfo};
 use nebula_protocol::cluster::BasketConfig;
 
@@ -17,11 +17,6 @@ pub static ASSET_DATA_KEY: &[u8] = b"asset_data";
 
 /// asset: Vec<HumanAddr>
 pub static ASSETS_KEY: &[u8] = b"assets";
-
-/// staging: Map<asset: HumanAddr, Map<account: HumanAddr, staged_amount: Uint128>>
-pub static PREFIX_STAGING: &[u8] = b"staging";
-
-pub static PREFIX_TOTAL_STAGING: &[u8] = b"total_staging";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TargetAssetData {
@@ -54,61 +49,4 @@ pub fn read_target<S: Storage>(storage: &S) -> StdResult<Vec<u32>> {
 
 pub fn save_target<S: Storage>(storage: &mut S, target: &Vec<u32>) -> StdResult<()> {
     singleton(storage, TARGET_KEY).save(target)
-}
-
-// Keep record of total staged for each asset
-pub fn read_total_staged_asset<S: Storage>(storage: &S, asset: &AssetInfo) -> StdResult<Uint128> {
-    bucket_read(PREFIX_TOTAL_STAGING, storage)
-        .load(asset.to_string().as_bytes())
-        .or(Ok(Uint128(0)))
-}
-
-pub fn read_staged_asset<S: Storage>(
-    storage: &S,
-    account: &HumanAddr,
-    asset: &AssetInfo,
-) -> StdResult<Uint128> {
-    let staging =
-        ReadonlyBucket::multilevel(&[PREFIX_STAGING, asset.to_string().as_bytes()], storage);
-    match staging.load(account.as_str().as_bytes()) {
-        Ok(v) => Ok(v),
-        Err(_) => Ok(Uint128::zero()),
-    }
-}
-
-pub fn stage_asset<S: Storage>(
-    storage: &mut S,
-    account: &HumanAddr,
-    asset: &AssetInfo,
-    amount: Uint128,
-) -> StdResult<()> {
-    let curr_amount = read_staged_asset(storage, account, asset)?;
-
-    let curr_total_staged = read_total_staged_asset(storage, asset)?;
-
-    bucket(PREFIX_TOTAL_STAGING, storage)
-        .save(asset.to_string().as_bytes(), &(curr_total_staged + amount))?;
-
-    let mut staging =
-        Bucket::<S, Uint128>::multilevel(&[PREFIX_STAGING, asset.to_string().as_bytes()], storage);
-
-    staging.save(account.as_str().as_bytes(), &(curr_amount + amount))
-}
-
-pub fn unstage_asset<S: Storage>(
-    storage: &mut S,
-    account: &HumanAddr,
-    asset: &AssetInfo,
-    amount: Uint128,
-) -> StdResult<()> {
-    let curr_amount = read_staged_asset(storage, account, asset)?;
-
-    let curr_total_staged = read_total_staged_asset(storage, asset)?;
-
-    bucket(PREFIX_TOTAL_STAGING, storage)
-        .save(asset.to_string().as_bytes(), &(curr_total_staged - amount))?;
-
-    let mut staging =
-        Bucket::<S, Uint128>::multilevel(&[PREFIX_STAGING, asset.to_string().as_bytes()], storage);
-    staging.save(account.as_str().as_bytes(), &((curr_amount - amount)?))
 }
