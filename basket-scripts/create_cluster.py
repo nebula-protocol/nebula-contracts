@@ -1,5 +1,6 @@
 from basket import Oracle, Basket, CW20, Asset, Governance
 from contract_helpers import get_terra, get_deployer, store_contract, instantiate_contract, execute_contract, get_amount, seq, get_contract_ids
+from governance_helpers import create_and_vote_poll
 import time
 from terra_sdk.core.auth import StdFee
 
@@ -15,35 +16,18 @@ def create_cluster_through_governance(penalty_contract, factory_contract, oracle
                 "name": "GOVBASKET",
                 "symbol": "GVB",
                 "penalty": penalty_contract,
-                "target": [50, 50],
+                "target": [75, 25],
                 "assets": [
                     Asset.cw20_asset_info(wBTC),
                     Asset.cw20_asset_info(wETH),
                 ],
-                "oracle": oracle,
+                "pricing_oracle": oracle,
+                "composition_oracle": gov_contract,
             },
         }
     }
 
-    poll_two = Governance.create_poll(
-        "Test_two",
-        "Test_two",
-        "TestLink12345",
-        Governance.create_execute_msg(
-            factory_contract, gov_create_basket_msg
-        ),
-    )
-
-    result = execute_contract(
-        deployer,
-        nebula_token,
-        CW20.send(gov_contract, DEFAULT_PROPOSAL_DEPOSIT, poll_two),
-        seq(),
-        fee=StdFee(4000000, "20000000uluna"),
-    )
-    print(result.logs[0].events_by_type)
-
-        # Stake
+    # Stake
     print(f"[deploy] - stake 50% of nebula tokens")
 
     stake_amount = "500000000000"
@@ -57,34 +41,10 @@ def create_cluster_through_governance(penalty_contract, factory_contract, oracle
 
     print(result.logs[0].events_by_type)
 
-    print(f"[deploy] - cast vote for YES")
-
-    result = execute_contract(
-        deployer,
-        gov_contract,
-        Governance.cast_vote(1, "yes", stake_amount),
-        seq(),
-        fee=StdFee(4000000, "200000uluna"),
+    poll_msg = Governance.create_execute_msg(
+        factory_contract, gov_create_basket_msg
     )
-
-    # ensure poll results are reflected on chain
-    time.sleep(5)
-
-    result = execute_contract(
-        deployer,
-        gov_contract,
-        Governance.end_poll(1),
-        seq(),
-        fee=StdFee(4000000, "20000000uluna"),
-    )
-
-    result = execute_contract(
-        deployer,
-        gov_contract,
-        Governance.execute_poll(1),
-        seq(),
-        fee=StdFee(4000000, "20000000uluna"),
-    )
+    result = create_and_vote_poll(deployer, nebula_token, poll_msg, gov_contract)
 
     logs = result.logs[0].events_by_type
     instantiation_logs = logs["instantiate_contract"]
@@ -101,6 +61,33 @@ def create_cluster_through_governance(penalty_contract, factory_contract, oracle
 
     print(f"[deploy] - basket {basket}, basket_token {basket_token}, pair_contract {pair_contract}, lp_token {lp_token}")
     # print(basket, basket_token, pair_contract, lp_token)
+
+    print(f"[deploy] - resetting composition oracle to deployer address")
+
+    recomposition_oracle_msg = Basket.reset_composition_oracle(deployer.key.acc_address)
+
+    poll_msg = Governance.create_execute_msg(
+        basket, recomposition_oracle_msg
+    )
+    result = create_and_vote_poll(deployer, nebula_token, poll_msg, gov_contract)
+
+    print(f"[deploy] - reset target to 50-50")
+
+    result = execute_contract(
+        deployer,
+        basket,
+        Basket.reset_target(
+                [
+                    Asset.cw20_asset_info(wBTC),
+                    Asset.cw20_asset_info(wETH),
+                ],
+                [50, 50]
+            ),
+        seq(),
+        fee=StdFee(
+            4000000, "20000000uluna"
+        ), 
+    )
 
     print("Cluster created through governance")
     return basket, basket_token, pair_contract, lp_token

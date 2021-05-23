@@ -87,7 +87,7 @@ def deploy():
     # instantiate nebula governance contract
     gov_contract = instantiate_gov_contract(gov_code_id, nebula_token)
 
-    community_contract = insantiate_community_contract(community_id, gov_contract, nebula_token)
+    community_contract = instantiate_community_contract(community_id, gov_contract, nebula_token)
 
     airdrop_contract = instantiate_airdrop_contract(airdrop_id, nebula_token)
 
