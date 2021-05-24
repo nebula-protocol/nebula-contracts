@@ -197,6 +197,7 @@ dependencies = [
 name = "basket-incentives"
 version = "1.1.0"
 dependencies = [
+ "basket-math",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",

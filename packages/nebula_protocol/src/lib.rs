@@ -7,3 +7,4 @@ pub mod penalty;
 pub mod cluster;
 pub mod airdrop;
 pub mod staking;
+pub mod incentives;

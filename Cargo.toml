@@ -1,3 +1,6 @@
+[profile.release]
+incremental = true
+
 [workspace]
 
 members = [

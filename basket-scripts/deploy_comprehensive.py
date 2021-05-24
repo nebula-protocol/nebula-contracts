@@ -47,14 +47,30 @@ sequence = deployer.sequence()
 
 
 def deploy():
+
+
+    # c = "terra1ksxfq8c0auzu4srlrwj0ufk3c90cahj2d7v7s6"
+    #
+    # basket_tokens = terra.wasm.contract_query(
+    #     c, {"pool": {}}
+    # )
+    # print(basket_tokens)
+    # exit()
+
     print(f"DEPLOYING WITH ACCCOUNT: {deployer.key.acc_address}")
-    token_code_id, oracle_code_id, basket_code_id, penalty_code_id, terraswap_factory_code_id, pair_code_id, staking_code_id, collector_code_id, gov_code_id, factory_code_id, community_id, airdrop_id = get_contract_ids()
+    token_code_id, oracle_code_id, basket_code_id, penalty_code_id, terraswap_factory_code_id, pair_code_id, staking_code_id, collector_code_id, gov_code_id, factory_code_id, community_id, airdrop_id, incentives_id = get_contract_ids()
 
     terraswap_factory_contract = instantiate_terraswap_factory_contract(terraswap_factory_code_id, pair_code_id, token_code_id)
 
     factory_contract = instantiate_factory_contract(factory_code_id, token_code_id, basket_code_id)
 
     nebula_token = instantiate_nebula_token(token_code_id, factory_contract)
+
+    inventives_contract = instantiate_incentives_contract(
+        incentives_id,
+        factory_contract,
+        terraswap_factory_contract
+    )
 
     print(f"[deploy] - create terraswap pair from factory for neb token")
     resp = execute_contract(
@@ -172,18 +188,58 @@ def deploy():
     basket_operations(wBTC, wETH, basket_token, collector_contract, pair_contract, basket, nebula_token)
 
 
-    # GOVERNANCE VOTING FOR NEB REWARDS
-    create_new_penalty_with_gov(nebula_token, gov_contract, penalty_code_id, collector_contract, basket)
+    # # GOVERNANCE VOTING FOR NEB REWARDS
+    # create_new_penalty_with_gov(nebula_token, gov_contract, penalty_code_id, collector_contract, basket)
+    #
+    # # QUERY BALANCES POST OPERATIONS
+    # lp_staking_queries(lp_token, staking_contract, basket_token, factory_contract, nebula_token)
+    #
+    #
+    # # TEST COMMUNITY VOTING
+    # community_operations(nebula_token, community_contract, gov_contract)
+    #
+    # # TEST AIRDROP OPERATIONS
+    # airdrop_operation(nebula_token, airdrop_contract)
 
-    # QUERY BALANCES POST OPERATIONS
-    lp_staking_queries(lp_token, staking_contract, basket_token, factory_contract, nebula_token)
+    arb_mint_tx = deployer.create_and_sign_tx(
+        msgs=[
+            MsgExecuteContract(
+                deployer.key.acc_address,
+                wBTC,
+                {"increase_allowance": {"spender": inventives_contract, "amount": "10000000"}},
+            ),
+            MsgExecuteContract(
+                deployer.key.acc_address,
+                wETH,
+                {"increase_allowance": {"spender": inventives_contract, "amount": "10000000"}},
+            ),
+            MsgExecuteContract(
+                deployer.key.acc_address,
+                inventives_contract,
+                {
+                    "arb_cluster_mint": {
+                        "basket_contract": basket,
+                        "assets": [Asset.asset(wBTC, "10000000"), Asset.asset(wETH, "10000000")],
+                    }
+                }
+            ),
+        ],
+        sequence=seq(),
+        fee=StdFee(4000000, "2000000uluna"),
+    )
+    result = terra.tx.broadcast(arb_mint_tx)
+    print(factory_contract, terraswap_factory_contract, deployer.key.acc_address)
+    if result.is_tx_error():
+        raise Exception(result.raw_log)
 
+    for log in result.logs:
+        import pprint
+        pprint.pprint(log.events_by_type)
 
-    # TEST COMMUNITY VOTING
-    community_operations(nebula_token, community_contract, gov_contract)
-
-    # TEST AIRDROP OPERATIONS
-    airdrop_operation(nebula_token, airdrop_contract)
+    basket_tokens = terra.wasm.contract_query(
+        basket_token, {"balance": {"address": inventives_contract}}
+    )
+    print(basket_tokens)
 
 
 

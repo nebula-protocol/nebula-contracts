@@ -129,4 +129,7 @@ def get_contract_ids():
     print(f"[deploy] - store airdrop")
     airdrop_id = store_contract("airdrop", seq())
 
-    return token_code_id, oracle_code_id, basket_code_id, penalty_code_id, terraswap_factory_code_id, pair_code_id, staking_code_id, collector_code_id, gov_code_id, factory_code_id, community_id, airdrop_id
+    print(f"[deploy] - store incentives")
+    incentives_id = store_contract("basket_incentives", seq())
+
+    return token_code_id, oracle_code_id, basket_code_id, penalty_code_id, terraswap_factory_code_id, pair_code_id, staking_code_id, collector_code_id, gov_code_id, factory_code_id, community_id, airdrop_id, incentives_id
