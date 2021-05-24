@@ -171,7 +171,7 @@ def instantiate_oracle_contract(oracle_code_id):
     oracle = instantiate_contract(oracle_code_id, {}, seq())
     return oracle
 
-def insantiate_community_contract(community_id, gov_contract, nebula_token):
+def instantiate_community_contract(community_id, gov_contract, nebula_token):
     # instantiate community pool
     print(f"[deploy] - instantiate community pool")
     nebula_community = instantiate_contract(

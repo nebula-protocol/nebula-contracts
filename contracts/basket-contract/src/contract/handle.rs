@@ -39,7 +39,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::ResetTarget { assets, target } => try_reset_target(deps, env, &assets, &target),
         HandleMsg::_SetBasketToken { basket_token } => {
             try_set_basket_token(deps, env, &basket_token)
-        }
+        },
+        HandleMsg::ResetCompositionOracle { composition_oracle } => try_reset_composition_oracle(deps, env, &composition_oracle),
         HandleMsg::ResetPenalty { penalty } => try_reset_penalty(deps, env, &penalty),
         HandleMsg::_ResetOwner { owner } => try_reset_owner(deps, env, &owner),
     }
@@ -255,7 +256,7 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
         return Err(error::basket_token_not_set());
     }
     // check permission
-    if env.message.sender != cfg.owner {
+    if (env.message.sender != cfg.owner) && (env.message.sender != cfg.composition_oracle) {
         return Err(StdError::unauthorized());
     }
 
@@ -272,9 +273,6 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     for i in 0..target.len() {
         let asset_elem = TargetAssetData {
             asset: assets[i].clone(),
-            // asset: AssetInfo::Token {
-            //     contract_addr: assets[i].clone(),
-            // },
             target: target[i].clone(),
         };
         asset_data.push(asset_elem);
@@ -304,6 +302,30 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
             log("updated_assets", vec_to_string(&updated_assets)),
             log("updated_targets", vec_to_string(&updated_target)),
         ],
+        data: None,
+    })
+}
+
+// Changes the composotion oracle contract for this basket
+pub fn try_reset_composition_oracle<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    composition_oracle: &HumanAddr,
+) -> StdResult<HandleResponse> {
+    let cfg = read_config(&deps.storage)?;
+
+    // check permission
+    if env.message.sender != cfg.owner {
+        return Err(StdError::unauthorized());
+    }
+
+    let mut new_cfg = cfg.clone();
+    new_cfg.composition_oracle = composition_oracle.clone();
+    save_config(&mut deps.storage, &new_cfg)?;
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![log("action", "reset_composition_oracle"), log("composition_oracle", &composition_oracle)],
         data: None,
     })
 }
