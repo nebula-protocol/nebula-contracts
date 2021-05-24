@@ -41,7 +41,6 @@ impl FPDecimal {
         r = r + FPDecimal::LN_1_5;
 
         let mut m = FPDecimal::ONE * v / (v + FPDecimal { num: U256([3, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1 });
-        // println!("figure out why this is weird {}", (FPDecimal { num: U256([3, 0, 0, 0]), sign: 1 }) * FPDecimal::ONE);
         
         r = r + FPDecimal { num: U256([2, 0, 0, 0]) * FPDecimal::ONE.num, sign: 1 } * m;
         let m2 = m * m / FPDecimal::ONE;
