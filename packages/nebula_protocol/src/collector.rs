@@ -1,8 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{HumanAddr, Uint128};
-use cw20::Cw20ReceiveMsg;
+use cosmwasm_std::{HumanAddr};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
@@ -16,21 +15,10 @@ pub struct InitMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
-    _ResetOwner {
-        owner: HumanAddr,
-    },
-    Receive(Cw20ReceiveMsg),
     Convert {
         asset_token: HumanAddr,
     },
     Distribute {},
-    RecordPenalty {
-        asset_address: HumanAddr,
-        reward_owner: HumanAddr,
-        penalty_amount: Uint128,
-    },
-    Withdraw {},
-    NewPenaltyPeriod {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -47,13 +35,6 @@ pub struct ConfigResponse {
     pub nebula_token: HumanAddr,
     pub base_denom: String,
     pub owner: HumanAddr,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum Cw20HookMsg {
-    /// Deposit rewards to be distributed among stakers and voters
-    DepositReward { rewards: Vec<(HumanAddr, Uint128)> },
 }
 
 /// We currently take no arguments for migrations

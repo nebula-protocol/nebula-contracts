@@ -185,6 +185,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "basket-incentives"
+version = "1.1.0"
+dependencies = [
+ "basket-math",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cosmwasm-vm",
+ "cw20",
+ "nebula-protocol",
+ "schemars",
+ "serde",
+ "terra-cosmwasm",
+ "terraswap",
+]
+
+[[package]]
 name = "basket-math"
 version = "0.1.0"
 dependencies = [

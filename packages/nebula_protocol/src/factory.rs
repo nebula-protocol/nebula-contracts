@@ -12,7 +12,6 @@ pub struct InitMsg {
     pub base_denom: String,
     pub protocol_fee_rate: String,
     pub distribution_schedule: Vec<(u64, u64, Uint128)>, // [[start_time, end_time, distribution_amount], [], ...]
-    pub distribution_schedule_rebalancers: Vec<(u64, u64, Uint128)>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -59,8 +58,6 @@ pub enum HandleMsg {
     },
 
     Distribute {},
-
-    DistributeRebalancers {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -85,7 +82,6 @@ pub struct ConfigResponse {
     pub base_denom: String,
     pub genesis_time: u64,
     pub distribution_schedule: Vec<(u64, u64, Uint128)>,
-    pub distribution_schedule_rebalancers: Vec<(u64, u64, Uint128)>,
 
 }
 

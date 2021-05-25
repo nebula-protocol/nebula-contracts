@@ -32,8 +32,7 @@ def instantiate_factory_contract(factory_code_id, token_code_id, basket_code_id)
             "protocol_fee_rate": "0.001",
             # rewards for lp stakers
             "distribution_schedule": [[0, 100000, "1000000"]],
-            # rewards for rebalance miners
-            "distribution_schedule_rebalancers": [[0, 100000, "1000000"]],        },
+        },
         seq(),
     )
     return factory_contract
@@ -206,7 +205,6 @@ def instantiate_incentives_contract(incentives_id, factory_contract, terraswap_f
             "owner": deployer.key.acc_address,
             "factory": factory_contract,
             "terraswap_factory": terraswap_factory,
-            # nobody cares for now
             "nebula_token": factory_contract,
             "base_denom": "uusd"
         },

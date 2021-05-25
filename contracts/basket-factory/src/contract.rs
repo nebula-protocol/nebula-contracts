@@ -4,9 +4,8 @@ use cosmwasm_std::{
 };
 
 use crate::state::{
-    cluster_exists, increase_total_weight, read_all_weight, read_config, read_last_distributed,
-    read_last_distributed_rebalancers, read_params, read_total_weight, read_weight, record_cluster,
-    remove_params, store_config, store_last_distributed, store_last_distributed_rebalancers,
+    cluster_exists, increase_total_weight, read_all_weight, read_config, read_last_distributed, read_params, read_total_weight, read_weight, record_cluster,
+    remove_params, store_config, store_last_distributed,
     store_params, store_total_weight, store_weight, Config,
 };
 
@@ -15,9 +14,6 @@ use nebula_protocol::factory::{
 };
 
 use nebula_protocol::cluster::{HandleMsg as BasketHandleMsg, InitMsg as BasketInitMsg};
-use nebula_protocol::collector::{
-    Cw20HookMsg as CollectorCw20HookMsg, HandleMsg as CollectorHandleMsg,
-};
 use nebula_protocol::staking::{Cw20HookMsg as StakingCw20HookMsg, HandleMsg as StakingHandleMsg};
 
 use cw20::{Cw20HandleMsg, MinterResponse};
@@ -34,9 +30,6 @@ const NORMAL_TOKEN_WEIGHT: u32 = 30u32;
 // change them back before we release anything...
 // real value is 60u64
 const DISTRIBUTION_INTERVAL: u64 = 1u64;
-
-// real value is 604800u64 (one week)
-const REBALANCER_DISTRIBUTION_INTERVAL: u64 = 1u64;
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -58,13 +51,11 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
             base_denom: msg.base_denom,
             genesis_time: env.block.time,
             distribution_schedule: msg.distribution_schedule,
-            distribution_schedule_rebalancers: msg.distribution_schedule_rebalancers,
         },
     )?;
 
     store_total_weight(&mut deps.storage, 0u32)?;
     store_last_distributed(&mut deps.storage, env.block.time)?;
-    store_last_distributed_rebalancers(&mut deps.storage, env.block.time)?;
     Ok(InitResponse::default())
 }
 
@@ -115,7 +106,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             terraswap_creation_hook(deps, env, asset_token)
         }
         HandleMsg::Distribute {} => distribute(deps, env),
-        HandleMsg::DistributeRebalancers {} => distribute_rebalancers(deps, env),
         HandleMsg::PassCommand { contract_addr, msg } => {
             pass_command(deps, env, contract_addr, msg)
         }
@@ -564,74 +554,6 @@ pub fn distribute<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-/// Distribute to collector
-/// Anyone can execute distribute operation to distribute
-/// nebula inflation rewards to rebalance miners
-pub fn distribute_rebalancers<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-) -> HandleResult {
-    let last_distributed = read_last_distributed_rebalancers(&deps.storage)?;
-    if last_distributed + REBALANCER_DISTRIBUTION_INTERVAL > env.block.time {
-        return Err(StdError::generic_err(
-            "Cannot distribute nebula token before interval",
-        ));
-    }
-
-    let config: Config = read_config(&deps.storage)?;
-    let time_elapsed = env.block.time - config.genesis_time;
-    let last_time_elapsed = last_distributed - config.genesis_time;
-    let mut target_distribution_amount: Uint128 = Uint128::zero();
-
-    for s in config.distribution_schedule_rebalancers.iter() {
-        if s.0 > time_elapsed || s.1 < last_time_elapsed {
-            continue;
-        }
-
-        // min(s.1, time_elapsed) - max(s.0, last_time_elapsed)
-        let time_duration =
-            std::cmp::min(s.1, time_elapsed) - std::cmp::max(s.0, last_time_elapsed);
-
-        let time_slot = s.1 - s.0;
-        let distribution_amount_per_sec: Decimal = Decimal::from_ratio(s.2, time_slot);
-        target_distribution_amount += distribution_amount_per_sec * Uint128(time_duration as u128);
-    }
-
-    let collector_contract = deps.api.human_address(&config.commission_collector)?;
-    let nebula_token = deps.api.human_address(&config.nebula_token)?;
-
-    let (rewards, distribution_amount) =
-        _compute_rewards(&deps, target_distribution_amount)?;
-
-    // store last distributed
-    store_last_distributed_rebalancers(&mut deps.storage, env.block.time)?;
-
-    // mint token to self and try send minted tokens to staking contract
-    Ok(HandleResponse {
-        messages: vec![
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: nebula_token.clone(),
-                msg: to_binary(&Cw20HandleMsg::Send {
-                    contract: collector_contract.clone(),
-                    amount: distribution_amount,
-                    msg: Some(to_binary(&CollectorCw20HookMsg::DepositReward { rewards })?),
-                })?,
-                send: vec![],
-            }),
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: collector_contract.clone(),
-                msg: to_binary(&CollectorHandleMsg::NewPenaltyPeriod {})?,
-                send: vec![],
-            }),
-        ],
-        log: vec![
-            log("action", "distribute"),
-            log("distribution_amount", distribution_amount.to_string()),
-        ],
-        data: None,
-    })
-}
-
 pub fn _compute_rewards<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     target_distribution_amount: Uint128,
@@ -685,7 +607,6 @@ pub fn query_config<S: Storage, A: Api, Q: Querier>(
         base_denom: state.base_denom,
         genesis_time: state.genesis_time,
         distribution_schedule: state.distribution_schedule,
-        distribution_schedule_rebalancers: state.distribution_schedule_rebalancers,
     };
 
     Ok(resp)

@@ -48,15 +48,6 @@ sequence = deployer.sequence()
 
 def deploy():
 
-
-    # c = "terra1ksxfq8c0auzu4srlrwj0ufk3c90cahj2d7v7s6"
-    #
-    # basket_tokens = terra.wasm.contract_query(
-    #     c, {"pool": {}}
-    # )
-    # print(basket_tokens)
-    # exit()
-
     print(f"DEPLOYING WITH ACCCOUNT: {deployer.key.acc_address}")
     token_code_id, oracle_code_id, basket_code_id, penalty_code_id, terraswap_factory_code_id, pair_code_id, staking_code_id, collector_code_id, gov_code_id, factory_code_id, community_id, airdrop_id, incentives_id = get_contract_ids()
 
@@ -66,7 +57,7 @@ def deploy():
 
     nebula_token = instantiate_nebula_token(token_code_id, factory_contract)
 
-    inventives_contract = instantiate_incentives_contract(
+    incentives_contract = instantiate_incentives_contract(
         incentives_id,
         factory_contract,
         terraswap_factory_contract
@@ -201,33 +192,30 @@ def deploy():
     # # TEST AIRDROP OPERATIONS
     # airdrop_operation(nebula_token, airdrop_contract)
 
-    arb_mint_tx = deployer.create_and_sign_tx(
+    arb_redeem_tx = deployer.create_and_sign_tx(
         msgs=[
             MsgExecuteContract(
                 deployer.key.acc_address,
-                wBTC,
-                {"increase_allowance": {"spender": inventives_contract, "amount": "10000000"}},
-            ),
-            MsgExecuteContract(
-                deployer.key.acc_address,
-                wETH,
-                {"increase_allowance": {"spender": inventives_contract, "amount": "10000000"}},
-            ),
-            MsgExecuteContract(
-                deployer.key.acc_address,
-                inventives_contract,
+                incentives_contract,
                 {
-                    "arb_cluster_mint": {
+                    "arb_cluster_redeem": {
                         "basket_contract": basket,
-                        "assets": [Asset.asset(wBTC, "10000000"), Asset.asset(wETH, "10000000")],
+                        "asset": Asset.asset("uusd", "500", native=True),
                     }
-                }
+                },
+                {"uusd": "500"}
             ),
         ],
         sequence=seq(),
         fee=StdFee(4000000, "2000000uluna"),
     )
-    result = terra.tx.broadcast(arb_mint_tx)
+
+    print("PAIR", terra.wasm.contract_query(
+        pair_contract,
+        {"pool": {}}
+    ))
+
+    result = terra.tx.broadcast(arb_redeem_tx)
     print(factory_contract, terraswap_factory_contract, deployer.key.acc_address)
     if result.is_tx_error():
         raise Exception(result.raw_log)
@@ -235,12 +223,6 @@ def deploy():
     for log in result.logs:
         import pprint
         pprint.pprint(log.events_by_type)
-
-    basket_tokens = terra.wasm.contract_query(
-        basket_token, {"balance": {"address": inventives_contract}}
-    )
-    print(basket_tokens)
-
 
 
 deploy()
