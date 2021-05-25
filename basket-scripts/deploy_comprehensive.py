@@ -179,18 +179,18 @@ def deploy():
     basket_operations(wBTC, wETH, basket_token, collector_contract, pair_contract, basket, nebula_token)
 
 
-    # # GOVERNANCE VOTING FOR NEB REWARDS
-    # create_new_penalty_with_gov(nebula_token, gov_contract, penalty_code_id, collector_contract, basket)
-    #
-    # # QUERY BALANCES POST OPERATIONS
-    # lp_staking_queries(lp_token, staking_contract, basket_token, factory_contract, nebula_token)
-    #
-    #
-    # # TEST COMMUNITY VOTING
-    # community_operations(nebula_token, community_contract, gov_contract)
-    #
-    # # TEST AIRDROP OPERATIONS
-    # airdrop_operation(nebula_token, airdrop_contract)
+    # GOVERNANCE VOTING FOR NEB REWARDS
+    create_new_penalty_with_gov(nebula_token, gov_contract, penalty_code_id, collector_contract, basket)
+
+    # QUERY BALANCES POST OPERATIONS
+    lp_staking_queries(lp_token, staking_contract, basket_token, factory_contract, nebula_token)
+
+
+    # TEST COMMUNITY VOTING
+    community_operations(nebula_token, community_contract, gov_contract)
+
+    # TEST AIRDROP OPERATIONS
+    airdrop_operation(nebula_token, airdrop_contract)
 
     arb_redeem_tx = deployer.create_and_sign_tx(
         msgs=[

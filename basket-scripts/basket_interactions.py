@@ -170,37 +170,37 @@ def basket_operations(wBTC, wETH, basket_token, collector_contract, pair_contrac
     print("Basket state after initialize --", debug_print)
 
     result = add_liquidity(basket_token, pair_contract)
-    #
-    # # COLLECTOR SWAPS BASKET INTO NEBULA
-    # print(f"[deploy] telling collector to convert basket to uusd")
-    # execute_contract(
-    #     deployer, collector_contract, {"convert": {"asset_token": basket_token}}, seq()
-    # )
-    #
-    # basket_tokens = terra.wasm.contract_query(
-    #     basket_token, {"balance": {"address": collector_contract}}
-    # )
-    #
-    # print(f"[deploy] - collector basket balance {basket_tokens}")
-    # print(f"[deploy] telling collector to convert uusd to nebula")
-    # execute_contract(
-    #     deployer, collector_contract, {"convert": {"asset_token": nebula_token}}, seq()
-    # )
-    #
-    # nebula_tokens = terra.wasm.contract_query(
-    #     nebula_token, {"balance": {"address": collector_contract}}
-    # )
-    #
-    # print(f"[deploy] - collector nebula balance {nebula_tokens}")
-    #
-    # basket_tokens = terra.wasm.contract_query(
-    #     basket_token, {"balance": {"address": deployer.key.acc_address}}
-    # )
-    # print("Before redeem", basket_tokens)
-    # redeem(basket, basket_token, wBTC, wETH)
-    #
-    # basket_tokens = terra.wasm.contract_query(
-    #     basket_token, {"balance": {"address": deployer.key.acc_address}}
-    # )
-    #
-    # print("After redeem", basket_tokens)
+
+    # COLLECTOR SWAPS BASKET INTO NEBULA
+    print(f"[deploy] telling collector to convert basket to uusd")
+    execute_contract(
+        deployer, collector_contract, {"convert": {"asset_token": basket_token}}, seq()
+    )
+
+    basket_tokens = terra.wasm.contract_query(
+        basket_token, {"balance": {"address": collector_contract}}
+    )
+
+    print(f"[deploy] - collector basket balance {basket_tokens}")
+    print(f"[deploy] telling collector to convert uusd to nebula")
+    execute_contract(
+        deployer, collector_contract, {"convert": {"asset_token": nebula_token}}, seq()
+    )
+
+    nebula_tokens = terra.wasm.contract_query(
+        nebula_token, {"balance": {"address": collector_contract}}
+    )
+
+    print(f"[deploy] - collector nebula balance {nebula_tokens}")
+
+    basket_tokens = terra.wasm.contract_query(
+        basket_token, {"balance": {"address": deployer.key.acc_address}}
+    )
+    print("Before redeem", basket_tokens)
+    redeem(basket, basket_token, wBTC, wETH)
+
+    basket_tokens = terra.wasm.contract_query(
+        basket_token, {"balance": {"address": deployer.key.acc_address}}
+    )
+
+    print("After redeem", basket_tokens)
