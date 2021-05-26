@@ -73,7 +73,7 @@ pub fn withdraw_reward<S: Storage, A: Api, Q: Querier>(
         )?;
     }
 
-    let reward_amt = read_pending_rewards(&deps.storage, &reward_owner)?;
+    let reward_amt = read_pending_rewards(&deps.storage, &reward_owner);
     store_pending_rewards(&mut deps.storage, &reward_owner, Uint128::zero())?;
 
     let config: Config = read_config(&deps.storage)?;

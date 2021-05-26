@@ -357,6 +357,7 @@ pub fn record_terraswap_impact<S: Storage, A: Api, Q: Querier>(
         log: vec![
             log("fair_value", fair_value),
             log("arbitrage_imbalance_fixed", imbalance_fixed),
+            log("arbitrage_imbalance_sign", imbalance_fixed.sign),
             log("imb0", imb0),
             log("imb1", imb1),
         ],

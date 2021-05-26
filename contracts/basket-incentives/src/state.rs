@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{CanonicalAddr, HumanAddr, ReadonlyStorage, StdResult, Storage, Uint128, Extern, Api, Querier};
+use cosmwasm_std::{Api, CanonicalAddr, Extern, HumanAddr, Querier, ReadonlyStorage, StdResult, Storage, Uint128, StdError};
 use cosmwasm_storage::{singleton, singleton_read, Bucket, ReadonlyBucket};
 
 static KEY_CONFIG: &[u8] = b"config";
@@ -15,7 +15,7 @@ static PREFIX_REWARD: &[u8] = b"reward";
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
     pub factory: CanonicalAddr,
-    pub terraswap_factory: CanonicalAddr,     // terraswap factory contract
+    pub terraswap_factory: CanonicalAddr, // terraswap factory contract
     pub nebula_token: CanonicalAddr,
     pub base_denom: String,
     pub owner: HumanAddr,
@@ -36,7 +36,6 @@ pub fn store_current_n<S: Storage>(storage: &mut S, n: u64) -> StdResult<()> {
 pub fn read_current_n<S: Storage>(storage: &S) -> StdResult<u64> {
     singleton_read(storage, CURRENT_N).load()
 }
-
 
 // each pool is derived from a combination of n, pool_type, and asset_address
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -81,12 +80,19 @@ pub fn read_from_pool_bucket<S: Storage>(
 }
 
 // amount of nebula each person is owed
-pub fn store_pending_rewards<S: Storage>(storage: &mut S, owner: &CanonicalAddr, amt: Uint128) -> StdResult<()>{
+pub fn store_pending_rewards<S: Storage>(
+    storage: &mut S,
+    owner: &CanonicalAddr,
+    amt: Uint128,
+) -> StdResult<()> {
     Bucket::new(PREFIX_PENDING_REWARDS, storage).save(owner.as_slice(), &amt)
 }
 
-pub fn read_pending_rewards<S: Storage>(storage: &S, owner: &CanonicalAddr) -> StdResult<Uint128>{
-    ReadonlyBucket::new(PREFIX_PENDING_REWARDS, storage).load(owner.as_slice())
+pub fn read_pending_rewards<S: Storage>(storage: &S, owner: &CanonicalAddr) -> Uint128 {
+    match ReadonlyBucket::new(PREFIX_PENDING_REWARDS, storage).load(owner.as_slice()) {
+        Ok(pending_reward) => pending_reward,
+        Err(_) => Uint128::zero()
+    }
 }
 
 // each pool contribution is derived from a combination of pool_type, asset_address,
@@ -103,9 +109,12 @@ pub struct PoolContribution {
 pub fn contributions_store<'a, S: Storage>(
     storage: &'a mut S,
     owner: &CanonicalAddr,
-    pool_type: u16
+    pool_type: u16,
 ) -> Bucket<'a, S, PoolContribution> {
-    Bucket::multilevel(&[PREFIX_REWARD, &owner.as_slice(), &pool_type.to_be_bytes()], storage)
+    Bucket::multilevel(
+        &[PREFIX_REWARD, &owner.as_slice(), &pool_type.to_be_bytes()],
+        storage,
+    )
 }
 
 /// returns a bucket with all contributions owned by this owner for this pool type
@@ -115,7 +124,10 @@ pub fn contributions_read<'a, S: ReadonlyStorage>(
     owner: &CanonicalAddr,
     pool_type: u16,
 ) -> ReadonlyBucket<'a, S, PoolContribution> {
-    ReadonlyBucket::multilevel(&[PREFIX_REWARD, &owner.as_slice(), &pool_type.to_be_bytes()], storage)
+    ReadonlyBucket::multilevel(
+        &[PREFIX_REWARD, &owner.as_slice(), &pool_type.to_be_bytes()],
+        storage,
+    )
 }
 
 pub fn read_from_contribution_bucket<S: Storage>(
@@ -141,7 +153,6 @@ pub fn contributions_to_pending_rewards<S: Storage>(
     pool_type: u16,
     asset_address: &CanonicalAddr,
 ) -> StdResult<()> {
-
     let contribution_bucket = contributions_read(storage, &owner_address, pool_type);
     let mut contribution = read_from_contribution_bucket(&contribution_bucket, &asset_address);
 
@@ -151,16 +162,18 @@ pub fn contributions_to_pending_rewards<S: Storage>(
         let pool_info = read_from_pool_bucket(&pool_bucket, &asset_address);
 
         // using integers here .. do we care if the remaining fractions of nebula stay in this contract?
-        let new_pending_reward = read_pending_rewards(storage, &owner_address)?
+        let new_pending_reward = read_pending_rewards(storage, &owner_address)
             + Uint128(
-            pool_info.reward_total.u128() * contribution.value_contributed.u128()
-                / pool_info.value_total.u128(),
-        );
+                pool_info.reward_total.u128() * contribution.value_contributed.u128()
+                    / pool_info.value_total.u128(),
+            );
         store_pending_rewards(storage, &owner_address, new_pending_reward)?;
 
         contribution.value_contributed = Uint128::zero();
     }
     contribution.n = n;
+    contributions_store(storage, &owner_address, pool_type)
+        .save(&asset_address.as_slice(), &contribution)?;
     Ok(())
 }
 
@@ -173,12 +186,7 @@ pub fn record_contribution<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<()> {
     let n = read_current_n(&deps.storage)?;
 
-    contributions_to_pending_rewards(
-        &mut deps.storage,
-        &contributor,
-        pool_type,
-        &asset_address,
-    )?;
+    contributions_to_pending_rewards(&mut deps.storage, &contributor, pool_type, &asset_address)?;
 
     let pool_bucket = pool_info_read(&deps.storage, pool_type, n);
     let mut pool_info = read_from_pool_bucket(&pool_bucket, &asset_address);

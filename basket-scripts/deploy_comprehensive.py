@@ -60,7 +60,8 @@ def deploy():
     incentives_contract = instantiate_incentives_contract(
         incentives_id,
         factory_contract,
-        terraswap_factory_contract
+        terraswap_factory_contract,
+        nebula_token
     )
 
     print(f"[deploy] - create terraswap pair from factory for neb token")
@@ -192,37 +193,73 @@ def deploy():
     # TEST AIRDROP OPERATIONS
     airdrop_operation(nebula_token, airdrop_contract)
 
-    arb_redeem_tx = deployer.create_and_sign_tx(
-        msgs=[
-            MsgExecuteContract(
-                deployer.key.acc_address,
-                incentives_contract,
-                {
-                    "arb_cluster_redeem": {
-                        "basket_contract": basket,
-                        "asset": Asset.asset("uusd", "500", native=True),
-                    }
-                },
-                {"uusd": "500"}
-            ),
-        ],
-        sequence=seq(),
-        fee=StdFee(4000000, "2000000uluna"),
-    )
-
     print("PAIR", terra.wasm.contract_query(
         pair_contract,
         {"pool": {}}
     ))
 
-    result = terra.tx.broadcast(arb_redeem_tx)
-    print(factory_contract, terraswap_factory_contract, deployer.key.acc_address)
-    if result.is_tx_error():
-        raise Exception(result.raw_log)
+    for _ in range(3):
+        arb_redeem_tx = deployer.create_and_sign_tx(
+            msgs=[
+                MsgExecuteContract(
+                    deployer.key.acc_address,
+                    incentives_contract,
+                    {
+                        "arb_cluster_redeem": {
+                            "basket_contract": basket,
+                            "asset": Asset.asset("uusd", "500", native=True),
+                        }
+                    },
+                    {"uusd": "500"}
+                ),
+            ],
+            sequence=seq(),
+            fee=StdFee(4000000, "2000000uluna"),
+        )
+
+        print("PAIR", terra.wasm.contract_query(
+            pair_contract,
+            {"pool": {}}
+        ))
+
+        result = terra.tx.broadcast(arb_redeem_tx)
+        print(factory_contract, terraswap_factory_contract, deployer.key.acc_address)
+        if result.is_tx_error():
+            raise Exception(result.raw_log)
+
+        for log in result.logs:
+            import pprint
+            pprint.pprint(log.events_by_type)
+
+    execute_contract(
+        deployer,
+        nebula_token,
+        CW20.send(
+            incentives_contract,
+            "1000",
+            {"deposit_reward": {"rewards": [[1, basket, "1000"]]}}
+        ),
+        seq()
+    )
+
+    execute_contract(
+        deployer,
+        incentives_contract,
+        {"new_penalty_period": {}},
+        seq()
+    )
+
+    result = execute_contract(
+        deployer,
+        incentives_contract,
+        {"withdraw": {}},
+        seq()
+    )
 
     for log in result.logs:
         import pprint
         pprint.pprint(log.events_by_type)
+
 
 
 deploy()
