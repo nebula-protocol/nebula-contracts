@@ -32,8 +32,7 @@ def instantiate_factory_contract(factory_code_id, token_code_id, basket_code_id)
             "protocol_fee_rate": "0.001",
             # rewards for lp stakers
             "distribution_schedule": [[0, 100000, "1000000"]],
-            # rewards for rebalance miners
-            "distribution_schedule_rebalancers": [[0, 100000, "1000000"]],        },
+        },
         seq(),
     )
     return factory_contract
@@ -197,3 +196,18 @@ def instantiate_airdrop_contract(airdrop_id, nebula_token):
         seq(),
     )
     return airdrop
+
+def instantiate_incentives_contract(incentives_id, factory_contract, terraswap_factory, nebula_token):
+    print(f"[deploy] - instantiate incentives contract")
+    incentives = instantiate_contract(
+        incentives_id,
+        {
+            "owner": deployer.key.acc_address,
+            "factory": factory_contract,
+            "terraswap_factory": terraswap_factory,
+            "nebula_token": nebula_token,
+            "base_denom": "uusd"
+        },
+        seq()
+    )
+    return incentives

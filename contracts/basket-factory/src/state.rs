@@ -10,7 +10,6 @@ static KEY_CONFIG: &[u8] = b"config";
 static KEY_PARAMS: &[u8] = b"params";
 static KEY_TOTAL_WEIGHT: &[u8] = b"total_weight";
 static KEY_LAST_DISTRIBUTED: &[u8] = b"last_distributed";
-static KEY_LAST_DISTRIBUTED_REBALANCERS: &[u8] = b"last_distributed_rebalancers";
 
 static PREFIX_WEIGHT: &[u8] = b"weight";
 static PREFIX_CLUSTERS: &[u8] = b"clusters";
@@ -29,7 +28,6 @@ pub struct Config {
     pub base_denom: String,
     pub genesis_time: u64,
     pub distribution_schedule: Vec<(u64, u64, Uint128)>, // [[start_time, end_time, distribution_amount], [], ...]
-    pub distribution_schedule_rebalancers: Vec<(u64, u64, Uint128)>,
 }
 
 pub fn store_config<S: Storage>(storage: &mut S, config: &Config) -> StdResult<()> {
@@ -90,15 +88,6 @@ pub fn store_last_distributed<S: Storage>(storage: &mut S, last_distributed: u64
 
 pub fn read_last_distributed<S: Storage>(storage: &S) -> StdResult<u64> {
     singleton_read(storage, KEY_LAST_DISTRIBUTED).load()
-}
-
-pub fn store_last_distributed_rebalancers<S: Storage>(storage: &mut S, last_distributed: u64) -> StdResult<()> {
-    let mut store: Singleton<S, u64> = singleton(storage, KEY_LAST_DISTRIBUTED_REBALANCERS);
-    store.save(&last_distributed)
-}
-
-pub fn read_last_distributed_rebalancers<S: Storage>(storage: &S) -> StdResult<u64> {
-    singleton_read(storage, KEY_LAST_DISTRIBUTED_REBALANCERS).load()
 }
 
 pub fn store_weight<S: Storage>(

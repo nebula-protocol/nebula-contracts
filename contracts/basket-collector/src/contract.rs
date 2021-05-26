@@ -1,9 +1,12 @@
-use cosmwasm_std::{log, to_binary, Api, Binary, Coin, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr, InitResponse, MigrateResponse, MigrateResult, Querier, StdResult, Storage, WasmMsg, from_binary, StdError, Uint128};
+use cosmwasm_std::{
+    log, to_binary, Api, Binary, Coin, CosmosMsg, Env, Extern, HandleResponse, HandleResult,
+    HumanAddr, InitResponse, MigrateResponse, MigrateResult, Querier, StdError, StdResult, Storage,
+    WasmMsg,
+};
 
-use crate::state::{read_config, store_config, Config, store_current_n};
-use crate::rewards::{deposit_reward, record_penalty, withdraw_reward, increment_n};
-use nebula_protocol::collector::{ConfigResponse, HandleMsg, InitMsg, MigrateMsg, QueryMsg, Cw20HookMsg};
-use nebula_protocol::gov::{Cw20HookMsg as GovCw20HookMsg};
+use crate::state::{read_config, store_config, Config};
+use nebula_protocol::collector::{ConfigResponse, HandleMsg, InitMsg, MigrateMsg, QueryMsg};
+use nebula_protocol::gov::Cw20HookMsg as GovCw20HookMsg;
 
 use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
 use terraswap::asset::{Asset, AssetInfo, PairInfo};
@@ -26,7 +29,6 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         },
     )?;
 
-    store_current_n(&mut deps.storage, 0)?;
     Ok(InitResponse::default())
 }
 
@@ -36,70 +38,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     match msg {
-        HandleMsg::_ResetOwner { owner } => try_reset_owner(deps, env, &owner),
-        HandleMsg::Receive(msg) => receive_cw20(deps, env, msg),
         HandleMsg::Convert { asset_token } => convert(deps, env, asset_token),
         HandleMsg::Distribute {} => distribute(deps, env),
-        HandleMsg::RecordPenalty {asset_address, reward_owner, penalty_amount} => record_penalty(deps, env, &reward_owner, &asset_address, penalty_amount),
-        HandleMsg::Withdraw {} => withdraw_reward(deps, env),
-        HandleMsg::NewPenaltyPeriod {} => new_penalty_period(deps, env),
-    }
-}
-
-
-pub fn try_reset_owner<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    owner: &HumanAddr,
-) -> StdResult<HandleResponse> {
-    let cfg = read_config(&deps.storage)?;
-
-    if env.message.sender != cfg.owner {
-        return Err(StdError::unauthorized());
-    }
-
-    let mut new_cfg = cfg.clone();
-    new_cfg.owner = owner.clone();
-    store_config(&mut deps.storage, &new_cfg)?;
-
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![
-            log("action", "_try_reset_owner"),
-        ],
-        data: None,
-    })
-}
-
-pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    cw20_msg: Cw20ReceiveMsg,
-) -> HandleResult {
-    if let Some(msg) = cw20_msg.msg {
-        let config: Config = read_config(&deps.storage)?;
-
-        match from_binary(&msg)? {
-            Cw20HookMsg::DepositReward { rewards } => {
-                // only reward token contract can execute this message
-                if config.nebula_token != deps.api.canonical_address(&env.message.sender)? {
-                    return Err(StdError::unauthorized());
-                }
-
-                let mut rewards_amount = Uint128::zero();
-                for (_, amount) in rewards.iter() {
-                    rewards_amount += *amount;
-                }
-
-                if rewards_amount != cw20_msg.amount {
-                    return Err(StdError::generic_err("rewards amount miss matched"));
-                }
-
-                deposit_reward(deps, rewards, cw20_msg.amount)
-            }
-        }
-    } else {
-        Err(StdError::generic_err("data should be given"))
     }
 }
 
@@ -227,14 +167,11 @@ pub fn new_penalty_period<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::unauthorized());
     }
 
-    increment_n(&mut deps.storage)?;
-    Ok(
-        HandleResponse {
-            messages: vec![],
-            log: vec![log("action", "new_penalty_period")],
-            data: None,
-        }
-    )
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![log("action", "new_penalty_period")],
+        data: None,
+    })
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(

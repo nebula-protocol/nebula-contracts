@@ -204,21 +204,6 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         send: vec![],
     }));
 
-    // record this penalty
-    if redeem_response.penalty > Uint128::zero() {
-        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: collector_address.clone(),
-            msg: to_binary(&CollectorHandleMsg::RecordPenalty {
-                asset_address: basket_token.clone(),
-                reward_owner: sender.clone(),
-                penalty_amount: redeem_response.penalty,
-            })?,
-            send: vec![],
-        }));
-    }
-
-
-
     Ok(HandleResponse {
         messages,
         log: vec![
@@ -536,19 +521,6 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
             })?,
             send: vec![],
         }));
-
-        // record this penalty for neb token rewards
-        if mint_response.penalty > Uint128::zero() {
-            messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: collector_address.clone(),
-                msg: to_binary(&CollectorHandleMsg::RecordPenalty {
-                    asset_address: basket_token.clone(),
-                    reward_owner: env.message.sender.clone(),
-                    penalty_amount: mint_response.penalty,
-                })?,
-                send: vec![],
-            }));
-        }
 
         extra_logs = mint_response.log;
         extra_logs.push(log("fee_amt", protocol_fee))

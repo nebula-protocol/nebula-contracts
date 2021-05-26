@@ -1,8 +1,16 @@
-use cosmwasm_std::{log, to_binary, Api, Binary, Env, Extern, HandleResponse, InitResponse, Querier, StdResult, Storage, Uint128, HumanAddr, StdError};
+use cosmwasm_std::{
+    log, to_binary, Api, Binary, Env, Extern, HandleResponse, HumanAddr, InitResponse, Querier,
+    StdError, StdResult, Storage, Uint128,
+};
 
-use nebula_protocol::penalty::{HandleMsg, InitMsg, MintResponse, ParamsResponse, QueryMsg, RedeemResponse, PenaltyParams};
 use crate::state::{read_config, save_config, PenaltyConfig};
-use basket_math::{abs, add, div_const, dot, mul, mul_const, sub, sum, FPDecimal};
+use basket_math::{
+    add, div_const, dot, imbalance, int32_vec_to_fpdec, int_vec_to_fpdec, mul, mul_const,
+    str_vec_to_fpdec, sub, sum, FPDecimal,
+};
+use nebula_protocol::penalty::{
+    HandleMsg, InitMsg, MintResponse, ParamsResponse, PenaltyParams, QueryMsg, RedeemResponse,
+};
 use std::cmp::{max, min};
 use std::str::FromStr;
 
@@ -19,34 +27,9 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 
         // know to fast forward to current net asset value if last_block == 0
         last_block: 0u64,
-
     };
     save_config(&mut deps.storage, &cfg)?;
     Ok(InitResponse::default())
-}
-
-pub fn int32_vec_to_fpdec(arr: &Vec<u32>) -> Vec<FPDecimal> {
-    arr.iter()
-        .map(|val| FPDecimal::from(*val as u128))
-        .collect()
-}
-
-pub fn int_vec_to_fpdec(arr: &Vec<Uint128>) -> Vec<FPDecimal> {
-    arr.iter().map(|val| FPDecimal::from(val.u128())).collect()
-}
-
-pub fn str_vec_to_fpdec(arr: &Vec<String>) -> StdResult<Vec<FPDecimal>> {
-    arr.iter()
-        .map(|val| FPDecimal::from_str(val))
-        .collect::<StdResult<Vec<FPDecimal>>>()
-}
-
-pub fn imbalance(i: &Vec<FPDecimal>, p: &Vec<FPDecimal>, w: &Vec<FPDecimal>) -> FPDecimal {
-    let wp =  dot(w, p);
-    let u = mul(w, p);
-    let err_portfolio = sub(&mul_const(&u, dot(i, p)), &mul_const(&mul(i, p), wp));
-
-    sum(&abs(&err_portfolio)) / wp
 }
 
 pub fn get_ema<S: Storage, A: Api, Q: Querier>(
@@ -67,7 +50,6 @@ pub fn get_ema<S: Storage, A: Api, Q: Querier>(
     } else {
         Ok(net_asset_val)
     }
-
 }
 
 pub fn notional_penalty<S: Storage, A: Api, Q: Querier>(
@@ -152,7 +134,14 @@ pub fn compute_mint<S: Storage, A: Api, Q: Querier>(
 
     Ok(MintResponse {
         mint_tokens: Uint128(mint_subtotal.into()),
-        penalty: Uint128((if penalty.sign == 1 { penalty } else { FPDecimal::zero()}).into()),
+        penalty: Uint128(
+            (if penalty.sign == 1 {
+                penalty
+            } else {
+                FPDecimal::zero()
+            })
+            .into(),
+        ),
         log: vec![log("penalty", penalty)],
     })
 }
@@ -201,7 +190,14 @@ pub fn compute_redeem<S: Storage, A: Api, Q: Querier>(
 
         Ok(RedeemResponse {
             token_cost: Uint128(token_cost),
-            penalty: Uint128((if penalty.sign == 1 { penalty } else { FPDecimal::zero()}).into()),
+            penalty: Uint128(
+                (if penalty.sign == 1 {
+                    penalty
+                } else {
+                    FPDecimal::zero()
+                })
+                .into(),
+            ),
             redeem_assets: r
                 .iter()
                 .map(|&x| Uint128(x.into()))
@@ -274,9 +270,7 @@ pub fn try_reset_owner<S: Storage, A: Api, Q: Querier>(
 
     Ok(HandleResponse {
         messages: vec![],
-        log: vec![
-            log("action", "_try_reset_owner"),
-        ],
+        log: vec![log("action", "_try_reset_owner")],
         data: None,
     })
 }
@@ -285,7 +279,7 @@ pub fn update_ema<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     block_height: u64,
     net_asset_val: FPDecimal,
-) -> StdResult<HandleResponse>{
+) -> StdResult<HandleResponse> {
     let cfg = read_config(&deps.storage)?;
     let mut new_cfg = cfg.clone();
     new_cfg.ema = get_ema(&deps, block_height, net_asset_val)?;
@@ -294,10 +288,9 @@ pub fn update_ema<S: Storage, A: Api, Q: Querier>(
     Ok(HandleResponse {
         messages: vec![],
         log: vec![log("new_ema", new_cfg.ema)],
-        data: None
+        data: None,
     })
 }
-
 
 pub fn handle_mint<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -333,7 +326,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     env: Env,
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
-
     let cfg = read_config(&deps.storage)?;
 
     // check permission
@@ -342,9 +334,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     }
 
     match msg {
-        HandleMsg::_ResetOwner {
-            owner
-        } => try_reset_owner(deps, &owner),
+        HandleMsg::_ResetOwner { owner } => try_reset_owner(deps, &owner),
         HandleMsg::Mint {
             block_height,
             basket_token_supply,
