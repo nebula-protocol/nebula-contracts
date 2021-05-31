@@ -16,6 +16,7 @@ pub fn stake_voting_tokens<S: Storage, A: Api, Q: Querier>(
     _env: Env,
     sender: HumanAddr,
     amount: Uint128,
+    time: 
 ) -> HandleResult {
     if amount.is_zero() {
         return Err(StdError::generic_err("Insufficient funds sent"));
@@ -41,6 +42,11 @@ pub fn stake_voting_tokens<S: Storage, A: Api, Q: Querier>(
     } else {
         amount.multiply_ratio(state.total_share, total_balance)
     };
+
+    //Increase share by time
+
+    //Lock tokens
+    //Keep track of locking time
 
     token_manager.share += share;
     state.total_share += share;
@@ -99,6 +105,7 @@ pub fn withdraw_voting_tokens<S: Storage, A: Api, Q: Querier>(
                 "User is trying to withdraw too many tokens.",
             ))
         } else {
+              //Check if locked time has passed before allowing
             let share = user_share - withdraw_share;
             token_manager.share = Uint128::from(share);
 
