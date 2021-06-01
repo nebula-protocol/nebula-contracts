@@ -49,7 +49,7 @@ sequence = deployer.sequence()
 def deploy():
 
     print(f"DEPLOYING WITH ACCCOUNT: {deployer.key.acc_address}")
-    token_code_id, oracle_code_id, basket_code_id, penalty_code_id, terraswap_factory_code_id, pair_code_id, staking_code_id, collector_code_id, gov_code_id, factory_code_id, community_id, airdrop_id, incentives_id = get_contract_ids()
+    token_code_id, oracle_code_id, basket_code_id, penalty_code_id, terraswap_factory_code_id, pair_code_id, staking_code_id, collector_code_id, gov_code_id, factory_code_id, community_id, airdrop_id, incentives_id, incentives_custody_id = get_contract_ids()
 
     terraswap_factory_contract = instantiate_terraswap_factory_contract(terraswap_factory_code_id, pair_code_id, token_code_id)
 
@@ -59,6 +59,7 @@ def deploy():
 
     incentives_contract = instantiate_incentives_contract(
         incentives_id,
+        incentives_custody_id,
         factory_contract,
         terraswap_factory_contract,
         nebula_token

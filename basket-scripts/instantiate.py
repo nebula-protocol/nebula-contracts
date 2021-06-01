@@ -197,8 +197,18 @@ def instantiate_airdrop_contract(airdrop_id, nebula_token):
     )
     return airdrop
 
-def instantiate_incentives_contract(incentives_id, factory_contract, terraswap_factory, nebula_token):
+def instantiate_incentives_contract(incentives_id, incentives_custody_id, factory_contract, terraswap_factory, nebula_token):
     print(f"[deploy] - instantiate incentives contract")
+
+    incentives_custody = instantiate_contract(
+        incentives_custody_id,
+        {
+            "owner": deployer.key.acc_address,
+            "neb_token": nebula_token,
+        },
+        seq()
+    )
+
     incentives = instantiate_contract(
         incentives_id,
         {
@@ -206,8 +216,14 @@ def instantiate_incentives_contract(incentives_id, factory_contract, terraswap_f
             "factory": factory_contract,
             "terraswap_factory": terraswap_factory,
             "nebula_token": nebula_token,
+            "custody": incentives_custody,
             "base_denom": "uusd"
         },
         seq()
     )
+
+    execute_contract(
+        deployer, incentives_custody, {"__reset_owner": {"owner": incentives}}, seq()
+    )
+
     return incentives

@@ -26,6 +26,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         &mut deps.storage,
         &Config {
             factory: deps.api.canonical_address(&msg.factory)?,
+            custody: msg.custody,
             terraswap_factory: deps.api.canonical_address(&msg.terraswap_factory)?,
             nebula_token: deps.api.canonical_address(&msg.nebula_token)?,
             base_denom: msg.base_denom,
