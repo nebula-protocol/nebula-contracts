@@ -9,7 +9,7 @@ use crate::state::{
     store_pending_rewards, Config, PoolInfo,
 };
 
-use nebula_protocol::incentives::PoolType;
+use nebula_protocol::incentives::{ExtHandleMsg, PoolType};
 
 use cw20::Cw20HandleMsg;
 
@@ -20,6 +20,7 @@ pub fn deposit_reward<S: Storage, A: Api, Q: Querier>(
     rewards: Vec<(u16, HumanAddr, Uint128)>,
     rewards_amount: Uint128,
 ) -> HandleResult {
+    let cfg = read_config(&deps.storage)?;
     let n = read_current_n(&deps.storage)?;
 
     for (pool_type, asset_token, amount) in rewards.iter() {
@@ -37,7 +38,15 @@ pub fn deposit_reward<S: Storage, A: Api, Q: Querier>(
     }
 
     Ok(HandleResponse {
-        messages: vec![],
+        // send all the neb to the custody contract
+        messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: deps.api.human_address(&cfg.nebula_token)?,
+            msg: to_binary(&Cw20HandleMsg::Transfer {
+                recipient: cfg.custody,
+                amount: rewards_amount,
+            })?,
+            send: vec![],
+        })],
         log: vec![
             log("action", "deposit_reward"),
             log("amount", rewards_amount),
@@ -51,6 +60,8 @@ pub fn withdraw_reward<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
 ) -> HandleResult {
+    let cfg = read_config(&deps.storage)?;
+
     let reward_owner = deps.api.canonical_address(&env.message.sender)?;
 
     let mut contribution_tuples = vec![];
@@ -79,14 +90,22 @@ pub fn withdraw_reward<S: Storage, A: Api, Q: Querier>(
     let config: Config = read_config(&deps.storage)?;
 
     Ok(HandleResponse {
-        messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: deps.api.human_address(&config.nebula_token)?,
-            msg: to_binary(&Cw20HandleMsg::Transfer {
-                recipient: env.message.sender,
-                amount: reward_amt,
-            })?,
-            send: vec![],
-        })],
+        messages: vec![
+            // withdraw reward amount from custody contract
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: cfg.custody,
+                msg: to_binary(&ExtHandleMsg::RequestNeb { amount: reward_amt })?,
+                send: vec![],
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: deps.api.human_address(&config.nebula_token)?,
+                msg: to_binary(&Cw20HandleMsg::Transfer {
+                    recipient: env.message.sender,
+                    amount: reward_amt,
+                })?,
+                send: vec![],
+            }),
+        ],
         log: vec![
             log("action", "withdraw"),
             log("amount", reward_amt.to_string()),

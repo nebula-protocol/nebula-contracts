@@ -45,7 +45,7 @@ def store_contract(contract_name, sequence):
     contract_bytes = read_file_as_b64(f"../artifacts/{contract_name}.wasm")
     store_code = MsgStoreCode(deployer.key.acc_address, contract_bytes)
     store_code_tx = deployer.create_and_sign_tx(
-        msgs=[store_code], fee=StdFee(5500000, "2000000uluna"), sequence=sequence
+        msgs=[store_code], fee=StdFee(10000000, "2000000uluna"), sequence=sequence
     )
     result = terra.tx.broadcast(store_code_tx)
     if result.is_tx_error():
@@ -129,7 +129,10 @@ def get_contract_ids():
     print(f"[deploy] - store airdrop")
     airdrop_id = store_contract("airdrop", seq())
 
-    print(f"[deploy] - store incentives")
+    print(f"[deploy] - store basket_incentives")
     incentives_id = store_contract("basket_incentives", seq())
 
-    return token_code_id, oracle_code_id, basket_code_id, penalty_code_id, terraswap_factory_code_id, pair_code_id, staking_code_id, collector_code_id, gov_code_id, factory_code_id, community_id, airdrop_id, incentives_id
+    print(f"[deploy] - store basket_incentives_custody")
+    incentives_custody_id = store_contract("basket_incentives_custody", seq())
+
+    return token_code_id, oracle_code_id, basket_code_id, penalty_code_id, terraswap_factory_code_id, pair_code_id, staking_code_id, collector_code_id, gov_code_id, factory_code_id, community_id, airdrop_id, incentives_id, incentives_custody_id
