@@ -170,7 +170,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     // send fee to collector
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: basket_token.clone(),
-        msg: to_binary(&Cw20HandleMsg::Mint {
+        msg: to_binary(&Cw20HandleMsg::Transfer {
             amount: fee_amt,
             recipient: collector_address.clone(),
         })?,
