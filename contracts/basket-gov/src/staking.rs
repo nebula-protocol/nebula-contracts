@@ -3,6 +3,7 @@ use crate::state::{
     bank_read, bank_store, config_read, config_store, poll_read, poll_store, poll_voter_read,
     poll_voter_store, read_polls, state_read, state_store, Config, Poll, State, TokenManager,
 };
+use std::convert::{TryFrom};
 
 use cosmwasm_std::{
     log, to_binary, Api, CanonicalAddr, CosmosMsg, Env, Extern, HandleResponse, HandleResult,
@@ -11,12 +12,14 @@ use cosmwasm_std::{
 use cw20::Cw20HandleMsg;
 use nebula_protocol::gov::{PollStatus, StakerResponse, VoterInfo};
 
+static SECONDS_PER_WEEK: u128 = 604800u128; //60 * 60 * 24 * 7
+
 pub fn stake_voting_tokens<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    _env: Env,
+    env: Env,
     sender: HumanAddr,
     amount: Uint128,
-    time: 
+    lock_for_weeks: u128
 ) -> HandleResult {
     if amount.is_zero() {
         return Err(StdError::generic_err("Insufficient funds sent"));
@@ -42,12 +45,27 @@ pub fn stake_voting_tokens<S: Storage, A: Api, Q: Querier>(
     } else {
         amount.multiply_ratio(state.total_share, total_balance)
     };
-
-    //Increase share by time
-
-    //Lock tokens
-    //Keep track of locking time
-
+    ////////// Time-weighted staking start ////////
+    if let Some(mut lock_end_time) = token_manager.lock_end_time {
+        let locked_seconds_remaining = Uint128::from(lock_end_time - env.block.time).u128(); //W
+        let lock_for_seconds = Uint128::from(lock_for_weeks * SECONDS_PER_WEEK).u128(); //W_n
+        let new_share = token_manager.share + share;
+        let new_locked_seconds = (
+            locked_seconds_remaining * token_manager.share.u128() + lock_for_seconds * share.u128()
+        )/new_share.u128();
+        
+        //Round new_locked_seconds to nearest week
+        let rounded_locked_seconds = (
+            (new_locked_seconds + SECONDS_PER_WEEK - 1)/SECONDS_PER_WEEK
+        ) * SECONDS_PER_WEEK;
+        lock_end_time = u64::try_from(rounded_locked_seconds).unwrap() + env.block.time;
+        token_manager.lock_end_time = Some(lock_end_time);
+    } else {
+        let lock_end_time = u64::try_from(lock_for_weeks * SECONDS_PER_WEEK).unwrap() + env.block.time;
+        token_manager.lock_end_time = Some(lock_end_time);
+    }
+    ////////// Time-weighted staking end ////////
+    
     token_manager.share += share;
     state.total_share += share;
 

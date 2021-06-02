@@ -45,6 +45,7 @@ pub struct TokenManager {
     pub share: Uint128,                        // total staked balance
     pub locked_balance: Vec<(u64, VoterInfo)>, // maps poll_id to weight voted
     pub participated_polls: Vec<u64>,          // poll_id
+    pub lock_end_time: Option<u64>             // time when lock on staked tokens expires
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
