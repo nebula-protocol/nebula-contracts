@@ -122,8 +122,8 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
 
     if let Some(msg) = cw20_msg.msg {
         match from_binary(&msg)? {
-            Cw20HookMsg::StakeVotingTokens {} => {
-                stake_voting_tokens(deps, env, cw20_msg.sender, cw20_msg.amount)
+            Cw20HookMsg::StakeVotingTokens {lock_for_weeks} => {
+                stake_voting_tokens(deps, env, cw20_msg.sender, cw20_msg.amount, lock_for_weeks)
             }
             Cw20HookMsg::CreatePoll {
                 title,

@@ -13,6 +13,7 @@ use cw20::Cw20HandleMsg;
 use nebula_protocol::gov::{PollStatus, StakerResponse, VoterInfo};
 
 static SECONDS_PER_WEEK: u128 = 604800u128; //60 * 60 * 24 * 7
+static M : u128 = 104; //Max weeks
 
 pub fn stake_voting_tokens<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -53,7 +54,7 @@ pub fn stake_voting_tokens<S: Storage, A: Api, Q: Querier>(
         let new_locked_seconds = (
             locked_seconds_remaining * token_manager.share.u128() + lock_for_seconds * share.u128()
         )/new_share.u128();
-        
+
         //Round new_locked_seconds to nearest week
         let rounded_locked_seconds = (
             (new_locked_seconds + SECONDS_PER_WEEK - 1)/SECONDS_PER_WEEK
@@ -122,8 +123,12 @@ pub fn withdraw_voting_tokens<S: Storage, A: Api, Q: Querier>(
             Err(StdError::generic_err(
                 "User is trying to withdraw too many tokens.",
             ))
+        } else if env.block.time < token_manager.lock_end_time.unwrap() {
+            //Check if locked time has passed before allowing
+            Err(StdError::generic_err(
+                "User is trying to withdraw tokens before expiry.",
+            ))
         } else {
-              //Check if locked time has passed before allowing
             let share = user_share - withdraw_share;
             token_manager.share = Uint128::from(share);
 
@@ -441,4 +446,12 @@ pub fn query_staker<S: Storage, A: Api, Q: Querier>(
         locked_balance: token_manager.locked_balance,
         pending_voting_rewards: Uint128(user_reward_amount),
     })
+}
+
+// Calculate current voting power of a user
+fn calc_voting_power(tokenManager: &TokenManager, time: u64) -> u128 {
+    let locked_seconds_remaining = Uint128::from(tokenManager.lock_end_time.unwrap() - time).u128();
+    let locked_weeks_remaining = (locked_seconds_remaining + SECONDS_PER_WEEK - 1)/SECONDS_PER_WEEK;
+    let V = (tokenManager.share.u128() * locked_weeks_remaining) / M;
+    return V;
 }

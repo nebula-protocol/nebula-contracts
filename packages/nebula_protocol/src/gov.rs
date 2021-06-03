@@ -63,7 +63,7 @@ pub enum HandleMsg {
 pub enum Cw20HookMsg {
     /// StakeVotingTokens a user can stake their nebula token to receive rewards
     /// or do vote on polls
-    StakeVotingTokens {},
+    StakeVotingTokens {lock_for_weeks: u128},
     /// CreatePoll need to receive deposit from a proposer
     CreatePoll {
         title: String,
