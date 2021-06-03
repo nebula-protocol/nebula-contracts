@@ -449,9 +449,9 @@ pub fn query_staker<S: Storage, A: Api, Q: Querier>(
 }
 
 // Calculate current voting power of a user
-fn calc_voting_power(tokenManager: &TokenManager, time: u64) -> u128 {
-    let locked_seconds_remaining = Uint128::from(tokenManager.lock_end_time.unwrap() - time).u128();
+pub fn calc_voting_power(share: Uint128, lock_end_time: u64, time: u64) -> Uint128 {
+    let locked_seconds_remaining = Uint128::from(lock_end_time - time).u128();
     let locked_weeks_remaining = (locked_seconds_remaining + SECONDS_PER_WEEK - 1)/SECONDS_PER_WEEK;
-    let V = (tokenManager.share.u128() * locked_weeks_remaining) / M;
-    return V;
+    let V = (share.u128() * locked_weeks_remaining) / M;
+    return Uint128::from(V);
 }

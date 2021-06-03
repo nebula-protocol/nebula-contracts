@@ -1,7 +1,7 @@
 use crate::querier::load_token_balance;
 use crate::staking::{
     deposit_reward, query_staker, stake_voting_rewards, stake_voting_tokens,
-    withdraw_voting_rewards, withdraw_voting_tokens,
+    withdraw_voting_rewards, withdraw_voting_tokens, calc_voting_power
 };
 use crate::state::{
     bank_read, bank_store, config_read, config_store, poll_indexer_store, poll_read, poll_store,
@@ -582,16 +582,16 @@ pub fn cast_vote<S: Storage, A: Api, Q: Querier>(
         &state.contract_addr,
     )? - total_locked_balance)?;
 
-    if token_manager
-        .share
-        .multiply_ratio(total_balance, total_share)
-        < amount
-    {
+    let voting_power = calc_voting_power(
+        token_manager.share.multiply_ratio(total_balance, total_share), 
+        token_manager.lock_end_time.unwrap(), 
+        env.block.time
+    );
+    if voting_power < amount {
         return Err(StdError::generic_err(
             "User does not have enough staked tokens.",
         ));
     }
-
     // update tally info
     match vote {
         VoteOption::Yes => a_poll.yes_votes += amount,
@@ -886,3 +886,5 @@ pub fn migrate<S: Storage, A: Api, Q: Querier>(
 
     Ok(MigrateResponse::default())
 }
+
+
