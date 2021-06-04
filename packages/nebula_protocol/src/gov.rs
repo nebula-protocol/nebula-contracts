@@ -164,6 +164,7 @@ pub struct StakerResponse {
     pub share: Uint128,
     pub locked_balance: Vec<(u64, VoterInfo)>,
     pub pending_voting_rewards: Uint128,
+    pub lock_end_time : Option<u64>
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]

@@ -445,6 +445,7 @@ pub fn query_staker<S: Storage, A: Api, Q: Querier>(
         share: token_manager.share,
         locked_balance: token_manager.locked_balance,
         pending_voting_rewards: Uint128(user_reward_amount),
+        lock_end_time: token_manager.lock_end_time
     })
 }
 
@@ -452,6 +453,6 @@ pub fn query_staker<S: Storage, A: Api, Q: Querier>(
 pub fn calc_voting_power(share: Uint128, lock_end_time: u64, time: u64) -> Uint128 {
     let locked_seconds_remaining = Uint128::from(lock_end_time - time).u128();
     let locked_weeks_remaining = (locked_seconds_remaining + SECONDS_PER_WEEK - 1)/SECONDS_PER_WEEK;
-    let V = (share.u128() * locked_weeks_remaining) / M;
-    return Uint128::from(V);
+    let voting_power = (share.u128() * locked_weeks_remaining) / M;
+    return Uint128::from(voting_power);
 }
