@@ -4,6 +4,7 @@ use crate::state::{
     poll_voter_store, read_polls, state_read, state_store, Config, Poll, State, TokenManager,
 };
 use std::convert::{TryFrom};
+use std::cmp;
 
 use cosmwasm_std::{
     log, to_binary, Api, CanonicalAddr, CosmosMsg, Env, Extern, HandleResponse, HandleResult,
@@ -48,7 +49,9 @@ pub fn stake_voting_tokens<S: Storage, A: Api, Q: Querier>(
     };
     ////////// Time-weighted staking start ////////
     if let Some(mut lock_end_time) = token_manager.lock_end_time {
-        let locked_seconds_remaining = Uint128::from(lock_end_time - env.block.time).u128(); //W
+        let locked_seconds_remaining = Uint128::from(
+            cmp::max(lock_end_time, env.block.time) - env.block.time
+        ).u128(); //W
         let lock_for_seconds = Uint128::from(lock_for_weeks * SECONDS_PER_WEEK).u128(); //W_n
         let new_share = token_manager.share + share;
         let new_locked_seconds = (
