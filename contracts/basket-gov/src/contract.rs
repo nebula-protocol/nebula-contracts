@@ -1,7 +1,7 @@
 use crate::querier::load_token_balance;
 use crate::staking::{
     deposit_reward, query_staker, stake_voting_rewards, stake_voting_tokens,
-    withdraw_voting_rewards, withdraw_voting_tokens, calc_voting_power
+    withdraw_voting_rewards, withdraw_voting_tokens, calc_voting_power, increase_lock_time
 };
 use crate::state::{
     bank_read, bank_store, config_read, config_store, poll_indexer_store, poll_read, poll_store,
@@ -106,6 +106,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::ExecutePoll { poll_id } => execute_poll(deps, env, poll_id),
         HandleMsg::ExpirePoll { poll_id } => expire_poll(deps, env, poll_id),
         HandleMsg::SnapshotPoll { poll_id } => snapshot_poll(deps, env, poll_id),
+        HandleMsg::IncreaseLockTime {
+            new_lock_for_weeks
+        } => increase_lock_time(deps, env, new_lock_for_weeks)
     }
 }
 

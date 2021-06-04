@@ -56,6 +56,9 @@ pub enum HandleMsg {
     SnapshotPoll {
         poll_id: u64,
     },
+    IncreaseLockTime {
+        new_lock_for_weeks: u128
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

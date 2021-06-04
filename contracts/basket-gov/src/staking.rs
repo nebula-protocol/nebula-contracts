@@ -459,3 +459,47 @@ pub fn calc_voting_power(share: Uint128, lock_end_time: u64, time: u64) -> Uint1
     let voting_power = (share.u128() * locked_weeks_remaining) / M;
     return Uint128::from(voting_power);
 }
+
+//Increase the number of weeks staked tokens are locked for
+pub fn increase_lock_time<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    new_lock_for_weeks: u128
+) -> HandleResult {
+    let sender_address_raw = deps.api.canonical_address(&env.message.sender)?;
+    let key = sender_address_raw.as_slice();
+
+    let mut token_manager = bank_read(&deps.storage).may_load(key)?.unwrap_or_default();
+    if let Some(lock_end_time) = token_manager.lock_end_time {
+        let locked_seconds_remaining = Uint128::from(
+            cmp::max(lock_end_time, env.block.time) - env.block.time
+        ).u128(); //W
+        let new_locked_seconds_remaining = new_lock_for_weeks * SECONDS_PER_WEEK;
+        if new_locked_seconds_remaining < locked_seconds_remaining {
+            Err(StdError::generic_err(
+                "User is trying to decrease lock time.",
+            ))
+        } else {
+            let new_lock_end_time = 
+                env.block.time + u64::try_from(new_locked_seconds_remaining).unwrap();
+            token_manager.lock_end_time = Some(new_lock_end_time);
+            bank_store(&mut deps.storage).save(key, &token_manager)?;
+    
+            Ok(HandleResponse {
+                messages: vec![],
+                data: None,
+                log: vec![
+                    log("action", "increase_lock_time"),
+                    log("sender", &env.message.sender.as_str()),
+                    log("previous_lock_end_time", lock_end_time.to_string()),
+                    log("new_lock_end_time", new_lock_end_time.to_string()),
+                ],
+            })
+        }
+
+    } else {
+        Err(StdError::generic_err(
+            "User has no tokens staked.",
+        ))
+    }
+}
