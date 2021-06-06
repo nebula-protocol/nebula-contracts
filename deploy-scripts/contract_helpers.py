@@ -130,7 +130,7 @@ class BasketContract(Contract):
         self.asset_tokens = asset_tokens
 
     def __repr__(self):
-        return f'BasketContract("{self.address}", "{self.basket_token}", "{self.asset_tokens}")'
+        return f'BasketContract("{self.address}", {self.basket_token}, {self.asset_tokens})'
 
     async def mint(self, asset_amounts, min_tokens=None):
         msgs = []
