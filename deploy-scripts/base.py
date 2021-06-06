@@ -2,19 +2,17 @@ from terra_sdk.client.lcd import AsyncLCDClient
 from terra_sdk.client.localterra import AsyncLocalTerra
 from terra_sdk.core.auth import StdFee
 import asyncio
+import os
 
 
-USE_LOCALTERRA = True
+USE_TEQUILA = bool(os.environ.get("USE_TEQUILA"))
 CACHE_INITIALIZATION = True
 OVERWRITE_CACHE_ALLOWED = set()
 
 
 lt = AsyncLocalTerra(gas_prices={"uusd": "0.15"})
 
-if USE_LOCALTERRA:
-    terra = lt
-    deployer = lt.wallets["test1"]
-else:
+if USE_TEQUILA:
     gas_prices = {
         "uluna": "0.15",
         "usdr": "0.1018",
@@ -37,6 +35,9 @@ else:
     )
 
     deployer = terra.wallet(lt.wallets["test1"].key)
+else:
+    terra = lt
+    deployer = lt.wallets["test1"]
 
 sequence = asyncio.get_event_loop().run_until_complete(deployer.sequence())
 

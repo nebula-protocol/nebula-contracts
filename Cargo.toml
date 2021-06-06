@@ -11,6 +11,7 @@ members = [
   "contracts/basket-community",
   "contracts/basket-incentives",
   "contracts/basket-incentives-custody",
+  "contracts/terraswap-oracle",
   "contracts/airdrop",
   "libraries/*",
   "packages/*"

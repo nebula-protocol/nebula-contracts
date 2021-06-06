@@ -11,6 +11,7 @@ from base import (
     OVERWRITE_CACHE_ALLOWED,
     CACHE_INITIALIZATION,
     terra,
+    USE_TEQUILA,
 )
 from api import Asset
 import shelve
@@ -22,7 +23,7 @@ shelf = shelve.open(f"{os.path.dirname(__file__)}/cache.dat")
 def async_cache_on_disk(fxn):
     async def _ret(*args, **kwargs):
         key = repr(args) + "|" + repr(kwargs)
-        key = fxn.__name__ + "|" + str(key)
+        key = str(USE_TEQUILA) + "|" + fxn.__name__ + "|" + str(key)
         if key not in shelf or fxn.__name__ in OVERWRITE_CACHE_ALLOWED:
             shelf[key] = await fxn(*args, **kwargs)
             shelf.sync()
@@ -108,6 +109,9 @@ class Contract:
     def __init__(self, address):
         self.address = address
 
+    def __repr__(self):
+        return f'Contract("{self.address}")'
+
     def __getattr__(self, item):
         def result_fxn(_send=None, **kwargs):
             return ExecuteMessage(contract=self, json={item: kwargs}, send=_send)
@@ -124,6 +128,9 @@ class BasketContract(Contract):
         super().__init__(address)
         self.basket_token = basket_token
         self.asset_tokens = asset_tokens
+
+    def __repr__(self):
+        return f'BasketContract("{self.address}", "{self.basket_token}", "{self.asset_tokens}")'
 
     async def mint(self, asset_amounts, min_tokens=None):
         msgs = []

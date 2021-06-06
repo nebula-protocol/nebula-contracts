@@ -49,11 +49,12 @@ class Ecosystem:
         print("Initializing base contracts...")
         code_ids = self.code_ids = await store_contracts()
 
-        self.terraswap_factory = await Contract.create(
-            code_ids["terraswap_factory"],
-            pair_code_id=int(code_ids["terraswap_pair"]),
-            token_code_id=int(code_ids["terraswap_token"]),
-        )
+        if self.terraswap_factory is None:
+            self.terraswap_factory = await Contract.create(
+                code_ids["terraswap_factory"],
+                pair_code_id=int(code_ids["terraswap_pair"]),
+                token_code_id=int(code_ids["terraswap_token"]),
+            )
 
         self.factory = await Contract.create(
             code_ids["basket_factory"],
