@@ -49,11 +49,12 @@ class Ecosystem:
         print("Initializing base contracts...")
         code_ids = self.code_ids = await store_contracts()
 
-        self.terraswap_factory = await Contract.create(
-            code_ids["terraswap_factory"],
-            pair_code_id=int(code_ids["terraswap_pair"]),
-            token_code_id=int(code_ids["terraswap_token"]),
-        )
+        if self.terraswap_factory is None:
+            self.terraswap_factory = await Contract.create(
+                code_ids["terraswap_factory"],
+                pair_code_id=int(code_ids["terraswap_pair"]),
+                token_code_id=int(code_ids["terraswap_token"]),
+            )
 
         self.factory = await Contract.create(
             code_ids["basket_factory"],
@@ -284,7 +285,9 @@ class Ecosystem:
             )
         )
 
-    async def create_and_execute_poll(self, execute_msg, distribute_collector=False):
+    async def create_and_execute_poll(
+        self, execute_msg, distribute_collector=False, sleep_time=1
+    ):
         resp = await self.neb_token.send(
             contract=self.gov,
             amount=DEFAULT_PROPOSAL_DEPOSIT,
@@ -299,7 +302,7 @@ class Ecosystem:
         poll_id = int(resp.logs[0].events_by_type["from_contract"]["poll_id"][0])
 
         await self.gov.cast_vote(poll_id=poll_id, vote="yes", amount="600000000000")
-        await asyncio.sleep(1)
+        await asyncio.sleep(sleep_time)
 
         if distribute_collector:
             await self.collector.distribute()
