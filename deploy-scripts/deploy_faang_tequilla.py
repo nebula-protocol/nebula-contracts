@@ -6,11 +6,14 @@ from api import Asset
 from ecosystem import Ecosystem
 from contract_helpers import Contract, BasketContract
 import asyncio
+from base import deployer
+
+REQUIRE_GOV = True
 
 
 async def main():
 
-    ecosystem = Ecosystem(require_gov=False)
+    ecosystem = Ecosystem(require_gov=REQUIRE_GOV)
 
     ecosystem.terraswap_factory = Contract(
         "terra18qpjm4zkvqnpjpw0zn0tdr8gdzvt8au35v45xf"
@@ -50,7 +53,7 @@ async def main():
         base_denom="uusd",
     )
 
-    resp = await ecosystem.factory.create_cluster(
+    create_basket = ecosystem.factory.create_cluster(
         name="BASKET",
         symbol="BSK",
         params={
@@ -63,6 +66,19 @@ async def main():
             "composition_oracle": oracle,
         },
     )
+
+    if REQUIRE_GOV:
+        await ecosystem.neb_token.send(
+            contract=ecosystem.gov,
+            amount="600000000000",
+            msg=ecosystem.gov.stake_voting_tokens(),
+        )
+
+        resp = await ecosystem.create_and_execute_poll(
+            {"contract": ecosystem.factory, "msg": create_basket}, sleep_time=30
+        )
+    else:
+        resp = await create_basket
 
     logs = resp.logs[0].events_by_type
 
@@ -82,10 +98,12 @@ async def main():
     resp = await basket.query.basket_state(basket_contract_address=basket)
     print(resp)
 
+    print("account", deployer.key.acc_address)
     print("basket", basket)
     print("assets", asset_tokens)
     print("oracle", oracle)
     print("ecosystem", ecosystem.__dict__)
+
 
 if __name__ == "__main__":
     asyncio.get_event_loop().run_until_complete(main())

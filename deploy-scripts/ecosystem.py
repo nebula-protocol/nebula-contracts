@@ -285,7 +285,9 @@ class Ecosystem:
             )
         )
 
-    async def create_and_execute_poll(self, execute_msg, distribute_collector=False):
+    async def create_and_execute_poll(
+        self, execute_msg, distribute_collector=False, sleep_time=1
+    ):
         resp = await self.neb_token.send(
             contract=self.gov,
             amount=DEFAULT_PROPOSAL_DEPOSIT,
@@ -300,7 +302,7 @@ class Ecosystem:
         poll_id = int(resp.logs[0].events_by_type["from_contract"]["poll_id"][0])
 
         await self.gov.cast_vote(poll_id=poll_id, vote="yes", amount="600000000000")
-        await asyncio.sleep(1)
+        await asyncio.sleep(sleep_time)
 
         if distribute_collector:
             await self.collector.distribute()
