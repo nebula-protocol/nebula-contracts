@@ -46,7 +46,7 @@ pub struct TokenManager {
     pub share: Uint128,                        // total staked balance
     pub locked_balance: Vec<(u64, VoterInfo)>, // maps poll_id to weight voted
     pub participated_polls: Vec<u64>,          // poll_id
-    pub lock_end_week: Option<u128>             // time when lock on staked tokens expires
+    pub lock_end_week: Option<u64>             // time when lock on staked tokens expires
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -68,7 +68,7 @@ pub struct Poll {
     pub voters_reward: Uint128,
     pub staked_amount: Option<Uint128>,
 
-    pub max_voting_power: u128
+    pub max_voting_power: Uint128
 }
 
 #[derive(Default, Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -76,7 +76,7 @@ pub struct VotingPower {
     pub share: Uint128,                        // total staked balance
     pub locked_balance: Vec<(u64, VoterInfo)>, // maps poll_id to weight voted
     pub participated_polls: Vec<u64>,          // poll_id
-    pub lock_end_week: Option<u128>             // time when lock on staked tokens expires
+    pub lock_end_week: Option<u64>             // time when lock on staked tokens expires
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -87,8 +87,8 @@ pub struct ExecuteData {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TotalVotingPower {
-    pub voting_power: Vec<u128>,
-    pub last_upd: u128,
+    pub voting_power: Vec<Uint128>,
+    pub last_upd: u64,
 }
 
 pub fn config_store<S: Storage>(storage: &mut S) -> Singleton<S, Config> {

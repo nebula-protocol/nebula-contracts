@@ -60,8 +60,8 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     };
 
     let voting_power = TotalVotingPower {
-        voting_power: vec![0u128; M as usize],
-        last_upd: env.block.time as u128 / SECONDS_PER_WEEK,
+        voting_power: vec![Uint128::zero(); M as usize],
+        last_upd: env.block.time / SECONDS_PER_WEEK,
     };
 
     config_store(&mut deps.storage).save(&config)?;
@@ -338,7 +338,7 @@ pub fn create_poll<S: Storage, A: Api, Q: Querier>(
         total_balance_at_end_poll: None,
         voters_reward: Uint128::zero(),
         staked_amount: None,
-        max_voting_power: 0,
+        max_voting_power: Uint128::zero(),
     };
 
     poll_store(&mut deps.storage).save(&poll_id.to_be_bytes(), &new_poll)?;
@@ -395,7 +395,7 @@ pub fn end_poll<S: Storage, A: Api, Q: Querier>(
     let config: Config = config_read(&deps.storage).load()?;
     let mut state: State = state_read(&deps.storage).load()?;
 
-    let staked_weight = Uint128(a_poll.max_voting_power);
+    let staked_weight = a_poll.max_voting_power;
     let quorum = if staked_weight != Uint128::zero() {
         Decimal::from_ratio(tallied_weight, staked_weight)
     } else {
@@ -446,6 +446,9 @@ pub fn end_poll<S: Storage, A: Api, Q: Querier>(
         messages,
         log: vec![
             log("action", "end_poll"),
+            log("quorum", quorum),
+            log("tallied_weight", tallied_weight),
+            log("staked_weight", staked_weight),
             log("poll_id", &poll_id.to_string()),
             log("rejected_reason", rejected_reason),
             log("passed", &passed.to_string()),
@@ -589,7 +592,7 @@ pub fn cast_vote<S: Storage, A: Api, Q: Querier>(
             .share
             .multiply_ratio(total_balance, total_share),
         token_manager.lock_end_week.unwrap(),
-        (env.block.time as u128) / SECONDS_PER_WEEK,
+        env.block.time / SECONDS_PER_WEEK,
     );
     if voting_power < amount {
         return Err(StdError::generic_err(
@@ -606,7 +609,7 @@ pub fn cast_vote<S: Storage, A: Api, Q: Querier>(
     let total_voting_power = total_voting_power_read(&deps.storage).load()?;
     // don't need to zero anything out here -- if the user does have voting power then
     // the entry at current_week has to be filled with a valid value
-    let current_week = env.block.time / (SECONDS_PER_WEEK as u64);
+    let current_week = (env.block.time / SECONDS_PER_WEEK) % M;
     a_poll.max_voting_power = max(
         a_poll.max_voting_power,
         total_voting_power.voting_power[current_week as usize],
