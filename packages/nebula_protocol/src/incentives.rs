@@ -8,6 +8,7 @@ use terraswap::asset::{Asset, AssetInfo};
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
     pub factory: HumanAddr,
+    pub custody: HumanAddr,
     pub terraswap_factory: HumanAddr,
     pub nebula_token: HumanAddr,
     pub base_denom: String,
@@ -117,6 +118,12 @@ pub struct MigrateMsg {}
 #[serde(rename_all = "snake_case")]
 pub enum ExtQueryMsg {
     Pool {},
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ExtHandleMsg {
+    RequestNeb { amount: Uint128 },
 }
 
 // We define a custom struct for each query response

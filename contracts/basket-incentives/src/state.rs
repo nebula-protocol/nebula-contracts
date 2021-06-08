@@ -15,6 +15,7 @@ static PREFIX_REWARD: &[u8] = b"reward";
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
     pub factory: CanonicalAddr,
+    pub custody: HumanAddr,
     pub terraswap_factory: CanonicalAddr, // terraswap factory contract
     pub nebula_token: CanonicalAddr,
     pub base_denom: String,
