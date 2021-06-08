@@ -11,6 +11,7 @@ use nebula_protocol::gov::{PollStatus, VoterInfo};
 
 static KEY_CONFIG: &[u8] = b"config";
 static KEY_STATE: &[u8] = b"state";
+static KEY_TOTAL_VOTING_POWER: &[u8] = b"total_voting_power";
 
 static PREFIX_POLL_INDEXER: &[u8] = b"poll_indexer";
 static PREFIX_POLL_VOTER: &[u8] = b"poll_voter";
@@ -45,7 +46,7 @@ pub struct TokenManager {
     pub share: Uint128,                        // total staked balance
     pub locked_balance: Vec<(u64, VoterInfo)>, // maps poll_id to weight voted
     pub participated_polls: Vec<u64>,          // poll_id
-    pub lock_end_time: Option<u64>             // time when lock on staked tokens expires
+    pub lock_end_week: Option<u128>             // time when lock on staked tokens expires
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -66,12 +67,28 @@ pub struct Poll {
     pub total_balance_at_end_poll: Option<Uint128>,
     pub voters_reward: Uint128,
     pub staked_amount: Option<Uint128>,
+
+    pub max_voting_power: u128
+}
+
+#[derive(Default, Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct VotingPower {
+    pub share: Uint128,                        // total staked balance
+    pub locked_balance: Vec<(u64, VoterInfo)>, // maps poll_id to weight voted
+    pub participated_polls: Vec<u64>,          // poll_id
+    pub lock_end_week: Option<u128>             // time when lock on staked tokens expires
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ExecuteData {
     pub contract: CanonicalAddr,
     pub msg: Binary,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct TotalVotingPower {
+    pub voting_power: Vec<u128>,
+    pub last_upd: u128,
 }
 
 pub fn config_store<S: Storage>(storage: &mut S) -> Singleton<S, Config> {
@@ -96,6 +113,14 @@ pub fn poll_store<S: Storage>(storage: &mut S) -> Bucket<S, Poll> {
 
 pub fn poll_read<S: ReadonlyStorage>(storage: &S) -> ReadonlyBucket<S, Poll> {
     bucket_read(PREFIX_POLL, storage)
+}
+
+pub fn total_voting_power_store<S: Storage>(storage: &mut S) -> Singleton<S, TotalVotingPower> {
+    singleton(storage, KEY_TOTAL_VOTING_POWER)
+}
+
+pub fn total_voting_power_read<S: Storage>(storage: &S) -> ReadonlySingleton<S, TotalVotingPower> {
+    singleton_read(storage, KEY_TOTAL_VOTING_POWER)
 }
 
 pub fn poll_indexer_store<'a, S: Storage>(

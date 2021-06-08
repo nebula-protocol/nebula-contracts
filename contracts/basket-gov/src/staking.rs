@@ -1,10 +1,11 @@
 use crate::querier::load_token_balance;
 use crate::state::{
     bank_read, bank_store, config_read, config_store, poll_read, poll_store, poll_voter_read,
-    poll_voter_store, read_polls, state_read, state_store, Config, Poll, State, TokenManager,
+    poll_voter_store, read_polls, state_read, state_store, total_voting_power_read, Config, Poll,
+    State, TokenManager, TotalVotingPower,
 };
-use std::convert::{TryFrom};
 use std::cmp;
+use std::convert::TryFrom;
 
 use cosmwasm_std::{
     log, to_binary, Api, CanonicalAddr, CosmosMsg, Env, Extern, HandleResponse, HandleResult,
@@ -13,15 +14,39 @@ use cosmwasm_std::{
 use cw20::Cw20HandleMsg;
 use nebula_protocol::gov::{PollStatus, StakerResponse, VoterInfo};
 
-static SECONDS_PER_WEEK: u128 = 604800u128; //60 * 60 * 24 * 7
-static M : u128 = 104; //Max weeks
+pub static SECONDS_PER_WEEK: u128 = 604800u128; //60 * 60 * 24 * 7
+pub static M: u128 = 104; //Max weeks
+
+pub fn adjust_total_voting_power(
+    total_voting_power: &mut TotalVotingPower,
+    current_week: u128,
+    amount: u128,
+    duration: u128,
+    add: bool,
+) {
+
+    // surely this is fine
+    while total_voting_power.last_upd != current_week {
+        total_voting_power.voting_power[(total_voting_power.last_upd % M) as usize] = 0;
+        total_voting_power.last_upd += 1;
+    }
+
+    for i in current_week..current_week + duration {
+        let total = (current_week + duration - i) * amount / M;
+        if add {
+            total_voting_power.voting_power[(i % M) as usize] += total;
+        } else {
+            total_voting_power.voting_power[(i % M) as usize] -= total;
+        }
+    }
+}
 
 pub fn stake_voting_tokens<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     sender: HumanAddr,
     amount: Uint128,
-    lock_for_weeks: u128
+    lock_for_weeks: Option<u128>,
 ) -> HandleResult {
     if amount.is_zero() {
         return Err(StdError::generic_err("Insufficient funds sent"));
@@ -47,31 +72,38 @@ pub fn stake_voting_tokens<S: Storage, A: Api, Q: Querier>(
     } else {
         amount.multiply_ratio(state.total_share, total_balance)
     };
-    ////////// Time-weighted staking start ////////
-    if let Some(mut lock_end_time) = token_manager.lock_end_time {
-        let locked_seconds_remaining = Uint128::from(
-            cmp::max(lock_end_time, env.block.time) - env.block.time
-        ).u128(); //W
-        let lock_for_seconds = Uint128::from(lock_for_weeks * SECONDS_PER_WEEK).u128(); //W_n
-        let new_share = token_manager.share + share;
-        let new_locked_seconds = (
-            locked_seconds_remaining * token_manager.share.u128() + lock_for_seconds * share.u128()
-        )/new_share.u128();
 
-        //Round new_locked_seconds to nearest week
-        let rounded_locked_seconds = (
-            (new_locked_seconds + SECONDS_PER_WEEK - 1)/SECONDS_PER_WEEK
-        ) * SECONDS_PER_WEEK;
-        lock_end_time = u64::try_from(rounded_locked_seconds).unwrap() + env.block.time;
-        token_manager.lock_end_time = Some(lock_end_time);
+    let mut total_voting_power = total_voting_power_read(&deps.storage).load()?;
+
+    let current_week = (env.block.time as u128) / SECONDS_PER_WEEK;
+
+    if let Some(_) = token_manager.lock_end_week {
+        if lock_for_weeks.is_some() {
+            return Err(StdError::generic_err("cannot specify lock_for_weeks if tokens already staked. to change the lock time use increase_lock_time"));
+        }
+        // remove existing impact of this address from voting pool
+        adjust_total_voting_power(
+            &mut total_voting_power,
+            current_week as u128,
+            token_manager.share.u128(),
+            token_manager.lock_end_week.unwrap() - current_week,
+            false,
+        );
     } else {
-        let lock_end_time = u64::try_from(lock_for_weeks * SECONDS_PER_WEEK).unwrap() + env.block.time;
-        token_manager.lock_end_time = Some(lock_end_time);
+        token_manager.lock_end_week = Some(current_week + lock_for_weeks.unwrap());
     }
-    ////////// Time-weighted staking end ////////
-    
+
     token_manager.share += share;
     state.total_share += share;
+
+    // add impact of this address to voting pool
+    adjust_total_voting_power(
+        &mut total_voting_power,
+        current_week as u128,
+        token_manager.share.u128(),
+        (token_manager.lock_end_week.unwrap() - current_week) as u128,
+        true,
+    );
 
     state_store(&mut deps.storage).save(&state)?;
     bank_store(&mut deps.storage).save(key, &token_manager)?;
@@ -126,7 +158,7 @@ pub fn withdraw_voting_tokens<S: Storage, A: Api, Q: Querier>(
             Err(StdError::generic_err(
                 "User is trying to withdraw too many tokens.",
             ))
-        } else if env.block.time < token_manager.lock_end_time.unwrap() {
+        } else if (env.block.time as u128) / SECONDS_PER_WEEK < token_manager.lock_end_week.unwrap() {
             //Check if locked time has passed before allowing
             Err(StdError::generic_err(
                 "User is trying to withdraw tokens before expiry.",
@@ -448,14 +480,13 @@ pub fn query_staker<S: Storage, A: Api, Q: Querier>(
         share: token_manager.share,
         locked_balance: token_manager.locked_balance,
         pending_voting_rewards: Uint128(user_reward_amount),
-        lock_end_time: token_manager.lock_end_time
+        lock_end_week: token_manager.lock_end_week,
     })
 }
 
 // Calculate current voting power of a user
-pub fn calc_voting_power(share: Uint128, lock_end_time: u64, time: u64) -> Uint128 {
-    let locked_seconds_remaining = Uint128::from(lock_end_time - time).u128();
-    let locked_weeks_remaining = (locked_seconds_remaining + SECONDS_PER_WEEK - 1)/SECONDS_PER_WEEK;
+pub fn calc_voting_power(share: Uint128, lock_end_week: u128, current_week: u128) -> Uint128 {
+    let locked_weeks_remaining = lock_end_week - current_week;
     let voting_power = (share.u128() * locked_weeks_remaining) / M;
     return Uint128::from(voting_power);
 }
@@ -464,42 +495,48 @@ pub fn calc_voting_power(share: Uint128, lock_end_time: u64, time: u64) -> Uint1
 pub fn increase_lock_time<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    new_lock_for_weeks: u128
+    increase_weeks: u128,
 ) -> HandleResult {
     let sender_address_raw = deps.api.canonical_address(&env.message.sender)?;
     let key = sender_address_raw.as_slice();
 
+    let mut total_voting_power = total_voting_power_read(&deps.storage).load()?;
+    let current_week = (env.block.time as u128) / SECONDS_PER_WEEK;
     let mut token_manager = bank_read(&deps.storage).may_load(key)?.unwrap_or_default();
-    if let Some(lock_end_time) = token_manager.lock_end_time {
-        let locked_seconds_remaining = Uint128::from(
-            cmp::max(lock_end_time, env.block.time) - env.block.time
-        ).u128(); //W
-        let new_locked_seconds_remaining = new_lock_for_weeks * SECONDS_PER_WEEK;
-        if new_locked_seconds_remaining < locked_seconds_remaining {
-            Err(StdError::generic_err(
-                "User is trying to decrease lock time.",
-            ))
-        } else {
-            let new_lock_end_time = 
-                env.block.time + u64::try_from(new_locked_seconds_remaining).unwrap();
-            token_manager.lock_end_time = Some(new_lock_end_time);
-            bank_store(&mut deps.storage).save(key, &token_manager)?;
-    
-            Ok(HandleResponse {
-                messages: vec![],
-                data: None,
-                log: vec![
-                    log("action", "increase_lock_time"),
-                    log("sender", &env.message.sender.as_str()),
-                    log("previous_lock_end_time", lock_end_time.to_string()),
-                    log("new_lock_end_time", new_lock_end_time.to_string()),
-                ],
-            })
-        }
 
+    if let Some(lock_end_week) = token_manager.lock_end_week {
+        adjust_total_voting_power(
+            &mut total_voting_power,
+            current_week,
+            token_manager.share.u128(),
+            token_manager.lock_end_week.unwrap() - current_week,
+            false,
+        );
+
+        token_manager.lock_end_week = Some(token_manager.lock_end_week.unwrap() + increase_weeks);
+
+        adjust_total_voting_power(
+            &mut total_voting_power,
+            current_week as u128,
+            token_manager.share.u128(),
+            token_manager.lock_end_week.unwrap() - current_week,
+            true,
+        );
+
+        Ok(HandleResponse {
+            messages: vec![],
+            data: None,
+            log: vec![
+                log("action", "increase_lock_time"),
+                log("sender", &env.message.sender.as_str()),
+                log("previous_lock_end_week", lock_end_week.to_string()),
+                log(
+                    "new_lock_end_week",
+                    (lock_end_week as u128 + increase_weeks).to_string(),
+                ),
+            ],
+        })
     } else {
-        Err(StdError::generic_err(
-            "User has no tokens staked.",
-        ))
+        Err(StdError::generic_err("User has no tokens staked."))
     }
 }

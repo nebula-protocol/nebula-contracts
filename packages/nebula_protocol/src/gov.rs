@@ -57,8 +57,8 @@ pub enum HandleMsg {
         poll_id: u64,
     },
     IncreaseLockTime {
-        new_lock_for_weeks: u128
-    }
+        increase_weeks: u128,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -66,7 +66,7 @@ pub enum HandleMsg {
 pub enum Cw20HookMsg {
     /// StakeVotingTokens a user can stake their nebula token to receive rewards
     /// or do vote on polls
-    StakeVotingTokens {lock_for_weeks: u128},
+    StakeVotingTokens { lock_for_weeks: Option<u128> },
     /// CreatePoll need to receive deposit from a proposer
     CreatePoll {
         title: String,
@@ -143,8 +143,8 @@ pub struct PollResponse {
     pub link: Option<String>,
     pub deposit_amount: Uint128,
     pub execute_data: Option<ExecuteMsg>,
-    pub yes_votes: Uint128, // balance
-    pub no_votes: Uint128,  // balance
+    pub yes_votes: Uint128,     // balance
+    pub no_votes: Uint128,      // balance
     pub abstain_votes: Uint128, // balance
     pub total_balance_at_end_poll: Option<Uint128>,
     pub voters_reward: Uint128,
@@ -167,7 +167,7 @@ pub struct StakerResponse {
     pub share: Uint128,
     pub locked_balance: Vec<(u64, VoterInfo)>,
     pub pending_voting_rewards: Uint128,
-    pub lock_end_time : Option<u64>
+    pub lock_end_week: Option<u128>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
