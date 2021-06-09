@@ -1,8 +1,11 @@
 use crate::querier::load_token_balance;
 use crate::state::{
     bank_read, bank_store, config_read, config_store, poll_read, poll_store, poll_voter_read,
-    poll_voter_store, read_polls, state_read, state_store, Config, Poll, State, TokenManager,
+    poll_voter_store, read_polls, state_read, state_store, total_voting_power_read,
+    total_voting_power_store, Config, Poll, State, TokenManager, TotalVotingPower,
 };
+use std::cmp;
+use std::convert::TryFrom;
 
 use cosmwasm_std::{
     log, to_binary, Api, CanonicalAddr, CosmosMsg, Env, Extern, HandleResponse, HandleResult,
@@ -11,11 +14,42 @@ use cosmwasm_std::{
 use cw20::Cw20HandleMsg;
 use nebula_protocol::gov::{PollStatus, StakerResponse, VoterInfo};
 
+pub static SECONDS_PER_WEEK: u64 = 604800u64; //60 * 60 * 24 * 7
+pub static M: u64 = 104u64; //Max weeks
+
+pub fn adjust_total_voting_power(
+    total_voting_power: &mut TotalVotingPower,
+    current_week: u64,
+    amount: u128,
+    duration: u64,
+    add: bool,
+) -> StdResult<()> {
+    // surely this is fine
+    while total_voting_power.last_upd != current_week {
+        total_voting_power.voting_power[(total_voting_power.last_upd % M) as usize] =
+            Uint128::zero();
+        total_voting_power.last_upd += 1;
+    }
+
+    for i in current_week..current_week + duration {
+        let total = Uint128(((current_week + duration - i) as u128) * amount / (M as u128));
+        if add {
+            total_voting_power.voting_power[(i % M) as usize] += total;
+        } else {
+            total_voting_power.voting_power[(i % M) as usize] =
+                (total_voting_power.voting_power[(i % M) as usize] - total)?;
+        }
+    }
+
+    Ok(())
+}
+
 pub fn stake_voting_tokens<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    _env: Env,
+    env: Env,
     sender: HumanAddr,
     amount: Uint128,
+    lock_for_weeks: Option<u64>,
 ) -> HandleResult {
     if amount.is_zero() {
         return Err(StdError::generic_err("Insufficient funds sent"));
@@ -42,11 +76,49 @@ pub fn stake_voting_tokens<S: Storage, A: Api, Q: Querier>(
         amount.multiply_ratio(state.total_share, total_balance)
     };
 
+    let mut total_voting_power = total_voting_power_read(&deps.storage).load()?;
+
+    let current_week = env.block.time / SECONDS_PER_WEEK;
+
+    if let Some(_) = token_manager.lock_end_week {
+        if lock_for_weeks.is_some() {
+            return Err(StdError::generic_err("cannot specify lock_for_weeks if tokens already staked. to change the lock time use increase_lock_time"));
+        }
+        // remove existing impact of this address from voting pool
+        adjust_total_voting_power(
+            &mut total_voting_power,
+            current_week,
+            token_manager.share.u128(),
+            token_manager.lock_end_week.unwrap() - current_week,
+            false,
+        )?;
+    } else {
+        if lock_for_weeks.is_none() {
+            return Err(StdError::generic_err(
+                "must specify lock_for_weeks if no tokens staked",
+            ));
+        }
+        if lock_for_weeks.unwrap() > M {
+            return Err(StdError::generic_err("lock time exceeds maximum"));
+        }
+        token_manager.lock_end_week = Some(current_week + lock_for_weeks.unwrap());
+    }
+
     token_manager.share += share;
     state.total_share += share;
 
+    // add impact of this address to voting pool
+    adjust_total_voting_power(
+        &mut total_voting_power,
+        current_week,
+        token_manager.share.u128(),
+        token_manager.lock_end_week.unwrap() - current_week,
+        true,
+    )?;
+
     state_store(&mut deps.storage).save(&state)?;
     bank_store(&mut deps.storage).save(key, &token_manager)?;
+    total_voting_power_store(&mut deps.storage).save(&total_voting_power)?;
 
     Ok(HandleResponse {
         messages: vec![],
@@ -97,6 +169,11 @@ pub fn withdraw_voting_tokens<S: Storage, A: Api, Q: Querier>(
         if user_locked_share + withdraw_share > user_share {
             Err(StdError::generic_err(
                 "User is trying to withdraw too many tokens.",
+            ))
+        } else if env.block.time / SECONDS_PER_WEEK < token_manager.lock_end_week.unwrap() {
+            //Check if locked time has passed before allowing
+            Err(StdError::generic_err(
+                "User is trying to withdraw tokens before expiry.",
             ))
         } else {
             let share = user_share - withdraw_share;
@@ -231,57 +308,59 @@ pub fn withdraw_voting_rewards<S: Storage, A: Api, Q: Querier>(
     )
 }
 
+// this doesn't handle timed staking properly, determine whether we should keep this
 pub fn stake_voting_rewards<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
 ) -> HandleResult {
-    let config: Config = config_store(&mut deps.storage).load()?;
-    let mut state: State = state_store(&mut deps.storage).load()?;
-    let sender_address_raw = deps.api.canonical_address(&env.message.sender)?;
-    let key = sender_address_raw.as_slice();
-
-    let mut token_manager = bank_read(&deps.storage)
-        .load(key)
-        .or(Err(StdError::generic_err("Nothing staked")))?;
-
-    let user_reward_amount: u128 =
-        withdraw_user_voting_rewards(&mut deps.storage, &sender_address_raw, &token_manager);
-    if user_reward_amount.eq(&0u128) {
-        return Err(StdError::generic_err("Nothing to withdraw"));
-    }
-
-    // add the withdrawn rewards to stake pool and calculate share
-    let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
-    let total_balance = (load_token_balance(
-        &deps,
-        &deps.api.human_address(&config.nebula_token)?,
-        &state.contract_addr,
-    )? - total_locked_balance)?;
-
-    state.pending_voting_rewards = (state.pending_voting_rewards - Uint128(user_reward_amount))?;
-
-    let share: Uint128 = if total_balance.is_zero() || state.total_share.is_zero() {
-        Uint128(user_reward_amount)
-    } else {
-        Uint128(user_reward_amount).multiply_ratio(state.total_share, total_balance)
-    };
-
-    token_manager.share += share;
-    state.total_share += share;
-
-    state_store(&mut deps.storage).save(&state)?;
-    bank_store(&mut deps.storage).save(key, &token_manager)?;
-
-    Ok(HandleResponse {
-        messages: vec![],
-        data: None,
-        log: vec![
-            log("action", "stake_voting_rewards"),
-            log("staker", env.message.sender.as_str()),
-            log("share", share.to_string()),
-            log("amount", user_reward_amount.to_string()),
-        ],
-    })
+    Err(StdError::generic_err("not implemented"))
+    // let config: Config = config_store(&mut deps.storage).load()?;
+    // let mut state: State = state_store(&mut deps.storage).load()?;
+    // let sender_address_raw = deps.api.canonical_address(&env.message.sender)?;
+    // let key = sender_address_raw.as_slice();
+    //
+    // let mut token_manager = bank_read(&deps.storage)
+    //     .load(key)
+    //     .or(Err(StdError::generic_err("Nothing staked")))?;
+    //
+    // let user_reward_amount: u128 =
+    //     withdraw_user_voting_rewards(&mut deps.storage, &sender_address_raw, &token_manager);
+    // if user_reward_amount.eq(&0u128) {
+    //     return Err(StdError::generic_err("Nothing to withdraw"));
+    // }
+    //
+    // // add the withdrawn rewards to stake pool and calculate share
+    // let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
+    // let total_balance = (load_token_balance(
+    //     &deps,
+    //     &deps.api.human_address(&config.nebula_token)?,
+    //     &state.contract_addr,
+    // )? - total_locked_balance)?;
+    //
+    // state.pending_voting_rewards = (state.pending_voting_rewards - Uint128(user_reward_amount))?;
+    //
+    // let share: Uint128 = if total_balance.is_zero() || state.total_share.is_zero() {
+    //     Uint128(user_reward_amount)
+    // } else {
+    //     Uint128(user_reward_amount).multiply_ratio(state.total_share, total_balance)
+    // };
+    //
+    // token_manager.share += share;
+    // state.total_share += share;
+    //
+    // state_store(&mut deps.storage).save(&state)?;
+    // bank_store(&mut deps.storage).save(key, &token_manager)?;
+    //
+    // Ok(HandleResponse {
+    //     messages: vec![],
+    //     data: None,
+    //     log: vec![
+    //         log("action", "stake_voting_rewards"),
+    //         log("staker", env.message.sender.as_str()),
+    //         log("share", share.to_string()),
+    //         log("amount", user_reward_amount.to_string()),
+    //     ],
+    // })
 }
 
 fn withdraw_user_voting_rewards<S: Storage>(
@@ -415,5 +494,70 @@ pub fn query_staker<S: Storage, A: Api, Q: Querier>(
         share: token_manager.share,
         locked_balance: token_manager.locked_balance,
         pending_voting_rewards: Uint128(user_reward_amount),
+        lock_end_week: token_manager.lock_end_week,
     })
+}
+
+// Calculate current voting power of a user
+pub fn calc_voting_power(share: Uint128, lock_end_week: u64, current_week: u64) -> Uint128 {
+    let locked_weeks_remaining = lock_end_week - current_week;
+    let voting_power = (share.u128() * locked_weeks_remaining as u128) / (M as u128);
+    return Uint128::from(voting_power);
+}
+
+//Increase the number of weeks staked tokens are locked for
+pub fn increase_lock_time<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    increase_weeks: u64,
+) -> HandleResult {
+    let sender_address_raw = deps.api.canonical_address(&env.message.sender)?;
+    let key = sender_address_raw.as_slice();
+
+    let mut total_voting_power = total_voting_power_read(&deps.storage).load()?;
+    let current_week = env.block.time / SECONDS_PER_WEEK;
+    let mut token_manager = bank_read(&deps.storage).may_load(key)?.unwrap_or_default();
+
+    if let Some(lock_end_week) = token_manager.lock_end_week {
+        if lock_end_week + increase_weeks - current_week > M {
+            return Err(StdError::generic_err("lock time exceeds maximum"));
+        }
+
+        adjust_total_voting_power(
+            &mut total_voting_power,
+            current_week,
+            token_manager.share.u128(),
+            token_manager.lock_end_week.unwrap() - current_week,
+            false,
+        )?;
+
+        token_manager.lock_end_week = Some(token_manager.lock_end_week.unwrap() + increase_weeks);
+
+        adjust_total_voting_power(
+            &mut total_voting_power,
+            current_week,
+            token_manager.share.u128(),
+            token_manager.lock_end_week.unwrap() - current_week,
+            true,
+        )?;
+
+        bank_store(&mut deps.storage).save(key, &token_manager)?;
+        total_voting_power_store(&mut deps.storage).save(&total_voting_power)?;
+
+        Ok(HandleResponse {
+            messages: vec![],
+            data: None,
+            log: vec![
+                log("action", "increase_lock_time"),
+                log("sender", &env.message.sender.as_str()),
+                log("previous_lock_end_week", lock_end_week.to_string()),
+                log(
+                    "new_lock_end_week",
+                    (lock_end_week + increase_weeks).to_string(),
+                ),
+            ],
+        })
+    } else {
+        Err(StdError::generic_err("User has no tokens staked."))
+    }
 }

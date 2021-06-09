@@ -185,6 +185,7 @@ pub fn migrate_polls<S: Storage>(storage: &mut S) -> StdResult<()> {
             total_balance_at_end_poll: poll.total_balance_at_end_poll,
             voters_reward: Uint128::zero(),
             staked_amount: None,
+            max_voting_power: Uint128::zero(),
         };
         new_polls_bucket.save(&id.to_be_bytes(), new_poll)?;
     }

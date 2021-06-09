@@ -1,12 +1,13 @@
 use crate::querier::load_token_balance;
 use crate::staking::{
-    deposit_reward, query_staker, stake_voting_rewards, stake_voting_tokens,
-    withdraw_voting_rewards, withdraw_voting_tokens,
+    calc_voting_power, deposit_reward, increase_lock_time, query_staker, stake_voting_rewards,
+    stake_voting_tokens, withdraw_voting_rewards, withdraw_voting_tokens, M, SECONDS_PER_WEEK,
 };
 use crate::state::{
     bank_read, bank_store, config_read, config_store, poll_indexer_store, poll_read, poll_store,
     poll_voter_read, poll_voter_store, read_poll_voters, read_polls, state_read, state_store,
-    Config, ExecuteData, Poll, State,
+    total_voting_power_read, total_voting_power_store, Config, ExecuteData, Poll, State,
+    TotalVotingPower,
 };
 use cosmwasm_std::{
     from_binary, log, to_binary, Api, Binary, CosmosMsg, Decimal, Env, Extern, HandleResponse,
@@ -58,8 +59,14 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         pending_voting_rewards: Uint128::zero(),
     };
 
+    let voting_power = TotalVotingPower {
+        voting_power: vec![Uint128::zero(); M as usize],
+        last_upd: env.block.time / SECONDS_PER_WEEK,
+    };
+
     config_store(&mut deps.storage).save(&config)?;
     state_store(&mut deps.storage).save(&state)?;
+    total_voting_power_store(&mut deps.storage).save(&voting_power)?;
 
     Ok(InitResponse::default())
 }
@@ -106,6 +113,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::ExecutePoll { poll_id } => execute_poll(deps, env, poll_id),
         HandleMsg::ExpirePoll { poll_id } => expire_poll(deps, env, poll_id),
         HandleMsg::SnapshotPoll { poll_id } => snapshot_poll(deps, env, poll_id),
+        HandleMsg::IncreaseLockTime { increase_weeks } => {
+            increase_lock_time(deps, env, increase_weeks)
+        }
     }
 }
 
@@ -122,8 +132,8 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
 
     if let Some(msg) = cw20_msg.msg {
         match from_binary(&msg)? {
-            Cw20HookMsg::StakeVotingTokens {} => {
-                stake_voting_tokens(deps, env, cw20_msg.sender, cw20_msg.amount)
+            Cw20HookMsg::StakeVotingTokens { lock_for_weeks } => {
+                stake_voting_tokens(deps, env, cw20_msg.sender, cw20_msg.amount, lock_for_weeks)
             }
             Cw20HookMsg::CreatePoll {
                 title,
@@ -328,6 +338,7 @@ pub fn create_poll<S: Storage, A: Api, Q: Querier>(
         total_balance_at_end_poll: None,
         voters_reward: Uint128::zero(),
         staked_amount: None,
+        max_voting_power: Uint128::zero(),
     };
 
     poll_store(&mut deps.storage).save(&poll_id.to_be_bytes(), &new_poll)?;
@@ -384,24 +395,11 @@ pub fn end_poll<S: Storage, A: Api, Q: Querier>(
     let config: Config = config_read(&deps.storage).load()?;
     let mut state: State = state_read(&deps.storage).load()?;
 
-    let (quorum, staked_weight) = if state.total_share.u128() == 0 {
-        (Decimal::zero(), Uint128::zero())
-    } else if let Some(staked_amount) = a_poll.staked_amount {
-        (
-            Decimal::from_ratio(tallied_weight, staked_amount),
-            staked_amount,
-        )
+    let staked_weight = a_poll.max_voting_power;
+    let quorum = if staked_weight != Uint128::zero() {
+        Decimal::from_ratio(tallied_weight, staked_weight)
     } else {
-        let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
-        let staked_weight = (load_token_balance(
-            &deps,
-            &deps.api.human_address(&config.nebula_token)?,
-            &state.contract_addr,
-        )? - total_locked_balance)?;
-        (
-            Decimal::from_ratio(tallied_weight, staked_weight),
-            staked_weight,
-        )
+        Decimal::zero()
     };
 
     if tallied_weight == 0 || quorum < config.quorum {
@@ -448,6 +446,9 @@ pub fn end_poll<S: Storage, A: Api, Q: Querier>(
         messages,
         log: vec![
             log("action", "end_poll"),
+            log("quorum", quorum),
+            log("tallied_weight", tallied_weight),
+            log("staked_weight", staked_weight),
             log("poll_id", &poll_id.to_string()),
             log("rejected_reason", rejected_reason),
             log("passed", &passed.to_string()),
@@ -557,6 +558,10 @@ pub fn cast_vote<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::generic_err("Poll does not exist"));
     }
 
+    if amount == Uint128::zero() {
+        return Err(StdError::generic_err("Cannot submit zero votes"));
+    }
+
     let mut a_poll: Poll = poll_store(&mut deps.storage).load(&poll_id.to_be_bytes())?;
     if a_poll.status != PollStatus::InProgress || env.block.height > a_poll.end_height {
         return Err(StdError::generic_err("Poll is not in progress"));
@@ -582,22 +587,33 @@ pub fn cast_vote<S: Storage, A: Api, Q: Querier>(
         &state.contract_addr,
     )? - total_locked_balance)?;
 
-    if token_manager
-        .share
-        .multiply_ratio(total_balance, total_share)
-        < amount
-    {
+    let voting_power = calc_voting_power(
+        token_manager
+            .share
+            .multiply_ratio(total_balance, total_share),
+        token_manager.lock_end_week.unwrap(),
+        env.block.time / SECONDS_PER_WEEK,
+    );
+    if voting_power < amount {
         return Err(StdError::generic_err(
             "User does not have enough staked tokens.",
         ));
     }
-
     // update tally info
     match vote {
         VoteOption::Yes => a_poll.yes_votes += amount,
         VoteOption::No => a_poll.no_votes += amount,
         VoteOption::Abstain => a_poll.abstain_votes += amount,
     }
+
+    let total_voting_power = total_voting_power_read(&deps.storage).load()?;
+    // don't need to zero anything out here -- if the user does have voting power then
+    // the entry at current_week has to be filled with a valid value
+    let current_week = (env.block.time / SECONDS_PER_WEEK) % M;
+    a_poll.max_voting_power = max(
+        a_poll.max_voting_power,
+        total_voting_power.voting_power[current_week as usize],
+    );
 
     let vote_info = VoterInfo {
         vote,
@@ -861,6 +877,8 @@ fn query_voters<S: Storage, A: Api, Q: Querier>(
 }
 
 use crate::migrate::{migrate_config, migrate_poll_indexer, migrate_polls, migrate_state};
+use std::cmp::max;
+
 pub fn migrate<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     _env: Env,

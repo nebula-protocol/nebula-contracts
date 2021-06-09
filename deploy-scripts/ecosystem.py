@@ -250,7 +250,7 @@ class Ecosystem:
             await self.neb_token.send(
                 contract=self.gov,
                 amount="600000000000",
-                msg=self.gov.stake_voting_tokens(),
+                msg=self.gov.stake_voting_tokens(lock_for_weeks=104),
             )
 
             resp = await self.create_and_execute_poll(
