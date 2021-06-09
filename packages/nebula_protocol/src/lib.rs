@@ -1,10 +1,10 @@
+pub mod airdrop;
+pub mod cluster;
+pub mod cluster_factory;
 pub mod collector;
 pub mod common;
 pub mod community;
-pub mod factory;
 pub mod gov;
-pub mod penalty;
-pub mod cluster;
-pub mod airdrop;
-pub mod staking;
 pub mod incentives;
+pub mod penalty;
+pub mod staking;

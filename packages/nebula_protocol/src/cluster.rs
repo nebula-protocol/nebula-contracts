@@ -33,7 +33,7 @@ pub struct InitMsg {
     /// Target weight vector (not normalized)
     pub target: Vec<u32>,
 
-    pub init_hook: Option<InitHook>
+    pub init_hook: Option<InitHook>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -81,18 +81,14 @@ pub enum HandleMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum Cw20HookMsg {
-
-}
+pub enum Cw20HookMsg {}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     Config {},
     Target {},
-    BasketState {
-        basket_contract_address: HumanAddr,
-    },
+    BasketState { basket_contract_address: HumanAddr },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

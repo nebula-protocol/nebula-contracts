@@ -1,2 +1,2 @@
 bash ./build.sh
-cd basket-scripts && python3 deploy_comprehensive.py
+cd deploy-scripts/test && python3 community_and_airdrop.py

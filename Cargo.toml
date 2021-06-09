@@ -1,18 +1,17 @@
 [workspace]
 
 members = [
-  "contracts/basket-collector",
-  "contracts/basket-contract",
-  "contracts/basket-dummy-oracle",
-  "contracts/basket-penalty",
-  "contracts/basket-gov",
-  "contracts/basket-factory",
-  "contracts/basket-staking",
-  "contracts/basket-community",
-  "contracts/basket-incentives",
-  "contracts/basket-incentives-custody",
-  "contracts/terraswap-oracle",
-  "contracts/airdrop",
+  "contracts/nebula-airdrop",
+  "contracts/nebula-cluster",
+  "contracts/nebula-cluster-factory",
+  "contracts/nebula-collector",
+  "contracts/nebula-community",
+  "contracts/nebula-dummy-oracle",
+  "contracts/nebula-gov",
+  "contracts/nebula-incentives",
+  "contracts/nebula-incentives-custody",
+  "contracts/nebula-lp-staking",
+  "contracts/nebula-penalty",
   "libraries/*",
   "packages/*"
 ]
