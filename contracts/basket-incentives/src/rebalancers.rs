@@ -255,7 +255,7 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
     }
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: basket_contract.clone(),
+        contract_addr: env.contract.address.clone(),
         msg: to_binary(&HandleMsg::_InternalRewardedMint {
             rebalancer: env.message.sender.clone(),
             basket_contract: basket_contract.clone(),
@@ -303,7 +303,7 @@ pub fn redeem<S: Storage, A: Api, Q: Querier>(
                 send: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: basket_contract.clone(),
+                contract_addr: env.contract.address.clone(),
                 msg: to_binary(&HandleMsg::_InternalRewardedRedeem {
                     rebalancer: env.message.sender.clone(),
                     basket_contract: basket_contract.clone(),
