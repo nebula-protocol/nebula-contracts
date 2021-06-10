@@ -113,6 +113,7 @@ pub struct BasketStateResponse {
     pub inv: Vec<Uint128>,
     pub assets: Vec<AssetInfo>,
     pub penalty: HumanAddr,
+    pub basket_token: HumanAddr,
     pub target: Vec<u32>,
     pub basket_contract_address: HumanAddr,
 }
