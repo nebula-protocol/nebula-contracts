@@ -5,13 +5,12 @@ use cosmwasm_std::{
 };
 
 use crate::state::{read_config, Config, record_contribution};
-use crate::rebalancers::{assert_cluster_exists};
+use crate::rebalancers::{assert_cluster_exists, get_basket_state};
 
 use nebula_protocol::incentives::{ExtQueryMsg, HandleMsg, PoolResponse, PoolType};
 
 use cw20::{Cw20HandleMsg};
 use nebula_protocol::cluster::{
-    BasketStateResponse, ConfigResponse as ClusterConfigResponse,
     QueryMsg as ClusterQueryMsg,
 };
 use terraswap::asset::{Asset, AssetInfo, PairInfo};
@@ -74,14 +73,8 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
 
     let cfg: Config = read_config(&deps.storage)?;
 
-    let basket_config_response: ClusterConfigResponse =
-        deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-            contract_addr: basket_contract.clone(),
-            msg: to_binary(&ClusterQueryMsg::Config {})?,
-        }))?;
-
-    let basket_config = basket_config_response.config;
-    let basket_token = basket_config.basket_token.unwrap();
+    let basket_state = get_basket_state(deps, basket_contract)?;
+    let basket_token = basket_state.basket_token;
 
     let pair_info = get_pair_info(deps, &basket_token)?;
 
@@ -203,14 +196,8 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
 
     asset.assert_sent_native_token_balance(&env)?;
 
-    let basket_config_response: ClusterConfigResponse =
-        deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-            contract_addr: basket_contract.clone(),
-            msg: to_binary(&ClusterQueryMsg::Config {})?,
-        }))?;
-
-    let basket_config = basket_config_response.config;
-    let basket_token = basket_config.basket_token.unwrap();
+    let basket_state = get_basket_state(deps, basket_contract)?;
+    let basket_token = basket_state.basket_token;
 
     let pair_info = get_pair_info(deps, &basket_token)?;
 
@@ -257,11 +244,12 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.clone(),
         msg: to_binary(&HandleMsg::SendAll {
-            asset_infos: vec![AssetInfo::Token { contract_addr: basket_token.clone() }],
+            asset_infos: basket_state.assets,
             send_to: env.message.sender,
         })?,
         send: vec![],
     }));
+
     Ok(HandleResponse {
         messages,
         log: vec![],
@@ -288,13 +276,7 @@ pub fn record_terraswap_impact<S: Storage, A: Api, Q: Querier>(
 
     let arbitrager = deps.api.canonical_address(&arbitrager)?;
 
-    let contract_state: BasketStateResponse =
-        deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-            contract_addr: basket_contract.clone(),
-            msg: to_binary(&ClusterQueryMsg::BasketState {
-                basket_contract_address: basket_contract.clone(),
-            })?,
-        }))?;
+    let contract_state = get_basket_state(deps, basket_contract)?;
 
     // here we compute the "fair" value of a basket token
     // by breaking it down into its respective components
@@ -435,7 +417,6 @@ pub fn swap_all<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-// make sure this is airtight so the someone cannot send himself all of the nebula in this contract
 pub fn send_all<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,

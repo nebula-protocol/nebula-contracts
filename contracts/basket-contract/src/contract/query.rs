@@ -110,6 +110,7 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
         assets,
         target,
         penalty,
+        basket_token: basket_token.clone(),
         basket_contract_address: basket_contract_address.clone(),
     })
 }
