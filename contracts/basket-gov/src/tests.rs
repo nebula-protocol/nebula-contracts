@@ -1,6 +1,7 @@
 use crate::contract::{handle, init, query};
 use crate::mock_querier::{mock_dependencies, WasmMockQuerier};
 use crate::querier::load_token_balance;
+use crate::staking::SECONDS_PER_WEEK;
 use crate::state::{
     bank_read, bank_store, config_read, poll_indexer_store, poll_store, poll_voter_read,
     poll_voter_store, state_read, Config, Poll, State, TokenManager,
@@ -8,8 +9,8 @@ use crate::state::{
 
 use cosmwasm_std::testing::{mock_env, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    coins, from_binary, log, to_binary, Api, CanonicalAddr, Coin, CosmosMsg, Decimal, Env, Extern,
-    HandleResponse, HumanAddr, StdError, Uint128, WasmMsg,
+    coins, from_binary, log, to_binary, Coin, CosmosMsg, Decimal, Env, Extern, HandleResponse,
+    HumanAddr, StdError, Uint128, WasmMsg,
 };
 use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
 use nebula_protocol::common::OrderBy;
@@ -85,14 +86,8 @@ fn proper_initialization() {
     assert_eq!(
         config,
         Config {
-            nebula_token: deps
-                .api
-                .canonical_address(&HumanAddr::from(VOTING_TOKEN))
-                .unwrap(),
-            owner: deps
-                .api
-                .canonical_address(&HumanAddr::from(TEST_CREATOR))
-                .unwrap(),
+            nebula_token: HumanAddr::from(VOTING_TOKEN),
+            owner: HumanAddr::from(TEST_CREATOR),
             quorum: Decimal::percent(DEFAULT_QUORUM),
             threshold: Decimal::percent(DEFAULT_THRESHOLD),
             voting_period: DEFAULT_VOTING_PERIOD,
@@ -108,10 +103,7 @@ fn proper_initialization() {
     assert_eq!(
         state,
         State {
-            contract_addr: deps
-                .api
-                .canonical_address(&HumanAddr::from(MOCK_CONTRACT_ADDR))
-                .unwrap(),
+            contract_addr: HumanAddr::from(MOCK_CONTRACT_ADDR),
             poll_count: 0,
             total_share: Uint128::zero(),
             total_deposit: Uint128::zero(),
@@ -616,7 +608,12 @@ fn happy_days_end_poll() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(stake_amount as u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
@@ -704,7 +701,7 @@ fn happy_days_end_poll() {
 
     creator_env.block.height = &creator_env.block.height + DEFAULT_EFFECTIVE_DELAY;
     let msg = HandleMsg::ExecutePoll { poll_id: 1 };
-    let handle_res = handle(&mut deps, creator_env, msg).unwrap();
+    let handle_res = handle(&mut deps, creator_env.clone(), msg).unwrap();
     assert_eq!(
         handle_res.messages,
         vec![CosmosMsg::Wasm(WasmMsg::Execute {
@@ -788,6 +785,7 @@ fn happy_days_end_poll() {
             share: Uint128(stake_amount),
             locked_balance: vec![],
             pending_voting_rewards: Uint128::zero(),
+            lock_end_week: Some(creator_env.block.time / SECONDS_PER_WEEK),
         }
     );
 }
@@ -842,7 +840,12 @@ fn expire_poll() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(stake_amount as u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
@@ -980,7 +983,12 @@ fn end_poll_zero_quorum() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(stake_amount as u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
@@ -1075,7 +1083,12 @@ fn end_poll_quorum_rejected() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(stake_amount as u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
@@ -1192,7 +1205,12 @@ fn end_poll_nay_rejected() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(voter1_stake as u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
@@ -1217,7 +1235,12 @@ fn end_poll_nay_rejected() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER_2),
         amount: Uint128::from(voter2_stake as u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
@@ -1284,7 +1307,12 @@ fn fails_cast_vote_not_enough_staked() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(10u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
@@ -1337,7 +1365,12 @@ fn happy_days_cast_vote() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(11u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
@@ -1352,7 +1385,7 @@ fn happy_days_cast_vote() {
         amount: Uint128::from(amount),
     };
 
-    let handle_res = handle(&mut deps, env, msg.clone()).unwrap();
+    let handle_res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
     assert_cast_vote_success(TEST_VOTER, amount, 1, VoteOption::Yes, handle_res);
 
     // balance be double
@@ -1386,6 +1419,7 @@ fn happy_days_cast_vote() {
                 }
             )],
             pending_voting_rewards: Uint128::zero(),
+            lock_end_week: Some(env.block.time / SECONDS_PER_WEEK),
         }
     );
 
@@ -1437,7 +1471,12 @@ fn happy_days_withdraw_voting_tokens() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(11u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
@@ -1448,10 +1487,7 @@ fn happy_days_withdraw_voting_tokens() {
     assert_eq!(
         state,
         State {
-            contract_addr: deps
-                .api
-                .canonical_address(&HumanAddr::from(MOCK_CONTRACT_ADDR))
-                .unwrap(),
+            contract_addr: HumanAddr::from(MOCK_CONTRACT_ADDR),
             poll_count: 0,
             total_share: Uint128::from(11u128),
             total_deposit: Uint128::zero(),
@@ -1490,10 +1526,7 @@ fn happy_days_withdraw_voting_tokens() {
     assert_eq!(
         state,
         State {
-            contract_addr: deps
-                .api
-                .canonical_address(&HumanAddr::from(MOCK_CONTRACT_ADDR))
-                .unwrap(),
+            contract_addr: HumanAddr::from(MOCK_CONTRACT_ADDR),
             poll_count: 0,
             total_share: Uint128::from(6u128),
             total_deposit: Uint128::zero(),
@@ -1515,7 +1548,12 @@ fn happy_days_withdraw_voting_tokens_all() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(11u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
@@ -1526,10 +1564,7 @@ fn happy_days_withdraw_voting_tokens_all() {
     assert_eq!(
         state,
         State {
-            contract_addr: deps
-                .api
-                .canonical_address(&HumanAddr::from(MOCK_CONTRACT_ADDR))
-                .unwrap(),
+            contract_addr: HumanAddr::from(MOCK_CONTRACT_ADDR),
             poll_count: 0,
             total_share: Uint128::from(11u128),
             total_deposit: Uint128::zero(),
@@ -1566,10 +1601,7 @@ fn happy_days_withdraw_voting_tokens_all() {
     assert_eq!(
         state,
         State {
-            contract_addr: deps
-                .api
-                .canonical_address(&HumanAddr::from(MOCK_CONTRACT_ADDR))
-                .unwrap(),
+            contract_addr: HumanAddr::from(MOCK_CONTRACT_ADDR),
             poll_count: 0,
             total_share: Uint128::zero(),
             total_deposit: Uint128::zero(),
@@ -1591,11 +1623,16 @@ fn withdraw_voting_tokens() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(11u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
-    let handle_res = handle(&mut deps, env, msg.clone()).unwrap();
+    let handle_res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
     assert_stake_tokens_result(11, 0, 11, 0, handle_res, &mut deps);
 
     // make fake polls; one in progress & one in passed
@@ -1604,7 +1641,7 @@ fn withdraw_voting_tokens() {
             &1u64.to_be_bytes(),
             &Poll {
                 id: 1u64,
-                creator: CanonicalAddr::default(),
+                creator: HumanAddr::default(),
                 status: PollStatus::InProgress,
                 yes_votes: Uint128::zero(),
                 no_votes: Uint128::zero(),
@@ -1618,6 +1655,7 @@ fn withdraw_voting_tokens() {
                 total_balance_at_end_poll: None,
                 voters_reward: Uint128::zero(),
                 staked_amount: None,
+                max_voting_power: Uint128::zero(),
             },
         )
         .unwrap();
@@ -1627,7 +1665,7 @@ fn withdraw_voting_tokens() {
             &2u64.to_be_bytes(),
             &Poll {
                 id: 1u64,
-                creator: CanonicalAddr::default(),
+                creator: HumanAddr::default(),
                 status: PollStatus::Passed,
                 yes_votes: Uint128::zero(),
                 no_votes: Uint128::zero(),
@@ -1641,17 +1679,15 @@ fn withdraw_voting_tokens() {
                 total_balance_at_end_poll: None,
                 voters_reward: Uint128::zero(),
                 staked_amount: None,
+                max_voting_power: Uint128::zero(),
             },
         )
         .unwrap();
 
-    let voter_addr_raw = deps
-        .api
-        .canonical_address(&HumanAddr::from(TEST_VOTER))
-        .unwrap();
+    let voter_addr = HumanAddr::from(TEST_VOTER);
     poll_voter_store(&mut deps.storage, 1u64)
         .save(
-            &voter_addr_raw.as_slice(),
+            &voter_addr.as_str().as_bytes(),
             &VoterInfo {
                 vote: VoteOption::Yes,
                 balance: Uint128(5u128),
@@ -1660,7 +1696,7 @@ fn withdraw_voting_tokens() {
         .unwrap();
     poll_voter_store(&mut deps.storage, 2u64)
         .save(
-            &voter_addr_raw.as_slice(),
+            &voter_addr.as_str().as_bytes(),
             &VoterInfo {
                 vote: VoteOption::Yes,
                 balance: Uint128(5u128),
@@ -1669,7 +1705,7 @@ fn withdraw_voting_tokens() {
         .unwrap();
     bank_store(&mut deps.storage)
         .save(
-            &voter_addr_raw.as_slice(),
+            &voter_addr.as_str().as_bytes(),
             &TokenManager {
                 share: Uint128(11u128),
                 locked_balance: vec![
@@ -1689,6 +1725,7 @@ fn withdraw_voting_tokens() {
                     ),
                 ],
                 participated_polls: vec![],
+                lock_end_week: Some(env.block.time / SECONDS_PER_WEEK),
             },
         )
         .unwrap();
@@ -1700,7 +1737,7 @@ fn withdraw_voting_tokens() {
 
     let _ = handle(&mut deps, env, msg).unwrap();
     let voter = poll_voter_read(&deps.storage, 1u64)
-        .load(&voter_addr_raw.as_slice())
+        .load(&voter_addr.as_str().as_bytes())
         .unwrap();
     assert_eq!(
         voter,
@@ -1711,7 +1748,7 @@ fn withdraw_voting_tokens() {
     );
 
     let token_manager = bank_read(&deps.storage)
-        .load(&voter_addr_raw.as_slice())
+        .load(&voter_addr.as_str().as_bytes())
         .unwrap();
     assert_eq!(
         token_manager.locked_balance,
@@ -1757,7 +1794,12 @@ fn fails_withdraw_too_many_tokens() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(10u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
@@ -1809,7 +1851,12 @@ fn fails_cast_vote_twice() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(11u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
@@ -1874,7 +1921,12 @@ fn happy_days_stake_voting_tokens() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(11u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
@@ -1896,7 +1948,12 @@ fn fails_insufficient_funds() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(0u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
@@ -1928,7 +1985,12 @@ fn fails_staking_wrong_token() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(11u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN.to_string() + "2", &[]);
@@ -1960,7 +2022,12 @@ fn share_calculation() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(100u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN.to_string(), &[]);
@@ -1978,7 +2045,12 @@ fn share_calculation() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(100u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN.to_string(), &[]);
@@ -2070,7 +2142,12 @@ fn share_calculation_with_voter_rewards() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(100u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
     let env = mock_env(VOTING_TOKEN.to_string(), &[]);
     let res = handle(&mut deps, env, msg).unwrap();
@@ -2110,7 +2187,12 @@ fn share_calculation_with_voter_rewards() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(100u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN.to_string(), &[]);
@@ -2184,10 +2266,7 @@ fn assert_create_poll_result(
     assert_eq!(
         state,
         State {
-            contract_addr: deps
-                .api
-                .canonical_address(&HumanAddr::from(MOCK_CONTRACT_ADDR))
-                .unwrap(),
+            contract_addr: HumanAddr::from(MOCK_CONTRACT_ADDR),
             poll_count: 1,
             total_share: Uint128::zero(),
             total_deposit: Uint128(DEFAULT_PROPOSAL_DEPOSIT),
@@ -2213,10 +2292,7 @@ fn assert_stake_tokens_result(
     assert_eq!(
         state,
         State {
-            contract_addr: deps
-                .api
-                .canonical_address(&HumanAddr::from(MOCK_CONTRACT_ADDR))
-                .unwrap(),
+            contract_addr: HumanAddr::from(MOCK_CONTRACT_ADDR),
             poll_count,
             total_share: Uint128(total_share),
             total_deposit: Uint128(total_deposit),
@@ -2371,7 +2447,12 @@ fn distribute_voting_rewards() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(stake_amount),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN.to_string(), &[]);
@@ -2442,13 +2523,7 @@ fn distribute_voting_rewards() {
     // voting info has been deleted
     assert_eq!(
         poll_voter_read(&deps.storage, 1u64)
-            .load(
-                &deps
-                    .api
-                    .canonical_address(&HumanAddr::from(TEST_VOTER))
-                    .unwrap()
-                    .as_slice()
-            )
+            .load(&HumanAddr::from(TEST_VOTER).as_str().as_bytes())
             .is_err(),
         true
     );
@@ -2498,7 +2573,12 @@ fn stake_voting_rewards() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(stake_amount),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN.to_string(), &[]);
@@ -2567,19 +2647,13 @@ fn stake_voting_rewards() {
     // FAIL - already withdrawn
     let msg = HandleMsg::StakeVotingRewards {};
     let env = mock_env_height(TEST_VOTER, &[], 0, 10000);
-    let res = handle(&mut deps, env, msg).unwrap_err();
+    let res = handle(&mut deps, env.clone(), msg).unwrap_err();
     assert_eq!(res, StdError::generic_err("Nothing to withdraw"));
 
     // voting info has been deleted
     assert_eq!(
         poll_voter_read(&deps.storage, 1u64)
-            .load(
-                &deps
-                    .api
-                    .canonical_address(&HumanAddr::from(TEST_VOTER))
-                    .unwrap()
-                    .as_slice()
-            )
+            .load(&HumanAddr::from(TEST_VOTER).as_str().as_bytes())
             .is_err(),
         true
     );
@@ -2599,6 +2673,7 @@ fn stake_voting_rewards() {
             share: Uint128(stake_amount + 33u128),
             locked_balance: vec![],
             pending_voting_rewards: Uint128(0u128),
+            lock_end_week: Some(env.block.time / SECONDS_PER_WEEK),
         }
     );
 }
@@ -2648,7 +2723,12 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(ALICE),
         amount: Uint128::from(ALICE_STAKE),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
     let env = mock_env(VOTING_TOKEN.to_string(), &[]);
     let _res = handle(&mut deps, env.clone(), msg).unwrap();
@@ -2663,7 +2743,12 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(BOB),
         amount: Uint128::from(BOB_STAKE),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
     let _res = handle(&mut deps, env.clone(), msg).unwrap();
     deps.querier.with_token_balances(&[(
@@ -2679,7 +2764,12 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(CINDY),
         amount: Uint128::from(CINDY_STAKE),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
     let _res = handle(&mut deps, env.clone(), msg).unwrap();
 
@@ -2806,10 +2896,7 @@ fn distribute_voting_rewards_only_to_polls_in_progress() {
             &1u64.to_be_bytes(),
             &Poll {
                 id: 1u64,
-                creator: deps
-                    .api
-                    .canonical_address(&HumanAddr::from(TEST_CREATOR))
-                    .unwrap(),
+                creator: HumanAddr::from(TEST_CREATOR),
                 status: PollStatus::InProgress,
                 yes_votes: Uint128::zero(),
                 no_votes: Uint128::zero(),
@@ -2823,6 +2910,7 @@ fn distribute_voting_rewards_only_to_polls_in_progress() {
                 total_balance_at_end_poll: None,
                 voters_reward: Uint128::zero(),
                 staked_amount: None,
+                max_voting_power: Uint128::zero(),
             },
         )
         .unwrap();
@@ -2832,10 +2920,7 @@ fn distribute_voting_rewards_only_to_polls_in_progress() {
             &2u64.to_be_bytes(),
             &Poll {
                 id: 2u64,
-                creator: deps
-                    .api
-                    .canonical_address(&HumanAddr::from(TEST_CREATOR))
-                    .unwrap(),
+                creator: HumanAddr::from(TEST_CREATOR),
                 status: PollStatus::Passed,
                 yes_votes: Uint128::zero(),
                 no_votes: Uint128::zero(),
@@ -2849,6 +2934,7 @@ fn distribute_voting_rewards_only_to_polls_in_progress() {
                 total_balance_at_end_poll: None,
                 voters_reward: Uint128::zero(),
                 staked_amount: None,
+                max_voting_power: Uint128::zero(),
             },
         )
         .unwrap();
@@ -2961,7 +3047,12 @@ fn test_staking_and_voting_rewards() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(ALICE),
         amount: Uint128::from(ALICE_STAKE),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
     let env = mock_env(VOTING_TOKEN.to_string(), &[]);
     let _res = handle(&mut deps, env.clone(), msg).unwrap();
@@ -2976,7 +3067,12 @@ fn test_staking_and_voting_rewards() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(BOB),
         amount: Uint128::from(BOB_STAKE),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
     let _res = handle(&mut deps, env.clone(), msg).unwrap();
 
@@ -3052,6 +3148,7 @@ fn test_staking_and_voting_rewards() {
             share: Uint128(ALICE_STAKE),
             locked_balance: vec![],
             pending_voting_rewards: Uint128(750_000_000u128),
+            lock_end_week: Some(env.block.time / SECONDS_PER_WEEK),
         }
     );
     let res = query(
@@ -3069,6 +3166,7 @@ fn test_staking_and_voting_rewards() {
             share: Uint128(BOB_STAKE),
             locked_balance: vec![],
             pending_voting_rewards: Uint128(250_000_000u128),
+            lock_end_week: Some(env.block.time / SECONDS_PER_WEEK),
         }
     );
 
@@ -3179,7 +3277,12 @@ fn test_abstain_votes_theshold() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(ALICE),
         amount: Uint128::from(ALICE_STAKE),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
     let env = mock_env(VOTING_TOKEN.to_string(), &[]);
     let _res = handle(&mut deps, env.clone(), msg).unwrap();
@@ -3194,7 +3297,12 @@ fn test_abstain_votes_theshold() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(BOB),
         amount: Uint128::from(BOB_STAKE),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
     let _res = handle(&mut deps, env.clone(), msg).unwrap();
     deps.querier.with_token_balances(&[(
@@ -3208,7 +3316,12 @@ fn test_abstain_votes_theshold() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(CINDY),
         amount: Uint128::from(CINDY_STAKE),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
     let _res = handle(&mut deps, env.clone(), msg).unwrap();
 
@@ -3294,7 +3407,12 @@ fn test_abstain_votes_quorum() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(ALICE),
         amount: Uint128::from(ALICE_STAKE),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
     let env = mock_env(VOTING_TOKEN.to_string(), &[]);
     let _res = handle(&mut deps, env.clone(), msg).unwrap();
@@ -3309,7 +3427,12 @@ fn test_abstain_votes_quorum() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(BOB),
         amount: Uint128::from(BOB_STAKE),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
     let _res = handle(&mut deps, env.clone(), msg).unwrap();
     deps.querier.with_token_balances(&[(
@@ -3323,7 +3446,12 @@ fn test_abstain_votes_quorum() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(CINDY),
         amount: Uint128::from(CINDY_STAKE),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
     let _res = handle(&mut deps, env.clone(), msg).unwrap();
 
@@ -3507,7 +3635,12 @@ fn happy_days_cast_vote_with_snapshot() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(11u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
@@ -3545,7 +3678,12 @@ fn happy_days_cast_vote_with_snapshot() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER_2),
         amount: Uint128::from(11u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
@@ -3590,7 +3728,12 @@ fn happy_days_cast_vote_with_snapshot() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER_3),
         amount: Uint128::from(11u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
@@ -3661,7 +3804,12 @@ fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(stake_amount as u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
@@ -3711,7 +3859,12 @@ fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER_2),
         amount: Uint128::from(8 * stake_amount as u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
@@ -3814,7 +3967,12 @@ fn happy_days_end_poll_with_controlled_quorum() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(stake_amount as u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
@@ -3879,7 +4037,12 @@ fn happy_days_end_poll_with_controlled_quorum() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER_2),
         amount: Uint128::from(8 * stake_amount as u128),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(0u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
@@ -3946,10 +4109,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
     let actual_staked_weight = (load_token_balance(
         &deps,
         &HumanAddr::from(VOTING_TOKEN),
-        &deps
-            .api
-            .canonical_address(&HumanAddr::from(MOCK_CONTRACT_ADDR))
-            .unwrap(),
+        &HumanAddr::from(MOCK_CONTRACT_ADDR),
     )
     .unwrap()
         - Uint128(DEFAULT_PROPOSAL_DEPOSIT))

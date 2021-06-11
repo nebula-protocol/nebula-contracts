@@ -5,11 +5,23 @@
     {
       "type": "object",
       "required": [
-        "get_count"
+        "price"
       ],
       "properties": {
-        "get_count": {
-          "type": "object"
+        "price": {
+          "type": "object",
+          "required": [
+            "base_asset",
+            "quote_asset"
+          ],
+          "properties": {
+            "base_asset": {
+              "type": "string"
+            },
+            "quote_asset": {
+              "type": "string"
+            }
+          }
         }
       }
     }

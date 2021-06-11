@@ -4,9 +4,10 @@ use cosmwasm_std::{
 };
 
 use terraswap::asset::{AssetInfo, PairInfo};
+use terraswap::pair::QueryMsg as PairQueryMsg;
 use terraswap::querier::query_pair_info;
 
-use crate::msg::{ExtQueryMsg, HandleMsg, InitMsg, PriceResponse, QueryMsg};
+use crate::msg::{HandleMsg, InitMsg, PriceResponse, QueryMsg};
 use crate::state::{read_config, set_config, Config};
 use terraswap::pair::PoolResponse;
 
@@ -47,8 +48,11 @@ fn query_price<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<PriceResponse> {
     let cfg = read_config(&deps.storage)?;
 
-    // does this actually work?
-    let asset_info = if asset.starts_with("terra") {
+    let asset_info = if deps
+        .api
+        .canonical_address(&HumanAddr::from(asset.as_str()))
+        .is_ok()
+    {
         AssetInfo::Token {
             contract_addr: HumanAddr::from(asset),
         }
@@ -69,10 +73,10 @@ fn query_price<S: Storage, A: Api, Q: Querier>(
 
     let pool_info: PoolResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: pair_info.contract_addr.clone(),
-        msg: to_binary(&ExtQueryMsg::Pool {})?,
+        msg: to_binary(&PairQueryMsg::Pool {})?,
     }))?;
 
-    let assets = if pool_info.assets[0].clone().info.to_string() == cfg.base_denom {
+    let assets = if pool_info.assets[0].info.to_string() == cfg.base_denom {
         pool_info.assets.to_vec()
     } else {
         vec![pool_info.assets[1].clone(), pool_info.assets[0].clone()]

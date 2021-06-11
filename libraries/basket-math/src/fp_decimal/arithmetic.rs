@@ -21,10 +21,11 @@ impl FPDecimal {
         if y.num == x.num {
             sign = 1;
         }
-        return FPDecimal {
+
+        FPDecimal {
             num: y.num - x.num,
-            sign: sign,
-        };
+            sign,
+        }
     }
 
     pub fn add(&self, other: i128) -> FPDecimal {
@@ -64,10 +65,7 @@ impl FPDecimal {
         result = result + x2y1;
         result = result + x1y2;
         result = result + x2y2;
-        FPDecimal {
-            num: result,
-            sign: sign,
-        }
+        FPDecimal { num: result, sign }
     }
 
     pub fn mul(&self, other: i128) -> FPDecimal {
@@ -82,7 +80,7 @@ impl FPDecimal {
         assert_ne!(y.num, U256::zero());
         FPDecimal {
             num: FPDecimal::ONE.num * x.num / y.num,
-            sign: 1 ^ x.sign ^ y.sign
+            sign: 1 ^ x.sign ^ y.sign,
         }
     }
 
@@ -147,7 +145,16 @@ mod tests {
     #[test]
     fn test_into_u128() {
         let first_num: u128 = FPDecimal::from(1234567890123456789u128).into();
-        assert_eq!(first_num, 1234567890123456789u128)
+        assert_eq!(first_num, 1234567890123456789u128);
+
+        let num: u128 = FPDecimal::from(u128::MAX).into();
+        assert_eq!(num, u128::MAX);
+    }
+
+    #[test]
+    #[should_panic(expected = "overflow")]
+    fn panic_into_u128() {
+        let _: u128 = (FPDecimal::from(u128::MAX) + FPDecimal::ONE).into();
     }
 
     // #[test]
@@ -337,7 +344,6 @@ mod tests {
 
     #[test]
     fn test_div_identity() {
-
         for i in 1..10000 {
             let a = FPDecimal {
                 num: U256([i, 0, 0, 0]) * FPDecimal::ONE.num,

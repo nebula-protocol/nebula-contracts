@@ -3,6 +3,7 @@ use serde::{de, ser, Deserialize, Deserializer, Serialize};
 use std::fmt;
 use std::str::FromStr;
 
+#[allow(clippy::upper_case_acronyms)]
 struct FPDecimalVisitor;
 
 impl<'de> de::Visitor<'de> for FPDecimalVisitor {

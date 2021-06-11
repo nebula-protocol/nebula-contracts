@@ -22,7 +22,7 @@ impl FromStr for FPDecimal {
                     .map_err(|_| StdError::generic_err("Error parsing integer"))?;
                 Ok(FPDecimal {
                     num: integer * FPDecimal::ONE.num,
-                    sign: sign,
+                    sign,
                 })
             }
             2 => {
@@ -41,7 +41,7 @@ impl FromStr for FPDecimal {
 
                 Ok(FPDecimal {
                     num: integer * FPDecimal::ONE.num + fraction * U256::exp10(exp),
-                    sign: sign,
+                    sign,
                 })
             }
             _ => Err(StdError::generic_err("Unexpected number of dots")),

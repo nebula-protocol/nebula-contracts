@@ -47,6 +47,6 @@ pub fn read_target<S: Storage>(storage: &S) -> StdResult<Vec<u32>> {
     singleton_read(storage, TARGET_KEY).load()
 }
 
-pub fn save_target<S: Storage>(storage: &mut S, target: &Vec<u32>) -> StdResult<()> {
+pub fn save_target<S: Storage>(storage: &mut S, target: &[u32]) -> StdResult<()> {
     singleton(storage, TARGET_KEY).save(target)
 }

@@ -5,33 +5,48 @@
     {
       "type": "object",
       "required": [
-        "increment"
+        "request_neb"
       ],
       "properties": {
-        "increment": {
-          "type": "object"
+        "request_neb": {
+          "type": "object",
+          "required": [
+            "amount"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            }
+          }
         }
       }
     },
     {
       "type": "object",
       "required": [
-        "reset"
+        "__reset_owner"
       ],
       "properties": {
-        "reset": {
+        "__reset_owner": {
           "type": "object",
           "required": [
-            "count"
+            "owner"
           ],
           "properties": {
-            "count": {
-              "type": "integer",
-              "format": "int32"
+            "owner": {
+              "$ref": "#/definitions/HumanAddr"
             }
           }
         }
       }
     }
-  ]
+  ],
+  "definitions": {
+    "HumanAddr": {
+      "type": "string"
+    },
+    "Uint128": {
+      "type": "string"
+    }
+  }
 }

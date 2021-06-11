@@ -3,12 +3,20 @@
   "title": "InitMsg",
   "type": "object",
   "required": [
-    "count"
+    "base_denom",
+    "terraswap_factory"
   ],
   "properties": {
-    "count": {
-      "type": "integer",
-      "format": "int32"
+    "base_denom": {
+      "type": "string"
+    },
+    "terraswap_factory": {
+      "$ref": "#/definitions/HumanAddr"
+    }
+  },
+  "definitions": {
+    "HumanAddr": {
+      "type": "string"
     }
   }
 }

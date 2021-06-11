@@ -1,7 +1,6 @@
 use cosmwasm_std::{
     from_binary, log, to_binary, Api, Binary, Env, Extern, HandleResponse, HandleResult, HumanAddr,
-    InitResponse, MigrateResponse, MigrateResult, Querier, StdError, StdResult,
-    Storage, Uint128
+    InitResponse, MigrateResponse, MigrateResult, Querier, StdError, StdResult, Storage, Uint128,
 };
 
 use crate::arbitragers::{
@@ -25,10 +24,10 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     store_config(
         &mut deps.storage,
         &Config {
-            factory: deps.api.canonical_address(&msg.factory)?,
+            factory: msg.factory,
             custody: msg.custody,
-            terraswap_factory: deps.api.canonical_address(&msg.terraswap_factory)?,
-            nebula_token: deps.api.canonical_address(&msg.nebula_token)?,
+            terraswap_factory: msg.terraswap_factory,
+            nebula_token: msg.nebula_token,
             base_denom: msg.base_denom,
             owner: msg.owner,
         },
@@ -44,7 +43,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     match msg {
-        HandleMsg::_ResetOwner { owner } => try_reset_owner(deps, env, &owner),
+        HandleMsg::_ResetOwner { owner } => reset_owner(deps, env, &owner),
         HandleMsg::Receive(msg) => receive_cw20(deps, env, msg),
         HandleMsg::Withdraw {} => withdraw_reward(deps, env),
         HandleMsg::NewPenaltyPeriod {} => new_penalty_period(deps, env),
@@ -52,11 +51,11 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             terraswap_pair,
             basket_token,
             to_ust,
-        } => swap_all(deps, env, &terraswap_pair, &basket_token, to_ust),
+        } => swap_all(deps, env, terraswap_pair, basket_token, to_ust),
         HandleMsg::SendAll {
             asset_infos,
             send_to,
-        } => send_all(deps, env, &asset_infos, &send_to),
+        } => send_all(deps, env, &asset_infos, send_to),
         HandleMsg::RecordTerraswapImpact {
             arbitrager,
             terraswap_pair,
@@ -65,36 +64,34 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         } => record_terraswap_impact(
             deps,
             env,
-            &arbitrager,
-            &terraswap_pair,
-            &basket_contract,
-            &pool_before,
+            arbitrager,
+            terraswap_pair,
+            basket_contract,
+            pool_before,
         ),
         HandleMsg::ArbClusterMint {
             basket_contract,
             assets,
-        } => arb_cluster_mint(deps, env, &basket_contract, &assets),
+        } => arb_cluster_mint(deps, env, basket_contract, &assets),
         HandleMsg::ArbClusterRedeem {
             basket_contract,
             asset,
-        } => arb_cluster_redeem(deps, env, &basket_contract, &asset),
+        } => arb_cluster_redeem(deps, env, basket_contract, asset),
         HandleMsg::Mint {
             basket_contract,
             asset_amounts,
             min_tokens,
-        } => mint(deps, env, &basket_contract, &asset_amounts, min_tokens),
+        } => mint(deps, env, basket_contract, &asset_amounts, min_tokens),
         HandleMsg::Redeem {
             basket_contract,
             max_tokens,
             asset_amounts,
-        } => redeem(deps, env, &basket_contract, max_tokens, asset_amounts),
+        } => redeem(deps, env, basket_contract, max_tokens, asset_amounts),
         HandleMsg::_RecordRebalancerRewards {
             rebalancer,
             basket_contract,
             original_imbalance,
-        } => {
-            record_rebalancer_rewards(deps, env, &rebalancer, &basket_contract, original_imbalance)
-        }
+        } => record_rebalancer_rewards(deps, env, rebalancer, basket_contract, original_imbalance),
         HandleMsg::_InternalRewardedMint {
             rebalancer,
             basket_contract,
@@ -103,8 +100,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         } => internal_rewarded_mint(
             deps,
             env,
-            &rebalancer,
-            &basket_contract,
+            rebalancer,
+            basket_contract,
             &asset_amounts,
             min_tokens,
         ),
@@ -117,16 +114,16 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         } => internal_rewarded_redeem(
             deps,
             env,
-            &rebalancer,
-            &basket_contract,
-            &basket_token,
+            rebalancer,
+            basket_contract,
+            basket_token,
             max_tokens,
             asset_amounts,
         ),
     }
 }
 
-pub fn try_reset_owner<S: Storage, A: Api, Q: Querier>(
+pub fn reset_owner<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     owner: &HumanAddr,
@@ -137,13 +134,13 @@ pub fn try_reset_owner<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::unauthorized());
     }
 
-    let mut new_cfg = cfg.clone();
+    let mut new_cfg = cfg;
     new_cfg.owner = owner.clone();
     store_config(&mut deps.storage, &new_cfg)?;
 
     Ok(HandleResponse {
         messages: vec![],
-        log: vec![log("action", "_try_reset_owner")],
+        log: vec![log("action", "_reset_owner")],
         data: None,
     })
 }
@@ -159,7 +156,7 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
         match from_binary(&msg)? {
             Cw20HookMsg::DepositReward { rewards } => {
                 // only reward token contract can execute this message
-                if config.nebula_token != deps.api.canonical_address(&env.message.sender)? {
+                if config.nebula_token != env.message.sender {
                     return Err(StdError::unauthorized());
                 }
 
@@ -212,9 +209,9 @@ pub fn query_config<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<ConfigResponse> {
     let state = read_config(&deps.storage)?;
     let resp = ConfigResponse {
-        factory: deps.api.human_address(&state.factory)?,
-        terraswap_factory: deps.api.human_address(&state.terraswap_factory)?,
-        nebula_token: deps.api.human_address(&state.nebula_token)?,
+        factory: state.factory,
+        terraswap_factory: state.terraswap_factory,
+        nebula_token: state.nebula_token,
         base_denom: state.base_denom,
         owner: state.owner,
     };

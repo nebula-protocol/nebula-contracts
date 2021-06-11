@@ -1,4 +1,4 @@
-use cosmwasm_std::{Binary, CanonicalAddr, Decimal, ReadonlyStorage, StdResult, Storage, Uint128};
+use cosmwasm_std::{Binary, Decimal, HumanAddr, ReadonlyStorage, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -20,8 +20,8 @@ static PREFIX_BANK: &[u8] = b"bank";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
-    pub owner: CanonicalAddr,
-    pub nebula_token: CanonicalAddr,
+    pub owner: HumanAddr,
+    pub nebula_token: HumanAddr,
     pub quorum: Decimal,
     pub threshold: Decimal,
     pub voting_period: u64,
@@ -34,7 +34,7 @@ pub struct Config {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
-    pub contract_addr: CanonicalAddr,
+    pub contract_addr: HumanAddr,
     pub poll_count: u64,
     pub total_share: Uint128,
     pub total_deposit: Uint128,
@@ -46,13 +46,13 @@ pub struct TokenManager {
     pub share: Uint128,                        // total staked balance
     pub locked_balance: Vec<(u64, VoterInfo)>, // maps poll_id to weight voted
     pub participated_polls: Vec<u64>,          // poll_id
-    pub lock_end_week: Option<u64>             // time when lock on staked tokens expires
+    pub lock_end_week: Option<u64>,            // time when lock on staked tokens expires
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Poll {
     pub id: u64,
-    pub creator: CanonicalAddr,
+    pub creator: HumanAddr,
     pub status: PollStatus,
     pub yes_votes: Uint128,
     pub no_votes: Uint128,
@@ -68,7 +68,7 @@ pub struct Poll {
     pub voters_reward: Uint128,
     pub staked_amount: Option<Uint128>,
 
-    pub max_voting_power: Uint128
+    pub max_voting_power: Uint128,
 }
 
 #[derive(Default, Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -76,12 +76,12 @@ pub struct VotingPower {
     pub share: Uint128,                        // total staked balance
     pub locked_balance: Vec<(u64, VoterInfo)>, // maps poll_id to weight voted
     pub participated_polls: Vec<u64>,          // poll_id
-    pub lock_end_week: Option<u64>             // time when lock on staked tokens expires
+    pub lock_end_week: Option<u64>,            // time when lock on staked tokens expires
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ExecuteData {
-    pub contract: CanonicalAddr,
+    pub contract: HumanAddr,
     pub msg: Binary,
 }
 
@@ -147,10 +147,10 @@ pub fn poll_voter_read<S: ReadonlyStorage>(
 pub fn read_poll_voters<'a, S: ReadonlyStorage>(
     storage: &'a S,
     poll_id: u64,
-    start_after: Option<CanonicalAddr>,
+    start_after: Option<HumanAddr>,
     limit: Option<u32>,
     order_by: Option<OrderBy>,
-) -> StdResult<Vec<(CanonicalAddr, VoterInfo)>> {
+) -> StdResult<Vec<(HumanAddr, VoterInfo)>> {
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
     let (start, end, order_by) = match order_by {
         Some(OrderBy::Asc) => (calc_range_start_addr(start_after), None, OrderBy::Asc),
@@ -164,7 +164,10 @@ pub fn read_poll_voters<'a, S: ReadonlyStorage>(
         .take(limit)
         .map(|item| {
             let (k, v) = item?;
-            Ok((CanonicalAddr::from(k), v))
+            Ok((
+                HumanAddr::from(unsafe { std::str::from_utf8_unchecked(&k) }),
+                v,
+            ))
         })
         .collect()
 }
@@ -240,15 +243,15 @@ fn calc_range_end(start_after: Option<u64>) -> Option<Vec<u8>> {
 }
 
 // this will set the first key after the provided key, by appending a 1 byte
-fn calc_range_start_addr(start_after: Option<CanonicalAddr>) -> Option<Vec<u8>> {
+fn calc_range_start_addr(start_after: Option<HumanAddr>) -> Option<Vec<u8>> {
     start_after.map(|addr| {
-        let mut v = addr.as_slice().to_vec();
+        let mut v = addr.as_str().as_bytes().to_vec();
         v.push(1);
         v
     })
 }
 
 // this will set the first key after the provided key, by appending a 1 byte
-fn calc_range_end_addr(start_after: Option<CanonicalAddr>) -> Option<Vec<u8>> {
-    start_after.map(|addr| addr.as_slice().to_vec())
+fn calc_range_end_addr(start_after: Option<HumanAddr>) -> Option<Vec<u8>> {
+    start_after.map(|addr| addr.as_str().as_bytes().to_vec())
 }
