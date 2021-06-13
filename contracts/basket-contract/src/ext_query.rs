@@ -1,11 +1,9 @@
-use cosmwasm_std::{
-    to_binary, Api, Decimal, Extern, HumanAddr, LogAttribute, Querier, QueryRequest, StdResult,
-    Storage, Uint128, WasmQuery,
-};
+use cosmwasm_std::{to_binary, Api, Decimal, Extern, HumanAddr, LogAttribute, Querier, QueryRequest, StdResult, Storage, Uint128, WasmQuery, StdError};
 use cw20::{BalanceResponse as Cw20BalanceResponse, TokenInfoResponse as Cw20TokenInfoResponse};
 use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
 use terraswap::{asset::AssetInfo};
+use std::cmp::min;
 
 /// QueryMsgs to external contracts
 #[derive(Serialize, Deserialize)]
@@ -91,6 +89,9 @@ pub fn query_price<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     pricing_oracle_address: &HumanAddr,
     asset_info: &AssetInfo,
+    // prices from before < stale_threshold are considered stale
+    // and result in an error
+    stale_threshold: u64,
 ) -> StdResult<String> {
     // perform query
     let res: PriceResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
@@ -100,7 +101,9 @@ pub fn query_price<S: Storage, A: Api, Q: Querier>(
             quote_asset: "uusd".to_string(),
         })?,
     }))?;
-
+    if min(res.last_updated_quote, res.last_updated_base) < stale_threshold {
+        return Err(StdError::generic_err("oracle prices are stale"));
+    }
     Ok(res.rate.to_string().as_str().parse().unwrap())
 }
 

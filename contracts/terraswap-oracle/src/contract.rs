@@ -82,7 +82,7 @@ fn query_price<S: Storage, A: Api, Q: Querier>(
 
     Ok(PriceResponse {
         rate,
-        last_updated_base: 0,
-        last_updated_quote: 0,
+        last_updated_base: u64::MAX,
+        last_updated_quote: u64::MAX,
     })
 }
