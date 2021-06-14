@@ -5,7 +5,8 @@
   "required": [
     "base_denom",
     "distribution_contract",
-    "mirror_token",
+    "nebula_token",
+    "owner",
     "terraswap_factory"
   ],
   "properties": {
@@ -15,7 +16,10 @@
     "distribution_contract": {
       "$ref": "#/definitions/HumanAddr"
     },
-    "mirror_token": {
+    "nebula_token": {
+      "$ref": "#/definitions/HumanAddr"
+    },
+    "owner": {
       "$ref": "#/definitions/HumanAddr"
     },
     "terraswap_factory": {

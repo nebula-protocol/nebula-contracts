@@ -16,6 +16,7 @@ fn proper_initialization() {
         terraswap_factory: HumanAddr("terraswapfactory".to_string()),
         distribution_contract: HumanAddr("gov0000".to_string()),
         nebula_token: HumanAddr("nebula0000".to_string()),
+        owner: HumanAddr("owner0000".to_string()),
         base_denom: "uusd".to_string(),
     };
 
@@ -61,6 +62,7 @@ fn test_convert() {
         terraswap_factory: HumanAddr("terraswapfactory".to_string()),
         distribution_contract: HumanAddr("gov0000".to_string()),
         nebula_token: HumanAddr("tokennebula".to_string()),
+        owner: HumanAddr("owner0000".to_string()),
         base_denom: "uusd".to_string(),
     };
 
@@ -138,6 +140,7 @@ fn test_send() {
         terraswap_factory: HumanAddr("terraswapfactory".to_string()),
         distribution_contract: HumanAddr("gov0000".to_string()),
         nebula_token: HumanAddr("nebula0000".to_string()),
+        owner: HumanAddr("owner0000".to_string()),
         base_denom: "uusd".to_string(),
     };
 

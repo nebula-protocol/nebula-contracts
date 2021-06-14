@@ -5,13 +5,37 @@
     {
       "type": "object",
       "required": [
-        "get_count"
+        "config"
       ],
       "properties": {
-        "get_count": {
+        "config": {
           "type": "object"
         }
       }
+    },
+    {
+      "type": "object",
+      "required": [
+        "cluster_exists"
+      ],
+      "properties": {
+        "cluster_exists": {
+          "type": "object",
+          "required": [
+            "contract_addr"
+          ],
+          "properties": {
+            "contract_addr": {
+              "$ref": "#/definitions/HumanAddr"
+            }
+          }
+        }
+      }
     }
-  ]
+  ],
+  "definitions": {
+    "HumanAddr": {
+      "type": "string"
+    }
+  }
 }

@@ -3,31 +3,26 @@
   "title": "ConfigResponse",
   "type": "object",
   "required": [
-    "base_denom",
-    "distribution_contract",
     "nebula_token",
     "owner",
-    "terraswap_factory"
+    "spend_limit"
   ],
   "properties": {
-    "base_denom": {
-      "type": "string"
-    },
-    "distribution_contract": {
-      "$ref": "#/definitions/HumanAddr"
-    },
     "nebula_token": {
       "$ref": "#/definitions/HumanAddr"
     },
     "owner": {
       "$ref": "#/definitions/HumanAddr"
     },
-    "terraswap_factory": {
-      "$ref": "#/definitions/HumanAddr"
+    "spend_limit": {
+      "$ref": "#/definitions/Uint128"
     }
   },
   "definitions": {
     "HumanAddr": {
+      "type": "string"
+    },
+    "Uint128": {
       "type": "string"
     }
   }

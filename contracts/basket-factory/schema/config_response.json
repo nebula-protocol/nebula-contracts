@@ -1,12 +1,19 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "InitMsg",
+  "title": "ConfigResponse",
   "type": "object",
   "required": [
     "base_denom",
     "cluster_code_id",
+    "commission_collector",
     "distribution_schedule",
+    "genesis_time",
+    "nebula_token",
+    "oracle_contract",
+    "owner",
     "protocol_fee_rate",
+    "staking_contract",
+    "terraswap_factory",
     "token_code_id"
   ],
   "properties": {
@@ -17,6 +24,9 @@
       "type": "integer",
       "format": "uint64",
       "minimum": 0.0
+    },
+    "commission_collector": {
+      "$ref": "#/definitions/HumanAddr"
     },
     "distribution_schedule": {
       "type": "array",
@@ -41,8 +51,28 @@
         "minItems": 3
       }
     },
+    "genesis_time": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "nebula_token": {
+      "$ref": "#/definitions/HumanAddr"
+    },
+    "oracle_contract": {
+      "$ref": "#/definitions/HumanAddr"
+    },
+    "owner": {
+      "$ref": "#/definitions/HumanAddr"
+    },
     "protocol_fee_rate": {
       "type": "string"
+    },
+    "staking_contract": {
+      "$ref": "#/definitions/HumanAddr"
+    },
+    "terraswap_factory": {
+      "$ref": "#/definitions/HumanAddr"
     },
     "token_code_id": {
       "type": "integer",
@@ -51,6 +81,9 @@
     }
   },
   "definitions": {
+    "HumanAddr": {
+      "type": "string"
+    },
     "Uint128": {
       "type": "string"
     }

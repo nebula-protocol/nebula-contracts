@@ -1,16 +1,16 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{CanonicalAddr, StdResult, Storage, Uint128};
+use cosmwasm_std::{HumanAddr, StdResult, Storage, Uint128};
 use cosmwasm_storage::{singleton, singleton_read};
 
 static KEY_CONFIG: &[u8] = b"config";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
-    pub owner: CanonicalAddr,        // nebula gov address
-    pub nebula_token: CanonicalAddr, // nebula token address
-    pub spend_limit: Uint128,        // spend limit per each `spend` request
+    pub owner: HumanAddr,        // nebula gov address
+    pub nebula_token: HumanAddr, // nebula token address
+    pub spend_limit: Uint128,    // spend limit per each `spend` request
 }
 
 pub fn store_config<S: Storage>(storage: &mut S, config: &Config) -> StdResult<()> {

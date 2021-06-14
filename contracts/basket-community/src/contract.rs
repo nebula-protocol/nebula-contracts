@@ -6,9 +6,7 @@ use cosmwasm_std::{
     WasmMsg,
 };
 
-use nebula_protocol::community::{
-    ConfigResponse, HandleMsg, InitMsg, MigrateMsg, QueryMsg,
-};
+use nebula_protocol::community::{ConfigResponse, HandleMsg, InitMsg, MigrateMsg, QueryMsg};
 
 use cw20::Cw20HandleMsg;
 
@@ -20,8 +18,8 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     store_config(
         &mut deps.storage,
         &Config {
-            owner: deps.api.canonical_address(&msg.owner)?,
-            nebula_token: deps.api.canonical_address(&msg.nebula_token)?,
+            owner: msg.owner,
+            nebula_token: msg.nebula_token,
             spend_limit: msg.spend_limit,
         },
     )?;
@@ -49,12 +47,12 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
     spend_limit: Option<Uint128>,
 ) -> HandleResult {
     let mut config: Config = read_config(&deps.storage)?;
-    if config.owner != deps.api.canonical_address(&env.message.sender)? {
+    if config.owner != env.message.sender {
         return Err(StdError::unauthorized());
     }
 
     if let Some(owner) = owner {
-        config.owner = deps.api.canonical_address(&owner)?;
+        config.owner = owner;
     }
 
     if let Some(spend_limit) = spend_limit {
@@ -80,7 +78,7 @@ pub fn spend<S: Storage, A: Api, Q: Querier>(
     amount: Uint128,
 ) -> HandleResult {
     let config: Config = read_config(&deps.storage)?;
-    if config.owner != deps.api.canonical_address(&env.message.sender)? {
+    if config.owner != env.message.sender {
         return Err(StdError::unauthorized());
     }
 
@@ -88,10 +86,9 @@ pub fn spend<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::generic_err("Cannot spend more than spend_limit"));
     }
 
-    let nebula_token = deps.api.human_address(&config.nebula_token)?;
     Ok(HandleResponse {
         messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: nebula_token,
+            contract_addr: config.nebula_token,
             send: vec![],
             msg: to_binary(&Cw20HandleMsg::Transfer {
                 recipient: recipient.clone(),
@@ -121,8 +118,8 @@ pub fn query_config<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<ConfigResponse> {
     let state = read_config(&deps.storage)?;
     let resp = ConfigResponse {
-        owner: deps.api.human_address(&state.owner)?,
-        nebula_token: deps.api.human_address(&state.nebula_token)?,
+        owner: state.owner,
+        nebula_token: state.nebula_token,
         spend_limit: state.spend_limit,
     };
 

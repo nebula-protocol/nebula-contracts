@@ -3,12 +3,27 @@
   "title": "InitMsg",
   "type": "object",
   "required": [
-    "count"
+    "nebula_token",
+    "owner",
+    "spend_limit"
   ],
   "properties": {
-    "count": {
-      "type": "integer",
-      "format": "int32"
+    "nebula_token": {
+      "$ref": "#/definitions/HumanAddr"
+    },
+    "owner": {
+      "$ref": "#/definitions/HumanAddr"
+    },
+    "spend_limit": {
+      "$ref": "#/definitions/Uint128"
+    }
+  },
+  "definitions": {
+    "HumanAddr": {
+      "type": "string"
+    },
+    "Uint128": {
+      "type": "string"
     }
   }
 }

@@ -5,33 +5,66 @@
     {
       "type": "object",
       "required": [
-        "increment"
+        "update_config"
       ],
       "properties": {
-        "increment": {
-          "type": "object"
+        "update_config": {
+          "type": "object",
+          "properties": {
+            "owner": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/HumanAddr"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "spend_limit": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Uint128"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
         }
       }
     },
     {
       "type": "object",
       "required": [
-        "reset"
+        "spend"
       ],
       "properties": {
-        "reset": {
+        "spend": {
           "type": "object",
           "required": [
-            "count"
+            "amount",
+            "recipient"
           ],
           "properties": {
-            "count": {
-              "type": "integer",
-              "format": "int32"
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "recipient": {
+              "$ref": "#/definitions/HumanAddr"
             }
           }
         }
       }
     }
-  ]
+  ],
+  "definitions": {
+    "HumanAddr": {
+      "type": "string"
+    },
+    "Uint128": {
+      "type": "string"
+    }
+  }
 }

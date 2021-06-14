@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "StateResponse",
+  "type": "object",
+  "required": [
+    "pending_voting_rewards",
+    "poll_count",
+    "total_deposit",
+    "total_share"
+  ],
+  "properties": {
+    "pending_voting_rewards": {
+      "$ref": "#/definitions/Uint128"
+    },
+    "poll_count": {
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
+    },
+    "total_deposit": {
+      "$ref": "#/definitions/Uint128"
+    },
+    "total_share": {
+      "$ref": "#/definitions/Uint128"
+    }
+  },
+  "definitions": {
+    "Uint128": {
+      "type": "string"
+    }
+  }
+}

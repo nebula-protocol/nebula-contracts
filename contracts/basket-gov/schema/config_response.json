@@ -1,11 +1,12 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "InitMsg",
+  "title": "ConfigResponse",
   "type": "object",
   "required": [
     "effective_delay",
     "expiration_period",
     "nebula_token",
+    "owner",
     "proposal_deposit",
     "quorum",
     "snapshot_period",
@@ -25,6 +26,9 @@
       "minimum": 0.0
     },
     "nebula_token": {
+      "$ref": "#/definitions/HumanAddr"
+    },
+    "owner": {
       "$ref": "#/definitions/HumanAddr"
     },
     "proposal_deposit": {

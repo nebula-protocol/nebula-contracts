@@ -1,14 +1,13 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "CountResponse",
+  "title": "ClusterExistsResponse",
   "type": "object",
   "required": [
-    "count"
+    "exists"
   ],
   "properties": {
-    "count": {
-      "type": "integer",
-      "format": "int32"
+    "exists": {
+      "type": "boolean"
     }
   }
 }

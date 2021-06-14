@@ -8,7 +8,7 @@ use crate::state::{read_config, store_config, Config};
 use nebula_protocol::collector::{ConfigResponse, HandleMsg, InitMsg, MigrateMsg, QueryMsg};
 use nebula_protocol::gov::Cw20HookMsg as GovCw20HookMsg;
 
-use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
+use cw20::{Cw20HandleMsg};
 use terraswap::asset::{Asset, AssetInfo, PairInfo};
 use terraswap::pair::{Cw20HookMsg as TerraswapCw20HookMsg, HandleMsg as TerraswapHandleMsg};
 use terraswap::querier::{query_balance, query_pair_info, query_token_balance};
@@ -21,9 +21,9 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     store_config(
         &mut deps.storage,
         &Config {
-            distribution_contract: deps.api.canonical_address(&msg.distribution_contract)?,
-            terraswap_factory: deps.api.canonical_address(&msg.terraswap_factory)?,
-            nebula_token: deps.api.canonical_address(&msg.nebula_token)?,
+            distribution_contract: msg.distribution_contract,
+            terraswap_factory: msg.terraswap_factory,
+            nebula_token: msg.nebula_token,
             base_denom: msg.base_denom,
             owner: msg.owner,
         },
@@ -53,8 +53,7 @@ pub fn convert<S: Storage, A: Api, Q: Querier>(
     asset_token: HumanAddr,
 ) -> HandleResult {
     let config: Config = read_config(&deps.storage)?;
-    let asset_token_raw = deps.api.canonical_address(&asset_token)?;
-    let terraswap_factory_raw = deps.api.human_address(&config.terraswap_factory)?;
+    let terraswap_factory_raw = config.terraswap_factory;
 
     let pair_info: PairInfo = query_pair_info(
         &deps,
@@ -70,7 +69,7 @@ pub fn convert<S: Storage, A: Api, Q: Querier>(
     )?;
 
     let messages: Vec<CosmosMsg>;
-    if config.nebula_token == asset_token_raw {
+    if config.nebula_token == asset_token {
         // collateral token => nebula token
         let amount = query_balance(&deps, &env.contract.address, config.base_denom.to_string())?;
         let swap_asset = Asset {
@@ -133,17 +132,13 @@ pub fn distribute<S: Storage, A: Api, Q: Querier>(
     env: Env,
 ) -> HandleResult {
     let config: Config = read_config(&deps.storage)?;
-    let amount = query_token_balance(
-        &deps,
-        &deps.api.human_address(&config.nebula_token)?,
-        &env.contract.address,
-    )?;
+    let amount = query_token_balance(&deps, &config.nebula_token, &env.contract.address)?;
 
     Ok(HandleResponse {
         messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: deps.api.human_address(&config.nebula_token)?,
+            contract_addr: config.nebula_token,
             msg: to_binary(&Cw20HandleMsg::Send {
-                contract: deps.api.human_address(&config.distribution_contract)?,
+                contract: config.distribution_contract,
                 amount,
                 msg: Some(to_binary(&GovCw20HookMsg::DepositReward {})?),
             })?,
@@ -188,9 +183,9 @@ pub fn query_config<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<ConfigResponse> {
     let state = read_config(&deps.storage)?;
     let resp = ConfigResponse {
-        distribution_contract: deps.api.human_address(&state.distribution_contract)?,
-        terraswap_factory: deps.api.human_address(&state.terraswap_factory)?,
-        nebula_token: deps.api.human_address(&state.nebula_token)?,
+        distribution_contract: state.distribution_contract,
+        terraswap_factory: state.terraswap_factory,
+        nebula_token: state.nebula_token,
         base_denom: state.base_denom,
         owner: state.owner,
     };
