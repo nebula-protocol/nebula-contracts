@@ -3,10 +3,8 @@ use cosmwasm_std::{
 };
 
 use crate::ext_query::{query_cw20_balance, query_cw20_token_supply, query_price};
-use nebula_protocol::cluster::{
-    BasketStateResponse, ConfigResponse, QueryMsg, TargetResponse,
-};
 use crate::state::{read_config, read_target_asset_data};
+use nebula_protocol::cluster::{BasketStateResponse, ConfigResponse, QueryMsg, TargetResponse};
 use terraswap::asset::AssetInfo;
 use terraswap::querier::query_balance;
 
@@ -24,7 +22,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
         QueryMsg::Config {} => to_binary(&query_config(deps)?),
         QueryMsg::BasketState {
             basket_contract_address,
-        } => to_binary(&query_basket_state(deps, &basket_contract_address)?),
+        } => to_binary(&query_basket_state(deps, &basket_contract_address, 0)?),
     }
 }
 
@@ -53,6 +51,7 @@ fn query_target<S: Storage, A: Api, Q: Querier>(
 pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     basket_contract_address: &HumanAddr,
+    stale_threshold: u64,
 ) -> StdResult<BasketStateResponse> {
     let cfg = &read_config(&deps.storage)?;
 
@@ -75,7 +74,7 @@ pub fn query_basket_state<S: Storage, A: Api, Q: Querier>(
     // get prices for each asset
     let prices = assets
         .iter()
-        .map(|asset_info| query_price(&deps, &cfg.pricing_oracle, asset_info))
+        .map(|asset_info| query_price(&deps, &cfg.pricing_oracle, asset_info, stale_threshold))
         .collect::<StdResult<Vec<String>>>()?;
 
     // get inventory

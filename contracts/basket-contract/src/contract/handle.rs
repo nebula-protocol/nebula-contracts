@@ -1,22 +1,27 @@
 use cosmwasm_std::{
-    log, to_binary, Api, CosmosMsg, Env, Extern, HandleResponse,
-    HumanAddr, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
+    log, to_binary, Api, CosmosMsg, Env, Extern, HandleResponse, HumanAddr, Querier, StdError,
+    StdResult, Storage, Uint128, WasmMsg,
 };
 
-use cw20::{Cw20HandleMsg};
+use cw20::Cw20HandleMsg;
 use error::bad_weight_values;
 
 use crate::contract::query_basket_state;
 use crate::error;
-use crate::ext_query::{query_collector_contract_address, query_mint_amount, query_redeem_amount, ExtQueryMsg};
+use crate::ext_query::{
+    query_collector_contract_address, query_mint_amount, query_redeem_amount, ExtQueryMsg,
+};
 use crate::state::{read_config, save_config, TargetAssetData};
 use crate::state::{read_target_asset_data, save_target_asset_data};
 use crate::util::vec_to_string;
-use nebula_protocol::cluster::{HandleMsg};
-use terraswap::asset::{Asset, AssetInfo};
 use basket_math::FPDecimal;
-use std::str::FromStr;
+use nebula_protocol::cluster::HandleMsg;
 use nebula_protocol::collector::HandleMsg as CollectorHandleMsg;
+use std::str::FromStr;
+use terraswap::asset::{Asset, AssetInfo};
+
+// prices last 30s before they go from fresh to stale
+const FRESH_TIMESPAN: u64 = 30;
 
 /*
     Match the incoming message to the right category: receive, mint,
@@ -39,8 +44,10 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::ResetTarget { assets, target } => try_reset_target(deps, env, &assets, &target),
         HandleMsg::_SetBasketToken { basket_token } => {
             try_set_basket_token(deps, env, &basket_token)
-        },
-        HandleMsg::ResetCompositionOracle { composition_oracle } => try_reset_composition_oracle(deps, env, &composition_oracle),
+        }
+        HandleMsg::ResetCompositionOracle { composition_oracle } => {
+            try_reset_composition_oracle(deps, env, &composition_oracle)
+        }
         HandleMsg::ResetPenalty { penalty } => try_reset_penalty(deps, env, &penalty),
         HandleMsg::_ResetOwner { owner } => try_reset_owner(deps, env, &owner),
     }
@@ -59,7 +66,6 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     max_tokens: Uint128,
     asset_amounts: Option<Vec<Asset>>,
 ) -> StdResult<HandleResponse> {
-
     let sender = env.message.sender.clone();
 
     let cfg = read_config(&deps.storage)?;
@@ -68,7 +74,11 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         .clone()
         .ok_or_else(|| error::basket_token_not_set())?;
 
-    let basket_state = query_basket_state(&deps, &env.contract.address)?;
+    let basket_state = query_basket_state(
+        &deps,
+        &env.contract.address,
+        env.block.time - FRESH_TIMESPAN,
+    )?;
 
     let prices = basket_state.prices;
     let basket_token_supply = basket_state.outstanding_balance_tokens;
@@ -97,8 +107,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         None => vec![],
     };
 
-    let (collector_address, fee_rate) =
-        query_collector_contract_address(&deps, &cfg.factory)?;
+    let (collector_address, fee_rate) = query_collector_contract_address(&deps, &cfg.factory)?;
     let fee_rate: FPDecimal = FPDecimal::from_str(&*fee_rate)?;
     let keep_rate: FPDecimal = FPDecimal::one() - fee_rate;
 
@@ -155,7 +164,6 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         })
         .collect::<StdResult<Vec<CosmosMsg>>>()?;
 
-
     // extract basket tokens from allowance
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: basket_token.clone(),
@@ -178,15 +186,13 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     }));
 
     // burn the rest
-    messages.push(
-        CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: basket_token.clone(),
-            msg: to_binary(&Cw20HandleMsg::Burn {
-                amount: (token_cost - fee_amt)?,
-            })?,
-            send: vec![],
-        })
-    );
+    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: basket_token.clone(),
+        msg: to_binary(&Cw20HandleMsg::Burn {
+            amount: (token_cost - fee_amt)?,
+        })?,
+        send: vec![],
+    }));
 
     // afterwards, notify the penalty contract that this update happened so
     // it can make stateful updates...
@@ -199,7 +205,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
             max_tokens,
             redeem_asset_amounts: asset_amounts.clone(),
             asset_prices: prices,
-            target_weights: target
+            target_weights: target,
         })?,
         send: vec![],
     }));
@@ -310,7 +316,10 @@ pub fn try_reset_composition_oracle<S: Storage, A: Api, Q: Querier>(
 
     Ok(HandleResponse {
         messages: vec![],
-        log: vec![log("action", "reset_composition_oracle"), log("composition_oracle", &composition_oracle)],
+        log: vec![
+            log("action", "reset_composition_oracle"),
+            log("composition_oracle", &composition_oracle),
+        ],
         data: None,
     })
 }
@@ -417,7 +426,11 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     asset_amounts: &Vec<Asset>,
     min_tokens: &Option<Uint128>,
 ) -> StdResult<HandleResponse> {
-    let basket_state = query_basket_state(&deps, &env.contract.address)?;
+    let basket_state = query_basket_state(
+        &deps,
+        &env.contract.address,
+        env.block.time - FRESH_TIMESPAN,
+    )?;
 
     let prices = basket_state.prices;
     let basket_token_supply = basket_state.outstanding_balance_tokens;
@@ -489,12 +502,12 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         )?;
         let mint_total = mint_response.mint_tokens;
 
-        let (collector_address, fee_rate) =
-            query_collector_contract_address(&deps, &cfg.factory)?;
+        let (collector_address, fee_rate) = query_collector_contract_address(&deps, &cfg.factory)?;
         let fee_rate = FPDecimal::from_str(&*fee_rate)?;
 
         // Decimal doesn't give the ability to subtract...
-        mint_to_sender = Uint128((FPDecimal::from(mint_total.u128()) * (FPDecimal::one() - fee_rate)).into());
+        mint_to_sender =
+            Uint128((FPDecimal::from(mint_total.u128()) * (FPDecimal::one() - fee_rate)).into());
         let protocol_fee = (mint_total - mint_to_sender)?;
 
         // afterwards, notify the penalty contract that this update happened so
@@ -507,7 +520,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
                 inventory: inv,
                 mint_asset_amounts: c,
                 asset_prices: prices,
-                target_weights: target
+                target_weights: target,
             })?,
             send: vec![],
         }));
@@ -593,9 +606,9 @@ mod tests {
 
     use crate::test_helper::*;
     use cw20::Cw20ReceiveMsg;
+    use nebula_protocol::cluster::HandleMsg;
     use pretty_assertions::assert_eq;
     use terraswap::asset::{Asset, AssetInfo};
-    use nebula_protocol::cluster::{HandleMsg};
 
     // #[test]
     // fn mint() {
