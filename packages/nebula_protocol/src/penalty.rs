@@ -83,6 +83,8 @@ pub struct RedeemResponse {
 #[derive(Serialize, Deserialize)]
 pub struct ParamsResponse {
     pub penalty_params: PenaltyParams,
+    pub last_block: u64,
+    pub ema: String
 }
 
 #[derive(Serialize, Deserialize, Copy, Clone, Debug, PartialEq, JsonSchema)]

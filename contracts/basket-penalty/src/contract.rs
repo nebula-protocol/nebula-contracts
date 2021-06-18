@@ -213,6 +213,8 @@ pub fn get_params<S: Storage, A: Api, Q: Querier>(
     let cfg = read_config(&deps.storage)?;
     Ok(ParamsResponse {
         penalty_params: cfg.penalty_params,
+        last_block: cfg.last_block,
+        ema: cfg.ema.to_string(),
     })
 }
 
