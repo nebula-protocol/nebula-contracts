@@ -40,17 +40,17 @@ pub enum HandleMsg {
         arbitrager: HumanAddr,
         terraswap_pair: HumanAddr,
         basket_contract: HumanAddr,
-        pool_before: PoolResponse
+        pool_before: PoolResponse,
     },
 
     ArbClusterMint {
         basket_contract: HumanAddr,
-        assets: Vec<Asset>
+        assets: Vec<Asset>,
     },
 
     ArbClusterRedeem {
         basket_contract: HumanAddr,
-        asset: Asset
+        asset: Asset,
     },
 
     Mint {
@@ -83,8 +83,8 @@ pub enum HandleMsg {
     _RecordRebalancerRewards {
         rebalancer: HumanAddr,
         basket_contract: HumanAddr,
-        original_imbalance: Uint128
-    }
+        original_imbalance: Uint128,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -107,7 +107,9 @@ pub struct ConfigResponse {
 #[serde(rename_all = "snake_case")]
 pub enum Cw20HookMsg {
     /// Deposit rewards to be distributed among stakers and voters
-    DepositReward { rewards: Vec<(u16, HumanAddr, Uint128)> },
+    DepositReward {
+        rewards: Vec<(u16, HumanAddr, Uint128)>,
+    },
 }
 
 /// We currently take no arguments for migrations

@@ -1,7 +1,7 @@
-use cosmwasm_std::{LogAttribute, Uint128, HumanAddr};
+use basket_math::FPDecimal;
+use cosmwasm_std::{HumanAddr, LogAttribute, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use basket_math::FPDecimal;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
@@ -13,9 +13,7 @@ pub struct InitMsg {
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
     /// Can be called by the owner to reset the basket owner
-    _ResetOwner {
-        owner: HumanAddr,
-    },
+    _ResetOwner { owner: HumanAddr },
 
     Mint {
         block_height: u64,
@@ -35,7 +33,6 @@ pub enum HandleMsg {
         asset_prices: Vec<String>,
         target_weights: Vec<u32>,
     },
-
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -60,9 +57,7 @@ pub enum QueryMsg {
         target_weights: Vec<u32>,
     },
 
-    Params {
-
-    }
+    Params {},
 }
 
 #[derive(Serialize, Deserialize)]

@@ -1,7 +1,8 @@
 [package]
+
 name = "terraswap-oracle"
-version = "0.1.0"
-authors = ["William Chen <wchen298@gmail.com>"]
+version = "1.0.0"
+authors = ["Nebula Protocol <engineering@neb.finance>"]
 edition = "2018"
 
 exclude = [

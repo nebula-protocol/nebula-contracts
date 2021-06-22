@@ -6,7 +6,6 @@ use cw20::Cw20ReceiveMsg;
 
 use crate::common::OrderBy;
 
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
     pub owner: HumanAddr,
@@ -45,7 +44,6 @@ pub enum HandleMsg {
         // If the asset token is not given, then all rewards are withdrawn
         asset_token: Option<HumanAddr>,
     },
-
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

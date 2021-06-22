@@ -1,94 +1,39 @@
-# Basket Protocol
+# Nebula Protocol Contracts
 
-This monorepository organizes the various components of Basket protocol on Terra.
+This repository contains the full source code for Nebula Protocol on Terra.
 
-| Name                                            | Type         | Description                                            |
-| ----------------------------------------------- | ------------ | ------------------------------------------------------ |
-| [`basket-factory`](#)                           | Contract     | Protocol-level controller contract across many Baskets |
-| [`basket-contract`](contracts/basket-contract/) | Contract     | Contract containing individual Basket logic            |
-| [`basket-token`](contracts/basket-token/)       | Contract     | CW20 Token used for representing ownership of a Basket |
-| [`basket-math`](libraries/basket-math/)         | Rust Library | Math utility library for Basket protocol               |
-| [`basket-webapp`](basket-web-app/)              | Web App      | Rudimentary frontend for Basket protocol               |
+## Contracts
 
-## Development
+### Nebula Core
 
-**Requirements for contracts**
+These contracts hold the core logic of the base protocol.
 
-- Rust 1.44+
+| Contract                 | Description                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------ |
+| `nebula-airdrop`         | Logic for NEB airdrops to LUNA stakers                                         |
+| `nebula-cluster`         | Logic for mechanisms of individual clusters                                    |
+| `nebula-cluster-factory` | Defines procedure for creating new Clusters                                    |
+| `nebula-collector`       | Collects protocol fees and distributes it as rewards to NEB governance stakers |
+| `nebula-community`       | Controls the funds in the governance-controlled community pool                 |
+| `nebula-gov`             | Manages the decentralized governance functions of Nebula protocol              |
+| `nebula-lp-staking`      | Manages NEB rewards for Cluster Token liquidity providers (LP)                 |
 
-  Make sure the target `wasm32-unknown-unknown` is installed.
+### Auxiliary
 
-  ```bash
-  $ rustup default stable
-  $ rustup target add wasm32-unknown-unknown
-  ```
+Some parts of Nebula such as a Cluster's penalty function or NEB incentive campaigns are also implemented using contracts but are not considered part of the protocol.
+Nebula ships with a couple default ones, and their code is here.
 
-- Docker
+| Contract                    | Description                                                      |
+| --------------------------- | ---------------------------------------------------------------- |
+| `nebula-penalty`            | Implementation of a Cluster Penalty Function, used by default    |
+| `nebula-incentives`         | Implementation of a NEB incentive scheme for Terraswap arbitrage |
+| `nebula-incentives-custody` | Custody contract for NEB incentive scheme                        |
 
-**Requirements for web app**
+### Testing
 
-- Node v12+
-- NPM / Yarn
+These contracts are solely used for testing purposes.
 
-### Building
-
-Run the script provided while in the root of the directory.
-
-```bash
-$ ./build.sh
-```
-
-### Unit test
-
-To run unit tests for individual contracts, navigate to the contract root directory and run `cargo unit-test`.
-
-```bash
-$ cd contracts/basket-contract
-$ cargo unit-test
-```
-
-### Deployment
-
-Provided is a small script to get set up with several dummy Mirrored assets and a test oracle. The basket and oracle will be initialized to the following starting state:
-
-| Asset | Price   | Basket Balance | %              | Target |
-| ----- | ------- | -------------- | -------------- | ------ |
-| mAAPL | 135.18  | 7290.053159    | 0.2036735938%  | 0.20   |
-| mGOOG | 1780.03 | 319.710128     | 0.1176184104%  | 0.10   |
-| mMSFT | 222.42  | 14219.28123    | 0.6536466948%  | 0.65   |
-| mNFLX | 540.82  | 224.212221     | 0.02506130107% | 0.05   |
-
-The script will then run a `MINT` operation, adding the following:
-
-| Asset | Amount |
-| ----- | ------ |
-| mAAPL | 125    |
-| mGOOG | 0      |
-| mMSFT | 149    |
-| mNFLX | 50     |
-
-Run the build script and then run:
-
-```bash
-$ cd basket-scripts
-$ yarn i
-$ yarn deploy
-```
-
-You can change whether to deploy to LocalTerra or Tequila testnet in `deploy.ts`:
-
-```ts
-// UNCOMMENT FOR TEQUILA
-const lt = new LocalTerra();
-const terra = new LCDClient({
-  URL: "https://tequila-lcd.terra.dev",
-  chainID: "tequila-0004",
-});
-const deployer: Wallet = terra.wallet(lt.wallets.test1.key);
-
-// UNCOMMENT FOR LOCALTERRA
-// const terra = new LocalTerra();
-// const deployer: Wallet = terra.wallets.test1;
-```
-
-The deployer uses the LocalTerra `test1` key, so if deploying to Tequila, make sure the address `terra1x46rqay4d3cssq8gxxvqz8xt6nwlz4td20k38v` has enough tokens by requesting them through [Terra Faucet](https://faucet.terra.money).
+| Contract              | Description                                                     |
+| --------------------- | --------------------------------------------------------------- |
+| `nebula-dummy-oracle` | Cluster Oracle feeder that can be controlled during testing     |
+| `terraswap-oracle`    | Oracle feeder that uses liquidity from Terraswap to feed prices |
