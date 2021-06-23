@@ -77,20 +77,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "basket-staking"
-version = "1.1.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cosmwasm-storage",
- "cw20",
- "nebula-protocol",
- "schemars",
- "serde",
- "terraswap",
-]
-
-[[package]]
 name = "bigint"
 version = "4.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -723,6 +709,20 @@ dependencies = [
  "schemars",
  "serde",
  "snafu",
+]
+
+[[package]]
+name = "nebula-lp-staking"
+version = "1.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw20",
+ "nebula-protocol",
+ "schemars",
+ "serde",
+ "terraswap",
 ]
 
 [[package]]

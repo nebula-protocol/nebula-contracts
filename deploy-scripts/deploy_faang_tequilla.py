@@ -4,7 +4,7 @@ os.environ["USE_TEQUILA"] = "1"
 
 from api import Asset
 from ecosystem import Ecosystem
-from contract_helpers import Contract, BasketContract
+from contract_helpers import Contract, ClusterContract
 import asyncio
 from base import deployer
 
@@ -42,7 +42,7 @@ async def main():
     target_weights = [1, 1, 1, 1]
 
     penalty_contract = await Contract.create(
-        code_ids["basket_penalty"],
+        code_ids["cluster_penalty"],
         penalty_params=penalty_params,
         owner=ecosystem.factory,
     )
@@ -53,7 +53,7 @@ async def main():
         base_denom="uusd",
     )
 
-    create_basket = ecosystem.factory.create_cluster(
+    create_cluster = ecosystem.factory.create_cluster(
         name="BASKET",
         symbol="BSK",
         params={
@@ -75,23 +75,23 @@ async def main():
         )
 
         resp = await ecosystem.create_and_execute_poll(
-            {"contract": ecosystem.factory, "msg": create_basket}, sleep_time=30
+            {"contract": ecosystem.factory, "msg": create_cluster}, sleep_time=30
         )
     else:
-        resp = await create_basket
+        resp = await create_cluster
 
     logs = resp.logs[0].events_by_type
 
     instantiation_logs = logs["instantiate_contract"]
     addresses = instantiation_logs["contract_address"]
 
-    basket_token = Contract(addresses[2])
-    basket_pair = Contract(addresses[1])
+    cluster_token = Contract(addresses[2])
+    cluster_pair = Contract(addresses[1])
     lp_token = Contract(addresses[0])
 
-    basket = BasketContract(
+    cluster = ClusterContract(
         addresses[3],
-        basket_token,
+        cluster_token,
         asset_tokens,
     )
 
@@ -99,7 +99,7 @@ async def main():
     print(resp)
 
     print("account", deployer.key.acc_address)
-    print("basket", basket)
+    print("cluster", cluster)
     print("assets", asset_tokens)
     print("oracle", oracle)
     print("ecosystem", ecosystem.__dict__)

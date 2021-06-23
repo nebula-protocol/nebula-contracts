@@ -123,14 +123,14 @@ class Contract:
         return ContractQuerier(self.address)
 
 
-class BasketContract(Contract):
-    def __init__(self, address, basket_token, asset_tokens):
+class ClusterContract(Contract):
+    def __init__(self, address, cluster_token, asset_tokens):
         super().__init__(address)
-        self.basket_token = basket_token
+        self.cluster_token = cluster_token
         self.asset_tokens = asset_tokens
 
     def __repr__(self):
-        return f'BasketContract("{self.address}", {self.basket_token}, {self.asset_tokens})'
+        return f'ClusterContract("{self.address}", {self.cluster_token}, {self.asset_tokens})'
 
     async def mint(self, asset_amounts, min_tokens=None):
         msgs = []
@@ -145,7 +145,7 @@ class BasketContract(Contract):
         return await chain(*msgs)
 
     async def redeem(self, max_tokens, asset_amounts=None):
-        msgs = [self.basket_token.increase_allowance(spender=self, amount=max_tokens)]
+        msgs = [self.cluster_token.increase_allowance(spender=self, amount=max_tokens)]
 
         if asset_amounts is not None:
             asset_amounts = [
