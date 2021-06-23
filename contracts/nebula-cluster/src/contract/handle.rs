@@ -6,7 +6,7 @@ use cosmwasm_std::{
 use cw20::Cw20HandleMsg;
 use error::bad_weight_values;
 
-use crate::contract::query_basket_state;
+use crate::contract::query_cluster_state;
 use crate::error;
 use crate::ext_query::{
     query_collector_contract_address, query_mint_amount, query_redeem_amount, ExtQueryMsg,
@@ -14,9 +14,8 @@ use crate::ext_query::{
 use crate::state::{read_config, save_config, TargetAssetData};
 use crate::state::{read_target_asset_data, save_target_asset_data};
 use crate::util::vec_to_string;
-use basket_math::FPDecimal;
+use cluster_math::FPDecimal;
 use nebula_protocol::cluster::HandleMsg;
-use nebula_protocol::collector::HandleMsg as CollectorHandleMsg;
 use std::str::FromStr;
 use terraswap::asset::{Asset, AssetInfo};
 
@@ -25,7 +24,7 @@ const FRESH_TIMESPAN: u64 = 30;
 
 /*
     Match the incoming message to the right category: receive, mint,
-    reset_target, or  set basket token
+    reset_target, or  set cluster token
 */
 pub fn handle<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -42,8 +41,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             asset_amounts,
         } => try_receive_burn(deps, env, max_tokens, asset_amounts),
         HandleMsg::ResetTarget { assets, target } => try_reset_target(deps, env, &assets, &target),
-        HandleMsg::_SetBasketToken { basket_token } => {
-            try_set_basket_token(deps, env, &basket_token)
+        HandleMsg::_SetClusterToken { cluster_token } => {
+            try_set_cluster_token(deps, env, &cluster_token)
         }
         HandleMsg::ResetCompositionOracle { composition_oracle } => {
             try_reset_composition_oracle(deps, env, &composition_oracle)
@@ -69,21 +68,21 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     let sender = env.message.sender.clone();
 
     let cfg = read_config(&deps.storage)?;
-    let basket_token = cfg
-        .basket_token
+    let cluster_token = cfg
+        .cluster_token
         .clone()
-        .ok_or_else(|| error::basket_token_not_set())?;
+        .ok_or_else(|| error::cluster_token_not_set())?;
 
-    let basket_state = query_basket_state(
+    let cluster_state = query_cluster_state(
         &deps,
         &env.contract.address,
         env.block.time - FRESH_TIMESPAN,
     )?;
 
-    let prices = basket_state.prices;
-    let basket_token_supply = basket_state.outstanding_balance_tokens;
-    let inv = basket_state.inv;
-    let target = basket_state.target;
+    let prices = cluster_state.prices;
+    let cluster_token_supply = cluster_state.outstanding_balance_tokens;
+    let inv = cluster_state.inv;
+    let target = cluster_state.target;
 
     let target_asset_data = read_target_asset_data(&deps.storage)?;
     let asset_infos = target_asset_data
@@ -117,7 +116,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         &deps,
         &cfg.penalty,
         env.block.height,
-        basket_token_supply,
+        cluster_token_supply,
         inv.clone(),
         token_cap,
         asset_amounts.clone(),
@@ -164,9 +163,9 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         })
         .collect::<StdResult<Vec<CosmosMsg>>>()?;
 
-    // extract basket tokens from allowance
+    // extract cluster tokens from allowance
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: basket_token.clone(),
+        contract_addr: cluster_token.clone(),
         msg: to_binary(&Cw20HandleMsg::TransferFrom {
             owner: sender.clone(),
             recipient: env.contract.address.clone(),
@@ -177,7 +176,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
 
     // send fee to collector
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: basket_token.clone(),
+        contract_addr: cluster_token.clone(),
         msg: to_binary(&Cw20HandleMsg::Transfer {
             amount: fee_amt,
             recipient: collector_address.clone(),
@@ -187,7 +186,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
 
     // burn the rest
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: basket_token.clone(),
+        contract_addr: cluster_token.clone(),
         msg: to_binary(&Cw20HandleMsg::Burn {
             amount: (token_cost - fee_amt)?,
         })?,
@@ -200,7 +199,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         contract_addr: cfg.penalty.clone(),
         msg: to_binary(&ExtQueryMsg::Redeem {
             block_height: env.block.height,
-            basket_token_supply,
+            cluster_token_supply,
             inventory: inv,
             max_tokens,
             redeem_asset_amounts: asset_amounts.clone(),
@@ -243,8 +242,8 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     // allow removal / adding
 
     let cfg = read_config(&deps.storage)?;
-    if let None = cfg.basket_token {
-        return Err(error::basket_token_not_set());
+    if let None = cfg.cluster_token {
+        return Err(error::cluster_token_not_set());
     }
     // check permission
     if (env.message.sender != cfg.owner) && (env.message.sender != cfg.composition_oracle) {
@@ -297,7 +296,7 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-// Changes the composotion oracle contract for this basket
+// Changes the composotion oracle contract for this cluster
 pub fn try_reset_composition_oracle<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -324,7 +323,7 @@ pub fn try_reset_composition_oracle<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-// Changes the penalty contract for this basket
+// Changes the penalty contract for this cluster
 pub fn try_reset_penalty<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -349,12 +348,12 @@ pub fn try_reset_penalty<S: Storage, A: Api, Q: Querier>(
 }
 
 /*
-     May be called by the Basket contract owner to set the basket token for first time
+     May be called by the Cluster contract owner to set the cluster token for first time
 */
-pub fn try_set_basket_token<S: Storage, A: Api, Q: Querier>(
+pub fn try_set_cluster_token<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    basket_token: &HumanAddr,
+    cluster_token: &HumanAddr,
 ) -> StdResult<HandleResponse> {
     let cfg = read_config(&deps.storage)?;
 
@@ -364,26 +363,26 @@ pub fn try_set_basket_token<S: Storage, A: Api, Q: Querier>(
     }
 
     // check if already set
-    if let Some(token) = cfg.basket_token {
-        return Err(error::basket_token_already_set(&token));
+    if let Some(token) = cfg.cluster_token {
+        return Err(error::cluster_token_already_set(&token));
     }
 
     let mut new_cfg = cfg.clone();
-    new_cfg.basket_token = Some(basket_token.clone());
+    new_cfg.cluster_token = Some(cluster_token.clone());
     save_config(&mut deps.storage, &new_cfg)?;
 
     Ok(HandleResponse {
         messages: vec![],
         log: vec![
-            log("action", "_set_basket_token"),
-            log("basket_token", &basket_token),
+            log("action", "_set_cluster_token"),
+            log("cluster_token", &cluster_token),
         ],
         data: None,
     })
 }
 
 /*
-     May be called by the Basket contract owner to reset the owner
+     May be called by the Cluster contract owner to reset the owner
 */
 pub fn try_reset_owner<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -398,8 +397,8 @@ pub fn try_reset_owner<S: Storage, A: Api, Q: Querier>(
     }
 
     // TODO: Error checking needed here? can this function be called more than once?
-    // if let Some(token) = cfg.basket_token {
-    //     return Err(error::basket_token_already_set(&token));
+    // if let Some(token) = cfg.cluster_token {
+    //     return Err(error::cluster_token_already_set(&token));
     // }
 
     let mut new_cfg = cfg.clone();
@@ -410,7 +409,7 @@ pub fn try_reset_owner<S: Storage, A: Api, Q: Querier>(
         messages: vec![],
         log: vec![
             log("action", "_try_reset_owner"),
-            log("basket_token", &owner),
+            log("cluster_token", &owner),
         ],
         data: None,
     })
@@ -426,16 +425,16 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     asset_amounts: &Vec<Asset>,
     min_tokens: &Option<Uint128>,
 ) -> StdResult<HandleResponse> {
-    let basket_state = query_basket_state(
+    let cluster_state = query_cluster_state(
         &deps,
         &env.contract.address,
         env.block.time - FRESH_TIMESPAN,
     )?;
 
-    let prices = basket_state.prices;
-    let basket_token_supply = basket_state.outstanding_balance_tokens;
-    let mut inv = basket_state.inv;
-    let target = basket_state.target;
+    let prices = cluster_state.prices;
+    let cluster_token_supply = cluster_state.outstanding_balance_tokens;
+    let mut inv = cluster_state.inv;
+    let target = cluster_state.target;
 
     let cfg = read_config(&deps.storage)?;
 
@@ -446,10 +445,10 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
 
-    let basket_token = cfg
-        .basket_token
+    let cluster_token = cfg
+        .cluster_token
         .clone()
-        .ok_or_else(|| error::basket_token_not_set())?;
+        .ok_or_else(|| error::cluster_token_not_set())?;
 
     // accommmodate inputs: subsets of target assets vector
     let mut asset_weights = vec![Uint128(0); asset_infos.len()];
@@ -489,12 +488,12 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 
     let mut extra_logs = vec![];
     // do a regular mint
-    if basket_token_supply != Uint128::zero() {
+    if cluster_token_supply != Uint128::zero() {
         let mint_response = query_mint_amount(
             &deps,
             &cfg.penalty.clone(),
             env.block.height,
-            basket_token_supply,
+            cluster_token_supply,
             inv.clone(),
             c.clone(),
             prices.clone(),
@@ -516,7 +515,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
             contract_addr: cfg.penalty.clone(),
             msg: to_binary(&ExtQueryMsg::Mint {
                 block_height: env.block.height,
-                basket_token_supply,
+                cluster_token_supply,
                 inventory: inv,
                 mint_asset_amounts: c,
                 asset_prices: prices,
@@ -527,7 +526,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 
         // actually mint the tokens
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: basket_token.clone(),
+            contract_addr: cluster_token.clone(),
             msg: to_binary(&Cw20HandleMsg::Mint {
                 amount: protocol_fee,
                 recipient: collector_address.clone(),
@@ -538,16 +537,16 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         extra_logs = mint_response.log;
         extra_logs.push(log("fee_amt", protocol_fee))
     } else {
-        // basket has no basket tokens -- basket is empty and needs to be initialized
-        // attempt to initialize it with min_tokens as the number of basket tokens
-        // and the mint basket c as the initial assets
+        // cluster has no cluster tokens -- cluster is empty and needs to be initialized
+        // attempt to initialize it with min_tokens as the number of cluster tokens
+        // and the mint cluster c as the initial assets
         // c is required to be in ratio with the target weights
         if let Some(proposed_mint_total) = min_tokens {
             let mut val = 0;
             for i in 0..c.len() {
                 if inv[i].u128() % c[i].u128() != 0u128 {
                     return Err(StdError::generic_err(
-                        "Initial basket assets must be in target weights",
+                        "Initial cluster assets must be in target weights",
                     ));
                 }
                 let div = inv[i].u128() / c[i].u128();
@@ -556,7 +555,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
                 }
                 if div != val {
                     return Err(StdError::generic_err(
-                        "Initial basket assets must be in target weights",
+                        "Initial cluster assets must be in target weights",
                     ));
                 }
             }
@@ -564,9 +563,9 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
             mint_to_sender = *proposed_mint_total;
         } else {
             return Err(StdError::generic_err(
-                "Basket is uninitialized. \
-            To initialize it with your mint basket, \
-            provide min_tokens as the amount of basket tokens you want to start with.",
+                "Cluster is uninitialized. \
+            To initialize it with your mint cluster, \
+            provide min_tokens as the amount of cluster tokens you want to start with.",
             ));
         }
     }
@@ -578,7 +577,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     }
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: basket_token.clone(),
+        contract_addr: cluster_token.clone(),
         msg: to_binary(&Cw20HandleMsg::Mint {
             amount: mint_to_sender,
             recipient: env.message.sender.clone(),
@@ -785,7 +784,7 @@ mod tests {
     //     mock_querier_setup_stage_native(&mut deps);
     //
     //     deps.querier
-    //         .set_token_balance("wBTC", consts::basket_token(), 1_000_000)
+    //         .set_token_balance("wBTC", consts::cluster_token(), 1_000_000)
     //         .set_denom_balance("uluna", MOCK_CONTRACT_ADDR, 2_000_000)
     //         .set_oracle_prices(vec![
     //             ("wBTC", Decimal::from_str("30000.00").unwrap()),
@@ -844,8 +843,8 @@ mod tests {
     //     mock_querier_setup(&mut deps);
     //
     //     deps.querier
-    //         .set_token_supply(consts::basket_token(), 100_000_000)
-    //         .set_token_balance(consts::basket_token(), "addr0000", 20_000_000);
+    //         .set_token_supply(consts::cluster_token(), 100_000_000)
+    //         .set_token_balance(consts::cluster_token(), "addr0000", 20_000_000);
     //
     //     let new_assets = vec![
     //         Asset {
@@ -886,7 +885,7 @@ mod tests {
     //         amount: Uint128(20_000_000),
     //     });
     //
-    //     let env = mock_env(consts::basket_token(), &[]);
+    //     let env = mock_env(consts::cluster_token(), &[]);
     //     let res = handle(&mut deps, env, msg).unwrap();
     //     for log in res.log.iter() {
     //         println!("{}: {}", log.key, log.value);
@@ -900,8 +899,8 @@ mod tests {
         mock_querier_setup(&mut deps);
 
         deps.querier
-            .set_token_supply(consts::basket_token(), 100_000_000)
-            .set_token_balance(consts::basket_token(), "addr0000", 20_000_000);
+            .set_token_supply(consts::cluster_token(), 100_000_000)
+            .set_token_balance(consts::cluster_token(), "addr0000", 20_000_000);
 
         let new_assets = vec![
             AssetInfo::Token {

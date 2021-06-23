@@ -54,10 +54,10 @@ async def main():
     )
 
     create_cluster = ecosystem.factory.create_cluster(
-        name="BASKET",
+        name="CLUSTER",
         symbol="BSK",
         params={
-            "name": "BASKET",
+            "name": "CLUSTER",
             "symbol": "BSK",
             "penalty": penalty_contract,
             "target": target_weights,
@@ -95,7 +95,7 @@ async def main():
         asset_tokens,
     )
 
-    resp = await basket.query.basket_state(basket_contract_address=basket)
+    resp = await cluster.query.cluster_state(cluster_contract_address=cluster)
     print(resp)
 
     print("account", deployer.key.acc_address)

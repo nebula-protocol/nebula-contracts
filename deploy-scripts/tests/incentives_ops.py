@@ -19,7 +19,7 @@ async def test_incentives_ops(eco: Ecosystem):
     )
 
     await eco.incentives.arb_cluster_redeem(
-        basket_contract=eco.cluster,
+        cluster_contract=eco.cluster,
         asset=Asset.asset("uusd", "10", native=True),
         _send={"uusd": "10"},
     )
@@ -39,7 +39,7 @@ async def test_incentives_ops(eco: Ecosystem):
             for i in eco.asset_tokens
         ],
         eco.incentives.arb_cluster_mint(
-            basket_contract=eco.cluster,
+            cluster_contract=eco.cluster,
             assets=[Asset.asset(i, "5") for i in eco.asset_tokens],
         )
     )
@@ -54,7 +54,7 @@ async def test_incentives_ops(eco: Ecosystem):
             for i in eco.asset_tokens
         ],
         eco.incentives.mint(
-            basket_contract=eco.cluster,
+            cluster_contract=eco.cluster,
             asset_amounts=[Asset.asset(i, "5") for i in eco.asset_tokens],
         )
     )
@@ -66,7 +66,7 @@ async def test_incentives_ops(eco: Ecosystem):
         eco.cluster_token.increase_allowance(spender=eco.incentives, amount="5"),
         eco.incentives.redeem(
             max_tokens="5",
-            basket_contract=eco.cluster,
+            cluster_contract=eco.cluster,
         )
     )
     new_bal = int((await eco.asset_tokens[0].query.balance(address=deployer.key.acc_address))["balance"])

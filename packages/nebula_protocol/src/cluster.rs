@@ -6,14 +6,14 @@ use terraswap::hook::InitHook;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
-    /// Basket name (title)
+    /// Cluster name (title)
     pub name: String,
 
-    /// Basket's permissioned owner
+    /// Cluster's permissioned owner
     pub owner: HumanAddr,
 
-    /// Basket token CW20 address
-    pub basket_token: Option<HumanAddr>,
+    /// Cluster token CW20 address
+    pub cluster_token: Option<HumanAddr>,
 
     /// Asset addresses
     pub assets: Vec<AssetInfo>,
@@ -39,9 +39,9 @@ pub struct InitMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
-    /// Called to set basket token after initialization
-    _SetBasketToken {
-        basket_token: HumanAddr,
+    /// Called to set cluster token after initialization
+    _SetClusterToken {
+        cluster_token: HumanAddr,
     },
 
     /// Can be called by the owner to reset the composition oracle
@@ -49,12 +49,12 @@ pub enum HandleMsg {
         composition_oracle: HumanAddr,
     },
 
-    /// Can be called by the owner to reset the basket owner
+    /// Can be called by the owner to reset the cluster owner
     _ResetOwner {
         owner: HumanAddr,
     },
 
-    /// Can be called by the owner to reset the basket weight target
+    /// Can be called by the owner to reset the cluster weight target
     ResetTarget {
         assets: Vec<AssetInfo>,
         target: Vec<u32>,
@@ -88,12 +88,12 @@ pub enum Cw20HookMsg {}
 pub enum QueryMsg {
     Config {},
     Target {},
-    BasketState { basket_contract_address: HumanAddr },
+    ClusterState { cluster_contract_address: HumanAddr },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ConfigResponse {
-    pub config: BasketConfig,
+    pub config: ClusterConfig,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -103,22 +103,22 @@ pub struct TargetResponse {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct BasketStateResponse {
+pub struct ClusterStateResponse {
     pub outstanding_balance_tokens: Uint128,
     pub prices: Vec<String>,
     pub inv: Vec<Uint128>,
     pub assets: Vec<AssetInfo>,
     pub penalty: HumanAddr,
-    pub basket_token: HumanAddr,
+    pub cluster_token: HumanAddr,
     pub target: Vec<u32>,
-    pub basket_contract_address: HumanAddr,
+    pub cluster_contract_address: HumanAddr,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct BasketConfig {
+pub struct ClusterConfig {
     pub name: String,
     pub owner: HumanAddr,
-    pub basket_token: Option<HumanAddr>,
+    pub cluster_token: Option<HumanAddr>,
     pub factory: HumanAddr,
     pub pricing_oracle: HumanAddr,
     pub composition_oracle: HumanAddr,

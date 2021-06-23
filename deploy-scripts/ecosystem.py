@@ -232,10 +232,10 @@ class Ecosystem:
         )
 
         create_cluster = self.factory.create_cluster(
-            name="BASKET",
+            name="CLUSTER",
             symbol="BSK",
             params={
-                "name": "BASKET",
+                "name": "CLUSTER",
                 "symbol": "BSK",
                 "penalty": penalty_contract,
                 "target": target_weights,
@@ -280,8 +280,8 @@ class Ecosystem:
 
         print(f"Successfully created cluster:")
         pprint.pprint(
-            await self.cluster.query.basket_state(
-                basket_contract_address=self.cluster.address
+            await self.cluster.query.cluster_state(
+                cluster_contract_address=self.cluster.address
             )
         )
 

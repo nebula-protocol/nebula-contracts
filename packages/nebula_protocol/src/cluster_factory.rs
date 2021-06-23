@@ -48,8 +48,8 @@ pub enum HandleMsg {
     TerraswapCreationHook {
         asset_token: HumanAddr,
     },
-    /// Internal use - Set Basket Token
-    SetBasketTokenHook {
+    /// Internal use - Set Cluster Token
+    SetClusterTokenHook {
         cluster: HumanAddr,
     },
     PassCommand {
@@ -103,10 +103,10 @@ pub struct MigrateMsg {}
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct Params {
-    // Name of basket
+    // Name of cluster
     pub name: String,
 
-    // Symbol of basket
+    // Symbol of cluster
     pub symbol: String,
 
     /// Distribution weight (default is 30, which is 1/10 of NEB distribution weight)

@@ -4,9 +4,9 @@ use serde::{Deserialize, Serialize};
 use cosmwasm_std::{StdResult, Storage};
 use cosmwasm_storage::{singleton, singleton_read};
 use terraswap::asset::{AssetInfo};
-use nebula_protocol::cluster::BasketConfig;
+use nebula_protocol::cluster::ClusterConfig;
 
-/// config: BasketConfig
+/// config: ClusterConfig
 pub static CONFIG_KEY: &[u8] = b"config";
 
 /// target: Vec<u32>
@@ -24,11 +24,11 @@ pub struct TargetAssetData {
     pub target: u32,
 }
 
-pub fn read_config<S: Storage>(storage: &S) -> StdResult<BasketConfig> {
+pub fn read_config<S: Storage>(storage: &S) -> StdResult<ClusterConfig> {
     singleton_read(storage, CONFIG_KEY).load()
 }
 
-pub fn save_config<S: Storage>(storage: &mut S, config: &BasketConfig) -> StdResult<()> {
+pub fn save_config<S: Storage>(storage: &mut S, config: &ClusterConfig) -> StdResult<()> {
     singleton(storage, CONFIG_KEY).save(config)
 }
 

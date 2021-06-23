@@ -13,7 +13,7 @@ use nebula_protocol::cluster_factory::{
     ClusterExistsResponse, ConfigResponse, HandleMsg, InitMsg, Params, QueryMsg,
 };
 
-use nebula_protocol::cluster::{HandleMsg as BasketHandleMsg, InitMsg as BasketInitMsg};
+use nebula_protocol::cluster::{HandleMsg as ClusterHandleMsg, InitMsg as ClusterInitMsg};
 use nebula_protocol::staking::{Cw20HookMsg as StakingCw20HookMsg, HandleMsg as StakingHandleMsg};
 
 use cw20::{Cw20HandleMsg, MinterResponse};
@@ -101,7 +101,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         } => update_weight(deps, env, asset_token, weight),
         HandleMsg::CreateCluster { params } => create_cluster(deps, env, params),
         HandleMsg::TokenCreationHook {} => token_creation_hook(deps, env),
-        HandleMsg::SetBasketTokenHook { cluster } => set_basket_token_hook(deps, env, cluster),
+        HandleMsg::SetClusterTokenHook { cluster } => set_cluster_token_hook(deps, env, cluster),
         HandleMsg::TerraswapCreationHook { asset_token } => {
             terraswap_creation_hook(deps, env, asset_token)
         }
@@ -262,7 +262,7 @@ pub fn create_cluster<S: Storage, A: Api, Q: Querier>(
             code_id: config.cluster_code_id,
             send: vec![],
             label: None,
-            msg: to_binary(&BasketInitMsg {
+            msg: to_binary(&ClusterInitMsg {
                 name: params.name.clone(),
                 owner: env.contract.address.clone(),
                 assets: params.assets,
@@ -270,9 +270,9 @@ pub fn create_cluster<S: Storage, A: Api, Q: Querier>(
                 composition_oracle: params.composition_oracle.clone(),
                 penalty: params.penalty,
                 factory: env.contract.address.clone(),
-                basket_token: None,
+                cluster_token: None,
                 target: params.target,
-                // TODO: Write separate init hook for basket
+                // TODO: Write separate init hook for cluster
                 init_hook: Some(InitHook {
                     contract_addr: env.contract.address,
                     msg: to_binary(&HandleMsg::TokenCreationHook {})?,
@@ -317,11 +317,11 @@ pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
 
     Ok(HandleResponse {
         messages: vec![
-            // tell penalty contract to set owner to basket
+            // tell penalty contract to set owner to cluster
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: penalty,
                 send: vec![],
-                msg: to_binary(&BasketHandleMsg::_ResetOwner {
+                msg: to_binary(&ClusterHandleMsg::_ResetOwner {
                     owner: cluster.clone(),
                 })?,
             }),
@@ -339,24 +339,24 @@ pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
                         minter: cluster.clone(),
                         cap: None,
                     }),
-                    // Set Basket Token
+                    // Set Cluster Token
                     init_hook: Some(InitHook {
                         contract_addr: env.contract.address,
-                        msg: to_binary(&HandleMsg::SetBasketTokenHook {
+                        msg: to_binary(&HandleMsg::SetClusterTokenHook {
                             cluster: cluster.clone(),
                         })?,
                     }),
                 })?,
             }),
-            // Set basket owner (should end up being governance)
+            // Set cluster owner (should end up being governance)
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: cluster.clone(),
                 send: vec![],
-                msg: to_binary(&BasketHandleMsg::_ResetOwner {
+                msg: to_binary(&ClusterHandleMsg::_ResetOwner {
                     owner: config.owner,
                 })?,
             }),
-            // Set penalty contract owner to basket contract
+            // Set penalty contract owner to cluster contract
         ],
         log: vec![log("cluster_addr", cluster.as_str())],
         data: None,
@@ -364,7 +364,7 @@ pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
 }
 
 /// Set Token Hook
-pub fn set_basket_token_hook<S: Storage, A: Api, Q: Querier>(
+pub fn set_cluster_token_hook<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     cluster: HumanAddr,
@@ -401,8 +401,8 @@ pub fn set_basket_token_hook<S: Storage, A: Api, Q: Querier>(
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: cluster.clone(),
                 send: vec![],
-                msg: to_binary(&BasketHandleMsg::_SetBasketToken {
-                    basket_token: token.clone(),
+                msg: to_binary(&ClusterHandleMsg::_SetClusterToken {
+                    cluster_token: token.clone(),
                 })?,
             }),
             // set up terraswap pair

@@ -41,7 +41,7 @@ cw20 = { version = "0.2" }
 base64 = "*"
 terraswap = "1.2.0"
 log = "*"
-basket-math = { path = "../../libraries/basket-math" }
+cluster-math = { path = "../../libraries/cluster-math" }
 nebula-protocol = { version = "1.0.0", path = "../../packages/nebula_protocol" }
 
 [dev-dependencies]

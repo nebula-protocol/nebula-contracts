@@ -3,23 +3,23 @@ use cosmwasm_std::{
     QueryRequest, StdError, StdResult, Storage, Uint128, WasmMsg, WasmQuery,
 };
 
-use crate::rebalancers::{assert_cluster_exists, get_basket_state};
+use crate::rebalancers::{assert_cluster_exists, get_cluster_state};
 use crate::state::{read_config, record_contribution, Config};
 
 use nebula_protocol::incentives::{ExtQueryMsg, HandleMsg, PoolResponse, PoolType};
 
 use cw20::Cw20HandleMsg;
-use nebula_protocol::cluster::{BasketStateResponse, QueryMsg as ClusterQueryMsg};
+use nebula_protocol::cluster::{ClusterStateResponse, QueryMsg as ClusterQueryMsg};
 use terraswap::asset::{Asset, AssetInfo, PairInfo};
 use terraswap::pair::{Cw20HookMsg as TerraswapCw20HookMsg, HandleMsg as TerraswapHandleMsg};
 use terraswap::querier::{query_balance, query_pair_info, query_token_balance};
 
-use basket_math::FPDecimal;
+use cluster_math::FPDecimal;
 use std::str::FromStr;
 
 pub fn get_pair_info<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
-    basket_token: &HumanAddr,
+    cluster_token: &HumanAddr,
 ) -> StdResult<PairInfo> {
     let config: Config = read_config(&deps.storage)?;
     let terraswap_factory_raw = config.terraswap_factory;
@@ -31,7 +31,7 @@ pub fn get_pair_info<S: Storage, A: Api, Q: Querier>(
                 denom: config.base_denom,
             },
             AssetInfo::Token {
-                contract_addr: basket_token.clone(),
+                contract_addr: cluster_token.clone(),
             },
         ],
     )
@@ -45,7 +45,7 @@ pub fn get_pair_info<S: Storage, A: Api, Q: Querier>(
 // pub fn ust_to_asset_tokens<S: Storage, A: Api, Q: Querier>(
 //     deps: &mut Extern<S, A, Q>,
 //     env: Env,
-//     basket_contract: &HumanAddr,
+//     cluster_contract: &HumanAddr,
 //     assets: &Vec<Asset>,
 // ) -> StdResult<HandleResponse> {
 //
@@ -59,25 +59,25 @@ pub fn get_pair_info<S: Storage, A: Api, Q: Querier>(
 pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    basket_contract: HumanAddr,
+    cluster_contract: HumanAddr,
     assets: &[Asset],
 ) -> StdResult<HandleResponse> {
-    assert_cluster_exists(deps, &basket_contract)?;
+    assert_cluster_exists(deps, &cluster_contract)?;
 
     let mut messages = vec![];
     let contract = env.contract.address.clone();
 
     let cfg: Config = read_config(&deps.storage)?;
 
-    let basket_state = get_basket_state(deps, &basket_contract)?;
-    let basket_token = basket_state.basket_token;
+    let cluster_state = get_cluster_state(deps, &cluster_contract)?;
+    let cluster_token = cluster_state.cluster_token;
 
-    let pair_info = get_pair_info(deps, &basket_token)?;
+    let pair_info = get_pair_info(deps, &cluster_token)?;
 
     let mut send = vec![];
 
     // transfer all asset tokens into this
-    // also prepare to transfer to basket contract
+    // also prepare to transfer to cluster contract
     for asset in assets {
         match asset.clone().info {
             AssetInfo::NativeToken { denom } => {
@@ -105,7 +105,7 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
         contract_addr: contract.clone(),
         msg: to_binary(&HandleMsg::_InternalRewardedMint {
             rebalancer: env.message.sender.clone(),
-            basket_contract: basket_contract.clone(),
+            cluster_contract: cluster_contract.clone(),
             asset_amounts: assets.to_vec(),
             min_tokens: None,
         })?,
@@ -117,7 +117,7 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
         contract_addr: contract.clone(),
         msg: to_binary(&HandleMsg::SwapAll {
             terraswap_pair: pair_info.contract_addr.clone(),
-            basket_token,
+            cluster_token,
             to_ust: true,
         })?,
         send: vec![],
@@ -129,7 +129,7 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
         msg: to_binary(&HandleMsg::RecordTerraswapImpact {
             arbitrager: env.message.sender.clone(),
             terraswap_pair: pair_info.contract_addr.clone(),
-            basket_contract,
+            cluster_contract,
             pool_before: deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
                 contract_addr: pair_info.contract_addr,
                 msg: to_binary(&ExtQueryMsg::Pool {})?,
@@ -159,10 +159,10 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
 pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    basket_contract: HumanAddr,
+    cluster_contract: HumanAddr,
     asset: Asset,
 ) -> StdResult<HandleResponse> {
-    assert_cluster_exists(deps, &basket_contract)?;
+    assert_cluster_exists(deps, &cluster_contract)?;
 
     let mut messages = vec![];
     let contract = env.contract.address.clone();
@@ -186,17 +186,17 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
 
     asset.assert_sent_native_token_balance(&env)?;
 
-    let basket_state = get_basket_state(deps, &basket_contract)?;
-    let basket_token = basket_state.basket_token;
+    let cluster_state = get_cluster_state(deps, &cluster_contract)?;
+    let cluster_token = cluster_state.cluster_token;
 
-    let pair_info = get_pair_info(deps, &basket_token)?;
+    let pair_info = get_pair_info(deps, &cluster_token)?;
 
     // swap all
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.clone(),
         msg: to_binary(&HandleMsg::SwapAll {
             terraswap_pair: pair_info.contract_addr.clone(),
-            basket_token: basket_token.clone(),
+            cluster_token: cluster_token.clone(),
             to_ust: false,
         })?,
         send: swap_coins,
@@ -208,7 +208,7 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
         msg: to_binary(&HandleMsg::RecordTerraswapImpact {
             arbitrager: env.message.sender.clone(),
             terraswap_pair: pair_info.contract_addr.clone(),
-            basket_contract: basket_contract.clone(),
+            cluster_contract: cluster_contract.clone(),
             pool_before: deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
                 contract_addr: pair_info.contract_addr,
                 msg: to_binary(&ExtQueryMsg::Pool {})?,
@@ -217,13 +217,13 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
         send: vec![],
     }));
 
-    // redeem basket token
+    // redeem cluster token
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.clone(),
         msg: to_binary(&HandleMsg::_InternalRewardedRedeem {
             rebalancer: env.message.sender.clone(),
-            basket_contract,
-            basket_token: basket_token.clone(),
+            cluster_contract,
+            cluster_token: cluster_token.clone(),
             max_tokens: None,
             asset_amounts: None,
         })?,
@@ -235,7 +235,7 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
         contract_addr: contract,
         msg: to_binary(&HandleMsg::SendAll {
             asset_infos: vec![AssetInfo::Token {
-                contract_addr: basket_token,
+                contract_addr: cluster_token,
             }],
             send_to: env.message.sender,
         })?,
@@ -254,7 +254,7 @@ pub fn record_terraswap_impact<S: Storage, A: Api, Q: Querier>(
     env: Env,
     arbitrager: HumanAddr,
     terraswap_pair: HumanAddr,
-    basket_contract: HumanAddr,
+    cluster_contract: HumanAddr,
     pool_before: PoolResponse,
 ) -> StdResult<HandleResponse> {
     if env.message.sender != env.contract.address {
@@ -266,15 +266,15 @@ pub fn record_terraswap_impact<S: Storage, A: Api, Q: Querier>(
         msg: to_binary(&ExtQueryMsg::Pool {})?,
     }))?;
 
-    let contract_state: BasketStateResponse =
+    let contract_state: ClusterStateResponse =
         deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-            contract_addr: basket_contract.clone(),
-            msg: to_binary(&ClusterQueryMsg::BasketState {
-                basket_contract_address: basket_contract.clone(),
+            contract_addr: cluster_contract.clone(),
+            msg: to_binary(&ClusterQueryMsg::ClusterState {
+                cluster_contract_address: cluster_contract.clone(),
             })?,
         }))?;
 
-    // here we compute the "fair" value of a basket token
+    // here we compute the "fair" value of a cluster token
     // by breaking it down into its respective components
     // is that the real fair value? to actually extract
     // this value you need to pay significant fees,
@@ -303,7 +303,7 @@ pub fn record_terraswap_impact<S: Storage, A: Api, Q: Querier>(
         let amt_bsk = FPDecimal::from(sorted_assets[1].amount.u128());
         let prod = amt_denom * amt_bsk;
 
-        // how much dollars needs to move to set this basket back into balance?
+        // how much dollars needs to move to set this cluster back into balance?
         // first compute what the pool should look like if optimally balanced
         // true_denom = true_bsk * fair_value
         // true_bsk = prod / true_denom
@@ -326,7 +326,7 @@ pub fn record_terraswap_impact<S: Storage, A: Api, Q: Querier>(
             deps,
             &arbitrager,
             PoolType::ARBITRAGER,
-            &basket_contract,
+            &cluster_contract,
             Uint128(imbalanced_fixed.into()),
         )?;
     }
@@ -350,7 +350,7 @@ pub fn swap_all<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     terraswap_pair: HumanAddr,
-    basket_token: HumanAddr,
+    cluster_token: HumanAddr,
     to_ust: bool,
 ) -> StdResult<HandleResponse> {
     if env.message.sender != env.contract.address {
@@ -363,9 +363,9 @@ pub fn swap_all<S: Storage, A: Api, Q: Querier>(
     let mut logs = vec![log("action", "swap_all"), log("to_usd", to_ust)];
 
     if to_ust {
-        let amount = query_token_balance(&deps, &basket_token, &env.contract.address)?;
+        let amount = query_token_balance(&deps, &cluster_token, &env.contract.address)?;
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: basket_token,
+            contract_addr: cluster_token,
             msg: to_binary(&Cw20HandleMsg::Send {
                 contract: terraswap_pair.clone(),
                 amount,

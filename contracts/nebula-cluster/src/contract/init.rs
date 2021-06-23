@@ -1,5 +1,5 @@
 use crate::error;
-use nebula_protocol::cluster::{InitMsg, BasketConfig};
+use nebula_protocol::cluster::{InitMsg, ClusterConfig};
 use crate::{
     state::{save_config, save_target_asset_data, TargetAssetData},
     util::vec_to_string,
@@ -19,10 +19,10 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         ));
     }
 
-    let cfg = BasketConfig {
+    let cfg = ClusterConfig {
         name: msg.name.clone(),
         owner: msg.owner.clone(),
-        basket_token: msg.basket_token,
+        cluster_token: msg.cluster_token,
         factory: msg.factory,
         pricing_oracle: msg.pricing_oracle.clone(),
         composition_oracle: msg.composition_oracle.clone(),

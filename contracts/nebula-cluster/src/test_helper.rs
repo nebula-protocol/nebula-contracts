@@ -3,7 +3,7 @@ pub use crate::ext_query::*;
 pub use crate::msg::*;
 pub use crate::penalty::*;
 pub use crate::state::*;
-pub use basket_math::*;
+pub use cluster_math::*;
 pub use cosmwasm_std::testing::{mock_env, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 pub use cosmwasm_std::*;
 pub use cw20;
@@ -356,14 +356,14 @@ pub mod consts {
     use super::*;
 
     pub fn name() -> &'static str {
-        "test_basket"
+        "test_cluster"
     }
 
     pub fn owner() -> HumanAddr {
         h("owner")
     }
-    pub fn basket_token() -> HumanAddr {
-        h("basket")
+    pub fn cluster_token() -> HumanAddr {
+        h("cluster")
     }
     pub fn oracle() -> HumanAddr {
         h("oracle")
@@ -417,7 +417,7 @@ pub fn mock_init() -> (
         name: consts::name().to_string(),
         assets: consts::assets(),
         owner: consts::owner(),
-        basket_token: Some(consts::basket_token()),
+        cluster_token: Some(consts::cluster_token()),
         target: consts::target(),
         oracle: consts::oracle(),
         penalty_params: consts::penalty_params(),
@@ -437,7 +437,7 @@ pub fn mock_init_native_stage() -> (
         name: consts::name().to_string(),
         assets: consts::assets_native_stage(),
         owner: consts::owner(),
-        basket_token: Some(consts::basket_token()),
+        cluster_token: Some(consts::cluster_token()),
         target: consts::target_native_stage(),
         oracle: consts::oracle(),
         penalty_params: consts::penalty_params(),
@@ -453,10 +453,10 @@ pub fn mock_querier_setup(deps: &mut Extern<MockStorage, MockApi, CustomMockQuer
     deps.querier
         .reset_token_querier()
         .set_token(
-            consts::basket_token(),
+            consts::cluster_token(),
             token_data::<Vec<(&str, u128)>, &str>(
-                "Basket Token",
-                "BASKET",
+                "Cluster Token",
+                "CLUSTER",
                 6,
                 1_000_000_000,
                 vec![],
@@ -517,10 +517,10 @@ pub fn mock_querier_setup_stage_native(deps: &mut Extern<MockStorage, MockApi, C
     deps.querier
         .reset_token_querier()
         .set_token(
-            consts::basket_token(),
+            consts::cluster_token(),
             token_data::<Vec<(&str, u128)>, &str>(
-                "Basket Token",
-                "BASKET",
+                "Cluster Token",
+                "CLUSTER",
                 6,
                 1_000_000_000,
                 vec![],

@@ -4,7 +4,7 @@ use std::fs::create_dir_all;
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
 use terraswap_oracle::msg::{HandleMsg, InitMsg, PriceResponse, QueryMsg};
-// use basket_dummy_oracle::state::State;
+// use cluster_dummy_oracle::state::State;
 
 fn main() {
     let mut out_dir = current_dir().unwrap();
