@@ -1,4 +1,4 @@
-use cosmwasm_std::{Decimal, StdResult, Storage, HumanAddr};
+use cosmwasm_std::{HumanAddr, StdResult, Storage};
 use cosmwasm_storage::{singleton, singleton_read};
 
 /// prices: Map<asset:

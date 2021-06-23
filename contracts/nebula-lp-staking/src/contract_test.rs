@@ -16,11 +16,6 @@ mod tests {
         let msg = InitMsg {
             owner: HumanAddr::from("owner"),
             nebula_token: HumanAddr::from("reward"),
-            mint_contract: HumanAddr::from("mint"),
-            oracle_contract: HumanAddr::from("oracle"),
-            terraswap_factory: HumanAddr::from("terraswap_factory"),
-            base_denom: "uusd".to_string(),
-            premium_min_update_interval: 3600,
         };
 
         let env = mock_env("addr", &[]);
@@ -35,11 +30,6 @@ mod tests {
             ConfigResponse {
                 owner: HumanAddr::from("owner"),
                 nebula_token: HumanAddr::from("reward"),
-                mint_contract: HumanAddr::from("mint"),
-                oracle_contract: HumanAddr::from("oracle"),
-                terraswap_factory: HumanAddr::from("terraswap_factory"),
-                base_denom: "uusd".to_string(),
-                premium_min_update_interval: 3600,
             },
             config
         );
@@ -52,11 +42,6 @@ mod tests {
         let msg = InitMsg {
             owner: HumanAddr::from("owner"),
             nebula_token: HumanAddr::from("reward"),
-            mint_contract: HumanAddr::from("mint"),
-            oracle_contract: HumanAddr::from("oracle"),
-            terraswap_factory: HumanAddr::from("terraswap_factory"),
-            base_denom: "uusd".to_string(),
-            premium_min_update_interval: 3600,
         };
 
         let env = mock_env("addr", &[]);
@@ -66,7 +51,6 @@ mod tests {
         let env = mock_env("owner", &[]);
         let msg = HandleMsg::UpdateConfig {
             owner: Some(HumanAddr("owner2".to_string())),
-            premium_min_update_interval: Some(7200),
         };
 
         let res = handle(&mut deps, env, msg).unwrap();
@@ -79,21 +63,13 @@ mod tests {
             ConfigResponse {
                 owner: HumanAddr::from("owner2"),
                 nebula_token: HumanAddr::from("reward"),
-                mint_contract: HumanAddr::from("mint"),
-                oracle_contract: HumanAddr::from("oracle"),
-                terraswap_factory: HumanAddr::from("terraswap_factory"),
-                base_denom: "uusd".to_string(),
-                premium_min_update_interval: 7200,
             },
             config
         );
 
         // unauthorized err
         let env = mock_env("owner", &[]);
-        let msg = HandleMsg::UpdateConfig {
-            owner: None,
-            premium_min_update_interval: Some(7200),
-        };
+        let msg = HandleMsg::UpdateConfig { owner: None };
 
         let res = handle(&mut deps, env, msg);
         match res {
@@ -109,11 +85,6 @@ mod tests {
         let msg = InitMsg {
             owner: HumanAddr::from("owner"),
             nebula_token: HumanAddr::from("reward"),
-            mint_contract: HumanAddr::from("mint"),
-            oracle_contract: HumanAddr::from("oracle"),
-            terraswap_factory: HumanAddr::from("terraswap_factory"),
-            base_denom: "uusd".to_string(),
-            premium_min_update_interval: 3600,
         };
 
         let env = mock_env("addr", &[]);
@@ -155,13 +126,8 @@ mod tests {
                 asset_token: HumanAddr::from("asset"),
                 staking_token: HumanAddr::from("staking"),
                 total_bond_amount: Uint128::zero(),
-                total_short_amount: Uint128::zero(),
                 reward_index: Decimal::zero(),
-                short_reward_index: Decimal::zero(),
                 pending_reward: Uint128::zero(),
-                short_pending_reward: Uint128::zero(),
-                premium_rate: Decimal::zero(),
-                premium_updated_time: 0,
             }
         );
     }

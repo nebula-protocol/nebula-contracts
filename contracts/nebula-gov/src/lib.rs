@@ -1,7 +1,6 @@
 pub mod contract;
 pub mod state;
 
-mod migrate;
 mod querier;
 mod staking;
 

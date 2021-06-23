@@ -8,7 +8,6 @@ use nebula_protocol::staking::{
     ConfigResponse, Cw20HookMsg, HandleMsg, InitMsg, MigrateMsg, PoolInfoResponse, QueryMsg,
 };
 
-use crate::migration::{migrate_config, migrate_pool_infos};
 use crate::rewards::{deposit_reward, query_reward_info, withdraw_reward};
 use crate::staking::{bond, unbond};
 use crate::state::{read_config, read_pool_info, store_config, store_pool_info, Config, PoolInfo};
@@ -23,11 +22,8 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     store_config(
         &mut deps.storage,
         &Config {
-            owner: deps.api.canonical_address(&msg.owner)?,
-            nebula_token: deps.api.canonical_address(&msg.nebula_token)?,
-            terraswap_factory: deps.api.canonical_address(&msg.terraswap_factory)?,
-            base_denom: msg.base_denom,
-            premium_min_update_interval: msg.premium_min_update_interval,
+            owner: msg.owner,
+            nebula_token: msg.nebula_token,
         },
     )?;
 
@@ -41,10 +37,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
     match msg {
         HandleMsg::Receive(msg) => receive_cw20(deps, env, msg),
-        HandleMsg::UpdateConfig {
-            owner,
-            premium_min_update_interval,
-        } => update_config(deps, env, owner, premium_min_update_interval),
+        HandleMsg::UpdateConfig { owner } => update_config(deps, env, owner),
         HandleMsg::RegisterAsset {
             asset_token,
             staking_token,
@@ -67,11 +60,10 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
 
         match from_binary(&msg)? {
             Cw20HookMsg::Bond { asset_token } => {
-                let pool_info: PoolInfo =
-                    read_pool_info(&deps.storage, &deps.api.canonical_address(&asset_token)?)?;
+                let pool_info: PoolInfo = read_pool_info(&deps.storage, &asset_token)?;
 
                 // only staking token contract can execute this message
-                if pool_info.staking_token != deps.api.canonical_address(&env.message.sender)? {
+                if pool_info.staking_token != env.message.sender {
                     return Err(StdError::unauthorized());
                 }
 
@@ -79,7 +71,7 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
             }
             Cw20HookMsg::DepositReward { rewards } => {
                 // only reward token contract can execute this message
-                if config.nebula_token != deps.api.canonical_address(&env.message.sender)? {
+                if config.nebula_token != env.message.sender {
                     return Err(StdError::unauthorized());
                 }
 
@@ -104,20 +96,15 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     owner: Option<HumanAddr>,
-    premium_min_update_interval: Option<u64>,
 ) -> StdResult<HandleResponse> {
     let mut config: Config = read_config(&deps.storage)?;
 
-    if deps.api.canonical_address(&env.message.sender)? != config.owner {
+    if env.message.sender != config.owner {
         return Err(StdError::unauthorized());
     }
 
     if let Some(owner) = owner {
-        config.owner = deps.api.canonical_address(&owner)?;
-    }
-
-    if let Some(premium_min_update_interval) = premium_min_update_interval {
-        config.premium_min_update_interval = premium_min_update_interval;
+        config.owner = owner;
     }
 
     store_config(&mut deps.storage, &config)?;
@@ -135,29 +122,23 @@ fn register_asset<S: Storage, A: Api, Q: Querier>(
     staking_token: HumanAddr,
 ) -> HandleResult {
     let config: Config = read_config(&deps.storage)?;
-    let asset_token_raw = deps.api.canonical_address(&asset_token)?;
 
-    if config.owner != deps.api.canonical_address(&env.message.sender)? {
+    if config.owner != env.message.sender {
         return Err(StdError::unauthorized());
     }
 
-    if read_pool_info(&deps.storage, &asset_token_raw).is_ok() {
+    if read_pool_info(&deps.storage, &asset_token).is_ok() {
         return Err(StdError::generic_err("Asset was already registered"));
     }
 
     store_pool_info(
         &mut deps.storage,
-        &asset_token_raw,
+        &asset_token,
         &PoolInfo {
-            staking_token: deps.api.canonical_address(&staking_token)?,
+            staking_token,
             total_bond_amount: Uint128::zero(),
-            total_short_amount: Uint128::zero(),
             reward_index: Decimal::zero(),
-            short_reward_index: Decimal::zero(),
             pending_reward: Uint128::zero(),
-            short_pending_reward: Uint128::zero(),
-            premium_rate: Decimal::zero(),
-            premium_updated_time: 0,
         },
     )?;
 
@@ -190,11 +171,8 @@ pub fn query_config<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<ConfigResponse> {
     let state = read_config(&deps.storage)?;
     let resp = ConfigResponse {
-        owner: deps.api.human_address(&state.owner)?,
-        nebula_token: deps.api.human_address(&state.nebula_token)?,
-        terraswap_factory: deps.api.human_address(&state.terraswap_factory)?,
-        base_denom: state.base_denom,
-        premium_min_update_interval: state.premium_min_update_interval,
+        owner: state.owner,
+        nebula_token: state.nebula_token,
     };
 
     Ok(resp)
@@ -204,35 +182,20 @@ pub fn query_pool_info<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     asset_token: HumanAddr,
 ) -> StdResult<PoolInfoResponse> {
-    let asset_token_raw = deps.api.canonical_address(&asset_token)?;
-    let pool_info: PoolInfo = read_pool_info(&deps.storage, &asset_token_raw)?;
+    let pool_info: PoolInfo = read_pool_info(&deps.storage, &asset_token)?;
     Ok(PoolInfoResponse {
         asset_token,
-        staking_token: deps.api.human_address(&pool_info.staking_token)?,
+        staking_token: pool_info.staking_token,
         total_bond_amount: pool_info.total_bond_amount,
-        total_short_amount: pool_info.total_short_amount,
         reward_index: pool_info.reward_index,
-        short_reward_index: pool_info.short_reward_index,
         pending_reward: pool_info.pending_reward,
-        short_pending_reward: pool_info.short_pending_reward,
-        premium_rate: pool_info.premium_rate,
-        premium_updated_time: pool_info.premium_updated_time,
     })
 }
 
 pub fn migrate<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+    _deps: &mut Extern<S, A, Q>,
     _env: Env,
-    msg: MigrateMsg,
+    _msg: MigrateMsg,
 ) -> MigrateResult {
-    migrate_config(
-        &mut deps.storage,
-        deps.api.canonical_address(&msg.terraswap_factory)?,
-        msg.base_denom,
-        msg.premium_min_update_interval,
-    )?;
-
-    migrate_pool_infos(&mut deps.storage)?;
-
     Ok(MigrateResponse::default())
 }

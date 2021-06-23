@@ -1,7 +1,10 @@
-use cosmwasm_std::{to_binary, Api, Binary, Decimal, Env, Extern, HandleResponse, InitResponse, Querier, StdResult, Storage, StdError, CosmosMsg, WasmMsg, Uint128, HumanAddr, log};
+use crate::state::{read_neb, read_owner, set_neb, set_owner};
+use cosmwasm_std::{
+    log, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HumanAddr, InitResponse,
+    Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
+};
 use cw20::Cw20HandleMsg;
-use crate::msg::{HandleMsg, InitMsg, QueryMsg};
-use crate::state::{set_owner, read_owner, set_neb, read_neb};
+use nebula_protocol::incentives_custody::{HandleMsg, InitMsg, QueryMsg};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -13,7 +16,6 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     Ok(InitResponse::default())
 }
 
-
 pub fn handle<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -21,16 +23,15 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
     match msg {
         HandleMsg::RequestNeb { amount } => handle_request_neb(deps, env, amount),
-        HandleMsg::_ResetOwner { owner } => try_reset_owner(deps, env, &owner),
+        HandleMsg::_ResetOwner { owner } => handle_reset_owner(deps, env, &owner),
     }
 }
 
-pub fn try_reset_owner<S: Storage, A: Api, Q: Querier>(
+pub fn handle_reset_owner<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     owner: &HumanAddr,
 ) -> StdResult<HandleResponse> {
-
     let old_owner = read_owner(&deps.storage)?;
 
     // check permission
@@ -38,13 +39,11 @@ pub fn try_reset_owner<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::unauthorized());
     }
 
-    set_owner(&mut deps.storage, &owner);
+    set_owner(&mut deps.storage, &owner)?;
 
     Ok(HandleResponse {
         messages: vec![],
-        log: vec![
-            log("action", "_try_reset_owner"),
-        ],
+        log: vec![log("action", "_try_reset_owner")],
         data: None,
     })
 }
@@ -52,9 +51,8 @@ pub fn try_reset_owner<S: Storage, A: Api, Q: Querier>(
 pub fn handle_request_neb<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    amount: Uint128
+    amount: Uint128,
 ) -> StdResult<HandleResponse> {
-
     if env.message.sender != read_owner(&deps.storage)? {
         return Err(StdError::unauthorized());
     }
@@ -72,7 +70,6 @@ pub fn handle_request_neb<S: Storage, A: Api, Q: Querier>(
         data: None,
     })
 }
-
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
     _deps: &Extern<S, A, Q>,

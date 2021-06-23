@@ -3,9 +3,10 @@ use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
-use basket_gov::msg::{HandleMsg, InitMsg, QueryMsg};
-// use basket_gov::state::State;
-
+use nebula_protocol::gov::{
+    ConfigResponse, Cw20HookMsg, HandleMsg, InitMsg, PollCountResponse, PollResponse,
+    PollsResponse, QueryMsg, StakerResponse, StateResponse, VotersResponse,
+};
 fn main() {
     let mut out_dir = current_dir().unwrap();
     out_dir.push("schema");
@@ -15,6 +16,12 @@ fn main() {
     export_schema(&schema_for!(InitMsg), &out_dir);
     export_schema(&schema_for!(HandleMsg), &out_dir);
     export_schema(&schema_for!(QueryMsg), &out_dir);
-    // export_schema(&schema_for!(State), &out_dir);
-    // export_schema(&schema_for!(CountResponse), &out_dir);
+    export_schema(&schema_for!(Cw20HookMsg), &out_dir);
+    export_schema(&schema_for!(ConfigResponse), &out_dir);
+    export_schema(&schema_for!(PollsResponse), &out_dir);
+    export_schema(&schema_for!(PollResponse), &out_dir);
+    export_schema(&schema_for!(PollCountResponse), &out_dir);
+    export_schema(&schema_for!(StateResponse), &out_dir);
+    export_schema(&schema_for!(StakerResponse), &out_dir);
+    export_schema(&schema_for!(VotersResponse), &out_dir);
 }

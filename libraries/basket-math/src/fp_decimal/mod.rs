@@ -2,6 +2,7 @@ use bigint::U256;
 use schemars::JsonSchema;
 // pub struct FPDecimal(#[schemars(with = "String")] pub i128);
 
+#[allow(clippy::upper_case_acronyms)]
 #[derive(Copy, Clone, Default, Debug, PartialEq, Eq, PartialOrd, Ord, JsonSchema)]
 pub struct FPDecimal {
     #[schemars(with = "String")]
@@ -11,10 +12,8 @@ pub struct FPDecimal {
 
 impl From<u128> for FPDecimal {
     fn from(x: u128) -> FPDecimal {
-        let second = x >> 64;
-        let second_u64 = second as u64;
         FPDecimal {
-            num: U256([x as u64, second_u64, 0, 0]) * FPDecimal::ONE.num,
+            num: U256::from_little_endian(&x.to_le_bytes()) * FPDecimal::ONE.num,
             sign: 1,
         }
     }
@@ -26,25 +25,28 @@ impl From<i128> for FPDecimal {
         if x < 0 {
             sign = 0;
         }
+
         let abs_x: u128 = x.abs() as u128;
-        let second = abs_x >> 64;
-        let second_u64 = second as u64;
         FPDecimal {
-            num: U256([abs_x as u64, second_u64, 0, 0]) * FPDecimal::ONE.num,
-            sign: sign,
+            num: U256::from_little_endian(&abs_x.to_le_bytes()) * FPDecimal::ONE.num,
+            sign,
         }
     }
 }
 
-impl Into<u128> for FPDecimal {
-    fn into(self) -> u128 {
-        let num = self.int().num / FPDecimal::ONE.num;
-        let mut array: [u8; 16] = [0; 16];
-        for i in 0..16 {
-            array[i] = num.byte(i);
+impl From<FPDecimal> for u128 {
+    fn from(x: FPDecimal) -> u128 {
+        let num: U256 = x.int().num / FPDecimal::ONE.num;
+        if num.bits() > 128 {
+            panic!("overflow");
         }
-        let val = u128::from_le_bytes(array);
-        val
+
+        let mut array: [u8; 32] = [0; 32];
+        num.to_little_endian(&mut array);
+
+        let mut arr2: [u8; 16] = Default::default();
+        arr2.copy_from_slice(&array[0..16]);
+        u128::from_le_bytes(arr2)
     }
 }
 

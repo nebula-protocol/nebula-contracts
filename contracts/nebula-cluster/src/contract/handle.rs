@@ -238,7 +238,7 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     assets: &Vec<AssetInfo>,
-    target: &Vec<u32>,
+    target: &[u32],
 ) -> StdResult<HandleResponse> {
     // allow removal / adding
 

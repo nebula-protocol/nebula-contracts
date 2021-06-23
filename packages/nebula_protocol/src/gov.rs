@@ -184,11 +184,7 @@ pub struct VotersResponse {
 
 /// Migrates the contract state, currently taking a state version argument
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct MigrateMsg {
-    pub version: u64, // current contract migration state version
-    pub voter_weight: Decimal,
-    pub snapshot_period: u64,
-}
+pub struct MigrateMsg {}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct VoterInfo {
