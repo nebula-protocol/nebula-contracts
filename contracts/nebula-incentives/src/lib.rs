@@ -2,7 +2,7 @@ pub mod contract;
 pub mod rewards;
 pub mod state;
 
-mod arbitragers;
+mod arbitrageurs;
 mod rebalancers;
 
 #[cfg(test)]

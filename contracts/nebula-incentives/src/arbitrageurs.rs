@@ -234,9 +234,7 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract,
         msg: to_binary(&HandleMsg::SendAll {
-            asset_infos: vec![AssetInfo::Token {
-                contract_addr: cluster_token,
-            }],
+            asset_infos: cluster_state.assets,
             send_to: env.message.sender,
         })?,
         send: vec![],

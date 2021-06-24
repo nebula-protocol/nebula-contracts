@@ -3,7 +3,7 @@ use cosmwasm_std::{
     InitResponse, MigrateResponse, MigrateResult, Querier, StdError, StdResult, Storage, Uint128,
 };
 
-use crate::arbitragers::{
+use crate::arbitrageurs::{
     arb_cluster_mint, arb_cluster_redeem, record_terraswap_impact, send_all, swap_all,
 };
 use crate::rebalancers::{
