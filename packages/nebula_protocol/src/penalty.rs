@@ -67,7 +67,7 @@ pub struct MintResponse {
     pub log: Vec<LogAttribute>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, JsonSchema)]
 pub struct RedeemResponse {
     pub redeem_assets: Vec<Uint128>,
     pub penalty: Uint128,
