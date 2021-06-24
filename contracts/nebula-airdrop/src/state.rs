@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{CanonicalAddr, StdResult, Storage};
+use cosmwasm_std::{HumanAddr, StdResult, Storage};
 use cosmwasm_storage::{singleton, singleton_read, Bucket, ReadonlyBucket};
 
 static KEY_CONFIG: &[u8] = b"config";
@@ -12,8 +12,8 @@ static PREFIX_CLAIM_INDEX: &[u8] = b"claim_index";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
-    pub owner: CanonicalAddr,
-    pub nebula_token: CanonicalAddr,
+    pub owner: HumanAddr,
+    pub nebula_token: HumanAddr,
 }
 
 pub fn store_config<S: Storage>(storage: &mut S, config: &Config) -> StdResult<()> {
@@ -49,17 +49,17 @@ pub fn read_merkle_root<S: Storage>(storage: &S, stage: u8) -> StdResult<String>
 
 pub fn store_claimed<S: Storage>(
     storage: &mut S,
-    user: &CanonicalAddr,
+    user: &HumanAddr,
     stage: u8,
 ) -> StdResult<()> {
     let mut claim_index_bucket: Bucket<S, bool> =
-        Bucket::multilevel(&[PREFIX_CLAIM_INDEX, user.as_slice()], storage);
+        Bucket::multilevel(&[PREFIX_CLAIM_INDEX, user.as_str().as_bytes()], storage);
     claim_index_bucket.save(&[stage], &true)
 }
 
-pub fn read_claimed<S: Storage>(storage: &S, user: &CanonicalAddr, stage: u8) -> StdResult<bool> {
+pub fn read_claimed<S: Storage>(storage: &S, user: &HumanAddr, stage: u8) -> StdResult<bool> {
     let claim_index_bucket: ReadonlyBucket<S, bool> =
-        ReadonlyBucket::multilevel(&[PREFIX_CLAIM_INDEX, user.as_slice()], storage);
+        ReadonlyBucket::multilevel(&[PREFIX_CLAIM_INDEX, user.as_str().as_bytes()], storage);
     let res = claim_index_bucket.may_load(&[stage])?;
     match res {
         Some(v) => Ok(v),

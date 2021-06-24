@@ -603,7 +603,6 @@ pub fn query_cluster_exists<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     cluster_address: HumanAddr,
 ) -> StdResult<ClusterExistsResponse> {
-    let cluster_raw = deps.api.canonical_address(&cluster_address)?;
     Ok(ClusterExistsResponse {
         exists: cluster_exists(&deps.storage, &cluster_address)?,
     })
