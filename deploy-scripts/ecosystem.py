@@ -279,10 +279,22 @@ class Ecosystem:
         await self.cluster.mint(asset_amounts=asset_tokens, min_tokens=cluster_tokens)
 
         print(f"Successfully created cluster:")
-        pprint.pprint(
-            await self.cluster.query.cluster_state(
+        cluster_state = await self.cluster.query.cluster_state(
                 cluster_contract_address=self.cluster.address
             )
+        
+        pprint.pprint(
+            cluster_state
+        )
+
+        cluster_list = await self.factory.query.cluster_list()
+
+        pprint.pprint(
+            cluster_list
+        )
+
+        assert (
+            cluster_state['cluster_contract_address']  == cluster_list['contract_addrs'][0]
         )
 
     async def create_and_execute_poll(

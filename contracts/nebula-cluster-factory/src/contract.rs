@@ -575,7 +575,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
             to_binary(&query_cluster_exists(deps, contract_addr)?)
         },
         QueryMsg::ClusterList {} => {
-            to_binary(&query_clusters(deps))
+            to_binary(&query_clusters(deps)?)
         }
     }
 }
