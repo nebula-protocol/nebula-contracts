@@ -4,13 +4,13 @@ use cosmwasm_std::{
 };
 
 use crate::state::{
-    cluster_exists, increase_total_weight, read_all_weight, read_config, read_last_distributed,
+    cluster_exists, get_clusters, increase_total_weight, read_all_weight, read_config, read_last_distributed,
     read_params, read_total_weight, read_weight, record_cluster, remove_params, store_config,
     store_last_distributed, store_params, store_total_weight, store_weight, Config,
 };
 
 use nebula_protocol::cluster_factory::{
-    ClusterExistsResponse, ConfigResponse, HandleMsg, InitMsg, Params, QueryMsg,
+    ClusterExistsResponse, ClusterListResponse, ConfigResponse, HandleMsg, InitMsg, Params, QueryMsg,
 };
 
 use nebula_protocol::cluster::{HandleMsg as ClusterHandleMsg, InitMsg as ClusterInitMsg};
@@ -573,6 +573,9 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
         QueryMsg::Config {} => to_binary(&query_config(deps)?),
         QueryMsg::ClusterExists { contract_addr } => {
             to_binary(&query_cluster_exists(deps, contract_addr)?)
+        },
+        QueryMsg::ClusterList {} => {
+            to_binary(&query_clusters(deps))
         }
     }
 }
@@ -606,4 +609,14 @@ pub fn query_cluster_exists<S: Storage, A: Api, Q: Querier>(
     Ok(ClusterExistsResponse {
         exists: cluster_exists(&deps.storage, &cluster_address)?,
     })
+}
+
+pub fn query_clusters<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+) -> StdResult<ClusterListResponse> {
+    Ok(
+        ClusterListResponse {
+            contract_addrs: get_clusters(&deps.storage)?,
+        }
+    )
 }

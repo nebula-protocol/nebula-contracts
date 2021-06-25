@@ -65,6 +65,7 @@ pub enum HandleMsg {
 pub enum QueryMsg {
     Config {},
     ClusterExists { contract_addr: HumanAddr },
+    ClusterList {}, 
 }
 
 // We define a custom struct for each query response
@@ -87,6 +88,11 @@ pub struct ConfigResponse {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ClusterExistsResponse {
     pub exists: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct ClusterListResponse {
+    pub contract_addrs: Vec<HumanAddr>,
 }
 
 // We define a custom struct for each query response
