@@ -191,6 +191,7 @@ class Ecosystem:
         asset_prices,
         target_weights,
         penalty_params,
+        asset_names=None,
     ):
         print("Creating cluster...")
 
@@ -202,24 +203,44 @@ class Ecosystem:
 
         code_ids = self.code_ids
 
-        assets = [
-            (
-                await Contract.create(
-                    code_ids["terraswap_token"],
-                    name=f"Asset {i}",
-                    symbol=f"AA{chr(i + 97)}",
-                    decimals=6,
-                    initial_balances=[
-                        {
-                            "address": deployer.key.acc_address,
-                            "amount": "1" + "0" * 15,
-                        }
-                    ],
-                    mint=None,
+        if asset_names is None:
+            assets = [
+                (
+                    await Contract.create(
+                        code_ids["terraswap_token"],
+                        name=f"Asset {i}",
+                        symbol=f"AA{chr(i + 97)}",
+                        decimals=6,
+                        initial_balances=[
+                            {
+                                "address": deployer.key.acc_address,
+                                "amount": "1" + "0" * 15,
+                            }
+                        ],
+                        mint=None,
+                    )
                 )
-            )
-            for i in range(len(asset_tokens))
-        ]
+                for i in range(len(asset_tokens))
+            ]
+        else:
+            assets = [
+                (
+                    await Contract.create(
+                        code_ids["terraswap_token"],
+                        name=name,
+                        symbol=name,
+                        decimals=6,
+                        initial_balances=[
+                            {
+                                "address": deployer.key.acc_address,
+                                "amount": "1" + "0" * 15,
+                            }
+                        ],
+                        mint=None,
+                    )
+                )
+                for name in asset_names
+            ]
 
         assets = tuple(assets)
         oracle = await Contract.create(code_ids["nebula_dummy_oracle"])
