@@ -45,6 +45,18 @@ pub fn cluster_exists<S: Storage>(storage: &S, contract_addr: &HumanAddr) -> Std
     }
 }
 
+pub fn get_clusters<S: Storage>(storage: &S) -> StdResult<Vec<HumanAddr>> {
+    let cluster_bucket : ReadonlyBucket<S, bool> = ReadonlyBucket::new(PREFIX_CLUSTERS, storage);
+
+    cluster_bucket
+        .range(None, None, Order::Ascending)
+        .map(|item| {
+            let (k, _) = item?;
+            Ok(HumanAddr::from(unsafe { std::str::from_utf8_unchecked(&k) }))
+        })
+        .collect::<StdResult<Vec<HumanAddr>>>()
+}
+
 pub fn record_cluster<S: Storage>(storage: &mut S, contract_addr: &HumanAddr) -> StdResult<()> {
     Bucket::new(PREFIX_CLUSTERS, storage).save(&contract_addr.as_str().as_bytes(), &true)
 }
