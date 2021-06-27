@@ -250,11 +250,11 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::unauthorized());
     }
 
-    //TODO: Make sure all assets in new asset vector actually exist
-    let provided: u32 = target.clone().iter().sum();
-    if provided != 100 {
-        return Err(bad_weight_values(provided));
-    }
+    // //TODO: Make sure all assets in new asset vector actually exist
+    // let provided: u32 = target.clone().iter().sum();
+    // if provided != 100 {
+    //     return Err(bad_weight_values(provided));
+    // }
 
     if target.len() != assets.len() {
         return Err(error::bad_weight_dimensions(target.len(), assets.len()));

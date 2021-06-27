@@ -262,7 +262,7 @@ class Ecosystem:
                 "target": target_weights,
                 "assets": [Asset.cw20_asset_info(i) for i in assets],
                 "pricing_oracle": oracle,
-                "composition_oracle": oracle,
+                "composition_oracle": deployer.key.acc_address,
             },
         )
 

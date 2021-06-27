@@ -5,22 +5,35 @@ from tests.cluster_and_collector_ops import test_cluster_and_collector_ops
 from tests.community_and_airdrop import test_community_and_airdrop
 from tests.governance_ops import test_governance_ops
 from tests.incentives_ops import test_incentives_ops
+from recomposition_bot import RecompositionBot
+from bot_code.bullish_cross import BullishCrossRecomposer
+from api import Asset
 
 import sys
 import time
 import random
 
-async def recompose():
-    print("Insert recompose query code here")
+async def recompose(ecosystem, rec_bot, asset_names):
+    new_assets, new_target = await rec_bot.recompose()
+
+    await ecosystem.cluster.reset_target(
+        assets=[Asset.cw20_asset_info(a) for a in new_assets],
+        target=new_target
+    )
 
 
-async def run_recomposition_periodically(interval, periodic_function):
+async def run_recomposition_periodically(interval, ecosystem):
     start_time = time.time()
+
+    # Change bot here
+    asset_names = ['mFB', 'mTSLA', 'mGOOGL']
+    rec_bot = BullishCrossRecomposer(asset_names, use_test_data=True)
+    
     while True:
         print(round(time.time() - start_time, 1), "Recomposition")
         await asyncio.gather(
             asyncio.sleep(interval),
-            periodic_function(),
+            recompose(ecosystem, rec_bot, asset_names),
         )
 
 
@@ -45,7 +58,7 @@ async def main():
         asset_names=['mFB', 'mTSLA', 'mGOOGL']
     )
 
-    await run_recomposition_periodically(5, recompose)
+    await run_recomposition_periodically(5, ecosystem)
 
 
 if __name__ == "__main__":
