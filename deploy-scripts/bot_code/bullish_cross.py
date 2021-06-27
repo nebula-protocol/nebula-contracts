@@ -36,6 +36,8 @@ class BullishCrossRecomposer:
         if self.use_test_data:
             self.count = 5
             self.closes = {a: pd.read_csv(a + '.csv')['Close']  for a in asset_names}
+        else:
+            raise NotImplementedError # Should make data follow correct format in this case
 
     def self_opt_ma(data):
         """
@@ -44,13 +46,16 @@ class BullishCrossRecomposer:
         percentage (rising bars) on the next bar, and then pick the best performing period length.
         """
 
-        close = self.closes[self.count:self.count + self.lookahead].reset_index(drop=True)
+        if self.use_test_data:
+            close = self.closes[self.count:self.count + self.lookahead].reset_index(drop=True)
 
-        # yesterday
-        c1 = self.closes[self.count-1:self.count - 1 + self.lookahead].reset_index(drop=True)
+            # yesterday
+            c1 = self.closes[self.count-1:self.count - 1 + self.lookahead].reset_index(drop=True)
 
-        # 3 days ago
-        c3 = self.closes[self.count-3:self.count - 3 + self.lookahead].reset_index(drop=True)
+            # 3 days ago
+            c3 = self.closes[self.count-3:self.count - 3 + self.lookahead].reset_index(drop=True)
+        else:
+            raise NotImplementedError
 
         counter_list = []
         win_list = []
@@ -77,6 +82,7 @@ class BullishCrossRecomposer:
 
         # choose best MA candidate after smoothing
         best_index = self.minperiod + 2 + max(enumerate(smoothed_win_percentage), key=lambda x: x[1])[0]
+        best_pwp = max(smoothed_win_percentage)
 
 
 
