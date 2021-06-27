@@ -6,6 +6,7 @@ impl FPDecimal {
     #[allow(clippy::many_single_char_names)]
     pub fn _ln(a: FPDecimal) -> FPDecimal {
         assert!(a.sign != 0);
+        assert!(a != FPDecimal::zero());
         let mut v = a.num;
         let mut r = FPDecimal::zero();
         while v <= FPDecimal::ONE.num / U256([10, 0, 0, 0]) {
