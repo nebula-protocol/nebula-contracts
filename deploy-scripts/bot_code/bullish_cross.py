@@ -25,16 +25,17 @@ indication=highestarray(pwpsmooth); // winning percentage (smoothed)
 import pandas as pd
 
 class BullishCrossRecomposer:
-    def __init__(self, asset_names, use_test_data=False, minperiod=5, maxperiod=200):
+    def __init__(self, asset_names, use_test_data=False, minperiod=5, maxperiod=50, lookahead = 200):
         self.use_test_data = use_test_data
-        self.minperiod=minperiod, 
-        self.maxperiod=maxperiod,
+        self.minperiod=minperiod 
+        self.maxperiod=maxperiod
         self.asset_names = asset_names
+        self.lookahead = lookahead
 
         # Use test data from Yahoo Finance
         if self.use_test_data:
             self.count = 5
-            self.closes = {a: list(pd.read_csv(a + '.csv')['Close']) for a in asset_names}
+            self.closes = {a: pd.read_csv(a + '.csv')['Close']  for a in asset_names}
 
     def self_opt_ma(data):
         """
@@ -43,9 +44,39 @@ class BullishCrossRecomposer:
         percentage (rising bars) on the next bar, and then pick the best performing period length.
         """
 
-        close = self.closes[self.count:self.count + self.maxperiod]
-        c1 = self.closes[self.count-1:self.count - 1 + self.maxperiod]
-        c3 = self.closes[self.count-3:self.count - 3 + self.maxperiod]
+        close = self.closes[self.count:self.count + self.lookahead].reset_index(drop=True)
+
+        # yesterday
+        c1 = self.closes[self.count-1:self.count - 1 + self.lookahead].reset_index(drop=True)
+
+        # 3 days ago
+        c3 = self.closes[self.count-3:self.count - 3 + self.lookahead].reset_index(drop=True)
+
+        counter_list = []
+        win_list = []
+        win_percentage_list = []
+
+        # loop over all MA candidates
+        for i in range(self.minperiod, self.maxperiod+1):
+            av_c1 = c1.rolling(i).mean().reset_index(drop=True)
+            av_c3 = c3.rolling(i).mean().reset_index(drop=True)
+
+            # Total count: times av_c1 beats av_c3
+            counter = (av_c1 > av_c3).sum()
+
+            # Wins: When current close > yesterday's with av_c1 > av_c3 signal
+            wins = ((av_c1 > av_c3) & (close > av_c1)).sum()
+
+            counter_list.append(counter)
+            win_list.append(wins)
+            win_percentage_list.append(wins / counter)
+
+        # smoothing
+        for j in range(2, len(win_percentage_list) - 2 - 1):
+            smoothed_win_percentage = sum(win_percentage_list[j-2 : j + 2 + 1])
+
+        # choose best MA candidate after smoothing
+        best_index = self.minperiod + 2 + max(enumerate(smoothed_win_percentage), key=lambda x: x[1])[0]
 
 
 
