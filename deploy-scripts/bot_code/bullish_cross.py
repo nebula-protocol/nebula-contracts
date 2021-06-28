@@ -24,6 +24,7 @@ indication=highestarray(pwpsmooth); // winning percentage (smoothed)
     
 from .coinmarketcap import get_prices
 import pandas as pd
+import os
 THRESHOLD = 0.5
 # Percentage to deweight non-cross assets
 X = 0.2
@@ -38,7 +39,9 @@ class BullishCrossRecomposer:
         # Use test data from Yahoo Finance
         if self.use_test_data:
             self.count = 5
-            self.closes = {a: pd.read_csv('/Users/Manav/Documents/crypto_projects/nebula/deploy-scripts/bot_code/' + a + '.csv')['Close'] for a in asset_names}
+            cwd = os.path.dirname(os.path.abspath(__file__))
+            csv_format = cwd + '/{}.csv'
+            self.closes = {a: pd.read_csv(csv_format.format(a))['Close'] for a in asset_names}
         else:
             raise NotImplementedError # Should make data follow correct format in this case
 
