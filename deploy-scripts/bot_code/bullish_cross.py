@@ -126,6 +126,7 @@ class BullishCrossRecomposer:
         else:
             denom = sum(asset_mcaps)
             target = {asset_names[i]: asset_mcaps[i]/denom for i in range(len(asset_names))}
+            print("Original allocation: {}".format(target))
             # Some asset has a cross, then divide up X share of non-cross assets to cross assets
             if has_cross:
                 non_cross_pool = 0
@@ -133,20 +134,25 @@ class BullishCrossRecomposer:
                     share = X * target[asset_name]
                     non_cross_pool += share
                     target[asset_name] -= share
+                    print("{} does not have a cross. Pool takes {}".format(asset_name, share))
+                print("Total Non-Cross Pool: {}".format(non_cross_pool))
                 cross_assets = list(best_pwps.keys())
                 cross_diffs = [best_pwps[asset] - THRESHOLD for asset in cross_assets]
                 cross_asset_mcaps = [asset_data[asset] for asset in cross_assets]
                 denom = sum([cross_asset_mcaps[i] * cross_diffs[i] for i in range(len(cross_assets))])
                 for i in range(len(cross_assets)):
                     cross_asset = cross_assets[i]
-                    target[cross_asset] = (cross_asset_mcaps[i] * cross_diffs[i])/denom
-            assets, target_weight = zip(*target.items())
-            return list(assets), list(target_weight)
+                    new_weight = (cross_asset_mcaps[i] * cross_diffs[i])/denom
+                    target[cross_asset] = new_weight
+                    print("{} target weight updated to {}".format(cross_asset, new_weight))
+        assets, target_weights = zip(*target.items())
+        return list(assets), list(target_weights)
     
     # background contracts needed to create cluster contracts
     async def recompose(self):
         self.count += 1
         self_optimized = []
-        assets, target_weight = await self.cross_weighting()
-        print(assets, target_weight)
-        return assets, target_weight
+        assets, target_weights = await self.cross_weighting()
+        print(assets, target_weights)
+        target_weights = [int(100 * target_weight) for target_weight in target_weights]
+        return assets, target_weights
