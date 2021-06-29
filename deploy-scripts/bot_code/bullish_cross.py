@@ -64,7 +64,11 @@ class BullishCrossRecomposer:
             # 3 days ago
             c3 = data[self.count-3:self.count - 3 + self.lookahead].reset_index(drop=True)
         else:
-            raise NotImplementedError
+            close = data[-self.lookahead:].reset_index(drop=True)
+            # yesterday
+            c1 = data[-self.lookahead- 1 : -1].reset_index(drop=True)
+            # 3 days ago
+            c3 = data[-self.lookahead - 3 : -3].reset_index(drop=True)
 
         counter_list = []
         win_list = []
@@ -119,14 +123,13 @@ class BullishCrossRecomposer:
             to = round(time.time() * 1000)
 
             # Need at least (self.lookahead + 3) pieces of historical data
-            from_time = to - (self.lookahead + 4) * self.bar_length * 1000
+            from_time = to - (self.lookahead + 4) * self.bar_length * 1000 * 60
 
             data = [await mirror_history_query(a, self.bar_length, from_time, to) for a in self.asset_addresses]
-            import pdb; pdb.set_trace()
             # Might need asset names from CMC
             asset_names, max_timestamps, closes, mcs = zip(*data)
-            asset_data = {name: mc for name, mc in zip(asset_names, mcs)}
-            self.closes = {name: mc for name, closes in zip(asset_names, pd.Series(closes))}
+            asset_data = {name: int(mc) for name, mc in zip(asset_names, mcs)}
+            self.closes = {name: pd.Series(close).astype('float') for name, close in zip(asset_names, closes)}
             names_to_contracts = {name: addrs for name, addrs in zip(asset_names, self.asset_addresses)}
         else:
             asset_names = asset_addresses
@@ -153,6 +156,7 @@ class BullishCrossRecomposer:
             denom = sum(asset_mcaps)
             target = {asset_names[i]: asset_mcaps[i]/denom for i in range(len(asset_names))}
             print("Original allocation: {}".format(target))
+
             # Some asset has a cross, then divide up X share of non-cross assets to cross assets
             if has_cross:
                 non_cross_pool = 0
