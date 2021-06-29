@@ -34,7 +34,7 @@ class TVLLockedRecomposer:
             slugs.append(slug)
         return slugs
 
-    def weighting(self):
+    async def weighting(self):
         tvl_url = self.api + self.tvl_endpoint
         tvls = {}
         for slug in self.slugs:
@@ -43,15 +43,15 @@ class TVLLockedRecomposer:
             r.raise_for_status()
             tvl = float(r.text)
             tvls[slug] = tvl
-            print(slug, tvl/1000000.0)
+            print("{} has TVL of {}M".format(slug, tvl/1000000.0))
         denom = sum(tvls.values())
-        print(denom/1000000.0)
+        print("Total TVL of all assets: {}M".format(denom/1000000.0))
         target = [tvls[slug]/denom for slug in self.slugs]
         return target
         
     
-    def recompose(self):
-        target_weights = self.weighting()
+    async def recompose(self):
+        target_weights = await self.weighting()
         print(self.asset_names, target_weights)
         target_weights = [int(100 * target_weight) for target_weight in target_weights]
         return self.asset_names, target_weights

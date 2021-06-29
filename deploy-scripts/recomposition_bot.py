@@ -6,12 +6,12 @@ import time
 import asyncio
 
 class RecompositionBot:
-    def __init__(self, bot_name, asset_names, ecosystem):
+    def __init__(self, bot_name, assets, ecosystem):
         self.ecosystem = ecosystem
         if bot_name == 'bullish-cross':
-            self.recomposer = BullishCrossRecomposer(asset_names, use_test_data=True)
+            self.recomposer = BullishCrossRecomposer(assets)
         elif bot_name == 'tvl-locked':
-            self.recomposer = TVLLockedRecomposer(asset_names)
+            self.recomposer = TVLLockedRecomposer(assets)
         else:
             raise NotImplementedError
 
