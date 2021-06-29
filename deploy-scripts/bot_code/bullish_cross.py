@@ -22,17 +22,23 @@ av=average(close,period);
 indication=highestarray(pwpsmooth); // winning percentage (smoothed)
 """
     
+from .graphql_querier import mirror_history_query
 import pandas as pd
 import os
+import time
 THRESHOLD = 0.5
 # Percentage to deweight non-cross assets
 X = 0.2
 class BullishCrossRecomposer:
-    def __init__(self, asset_names, use_test_data=False, minperiod=5, maxperiod=50, lookahead = 200):
+    def __init__(self, asset_addresses, use_test_data=False, minperiod=5, maxperiod=50, lookahead = 200, bar_length = 30):
+        """ 
+        Defaults to 30min tick and 200 bars of data (around 4 days).
+        Asset names can also be addresses
+        """
         self.use_test_data = use_test_data
         self.minperiod=minperiod 
         self.maxperiod=maxperiod
-        self.asset_names = asset_names
+        self.asset_addresses = asset_addresses
         self.lookahead = lookahead
 
         # Use test data from Yahoo Finance
@@ -40,9 +46,9 @@ class BullishCrossRecomposer:
             self.count = 5
             cwd = os.path.dirname(os.path.abspath(__file__))
             csv_format = cwd + '/{}.csv'
-            self.closes = {a: pd.read_csv(csv_format.format(a))['Close'] for a in asset_names}
+            self.closes = {a: pd.read_csv(csv_format.format(a))['Close'] for a in asset_addresses}
         else:
-            raise NotImplementedError # Should make data follow correct format in this case
+            self.bar_length = bar_length
 
     def self_opt_ma(self, data):
         """
@@ -107,7 +113,25 @@ class BullishCrossRecomposer:
         has_cross, all_cross = False, True
         best_pwps = {}
         non_cross_assets = []
-        asset_names = self.asset_names
+        asset_addresses = self.asset_addresses
+
+        if not self.use_test_data:
+            to = round(time.time() * 1000)
+
+            # Need at least (self.lookahead + 3) pieces of historical data
+            from_time = to - (self.lookahead + 4) * self.bar_length * 1000
+
+            data = [await mirror_history_query(a, self.bar_length, from_time, to) for a in self.asset_addresses]
+            import pdb; pdb.set_trace()
+            # Might need asset names from CMC
+            asset_names, max_timestamps, closes, mcs = zip(*data)
+            asset_data = {name: mc for name, mc in zip(asset_names, mcs)}
+            self.closes = {name: mc for name, closes in zip(asset_names, pd.Series(closes))}
+            names_to_contracts = {name: addrs for name, addrs in zip(asset_names, self.asset_addresses)}
+        else:
+            asset_names = asset_addresses
+            asset_data = self.get_mcaps(asset_names)
+
         # Calculate best_pwps and assets with crosses
         for asset, asset_closes in self.closes.items():
             best_pwp, price_gt_ma = self.self_opt_ma(asset_closes)
@@ -117,7 +141,7 @@ class BullishCrossRecomposer:
             else:
                 all_cross = False
                 non_cross_assets.append(asset)
-        asset_data = self.get_mcaps(asset_names)
+        
         asset_mcaps = list(asset_data.values())
         print(asset_names, asset_mcaps)
         # All assets have crosses
@@ -148,11 +172,14 @@ class BullishCrossRecomposer:
                     target[cross_asset] += new_weight * non_cross_pool
                     print("{} target weight updated to {}".format(cross_asset, new_weight))
         assets, target_weights = zip(*target.items())
+        if not self.use_test_data:
+            assets = [names_to_contracts[a] for a in assets]
+
         return list(assets), list(target_weights)
     
     async def recompose(self):
-        self.count += 1
-        self_optimized = []
+        if self.use_test_data:
+            self.count += 1
         assets, target_weights = await self.cross_weighting()
         print(assets, target_weights)
         target_weights = [int(100 * target_weight) for target_weight in target_weights]
