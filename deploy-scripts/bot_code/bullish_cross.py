@@ -146,7 +146,7 @@ class BullishCrossRecomposer:
                 for i in range(len(cross_assets)):
                     cross_asset = cross_assets[i]
                     new_weight = (cross_asset_mcaps[i] * cross_diffs[i])/denom
-                    target[cross_asset] = new_weight
+                    target[cross_asset] += new_weight * non_cross_pool
                     print("{} target weight updated to {}".format(cross_asset, new_weight))
         assets, target_weights = zip(*target.items())
         return list(assets), list(target_weights)
