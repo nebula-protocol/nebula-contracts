@@ -51,5 +51,49 @@ def cross_weighting():
     assets, target_weights = zip(*target.items())
     return list(assets), list(target_weights)
 
+import requests
+import json
+import pandas as pd
+
+def graphql_query():
+
+    query = """
+    query {
+        asset(token: "terra1vxtwu4ehgzz77mnfwrntyrmgl64qjs75mpwqaz") {
+            prices {
+            history(interval: 5, from: 1624932000000, to: 1624932929000) {
+                timestamp
+                price
+            }
+            },
+            symbol,
+            name
+        }
+    }"""
+
+    print(query)
+
+    query = """
+    query {{
+        asset(token: "terra1vxtwu4ehgzz77mnfwrntyrmgl64qjs75mpwqaz") {{
+            prices {{
+            history(interval: {0}, from: {1}, to: {2}) {{
+                timestamp
+                price
+            }}
+            }},
+            symbol,
+            name
+        }}
+    }}""".format("5", "1624932000000", "1624932929000")
+
+    url = 'https://graph.mirror.finance/graphql'
+    r = requests.post(url, json={'query': query})
+    print(r.status_code)
+
+    import pdb; pdb.set_trace()
+    print(r.text)
+
+
 if __name__ == "__main__":
-    print(cross_weighting())
+    print(graphql_query())
