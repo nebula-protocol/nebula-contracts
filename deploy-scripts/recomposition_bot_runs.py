@@ -1,47 +1,17 @@
 from ecosystem import Ecosystem
 import asyncio
-from tests.provide_liquidity_and_staking import test_provide_liquidity_and_staking
-from tests.cluster_and_collector_ops import test_cluster_and_collector_ops
-from tests.community_and_airdrop import test_community_and_airdrop
-from tests.governance_ops import test_governance_ops
-from tests.incentives_ops import test_incentives_ops
 from recomposition_bot import RecompositionBot
 from bot_code.bullish_cross import BullishCrossRecomposer
 from api import Asset
 
-import sys
 import time
-import random
-
-async def recompose(ecosystem, rec_bot, asset_names):
-    new_assets, new_target = await rec_bot.recompose()
-
-    await ecosystem.cluster.reset_target(
-        assets=[Asset.cw20_asset_info(a) for a in new_assets],
-        target=new_target
-    )
-
-
-async def run_recomposition_periodically(interval, ecosystem):
-    start_time = time.time()
-
-    # Change bot here
-    asset_names = ['mFB', 'mTSLA', 'mGOOGL']
-    rec_bot = BullishCrossRecomposer(asset_names, use_test_data=True)
-    
-    while True:
-        print(round(time.time() - start_time, 1), "Recomposition")
-        await asyncio.gather(
-            asyncio.sleep(interval),
-            recompose(ecosystem, rec_bot, asset_names),
-        )
-
 
 async def main():
 
     ecosystem = Ecosystem(require_gov=True)
     await ecosystem.initialize_base_contracts()
     await ecosystem.initialize_extraneous_contracts()
+    asset_names = ['mFB', 'mTSLA', 'mGOOGL']
     await ecosystem.create_cluster(
         100,
         [100, 100, 100],
@@ -55,11 +25,11 @@ async def main():
             "reward_amt": "0.05",
             "reward_cutoff": "0.02",
         },
-        asset_names=['mFB', 'mTSLA', 'mGOOGL']
+        asset_names=asset_names
     )
 
-    await run_recomposition_periodically(5, ecosystem)
-
+    rec_bot = RecompositionBot('bullish-cross', asset_names, ecosystem)
+    await rec_bot.run_recomposition_periodically(5)
 
 if __name__ == "__main__":
     asyncio.get_event_loop().run_until_complete(main())

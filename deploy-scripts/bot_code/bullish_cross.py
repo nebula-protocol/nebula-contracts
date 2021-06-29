@@ -22,7 +22,6 @@ av=average(close,period);
 indication=highestarray(pwpsmooth); // winning percentage (smoothed)
 """
     
-from .coinmarketcap import get_prices
 import pandas as pd
 import os
 THRESHOLD = 0.5
@@ -151,7 +150,6 @@ class BullishCrossRecomposer:
         assets, target_weights = zip(*target.items())
         return list(assets), list(target_weights)
     
-    # background contracts needed to create cluster contracts
     async def recompose(self):
         self.count += 1
         self_optimized = []

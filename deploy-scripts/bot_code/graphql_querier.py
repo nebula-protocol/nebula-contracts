@@ -19,9 +19,7 @@ def mirror_history_query(tick, from_stamp, to_stamp):
 
     url = 'https://graph.mirror.finance/graphql'
     r = requests.post(url, json={'query': query})
-    if r.status_code != 200:
-        print("Error!")
-        return None
+    r.raise_for_status()
     asset = json.loads(r.text)['data']['asset']
 
     prices = asset['prices']['history']

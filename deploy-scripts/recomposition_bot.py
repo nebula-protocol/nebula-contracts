@@ -1,16 +1,22 @@
 from bot_code.bullish_cross import BullishCrossRecomposer
+from bot_code.tvl_locked import TVLLockedRecomposer
 from api import Asset
+
+import time
+import asyncio
 
 class RecompositionBot:
     def __init__(self, bot_name, asset_names, ecosystem):
         self.ecosystem = ecosystem
         if bot_name == 'bullish-cross':
             self.recomposer = BullishCrossRecomposer(asset_names, use_test_data=True)
+        elif bot_name == 'tvl-locked':
+            self.recomposer = TVLLockedRecomposer(asset_names)
         else:
             raise NotImplementedError
 
 
-    async def recompose(self, asset_names):
+    async def recompose(self):
         new_assets, new_target = await self.recomposer.recompose()
 
         await self.ecosystem.cluster.reset_target(
@@ -19,3 +25,13 @@ class RecompositionBot:
         )
 
         return new_assets, new_target
+    
+    async def run_recomposition_periodically(self, interval):
+        start_time = time.time()
+
+        while True:
+            print(round(time.time() - start_time, 1), "Recomposition")
+            await asyncio.gather(
+                asyncio.sleep(interval),
+                self.recompose(),
+            )
