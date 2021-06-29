@@ -26,14 +26,17 @@ async def run_recomposition_periodically(interval, ecosystem):
     start_time = time.time()
 
     # Change bot here
-    asset_names = ['mFB', 'mTSLA', 'mGOOGL']
-    rec_bot = BullishCrossRecomposer(asset_names, use_test_data=True)
+    # asset_addresses = ['mFB', 'mTSLA', 'mGOOGL']
+    asset_addresses = ['terra1mqsjugsugfprn3cvgxsrr8akkvdxv2pzc74us7', 
+                       'terra14y5affaarufk3uscy2vr6pe6w6zqf2wpjzn5sh', 
+                       'terra1h8arz2k547uvmpxctuwush3jzc8fun4s96qgwt']
+    rec_bot = BullishCrossRecomposer(asset_addresses, use_test_data=False)
     
     while True:
         print(round(time.time() - start_time, 1), "Recomposition")
         await asyncio.gather(
             asyncio.sleep(interval),
-            recompose(ecosystem, rec_bot, asset_names),
+            recompose(ecosystem, rec_bot, asset_addresses),
         )
 
 

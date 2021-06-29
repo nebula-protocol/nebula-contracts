@@ -54,46 +54,58 @@ def cross_weighting():
 import requests
 import json
 import pandas as pd
+import asyncio
+from graphql_querier import mirror_history_query
 
 def graphql_query():
 
-    query = """
-    query {
-        asset(token: "terra1vxtwu4ehgzz77mnfwrntyrmgl64qjs75mpwqaz") {
-            prices {
-            history(interval: 5, from: 1624932000000, to: 1624932929000) {
-                timestamp
-                price
-            }
-            },
-            symbol,
-            name
-        }
-    }"""
 
-    print(query)
+    # query = """
+    # query {{
+    #     asset(token: "terra1vxtwu4ehgzz77mnfwrntyrmgl64qjs75mpwqaz") {{
+    #         prices {{
+    #         history(interval: {0}, from: {1}, to: {2}) {{
+    #             timestamp
+    #             price
+    #         }}
+    #         }},
+    #         symbol,
+    #         name
+    #     }}
+    # }}""".format("5", "1624932000000", "1624932929000")
 
-    query = """
-    query {{
-        asset(token: "terra1vxtwu4ehgzz77mnfwrntyrmgl64qjs75mpwqaz") {{
-            prices {{
-            history(interval: {0}, from: {1}, to: {2}) {{
-                timestamp
-                price
-            }}
-            }},
-            symbol,
-            name
-        }}
-    }}""".format("5", "1624932000000", "1624932929000")
+    # url = 'https://graph.mirror.finance/graphql'
+    # r = requests.post(url, json={'query': query})
+    # print(r.status_code)
 
-    url = 'https://graph.mirror.finance/graphql'
-    r = requests.post(url, json={'query': query})
-    print(r.status_code)
+    # import pdb; pdb.set_trace()
+    # print(r.text)
 
-    import pdb; pdb.set_trace()
-    print(r.text)
+    # query = """
+    # query {{
+    #     asset(token: "terra1vxtwu4ehgzz77mnfwrntyrmgl64qjs75mpwqaz") {{
+    #         prices {{
+    #         history(interval: {0}, from: {1}, to: {2}) {{
+    #             timestamp
+    #             price
+    #         }}
+    #         }},
+    #         symbol,
+    #         name
+    #     }}
+    # }}""".format("5", "1624932000000", "1624932929000")
+
+    # url = 'https://graph.mirror.finance/graphql'
+    # r = requests.post(url, json={'query': query})
+    # print(r.status_code)
+
+    # import pdb; pdb.set_trace()
+    # print(r.text)
+
+
+    test = mirror_history_query('\"terra1vxtwu4ehgzz77mnfwrntyrmgl64qjs75mpwqaz\"', "5", "1624932000000", "1624932929000")
+    print(test)
 
 
 if __name__ == "__main__":
-    print(graphql_query())
+    graphql_query()
