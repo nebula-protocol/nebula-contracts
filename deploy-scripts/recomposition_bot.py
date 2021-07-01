@@ -1,5 +1,6 @@
 from bot_code.bullish_cross import BullishCrossRecomposer
 from bot_code.tvl_locked import TVLLockedRecomposer
+from terra_ecosystem import TerraFullDilutedMcapRecomposer
 from api import Asset
 
 import time
@@ -12,6 +13,8 @@ class RecompositionBot:
             self.recomposer = BullishCrossRecomposer(assets)
         elif bot_name == 'tvl-locked':
             self.recomposer = TVLLockedRecomposer(assets)
+        elif bot_name == 'terra-ecosystem':
+            self.recomposer = TerraFullDilutedMcapRecomposer(assets, ecosystem.asset_tokens)
         else:
             raise NotImplementedError
 

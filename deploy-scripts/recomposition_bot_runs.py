@@ -11,7 +11,7 @@ async def main():
     ecosystem = Ecosystem(require_gov=True)
     await ecosystem.initialize_base_contracts()
     await ecosystem.initialize_extraneous_contracts()
-    bot = 'bullish-cross'
+    bot = 'terra-ecosystem'
     if bot == 'tvl':
         tvl_assets = ["AAVE", "COMP", "MKR", "CREAM", "ANC"]
         await ecosystem.create_cluster(
@@ -53,6 +53,24 @@ async def main():
             asset_names=asset_names
         )
         rec_bot = RecompositionBot('bullish-cross', asset_addresses, ecosystem)
+    elif bot == 'terra-ecosystem':
+        asset_names = ['LUNA', 'ANC', 'MIR']
+        await ecosystem.create_cluster(
+            100,
+            [100, 100, 100],
+            [100, 100, 100],
+            [1, 1, 1],
+            {
+                "penalty_amt_lo": "0.1",
+                "penalty_cutoff_lo": "0.01",
+                "penalty_amt_hi": "0.5",
+                "penalty_cutoff_hi": "0.1",
+                "reward_amt": "0.05",
+                "reward_cutoff": "0.02",
+            },
+            asset_names=asset_names
+        )
+        rec_bot = RecompositionBot('terra-ecosystem', asset_names, ecosystem)
     else:
         raise NotImplementedError
     
