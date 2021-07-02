@@ -45,7 +45,7 @@ async def main():
 
     await pair.swap(
         offer_asset=Asset.asset("uusd", amount="10000", native=True),
-        _send={"uusd": "10000"}
+        _send={"uusd": "10000"},
     )
 
     # pool now has zero neb tokens but positive USD ?!?!
@@ -73,6 +73,7 @@ async def main():
             _send={"uusd": "10"},
         ),
     )
+
 
 if __name__ == "__main__":
     asyncio.get_event_loop().run_until_complete(main())

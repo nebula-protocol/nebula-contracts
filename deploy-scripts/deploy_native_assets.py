@@ -88,6 +88,28 @@ async def main():
         ),
     )
 
+    await chain(
+        cluster_token.increase_allowance(amount="50000", spender=cluster_pair),
+        cluster_pair.provide_liquidity(
+            assets=[
+                Asset.asset(cluster_token, amount="50000"),
+                Asset.asset("uusd", amount="50000", native=True),
+            ],
+            _send={"uusd": "50000"},
+        ),
+    )
+
+    await ecosystem.incentives.arb_cluster_mint(
+        cluster_contract=cluster,
+        assets=asset_amounts,
+        _send={i: "100000" for i in asset_tokens},
+    )
+
+    await ecosystem.incentives.arb_cluster_redeem(
+        cluster_contract=cluster,
+        asset=Asset.asset("uusd", amount="100000", native=True),
+        _send={"uusd": "100000"},
+    )
 
 
 if __name__ == "__main__":
