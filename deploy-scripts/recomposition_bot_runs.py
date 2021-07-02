@@ -1,7 +1,6 @@
 from ecosystem import Ecosystem
 import asyncio
 from recomposition_bot import RecompositionBot
-from bot_code.bullish_cross import BullishCrossRecomposer
 from api import Asset
 
 import time
@@ -60,6 +59,24 @@ async def main():
             [100, 100, 100],
             [100, 100, 100],
             [1, 1, 1],
+            {
+                "penalty_amt_lo": "0.1",
+                "penalty_cutoff_lo": "0.01",
+                "penalty_amt_hi": "0.5",
+                "penalty_cutoff_hi": "0.1",
+                "reward_amt": "0.05",
+                "reward_cutoff": "0.02",
+            },
+            asset_names=asset_names
+        )
+        rec_bot = RecompositionBot('terra-ecosystem', asset_names, ecosystem)
+    elif bot == 'terra-ecosystem':
+        asset_names = ['LUNA']
+        await ecosystem.create_cluster(
+            100,
+            [100],
+            [100],
+            [1],
             {
                 "penalty_amt_lo": "0.1",
                 "penalty_cutoff_lo": "0.01",

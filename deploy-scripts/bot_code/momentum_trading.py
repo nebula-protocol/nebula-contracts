@@ -3,7 +3,7 @@
 
 import requests
 import json
-from graphql_querier import mirror_history_query, get_all_mirror_assets
+from .graphql_querier import mirror_history_query, get_all_mirror_assets
 import time
 import pandas as pd
 import asyncio
