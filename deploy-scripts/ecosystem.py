@@ -6,8 +6,8 @@ import asyncio
 DEFAULT_POLL_ID = 1
 DEFAULT_QUORUM = "0.3"
 DEFAULT_THRESHOLD = "0.5"
-DEFAULT_VOTING_PERIOD = 1
-DEFAULT_EFFECTIVE_DELAY = 1
+DEFAULT_VOTING_PERIOD = 4
+DEFAULT_EFFECTIVE_DELAY = 4
 DEFAULT_EXPIRATION_PERIOD = 20000
 DEFAULT_PROPOSAL_DEPOSIT = "10000000000"
 DEFAULT_SNAPSHOT_PERIOD = 0
@@ -43,6 +43,7 @@ class Ecosystem:
 
         self.neb_token = None
         self.neb_pair = None
+        self.dummy_oracle = None
 
     # background contracts needed to create cluster contracts
     async def initialize_base_contracts(self):
@@ -333,7 +334,6 @@ class Ecosystem:
         )
 
         poll_id = int(resp.logs[0].events_by_type["from_contract"]["poll_id"][0])
-
         await self.gov.cast_vote(poll_id=poll_id, vote="yes", amount="600000000000")
         await asyncio.sleep(sleep_time)
 

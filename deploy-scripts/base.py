@@ -1,9 +1,10 @@
 from terra_sdk.client.lcd import AsyncLCDClient
 from terra_sdk.client.localterra import AsyncLocalTerra
 from terra_sdk.core.auth import StdFee
+from terra_sdk.key.mnemonic import MnemonicKey
+
 import asyncio
 import os
-from terra_sdk.key.mnemonic import MnemonicKey
 
 
 USE_TEQUILA = bool(os.environ.get("USE_TEQUILA"))

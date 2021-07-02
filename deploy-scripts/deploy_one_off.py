@@ -1,7 +1,7 @@
 import os
 
 os.environ["USE_TEQUILA"] = "1"
-os.environ["MNEMONIC"] = "insert mnemonic here"
+os.environ["MNEMONIC"] = 'museum resist wealth require renew punch jeans smooth old color neutral cactus baby retreat guitar web average piano excess next strike drive game romance'
 
 from api import Asset
 from ecosystem import Ecosystem
@@ -16,7 +16,6 @@ async def deploy_contracts():
 
     print('Initializing all base contracts and such onto Tequila')
     ecosystem = Ecosystem(require_gov=REQUIRE_GOV)
-    import pdb; pdb.set_trace()
     ecosystem.terraswap_factory = Contract(
         "terra18qpjm4zkvqnpjpw0zn0tdr8gdzvt8au35v45xf"
     )
