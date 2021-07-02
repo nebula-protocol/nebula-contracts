@@ -30,7 +30,11 @@ async def deploy_terra_ecosystem():
     ]
 
     code_ids = ecosystem.code_ids
-    oracle = await Contract.create(code_ids["nebula_dummy_oracle"])
+    oracle = await Contract.create(
+        code_ids["nebula_dummy_oracle"],
+        terraswap_factory=ecosystem.terraswap_factory,
+        base_denom="uusd",
+    )
     print('dummy pricing oracle', oracle)
     
     penalty_params = {
@@ -44,6 +48,7 @@ async def deploy_terra_ecosystem():
 
     # Weight equally at first then can wait for rebalance to simplify things
     target_weights = [1, 1, 1]
+    # target_weights = [1, 1]
 
     penalty_contract = await Contract.create(
         code_ids["nebula_penalty"],
@@ -54,10 +59,12 @@ async def deploy_terra_ecosystem():
     # Asset tokens to include
     asset_tokens = [Asset.cw20_asset_info(i) for i in cw20_asset_tokens] + [Asset.native_asset_info('uluna')]
 
+    # asset_tokens = [Asset.cw20_asset_info(i) for i in cw20_asset_tokens]
+
     create_cluster = ecosystem.factory.create_cluster(
         params={
             "name": "Terra Ecosystem",
-            "symbol": "TER",
+            "symbol": "TERTEST",
             "penalty": penalty_contract,
             "target": target_weights,
             "assets": asset_tokens,
@@ -90,30 +97,46 @@ async def deploy_terra_ecosystem():
     cluster_pair = Contract(addresses[1])
     lp_token = Contract(addresses[0])
 
-    cluster = ClusterContract(
+    cluster_info = ClusterContract(
         addresses[3],
         cluster_token,
         asset_tokens,
     )
 
+    print(cluster_info)
+
+    cluster = Contract(
+        addresses[3],
+    )
+
     print("cluster", cluster)
 
     prices = [
-        ("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u", "3.76"),
-        ("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc", "2.27"),
-        ("uluna", "0.000000576")
+        ("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u", "1"),
+        ("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc", "1"),
+        ("uluna", "1")
     ]
 
-    oracle.set_prices(prices=prices)
+    # prices = [
+    #     ("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u", "1"),
+    #     ("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc", "1"),
+    # ]
+
+    await oracle.set_prices(prices=prices)
 
     print('setting prices')
 
     mint_assets = [
-        Asset.asset("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u", "100"),
-        Asset.asset("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc", "100"),
-        Asset.asset("uluna", "100", native=True),
+        Asset.asset("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u", "1000"),
+        Asset.asset("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc", "1000"),
+        Asset.asset("uluna", "1000", native=True),
     ]
-    cluster.mint(mint_assets)
+
+    # mint_assets = [
+    #     Asset.asset("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u", "100"),
+    #     Asset.asset("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc", "100"),
+    # ]
+    await cluster.mint(asset_amounts=mint_assets, min_tokens="300", _send={"uluna": "1000"})
 
     print('mint complete')
 
