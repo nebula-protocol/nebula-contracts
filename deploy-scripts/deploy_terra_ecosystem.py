@@ -25,7 +25,7 @@ async def deploy_terra_ecosystem():
         setattr(ecosystem, key, DEPLOY_ENVIRONMENT_STATUS_W_GOV[key])
 
     cw20_asset_tokens = [
-        Contract("terra14gq9wj0tt6vu0m4ec2tkkv4ln3qrtl58lgdl2c"),  # MIR
+        Contract("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u"),  # MIR
         Contract("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc"),  # ANC
     ]
 
@@ -67,6 +67,8 @@ async def deploy_terra_ecosystem():
     )
 
     if REQUIRE_GOV:
+        # only need to send once
+
         # await ecosystem.neb_token.send(
         #     contract=ecosystem.gov,
         #     amount="600000000000",
@@ -94,13 +96,34 @@ async def deploy_terra_ecosystem():
         asset_tokens,
     )
 
+    print("cluster", cluster)
+
+    prices = [
+        ("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u", "3.76"),
+        ("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc", "2.27"),
+        ("uluna", "0.000000576")
+    ]
+
+    oracle.set_prices(prices=prices)
+
+    print('setting prices')
+
+    mint_assets = [
+        Asset.asset("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u", "100"),
+        Asset.asset("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc", "100"),
+        Asset.asset("uluna", "100", native=True),
+    ]
+    cluster.mint(mint_assets)
+
+    print('mint complete')
+
     resp = await cluster.query.cluster_state(cluster_contract_address=cluster)
     print(resp)
 
     print(logs)
 
     print("account", deployer.key.acc_address)
-    print("cluster", cluster)
+    
     print("assets", asset_tokens)
     print("ecosystem", ecosystem.__dict__)
 
