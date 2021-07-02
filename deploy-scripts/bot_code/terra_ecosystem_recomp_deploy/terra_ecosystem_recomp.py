@@ -96,7 +96,11 @@ class TerraFullDilutedMcapRecomposer:
 async def run_recomposition_periodically(cluster_contract, interval):
     start_time = time.time()
     assets = ["LUNA", "MIR", "ANC"]
-    asset_tokens = [] #Add respective token addresses
+    asset_tokens = [
+        "uluna", 
+        "terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc",     # ANC
+        "terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u"      # MIR
+    ]
     recomposition_bot = TerraFullDilutedMcapRecomposer(cluster_contract, assets, asset_tokens)
 
     while True:
