@@ -5,7 +5,7 @@ from contract_helpers import Contract
 async def test_governance_ops(eco: Ecosystem):
     print("Testing governance ops")
     new_penalty_contract = await Contract.create(
-        eco.code_ids["basket_penalty"],
+        eco.code_ids["nebula_penalty"],
         penalty_params={
             "penalty_amt_lo": "0.2",
             "penalty_cutoff_lo": "0.01",
@@ -14,13 +14,13 @@ async def test_governance_ops(eco: Ecosystem):
             "reward_amt": "0.05",
             "reward_cutoff": "0.02",
         },
-        owner=eco.basket,
+        owner=eco.cluster,
     )
 
     await eco.create_and_execute_poll(
         {
-            "contract": eco.basket,
-            "msg": eco.basket.reset_penalty(penalty=new_penalty_contract),
+            "contract": eco.cluster,
+            "msg": eco.cluster.reset_penalty(penalty=new_penalty_contract),
         },
         distribute_collector=True,
     )

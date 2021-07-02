@@ -26,7 +26,7 @@ pub enum ExtQueryMsg {
     // Penalty mint
     Mint {
         block_height: u64,
-        basket_token_supply: Uint128,
+        cluster_token_supply: Uint128,
         inventory: Vec<Uint128>,
         mint_asset_amounts: Vec<Uint128>,
         asset_prices: Vec<String>,
@@ -36,7 +36,7 @@ pub enum ExtQueryMsg {
     // Penalty redeem
     Redeem {
         block_height: u64,
-        basket_token_supply: Uint128,
+        cluster_token_supply: Uint128,
         inventory: Vec<Uint128>,
         max_tokens: Uint128,
         redeem_asset_amounts: Vec<Uint128>,
@@ -140,7 +140,7 @@ pub fn query_cw20_token_supply<S: Storage, A: Api, Q: Querier>(
 
 
 /// EXTERNAL QUERY
-/// -- Queries the basket factory contract for the current total supply
+/// -- Queries the cluster factory contract for the current total supply
 pub fn query_collector_contract_address<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     factory_address: &HumanAddr,
@@ -159,7 +159,7 @@ pub fn query_mint_amount<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     penalty_address: &HumanAddr,
     block_height: u64,
-    basket_token_supply: Uint128,
+    cluster_token_supply: Uint128,
     inventory: Vec<Uint128>,
     mint_asset_amounts: Vec<Uint128>,
     asset_prices: Vec<String>,
@@ -169,7 +169,7 @@ pub fn query_mint_amount<S: Storage, A: Api, Q: Querier>(
         contract_addr: penalty_address.clone(),
         msg: to_binary(&ExtQueryMsg::Mint {
             block_height,
-            basket_token_supply,
+            cluster_token_supply,
             inventory,
             mint_asset_amounts,
             asset_prices,
@@ -186,7 +186,7 @@ pub fn query_redeem_amount<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     penalty_address: &HumanAddr,
     block_height: u64,
-    basket_token_supply: Uint128,
+    cluster_token_supply: Uint128,
     inventory: Vec<Uint128>,
     max_tokens: Uint128,
     redeem_asset_amounts: Vec<Uint128>,
@@ -197,7 +197,7 @@ pub fn query_redeem_amount<S: Storage, A: Api, Q: Querier>(
         contract_addr: penalty_address.clone(),
         msg: to_binary(&ExtQueryMsg::Redeem {
             block_height,
-            basket_token_supply,
+            cluster_token_supply,
             inventory,
             max_tokens,
             redeem_asset_amounts,

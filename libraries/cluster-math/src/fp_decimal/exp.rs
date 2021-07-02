@@ -4,6 +4,9 @@ use crate::fp_decimal::{FPDecimal, U256};
 impl FPDecimal {
     // a^b
     pub fn _pow(a: FPDecimal, b: FPDecimal) -> FPDecimal {
+        if a == FPDecimal::zero() {
+            return FPDecimal::zero();
+        }
         FPDecimal::_exp(FPDecimal::_mul(FPDecimal::_ln(a), b))
     }
 
@@ -11,7 +14,7 @@ impl FPDecimal {
     pub fn _exp(a: FPDecimal) -> FPDecimal {
         // this throws underflow with a sufficiently large negative exponent
         // short circuit and just return 0 above a certain threshold
-        // otherwise if there is a long enough delay between updates on a basket
+        // otherwise if there is a long enough delay between updates on a cluster
         // the penalty function will be bricked
         if a.sign == 0 && a.num >= FPDecimal::from(45i128).num {
             return FPDecimal::zero();
@@ -74,5 +77,11 @@ mod tests {
             }),
             FPDecimal::E_10
         );
+    }
+
+    #[test]
+    fn test_zero() {
+        // FPDecimal::_ln(FPDecimal::zero());
+        FPDecimal::_pow(FPDecimal::zero(), FPDecimal::one().div(2i128));
     }
 }

@@ -1,5 +1,5 @@
-use basket_math::penalty::compute_penalty;
-use basket_math::FPDecimal;
+use cluster_math::penalty::compute_penalty;
+use cluster_math::FPDecimal;
 use plotters::prelude::*;
 use std::str::FromStr;
 

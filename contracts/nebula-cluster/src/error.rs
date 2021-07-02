@@ -7,7 +7,7 @@ pub fn missing_cw20_msg() -> StdError {
 
 pub fn bad_weight_dimensions(provided: usize, expected: usize) -> StdError {
     StdError::generic_err(format!(
-        "# assets in weights ({}) does not match basket inventory ({})",
+        "# assets in weights ({}) does not match cluster inventory ({})",
         provided, expected
     ))
 }
@@ -18,45 +18,45 @@ pub fn bad_weight_values(provided: u32) -> StdError {
 
 pub fn not_component_cw20(asset: &AssetInfo) -> StdError {
     StdError::generic_err(format!(
-        "asset {} is not a component asset of basket",
+        "asset {} is not a component asset of cluster",
         asset
     ))
 }
 
 pub fn not_component_asset(asset: &AssetInfo) -> StdError {
     StdError::generic_err(format!(
-        "asset {} is not a component asset of basket",
+        "asset {} is not a component asset of cluster",
         asset
     ))
 }
 
 pub fn existing_asset(asset: &AssetInfo) -> StdError {
     StdError::generic_err(format!(
-        "asset {} is already a component asset of basket",
+        "asset {} is already a component asset of cluster",
         asset
     ))
 }
 
 pub fn below_min_tokens(would_mint: Uint128, min_tokens: Uint128) -> StdError {
     StdError::generic_err(format!(
-        "# basket tokens to be minted is below min_tokens specified: {} (would_mint) < {} (min_tokens)",
+        "# cluster tokens to be minted is below min_tokens specified: {} (would_mint) < {} (min_tokens)",
         would_mint, min_tokens
     ))
 }
 
 pub fn above_max_tokens(would_cost: Uint128, max_tokens: Uint128) -> StdError {
     StdError::generic_err(format!(
-        "cost of assets in basket tokens is above max_tokens specified: {} (would_cost) > {} (max_tokens)",
+        "cost of assets in cluster tokens is above max_tokens specified: {} (would_cost) > {} (max_tokens)",
         would_cost, max_tokens
     ))
 }
 
-pub fn basket_token_not_set() -> StdError {
-    StdError::generic_err("associated basket token has not yet been set")
+pub fn cluster_token_not_set() -> StdError {
+    StdError::generic_err("associated cluster token has not yet been set")
 }
 
-pub fn basket_token_already_set(address: &HumanAddr) -> StdError {
-    StdError::generic_err(format!("basket token has not yet been set to {}", address))
+pub fn cluster_token_already_set(address: &HumanAddr) -> StdError {
+    StdError::generic_err(format!("cluster token has not yet been set to {}", address))
 }
 
 pub fn i128_overflow(x: u128) -> StdError {

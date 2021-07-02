@@ -8,27 +8,26 @@ use nebula_protocol::incentives::{HandleMsg, PoolType};
 
 use cw20::Cw20HandleMsg;
 use nebula_protocol::cluster::{
-    BasketStateResponse, HandleMsg as ClusterHandleMsg,
-    QueryMsg as ClusterQueryMsg,
+    ClusterStateResponse, HandleMsg as ClusterHandleMsg, QueryMsg as ClusterQueryMsg,
 };
 
 use terraswap::asset::{Asset, AssetInfo};
 use terraswap::querier::query_token_balance;
 
-use basket_math::{imbalance, int32_vec_to_fpdec, int_vec_to_fpdec, str_vec_to_fpdec};
+use cluster_math::{imbalance, int32_vec_to_fpdec, int_vec_to_fpdec, str_vec_to_fpdec};
 use nebula_protocol::cluster_factory::ClusterExistsResponse;
 use nebula_protocol::cluster_factory::QueryMsg::ClusterExists;
 
-pub fn get_basket_state<S: Storage, A: Api, Q: Querier>(
+pub fn get_cluster_state<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
-    cluster: &HumanAddr
-) -> StdResult<BasketStateResponse> {
-    return deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-            contract_addr: cluster.clone(),
-            msg: to_binary(&ClusterQueryMsg::BasketState {
-                basket_contract_address: cluster.clone(),
-            })?,
-        }));
+    cluster: &HumanAddr,
+) -> StdResult<ClusterStateResponse> {
+    deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+        contract_addr: cluster.clone(),
+        msg: to_binary(&ClusterQueryMsg::ClusterState {
+            cluster_contract_address: cluster.clone(),
+        })?,
+    }))
 }
 
 pub fn assert_cluster_exists<S: Storage, A: Api, Q: Querier>(
@@ -36,57 +35,54 @@ pub fn assert_cluster_exists<S: Storage, A: Api, Q: Querier>(
     cluster: &HumanAddr,
 ) -> StdResult<bool> {
     let cfg = read_config(&deps.storage)?;
-    let factory = deps.api.human_address(&cfg.factory.clone())?;
     let res: ClusterExistsResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: factory,
+        contract_addr: cfg.factory,
         msg: to_binary(&ClusterExists {
             contract_addr: cluster.clone(),
         })?,
     }))?;
 
-    return if res.exists {
+    if res.exists {
         Ok(true)
     } else {
         Err(StdError::generic_err("specified does not exist"))
-    };
+    }
 }
 
-pub fn basket_imbalance<S: Storage, A: Api, Q: Querier>(
+pub fn cluster_imbalance<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
-    basket_contract: &HumanAddr,
+    cluster_contract: &HumanAddr,
 ) -> StdResult<Uint128> {
-    let contract_state = get_basket_state(deps, basket_contract)?;
+    let contract_state = get_cluster_state(deps, cluster_contract)?;
 
     let i = int_vec_to_fpdec(&contract_state.inv);
     let p = str_vec_to_fpdec(&contract_state.prices)?;
     let w = int32_vec_to_fpdec(&contract_state.target);
-    return Ok(Uint128(imbalance(&i, &p, &w).into()));
+    Ok(Uint128(imbalance(&i, &p, &w).into()))
 }
+
 pub fn record_rebalancer_rewards<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    rebalancer: &HumanAddr,
-    basket_contract: &HumanAddr,
+    rebalancer: HumanAddr,
+    cluster_contract: HumanAddr,
     original_imbalance: Uint128,
 ) -> HandleResult {
     if env.message.sender != env.contract.address {
         return Err(StdError::unauthorized());
     }
 
-    let rebalancer = deps.api.canonical_address(&rebalancer)?;
-
-    let new_imbalance = basket_imbalance(deps, basket_contract)?;
+    let new_imbalance = cluster_imbalance(deps, &cluster_contract)?;
     let mut contribution = Uint128::zero();
 
     if original_imbalance > new_imbalance {
-        let asset_address = deps.api.canonical_address(&basket_contract)?;
         contribution = (original_imbalance - new_imbalance)?;
 
         record_contribution(
             deps,
             &rebalancer,
             PoolType::REBALANCER,
-            &asset_address,
+            &cluster_contract,
             contribution,
         )?;
     }
@@ -104,16 +100,16 @@ pub fn record_rebalancer_rewards<S: Storage, A: Api, Q: Querier>(
 pub fn internal_rewarded_mint<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    rebalancer: &HumanAddr,
-    basket_contract: &HumanAddr,
-    asset_amounts: &Vec<Asset>,
+    rebalancer: HumanAddr,
+    cluster_contract: HumanAddr,
+    asset_amounts: &[Asset],
     min_tokens: Option<Uint128>,
 ) -> StdResult<HandleResponse> {
     if env.message.sender != env.contract.address {
         return Err(StdError::unauthorized());
     }
 
-    let original_imbalance = basket_imbalance(deps, basket_contract)?;
+    let original_imbalance = cluster_imbalance(deps, &cluster_contract)?;
 
     let mut send = vec![];
     let mut messages = vec![];
@@ -127,7 +123,7 @@ pub fn internal_rewarded_mint<S: Storage, A: Api, Q: Querier>(
                 messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: contract_addr.clone(),
                     msg: to_binary(&Cw20HandleMsg::IncreaseAllowance {
-                        spender: basket_contract.clone(),
+                        spender: cluster_contract.clone(),
                         amount: asset.amount,
                         expires: None,
                     })?,
@@ -138,18 +134,18 @@ pub fn internal_rewarded_mint<S: Storage, A: Api, Q: Querier>(
     }
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: basket_contract.clone(),
+        contract_addr: cluster_contract.clone(),
         msg: to_binary(&ClusterHandleMsg::Mint {
             min_tokens,
-            asset_amounts: asset_amounts.clone(),
+            asset_amounts: asset_amounts.to_vec(),
         })?,
         send,
     }));
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: env.contract.address.clone(),
+        contract_addr: env.contract.address,
         msg: to_binary(&HandleMsg::_RecordRebalancerRewards {
-            rebalancer: rebalancer.clone(),
-            basket_contract: basket_contract.clone(),
+            rebalancer,
+            cluster_contract,
             original_imbalance,
         })?,
         send: vec![],
@@ -165,9 +161,9 @@ pub fn internal_rewarded_mint<S: Storage, A: Api, Q: Querier>(
 pub fn internal_rewarded_redeem<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    rebalancer: &HumanAddr,
-    basket_contract: &HumanAddr,
-    basket_token: &HumanAddr,
+    rebalancer: HumanAddr,
+    cluster_contract: HumanAddr,
+    cluster_token: HumanAddr,
     max_tokens: Option<Uint128>,
     asset_amounts: Option<Vec<Asset>>,
 ) -> StdResult<HandleResponse> {
@@ -176,25 +172,25 @@ pub fn internal_rewarded_redeem<S: Storage, A: Api, Q: Querier>(
     }
 
     let max_tokens = match max_tokens {
-        None => query_token_balance(deps, &basket_token, &env.contract.address)?,
+        None => query_token_balance(deps, &cluster_token, &env.contract.address)?,
         Some(tokens) => tokens,
     };
 
-    let original_imbalance = basket_imbalance(deps, basket_contract)?;
+    let original_imbalance = cluster_imbalance(deps, &cluster_contract)?;
 
     Ok(HandleResponse {
         messages: vec![
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: basket_token.clone(),
+                contract_addr: cluster_token.clone(),
                 msg: to_binary(&Cw20HandleMsg::IncreaseAllowance {
-                    spender: basket_contract.clone(),
+                    spender: cluster_contract.clone(),
                     amount: max_tokens,
                     expires: None,
                 })?,
                 send: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: basket_contract.clone(),
+                contract_addr: cluster_contract.clone(),
                 msg: to_binary(&ClusterHandleMsg::Burn {
                     max_tokens,
                     asset_amounts,
@@ -205,18 +201,18 @@ pub fn internal_rewarded_redeem<S: Storage, A: Api, Q: Querier>(
                 contract_addr: env.contract.address.clone(),
                 msg: to_binary(&HandleMsg::_RecordRebalancerRewards {
                     rebalancer: rebalancer.clone(),
-                    basket_contract: basket_contract.clone(),
+                    cluster_contract,
                     original_imbalance,
                 })?,
                 send: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: env.contract.address.clone(),
+                contract_addr: env.contract.address,
                 msg: to_binary(&HandleMsg::SendAll {
                     asset_infos: vec![AssetInfo::Token {
-                        contract_addr: basket_token.clone(),
+                        contract_addr: cluster_token,
                     }],
-                    send_to: rebalancer.clone(),
+                    send_to: rebalancer,
                 })?,
                 send: vec![],
             }),
@@ -229,22 +225,22 @@ pub fn internal_rewarded_redeem<S: Storage, A: Api, Q: Querier>(
 pub fn mint<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    basket_contract: &HumanAddr,
-    asset_amounts: &Vec<Asset>,
+    cluster_contract: HumanAddr,
+    asset_amounts: &[Asset],
     min_tokens: Option<Uint128>,
 ) -> StdResult<HandleResponse> {
-    assert_cluster_exists(deps, &basket_contract)?;
+    assert_cluster_exists(deps, &cluster_contract)?;
 
-    let basket_state = get_basket_state(deps, basket_contract)?;
-    let basket_token = basket_state.basket_token;
+    let cluster_state = get_cluster_state(deps, &cluster_contract)?;
+    let cluster_token = cluster_state.cluster_token;
 
     let mut messages = vec![];
 
     // transfer all asset tokens into this
-    // also prepare to transfer to basket contract
+    // also prepare to transfer to cluster contract
     for asset in asset_amounts {
         match asset.clone().info {
-            AssetInfo::NativeToken { denom } => {
+            AssetInfo::NativeToken { denom: _ } => {
                 asset.clone().assert_sent_native_token_balance(&env)?;
             }
             AssetInfo::Token { contract_addr } => {
@@ -265,18 +261,20 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
         contract_addr: env.contract.address.clone(),
         msg: to_binary(&HandleMsg::_InternalRewardedMint {
             rebalancer: env.message.sender.clone(),
-            basket_contract: basket_contract.clone(),
-            asset_amounts: asset_amounts.clone(),
+            cluster_contract,
+            asset_amounts: asset_amounts.to_vec(),
             min_tokens,
         })?,
         send: vec![],
     }));
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: env.contract.address.clone(),
+        contract_addr: env.contract.address,
         msg: to_binary(&HandleMsg::SendAll {
-            asset_infos: vec![AssetInfo::Token { contract_addr: basket_token }],
-            send_to: env.message.sender.clone()
+            asset_infos: vec![AssetInfo::Token {
+                contract_addr: cluster_token,
+            }],
+            send_to: env.message.sender,
         })?,
         send: vec![],
     }));
@@ -291,19 +289,19 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
 pub fn redeem<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    basket_contract: &HumanAddr,
+    cluster_contract: HumanAddr,
     max_tokens: Uint128,
     asset_amounts: Option<Vec<Asset>>,
 ) -> StdResult<HandleResponse> {
-    assert_cluster_exists(deps, &basket_contract)?;
+    assert_cluster_exists(deps, &cluster_contract)?;
 
-    let basket_state = get_basket_state(deps, basket_contract)?;
-    let basket_token = basket_state.basket_token;
+    let cluster_state = get_cluster_state(deps, &cluster_contract)?;
+    let cluster_token = cluster_state.cluster_token;
 
     Ok(HandleResponse {
         messages: vec![
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: basket_token.clone(),
+                contract_addr: cluster_token.clone(),
                 msg: to_binary(&Cw20HandleMsg::TransferFrom {
                     owner: env.message.sender.clone(),
                     amount: max_tokens,
@@ -315,21 +313,21 @@ pub fn redeem<S: Storage, A: Api, Q: Querier>(
                 contract_addr: env.contract.address.clone(),
                 msg: to_binary(&HandleMsg::_InternalRewardedRedeem {
                     rebalancer: env.message.sender.clone(),
-                    basket_contract: basket_contract.clone(),
-                    basket_token: basket_token.clone(),
+                    cluster_contract,
+                    cluster_token,
                     max_tokens: Some(max_tokens),
                     asset_amounts,
                 })?,
                 send: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: env.contract.address.clone(),
+                contract_addr: env.contract.address,
                 msg: to_binary(&HandleMsg::SendAll {
-                    asset_infos: basket_state.assets,
-                    send_to: env.message.sender.clone()
+                    asset_infos: cluster_state.assets,
+                    send_to: env.message.sender,
                 })?,
                 send: vec![],
-            })
+            }),
         ],
         log: vec![log("action", "internal_rewarded_redeem")],
         data: None,

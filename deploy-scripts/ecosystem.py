@@ -1,4 +1,4 @@
-from contract_helpers import BasketContract, Contract, store_contracts, deployer
+from contract_helpers import ClusterContract, Contract, store_contracts, deployer
 from api import Asset
 import pprint
 import asyncio
@@ -6,8 +6,8 @@ import asyncio
 DEFAULT_POLL_ID = 1
 DEFAULT_QUORUM = "0.3"
 DEFAULT_THRESHOLD = "0.5"
-DEFAULT_VOTING_PERIOD = 2
-DEFAULT_EFFECTIVE_DELAY = 2
+DEFAULT_VOTING_PERIOD = 1
+DEFAULT_EFFECTIVE_DELAY = 1
 DEFAULT_EXPIRATION_PERIOD = 20000
 DEFAULT_PROPOSAL_DEPOSIT = "10000000000"
 DEFAULT_SNAPSHOT_PERIOD = 0
@@ -17,8 +17,8 @@ DEFAULT_VOTER_WEIGHT = "0.1"
 class Ecosystem:
     def __init__(self, require_gov=False):
 
-        # not using governance allows us to directly spin up baskets fast
-        # otherwise we need to spin up baskets through governance
+        # not using governance allows us to directly spin up clusters fast
+        # otherwise we need to spin up clusters through governance
         self.require_gov = require_gov
 
         self.code_ids = None
@@ -27,11 +27,11 @@ class Ecosystem:
         self.collector = None
         self.community = None
 
-        # TODO support multiple basket contracts per ecosystem
-        self.basket = None
-        self.basket_token = None
+        # TODO support multiple cluster contracts per ecosystem
+        self.cluster = None
+        self.cluster_token = None
         self.asset_tokens = None
-        self.basket_pair = None
+        self.cluster_pair = None
         self.lp_token = None
 
         self.factory = None
@@ -44,7 +44,7 @@ class Ecosystem:
         self.neb_token = None
         self.neb_pair = None
 
-    # background contracts needed to create basket contracts
+    # background contracts needed to create cluster contracts
     async def initialize_base_contracts(self):
         print("Initializing base contracts...")
         code_ids = self.code_ids = await store_contracts()
@@ -57,9 +57,9 @@ class Ecosystem:
             )
 
         self.factory = await Contract.create(
-            code_ids["basket_factory"],
+            code_ids["nebula_cluster_factory"],
             token_code_id=int(code_ids["terraswap_token"]),
-            cluster_code_id=int(code_ids["basket_contract"]),
+            cluster_code_id=int(code_ids["nebula_cluster"]),
             base_denom="uusd",
             protocol_fee_rate="0.001",
             distribution_schedule=[[0, 100000, "1000000"]],
@@ -84,7 +84,7 @@ class Ecosystem:
         )
 
         self.staking = await Contract.create(
-            code_ids["basket_staking"],
+            code_ids["nebula_lp_staking"],
             owner=self.factory,
             nebula_token=self.neb_token,
             terraswap_factory=self.terraswap_factory,
@@ -93,7 +93,7 @@ class Ecosystem:
         )
 
         self.gov = await Contract.create(
-            code_ids["basket_gov"],
+            code_ids["nebula_gov"],
             nebula_token=self.neb_token,
             quorum=DEFAULT_QUORUM,
             threshold=DEFAULT_THRESHOLD,
@@ -106,7 +106,7 @@ class Ecosystem:
         )
 
         self.collector = await Contract.create(
-            code_ids["basket_collector"],
+            code_ids["nebula_collector"],
             distribution_contract=self.gov,
             terraswap_factory=self.terraswap_factory,
             nebula_token=self.neb_token,
@@ -146,31 +146,31 @@ class Ecosystem:
             _send={"uusd": "1000"},
         )
 
-    # standalone-ish contracts, could still create basket without these
+    # standalone-ish contracts, could still create cluster without these
     async def initialize_extraneous_contracts(self):
         print("Initializing extraneous contracts...")
         code_ids = self.code_ids
         self.community = await Contract.create(
-            code_ids["basket_community"],
+            code_ids["nebula_community"],
             owner=self.gov,
             nebula_token=self.neb_token,
             spend_limit="1000000",
         )
 
         self.airdrop = await Contract.create(
-            code_ids["airdrop"],
+            code_ids["nebula_airdrop"],
             owner=deployer.key.acc_address,
             nebula_token=self.neb_token,
         )
 
         self.incentives_custody = await Contract.create(
-            code_ids["basket_incentives_custody"],
+            code_ids["nebula_incentives_custody"],
             owner=deployer.key.acc_address,
             neb_token=self.neb_token,
         )
 
         self.incentives = await Contract.create(
-            code_ids["basket_incentives"],
+            code_ids["nebula_incentives"],
             owner=deployer.key.acc_address,
             factory=self.factory,
             terraswap_factory=self.terraswap_factory,
@@ -184,17 +184,17 @@ class Ecosystem:
             owner=self.incentives
         )
 
-    async def create_basket(
+    async def create_cluster(
         self,
-        basket_tokens,
+        cluster_tokens,
         asset_tokens,
         asset_prices,
         target_weights,
         penalty_params,
     ):
-        print("Creating basket...")
+        print("Creating cluster...")
 
-        basket_tokens = str(basket_tokens)
+        cluster_tokens = str(cluster_tokens)
         asset_tokens = tuple(str(i) for i in asset_tokens)
         asset_prices = tuple(str(i) for i in asset_prices)
         target_weights = tuple(int(i) for i in target_weights)
@@ -222,20 +222,20 @@ class Ecosystem:
         ]
 
         assets = tuple(assets)
-        oracle = await Contract.create(code_ids["basket_dummy_oracle"])
+        oracle = await Contract.create(code_ids["nebula_dummy_oracle"])
         await oracle.set_prices(prices=list(zip(assets, asset_prices)))
 
         penalty_contract = await Contract.create(
-            code_ids["basket_penalty"],
+            code_ids["nebula_penalty"],
             penalty_params=penalty_params,
             owner=self.factory,
         )
 
-        create_basket = self.factory.create_cluster(
-            name="BASKET",
+        create_cluster = self.factory.create_cluster(
+            name="CLUSTER",
             symbol="BSK",
             params={
-                "name": "BASKET",
+                "name": "CLUSTER",
                 "symbol": "BSK",
                 "penalty": penalty_contract,
                 "target": target_weights,
@@ -254,39 +254,51 @@ class Ecosystem:
             )
 
             resp = await self.create_and_execute_poll(
-                {"contract": self.factory, "msg": create_basket}
+                {"contract": self.factory, "msg": create_cluster}
             )
         else:
 
-            resp = await create_basket
+            resp = await create_cluster
 
         logs = resp.logs[0].events_by_type
 
         instantiation_logs = logs["instantiate_contract"]
         addresses = instantiation_logs["contract_address"]
 
-        self.basket_token = Contract(addresses[2])
-        self.basket_pair = Contract(addresses[1])
+        self.cluster_token = Contract(addresses[2])
+        self.cluster_pair = Contract(addresses[1])
         self.lp_token = Contract(addresses[0])
         self.asset_tokens = assets
-        self.basket = BasketContract(
+        self.cluster = ClusterContract(
             addresses[3],
-            self.basket_token,
+            self.cluster_token,
             self.asset_tokens,
         )
 
-        # initialize the basket with its initial state
-        await self.basket.mint(asset_amounts=asset_tokens, min_tokens=basket_tokens)
+        # initialize the cluster with its initial state
+        await self.cluster.mint(asset_amounts=asset_tokens, min_tokens=cluster_tokens)
 
-        print(f"Successfully created basket:")
-        pprint.pprint(
-            await self.basket.query.basket_state(
-                basket_contract_address=self.basket.address
+        print(f"Successfully created cluster:")
+        cluster_state = await self.cluster.query.cluster_state(
+                cluster_contract_address=self.cluster.address
             )
+        
+        pprint.pprint(
+            cluster_state
+        )
+
+        cluster_list = await self.factory.query.cluster_list()
+
+        pprint.pprint(
+            cluster_list
+        )
+
+        assert (
+            cluster_state['cluster_contract_address']  == cluster_list['contract_addrs'][0]
         )
 
     async def create_and_execute_poll(
-        self, execute_msg, distribute_collector=False, sleep_time=1
+        self, execute_msg, distribute_collector=False, sleep_time=2
     ):
         resp = await self.neb_token.send(
             contract=self.gov,

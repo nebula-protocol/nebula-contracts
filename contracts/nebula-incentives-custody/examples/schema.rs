@@ -3,8 +3,7 @@ use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
-use basket_dummy_oracle::msg::{HandleMsg, InitMsg, QueryMsg};
-// use basket_dummy_oracle::state::State;
+use nebula_protocol::incentives_custody::{HandleMsg, InitMsg, QueryMsg};
 
 fn main() {
     let mut out_dir = current_dir().unwrap();

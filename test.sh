@@ -1,2 +1,2 @@
 bash ./build.sh
-cd deploy-scripts/test && python3 community_and_airdrop.py
+cd deploy-scripts && rm cache.dat.db && python3 main.py

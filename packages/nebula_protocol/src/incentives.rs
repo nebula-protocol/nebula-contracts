@@ -32,57 +32,57 @@ pub enum HandleMsg {
 
     SwapAll {
         terraswap_pair: HumanAddr,
-        basket_token: HumanAddr,
+        cluster_token: HumanAddr,
         to_ust: bool,
     },
 
     RecordTerraswapImpact {
         arbitrager: HumanAddr,
         terraswap_pair: HumanAddr,
-        basket_contract: HumanAddr,
+        cluster_contract: HumanAddr,
         pool_before: PoolResponse,
     },
 
     ArbClusterMint {
-        basket_contract: HumanAddr,
+        cluster_contract: HumanAddr,
         assets: Vec<Asset>,
     },
 
     ArbClusterRedeem {
-        basket_contract: HumanAddr,
+        cluster_contract: HumanAddr,
         asset: Asset,
     },
 
     Mint {
-        basket_contract: HumanAddr,
+        cluster_contract: HumanAddr,
         asset_amounts: Vec<Asset>,
         min_tokens: Option<Uint128>,
     },
 
     Redeem {
-        basket_contract: HumanAddr,
+        cluster_contract: HumanAddr,
         max_tokens: Uint128,
         asset_amounts: Option<Vec<Asset>>,
     },
 
     _InternalRewardedMint {
         rebalancer: HumanAddr,
-        basket_contract: HumanAddr,
+        cluster_contract: HumanAddr,
         asset_amounts: Vec<Asset>,
         min_tokens: Option<Uint128>,
     },
 
     _InternalRewardedRedeem {
         rebalancer: HumanAddr,
-        basket_contract: HumanAddr,
-        basket_token: HumanAddr,
+        cluster_contract: HumanAddr,
+        cluster_token: HumanAddr,
         max_tokens: Option<Uint128>,
         asset_amounts: Option<Vec<Asset>>,
     },
 
     _RecordRebalancerRewards {
         rebalancer: HumanAddr,
-        basket_contract: HumanAddr,
+        cluster_contract: HumanAddr,
         original_imbalance: Uint128,
     },
 }

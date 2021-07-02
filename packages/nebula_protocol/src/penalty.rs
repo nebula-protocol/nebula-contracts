@@ -1,4 +1,4 @@
-use basket_math::FPDecimal;
+use cluster_math::FPDecimal;
 use cosmwasm_std::{HumanAddr, LogAttribute, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -12,12 +12,12 @@ pub struct InitMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
-    /// Can be called by the owner to reset the basket owner
+    /// Can be called by the owner to reset the cluster owner
     _ResetOwner { owner: HumanAddr },
 
     Mint {
         block_height: u64,
-        basket_token_supply: Uint128,
+        cluster_token_supply: Uint128,
         inventory: Vec<Uint128>,
         mint_asset_amounts: Vec<Uint128>,
         asset_prices: Vec<String>,
@@ -26,7 +26,7 @@ pub enum HandleMsg {
 
     Redeem {
         block_height: u64,
-        basket_token_supply: Uint128,
+        cluster_token_supply: Uint128,
         inventory: Vec<Uint128>,
         max_tokens: Uint128,
         redeem_asset_amounts: Vec<Uint128>,
@@ -40,7 +40,7 @@ pub enum HandleMsg {
 pub enum QueryMsg {
     Mint {
         block_height: u64,
-        basket_token_supply: Uint128,
+        cluster_token_supply: Uint128,
         inventory: Vec<Uint128>,
         mint_asset_amounts: Vec<Uint128>,
         asset_prices: Vec<String>,
@@ -49,7 +49,7 @@ pub enum QueryMsg {
 
     Redeem {
         block_height: u64,
-        basket_token_supply: Uint128,
+        cluster_token_supply: Uint128,
         inventory: Vec<Uint128>,
         max_tokens: Uint128,
         redeem_asset_amounts: Vec<Uint128>,
@@ -67,7 +67,7 @@ pub struct MintResponse {
     pub log: Vec<LogAttribute>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, JsonSchema)]
 pub struct RedeemResponse {
     pub redeem_assets: Vec<Uint128>,
     pub penalty: Uint128,

@@ -4,9 +4,9 @@ use cosmwasm_std::{
 };
 
 use crate::state::{read_config, save_config, PenaltyConfig};
-use basket_math::{
-    add, div_const, dot, imbalance, int32_vec_to_fpdec, int_vec_to_fpdec, mul, mul_const,
-    str_vec_to_fpdec, sub, sum, FPDecimal,
+use cluster_math::{
+    add, div_const, dot, imbalance, int32_vec_to_fpdec, int_vec_to_fpdec, mul_const,
+    str_vec_to_fpdec, sub, FPDecimal,
 };
 use nebula_protocol::penalty::{
     HandleMsg, InitMsg, MintResponse, ParamsResponse, PenaltyParams, QueryMsg, RedeemResponse,
@@ -20,8 +20,8 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
     let cfg = PenaltyConfig {
-        owner: msg.owner.clone(),
-        penalty_params: msg.penalty_params.clone(),
+        owner: msg.owner,
+        penalty_params: msg.penalty_params,
 
         ema: FPDecimal::zero(),
 
@@ -55,18 +55,18 @@ pub fn get_ema<S: Storage, A: Api, Q: Querier>(
 pub fn notional_penalty<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     block_height: u64,
-    i0: &Vec<FPDecimal>,
-    i1: &Vec<FPDecimal>,
-    w: &Vec<FPDecimal>,
-    p: &Vec<FPDecimal>,
+    i0: &[FPDecimal],
+    i1: &[FPDecimal],
+    w: &[FPDecimal],
+    p: &[FPDecimal],
 ) -> StdResult<FPDecimal> {
     let cfg = read_config(&deps.storage)?;
 
-    let imb0 = imbalance(&i0, &p, &w);
-    let imb1 = imbalance(&i1, &p, &w);
+    let imb0 = imbalance(i0, p, w);
+    let imb1 = imbalance(i1, p, w);
 
-    // for now just use the value of the original basket as e...
-    let e = get_ema(&deps, block_height, dot(&i0, &p))?;
+    // for now just use the value of the original cluster as e...
+    let e = get_ema(&deps, block_height, dot(i0, p))?;
 
     let PenaltyParams {
         penalty_amt_lo,
@@ -77,7 +77,7 @@ pub fn notional_penalty<S: Storage, A: Api, Q: Querier>(
         reward_cutoff,
     } = cfg.penalty_params;
 
-    return if imb0 < imb1 {
+    if imb0 < imb1 {
         // use penalty function
         let cutoff_lo = penalty_cutoff_lo * e;
         let cutoff_hi = penalty_cutoff_hi * e;
@@ -107,19 +107,19 @@ pub fn notional_penalty<S: Storage, A: Api, Q: Querier>(
         // use reward function
         let cutoff = reward_cutoff * e;
         Ok((max(imb0, cutoff) - max(imb1, cutoff)) * reward_amt)
-    };
+    }
 }
 
 pub fn compute_mint<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     block_height: u64,
-    basket_token_supply: &Uint128,
-    inventory: &Vec<Uint128>,
-    mint_asset_amounts: &Vec<Uint128>,
-    asset_prices: &Vec<String>,
-    target_weights: &Vec<u32>,
+    cluster_token_supply: &Uint128,
+    inventory: &[Uint128],
+    mint_asset_amounts: &[Uint128],
+    asset_prices: &[String],
+    target_weights: &[u32],
 ) -> StdResult<MintResponse> {
-    let n = FPDecimal::from(basket_token_supply.u128());
+    let n = FPDecimal::from(cluster_token_supply.u128());
     let i0 = int_vec_to_fpdec(inventory);
     let c = int_vec_to_fpdec(mint_asset_amounts);
     let p = str_vec_to_fpdec(asset_prices)?;
@@ -146,17 +146,18 @@ pub fn compute_mint<S: Storage, A: Api, Q: Querier>(
     })
 }
 
+#[allow(clippy::many_single_char_names, clippy::too_many_arguments)]
 pub fn compute_redeem<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     block_height: u64,
-    basket_token_supply: &Uint128,
-    inventory: &Vec<Uint128>,
+    cluster_token_supply: &Uint128,
+    inventory: &[Uint128],
     max_tokens: &Uint128,
-    redeem_asset_amounts: &Vec<Uint128>,
-    asset_prices: &Vec<String>,
-    target_weights: &Vec<u32>,
+    redeem_asset_amounts: &[Uint128],
+    asset_prices: &[String],
+    target_weights: &[u32],
 ) -> StdResult<RedeemResponse> {
-    let n = FPDecimal::from(basket_token_supply.u128());
+    let n = FPDecimal::from(cluster_token_supply.u128());
     let i0 = int_vec_to_fpdec(inventory);
     let m = FPDecimal::from(max_tokens.u128());
     let r = int_vec_to_fpdec(redeem_asset_amounts);
@@ -225,7 +226,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     match msg {
         QueryMsg::Mint {
             block_height,
-            basket_token_supply,
+            cluster_token_supply,
             inventory,
             mint_asset_amounts,
             asset_prices,
@@ -233,7 +234,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
         } => to_binary(&compute_mint(
             deps,
             block_height,
-            &basket_token_supply,
+            &cluster_token_supply,
             &inventory,
             &mint_asset_amounts,
             &asset_prices,
@@ -241,7 +242,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
         )?),
         QueryMsg::Redeem {
             block_height,
-            basket_token_supply,
+            cluster_token_supply,
             inventory,
             max_tokens,
             redeem_asset_amounts,
@@ -250,7 +251,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
         } => to_binary(&compute_redeem(
             deps,
             block_height,
-            &basket_token_supply,
+            &cluster_token_supply,
             &inventory,
             &max_tokens,
             &redeem_asset_amounts,
@@ -265,10 +266,9 @@ pub fn try_reset_owner<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     owner: &HumanAddr,
 ) -> StdResult<HandleResponse> {
-    let cfg = read_config(&deps.storage)?;
-    let mut new_cfg = cfg.clone();
-    new_cfg.owner = owner.clone();
-    save_config(&mut deps.storage, &new_cfg)?;
+    let mut cfg = read_config(&deps.storage)?;
+    cfg.owner = owner.clone();
+    save_config(&mut deps.storage, &cfg)?;
 
     Ok(HandleResponse {
         messages: vec![],
@@ -282,14 +282,13 @@ pub fn update_ema<S: Storage, A: Api, Q: Querier>(
     block_height: u64,
     net_asset_val: FPDecimal,
 ) -> StdResult<HandleResponse> {
-    let cfg = read_config(&deps.storage)?;
-    let mut new_cfg = cfg.clone();
-    new_cfg.ema = get_ema(&deps, block_height, net_asset_val)?;
-    new_cfg.last_block = block_height;
-    save_config(&mut deps.storage, &new_cfg)?;
+    let mut cfg = read_config(&deps.storage)?;
+    cfg.ema = get_ema(&deps, block_height, net_asset_val)?;
+    cfg.last_block = block_height;
+    save_config(&mut deps.storage, &cfg)?;
     Ok(HandleResponse {
         messages: vec![],
-        log: vec![log("new_ema", new_cfg.ema)],
+        log: vec![log("new_ema", cfg.ema)],
         data: None,
     })
 }
@@ -297,26 +296,27 @@ pub fn update_ema<S: Storage, A: Api, Q: Querier>(
 pub fn handle_mint<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     block_height: u64,
-    basket_token_supply: &Uint128,
+    _cluster_token_supply: &Uint128,
     inventory: &Vec<Uint128>,
-    mint_asset_amounts: &Vec<Uint128>,
+    _mint_asset_amounts: &Vec<Uint128>,
     asset_prices: &Vec<String>,
-    target_weights: &Vec<u32>,
+    _target_weights: &Vec<u32>,
 ) -> StdResult<HandleResponse> {
     let i = int_vec_to_fpdec(inventory);
     let p = str_vec_to_fpdec(asset_prices)?;
     update_ema(deps, block_height, dot(&i, &p))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn handle_redeem<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     block_height: u64,
-    basket_token_supply: &Uint128,
-    inventory: &Vec<Uint128>,
-    max_tokens: &Uint128,
-    redeem_asset_amounts: &Vec<Uint128>,
-    asset_prices: &Vec<String>,
-    target_weights: &Vec<u32>,
+    _cluster_token_supply: &Uint128,
+    inventory: &[Uint128],
+    _max_tokens: &Uint128,
+    _redeem_asset_amounts: &[Uint128],
+    asset_prices: &[String],
+    _target_weights: &[u32],
 ) -> StdResult<HandleResponse> {
     let i = int_vec_to_fpdec(inventory);
     let p = str_vec_to_fpdec(asset_prices)?;
@@ -339,7 +339,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::_ResetOwner { owner } => try_reset_owner(deps, &owner),
         HandleMsg::Mint {
             block_height,
-            basket_token_supply,
+            cluster_token_supply,
             inventory,
             mint_asset_amounts,
             asset_prices,
@@ -347,7 +347,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         } => handle_mint(
             deps,
             block_height,
-            &basket_token_supply,
+            &cluster_token_supply,
             &inventory,
             &mint_asset_amounts,
             &asset_prices,
@@ -355,7 +355,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         ),
         HandleMsg::Redeem {
             block_height,
-            basket_token_supply,
+            cluster_token_supply,
             inventory,
             max_tokens,
             redeem_asset_amounts,
@@ -364,7 +364,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         } => handle_redeem(
             deps,
             block_height,
-            &basket_token_supply,
+            &cluster_token_supply,
             &inventory,
             &max_tokens,
             &redeem_asset_amounts,

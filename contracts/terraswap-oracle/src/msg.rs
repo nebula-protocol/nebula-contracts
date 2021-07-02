@@ -21,15 +21,9 @@ pub enum QueryMsg {
 pub enum HandleMsg {
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, JsonSchema)]
 pub struct PriceResponse {
     pub rate: Decimal,
     pub last_updated_base: u64,
     pub last_updated_quote: u64,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ExtQueryMsg {
-    Pool {},
 }
