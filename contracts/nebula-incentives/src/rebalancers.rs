@@ -112,14 +112,26 @@ pub fn internal_rewarded_mint<S: Storage, A: Api, Q: Querier>(
     let original_imbalance = cluster_imbalance(deps, &cluster_contract)?;
 
     let mut send = vec![];
+    let mut mint_asset_amounts = vec![];
     let mut messages = vec![];
     for asset in asset_amounts {
         match asset.clone().info {
-            AssetInfo::NativeToken { denom } => send.push(Coin {
-                denom,
-                amount: asset.amount,
-            }),
+            AssetInfo::NativeToken { denom } => {
+                let amount = (asset.clone().deduct_tax(&deps)?).amount;
+
+                let new_asset = Asset {
+                    amount,
+                    ..asset.clone()
+                };
+
+                mint_asset_amounts.push(new_asset);
+                send.push(Coin {
+                    denom: denom.clone(),
+                    amount,
+                });
+            }
             AssetInfo::Token { contract_addr } => {
+                mint_asset_amounts.push(asset.clone());
                 messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: contract_addr.clone(),
                     msg: to_binary(&Cw20HandleMsg::IncreaseAllowance {
@@ -132,15 +144,17 @@ pub fn internal_rewarded_mint<S: Storage, A: Api, Q: Querier>(
             }
         }
     }
+    send.sort_by(|c1, c2| c1.denom.cmp(&c2.denom));
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: cluster_contract.clone(),
         msg: to_binary(&ClusterHandleMsg::Mint {
             min_tokens,
-            asset_amounts: asset_amounts.to_vec(),
+            asset_amounts: mint_asset_amounts,
         })?,
         send,
     }));
+
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: env.contract.address,
         msg: to_binary(&HandleMsg::_RecordRebalancerRewards {
