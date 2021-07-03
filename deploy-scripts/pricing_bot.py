@@ -1,6 +1,7 @@
 import os
 
 os.environ["USE_TEQUILA"] = "1"
+os.environ["MNEMONIC"] = mnemonic = 'lottery horn blast wealth cruise border opinion upgrade common gauge grocery evil canal lizard sad mad submit degree brave margin age lunar squirrel diet'
 
 from api import Asset
 from contract_helpers import Contract, ClusterContract
@@ -11,7 +12,7 @@ REQUIRE_GOV = True
 
 
 async def pricing_bot():
-    oracle = Contract("terra16hy3a4fqjte0yjduzjeurzsvct885xqa30u9zj") #dummy oracle
+    oracle = Contract("terra1l3k2gnmcy8wx69ycrmcetrxmpv9kye6htxrxqh") #dummy oracle
 
     # print("cluster", cluster)
 
@@ -22,10 +23,12 @@ async def pricing_bot():
     ]
 
     oracle.set_prices(prices=prices)
-    price = await oracle.query.price(
-            base_asset="uluna", quote_asset="uusd"
-        )
-    print(price)
+    cluster = Contract("terra1ae2amnd99wppjyumwz6qet7sjx6ynq39g8zha5")
+    cluster_state = await cluster.query.cluster_state(
+        cluster_contract_address=cluster
+    )
+
+    print("Updated Cluster State: ", cluster_state)
     # print('setting prices')
 
 
