@@ -5,7 +5,7 @@ os.environ["MNEMONIC"] = 'museum resist wealth require renew punch jeans smooth 
 
 from api import Asset
 from ecosystem import Ecosystem
-from contract_helpers import Contract, ClusterContract
+from contract_helpers import Contract, ClusterContract, chain
 import asyncio
 from base import deployer
 from constants import DEPLOY_ENVIRONMENT_STATUS_W_GOV
@@ -126,17 +126,32 @@ async def deploy_terra_ecosystem():
 
     print('setting prices')
 
-    mint_assets = [
-        Asset.asset("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u", "1000"),
-        Asset.asset("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc", "1000"),
-        Asset.asset("uluna", "1000", native=True),
+    # mint_assets = [
+    #     Asset.asset("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u", "1000"),
+    #     Asset.asset("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc", "1000"),
+    #     Asset.asset("uluna", "1000", native=True),
+    # ]
+
+    mint_cw20_assets = [
+        Contract("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u"),
+        Contract("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc"),
     ]
 
-    # mint_assets = [
-    #     Asset.asset("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u", "100"),
-    #     Asset.asset("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc", "100"),
-    # ]
-    await cluster.mint(asset_amounts=mint_assets, min_tokens="300", _send={"uluna": "1000"})
+    # Do this separately because we have a native asset
+    msgs = []
+    mint_assets = []
+    for asset in mint_cw20_assets:
+        msgs.append(asset.increase_allowance(spender=cluster, amount="1000"))
+        mint_assets.append(Asset.asset(asset, "1000"))
+
+    mint_assets.append(Asset.asset("uluna", "1000", native=True))
+
+    msgs.append(
+        cluster.mint(asset_amounts=mint_assets, min_tokens="100", _send={"uluna": "1000"})
+    )
+
+    await chain(*msgs)
+    
 
     print('mint complete')
 
