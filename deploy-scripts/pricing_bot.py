@@ -14,8 +14,6 @@ REQUIRE_GOV = True
 async def pricing_bot():
     oracle = Contract("terra1l3k2gnmcy8wx69ycrmcetrxmpv9kye6htxrxqh") #dummy oracle
 
-    # print("cluster", cluster)
-
     prices = [
         ("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u", "3.76"),
         ("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc", "2.27"),
