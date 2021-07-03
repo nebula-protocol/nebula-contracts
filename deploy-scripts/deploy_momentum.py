@@ -9,6 +9,8 @@ from contract_helpers import Contract, ClusterContract, chain
 import asyncio
 from base import deployer
 from constants import DEPLOY_ENVIRONMENT_STATUS_W_GOV
+import json
+import requests
 
 REQUIRE_GOV = True
 
@@ -25,7 +27,7 @@ async def deploy_terra_ecosystem():
         setattr(ecosystem, key, DEPLOY_ENVIRONMENT_STATUS_W_GOV[key])
 
     # Just include MIR for now, and rely on rebalance to do things
-    cw20_asset_tokens = [
+    asset_tokens = [
         Contract("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u"),  # MIR
     ]
 
@@ -55,16 +57,13 @@ async def deploy_terra_ecosystem():
         owner=ecosystem.factory,
     )
 
-    # Asset tokens to include
-    asset_tokens = [Asset.cw20_asset_info(i) for i in cw20_asset_tokens]
-
     create_cluster = ecosystem.factory.create_cluster(
         params={
             "name": "Top 5 30-Day Momentum",
             "symbol": "MOMENTUM",
             "penalty": penalty_contract,
             "target": target_weights,
-            "assets": asset_tokens,
+            "assets": [Asset.cw20_asset_info(i.address) for i in asset_tokens],
             "pricing_oracle": oracle,
             "composition_oracle": 'terra14ew659y4fn4dytu832k9f6l2u94668uclrywfg',
         },
@@ -94,14 +93,6 @@ async def deploy_terra_ecosystem():
     cluster_pair = Contract(addresses[1])
     lp_token = Contract(addresses[0])
 
-    cluster_info = ClusterContract(
-        addresses[3],
-        cluster_token,
-        asset_tokens,
-    )
-
-    print(cluster_info)
-
     # Use this because cw20
     cluster = ClusterContract(
         addresses[3],
@@ -111,9 +102,31 @@ async def deploy_terra_ecosystem():
 
     print("cluster", cluster)
 
+    async def get_all_mirror_assets():
+        query = """
+        query {
+            assets {
+                token
+            }
+        }"""
+        
+        # For deploying on test network
+        url = 'https://tequila-graph.mirror.finance/graphql'
+        r = requests.post(url, json={'query': query}, headers=None)
+        r.raise_for_status()
+        assets = json.loads(r.text)['data']['assets']
+        addresses = [a['token'] for a in assets]
+
+        return addresses
+
+    addresses = await get_all_mirror_assets()
     prices = [
-        ("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u", "1"),
+        (a, "1") for a in addresses if a is not None
     ]
+
+    # prices = [
+    #     ("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u", "1")
+    # ]
 
     await oracle.set_prices(prices=prices)
 
