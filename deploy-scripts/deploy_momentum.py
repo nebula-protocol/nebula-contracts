@@ -24,9 +24,9 @@ async def deploy_terra_ecosystem():
     for key in DEPLOY_ENVIRONMENT_STATUS_W_GOV:
         setattr(ecosystem, key, DEPLOY_ENVIRONMENT_STATUS_W_GOV[key])
 
+    # Just include MIR for now, and rely on rebalance to do things
     cw20_asset_tokens = [
         Contract("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u"),  # MIR
-        Contract("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc"),  # ANC
     ]
 
     code_ids = ecosystem.code_ids
@@ -47,8 +47,7 @@ async def deploy_terra_ecosystem():
     }
 
     # Weight equally at first then can wait for rebalance to simplify things
-    target_weights = [1, 1, 1]
-    # target_weights = [1, 1]
+    target_weights = [1]
 
     penalty_contract = await Contract.create(
         code_ids["nebula_penalty"],
@@ -57,17 +56,17 @@ async def deploy_terra_ecosystem():
     )
 
     # Asset tokens to include
-    asset_tokens = [Asset.cw20_asset_info(i) for i in cw20_asset_tokens] + [Asset.native_asset_info('uluna')]
+    asset_tokens = [Asset.cw20_asset_info(i) for i in cw20_asset_tokens]
 
     create_cluster = ecosystem.factory.create_cluster(
         params={
-            "name": "Terra Ecosystem",
-            "symbol": "TERTEST",
+            "name": "Top 5 30-Day Momentum",
+            "symbol": "MOMENTUM",
             "penalty": penalty_contract,
             "target": target_weights,
             "assets": asset_tokens,
             "pricing_oracle": oracle,
-            "composition_oracle": 'terra1qyz9ps2dpv8ay4rg4hy65fvc3wjxu83s246tpy',
+            "composition_oracle": 'terra14ew659y4fn4dytu832k9f6l2u94668uclrywfg',
         },
     )
 
@@ -103,42 +102,24 @@ async def deploy_terra_ecosystem():
 
     print(cluster_info)
 
-    cluster = Contract(
+    # Use this because cw20
+    cluster = ClusterContract(
         addresses[3],
+        cluster_token,
+        asset_tokens,
     )
 
     print("cluster", cluster)
 
     prices = [
         ("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u", "1"),
-        ("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc", "1"),
-        ("uluna", "1")
     ]
 
     await oracle.set_prices(prices=prices)
 
     print('setting prices')
 
-    mint_cw20_assets = [
-        Contract("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u"),
-        Contract("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc"),
-    ]
-
-    # Do this separately because we have a native asset
-    msgs = []
-    mint_assets = []
-    for asset in mint_cw20_assets:
-        msgs.append(asset.increase_allowance(spender=cluster, amount="1000"))
-        mint_assets.append(Asset.asset(asset, "1000"))
-
-    mint_assets.append(Asset.asset("uluna", "1000", native=True))
-
-    msgs.append(
-        cluster.mint(asset_amounts=mint_assets, min_tokens="100", _send={"uluna": "1000"})
-    )
-
-    await chain(*msgs)
-    
+    await cluster.mint(asset_amounts=["1000"], min_tokens="100")
 
     print('mint complete')
 
