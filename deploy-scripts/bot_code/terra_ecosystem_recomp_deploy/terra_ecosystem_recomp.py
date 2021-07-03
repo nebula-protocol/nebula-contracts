@@ -2,6 +2,7 @@ import os
 import asyncio
 import requests
 import json
+import time
 
 from terra_sdk.client.lcd import AsyncLCDClient
 from terra_sdk.client.localterra import AsyncLocalTerra
@@ -10,6 +11,8 @@ from terra_sdk.key.mnemonic import MnemonicKey
 
 from api import Asset
 from contract_helpers import Contract, ClusterContract
+
+os.environ["USE_TEQUILA"] = "1"
 
 mnemonic = 'museum resist wealth require renew punch jeans smooth old color neutral cactus baby retreat guitar web average piano excess next strike drive game romance'
 
@@ -91,15 +94,18 @@ class TerraFullDilutedMcapRecomposer:
             target=target_weights
         )
 
+        tg = await self.cluster_contract.query.target()
+        print(tg)
+
         return self.asset_names, target_weights
 
 async def run_recomposition_periodically(cluster_contract, interval):
     start_time = time.time()
     assets = ["LUNA", "MIR", "ANC"]
     asset_tokens = [
-        "uluna", 
-        "terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc",     # ANC
-        "terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u"      # MIR
+        Contract("uluna"),
+        Contract("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc"),     # ANC
+        Contract("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u")      # MIR
     ]
     recomposition_bot = TerraFullDilutedMcapRecomposer(cluster_contract, assets, asset_tokens)
 
