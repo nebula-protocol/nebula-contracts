@@ -15,7 +15,7 @@ import requests
 REQUIRE_GOV = True
 
 
-async def deploy_momentum():
+async def deploy_bullish():
 
     ecosystem = Ecosystem(require_gov=REQUIRE_GOV)
 
@@ -59,13 +59,13 @@ async def deploy_momentum():
 
     create_cluster = ecosystem.factory.create_cluster(
         params={
-            "name": "Top 5 30-Day Momentum",
-            "symbol": "MOMENTUM",
+            "name": "Bullish Cross (Self Optimized MA)",
+            "symbol": "BULL",
             "penalty": penalty_contract,
             "target": target_weights,
             "assets": [Asset.cw20_asset_info(i.address) for i in asset_tokens],
             "pricing_oracle": oracle,
-            "composition_oracle": 'terra14ew659y4fn4dytu832k9f6l2u94668uclrywfg',
+            "composition_oracle": 'terra1y602xtyd2ycp0c76uhn3tq7w8rj9rh7t07rwjn',
         },
     )
 
@@ -148,4 +148,4 @@ async def deploy_momentum():
 
 
 if __name__ == "__main__":
-    asyncio.get_event_loop().run_until_complete(deploy_momentum())
+    asyncio.get_event_loop().run_until_complete(deploy_bullish())
