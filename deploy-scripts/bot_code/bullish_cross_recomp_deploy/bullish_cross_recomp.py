@@ -1,32 +1,16 @@
-"""
-c1=close[1];// yestedays close
-c3=close[3];
-for i=minperiod to maxperiod begin // loop all averages and sum up results
-	av=average(c1,i);
-	if av>average(c3,i) then begin
-		counter[i]=counter[i]+1;
-		if close>c1 then periodwin[i]=periodwin[i]+1;
-	end;
-end;
-
-for i=minperiod to maxperiod begin // calc percent winning bars
-	if counter[i]>0 then periodwinpercent[i]=100*periodwin[i]/counter[i];
-end;
-for i=minperiod+2 to maxperiod-2 begin // a little bit of smoothing
-	pwpsmooth[i]=(periodwinpercent[i-2]+periodwinpercent[i-1]+periodwinpercent[i]+periodwinpercent[i+1]+periodwinpercent[i+2])/5;
-end;
-
-period=indexofhighestarray(pwpsmooth); // best period
-
-av=average(close,period);
-indication=highestarray(pwpsmooth); // winning percentage (smoothed)
-"""
-    
-from graphql_querier import mirror_history_query
-import pandas as pd
 import os
-import time
 import asyncio
+import requests
+import json
+import time
+
+from graphql_querier import mirror_history_query, get_all_mirror_assets
+import time
+import pandas as pd
+
+os.environ["MNEMONIC"] = mnemonic = 'raise sight lemon exact duty master buyer drink runway trap tourist use camp habit crunch horror jeans rice dance castle lift couple raise vibrant'
+
+os.environ["USE_TEQUILA"] = "1"
 
 from terra_sdk.client.lcd import AsyncLCDClient
 from terra_sdk.client.localterra import AsyncLocalTerra
@@ -34,64 +18,29 @@ from terra_sdk.core.auth import StdFee
 from terra_sdk.key.mnemonic import MnemonicKey
 
 from api import Asset
-from contract_helpers import Contract, ClusterContract
-
-import asyncio
-import os
-
-mnemonic = 'museum resist wealth require renew punch jeans smooth old color neutral cactus baby retreat guitar web average piano excess next strike drive game romance'
-
-key = MnemonicKey(mnemonic=mnemonic)
-print('using mnemonic')
-
-gas_prices = {
-    "uluna": "0.15",
-    "usdr": "0.1018",
-    "uusd": "0.15",
-    "ukrw": "178.05",
-    "umnt": "431.6259",
-    "ueur": "0.125",
-    "ucny": "0.97",
-    "ujpy": "16",
-    "ugbp": "0.11",
-    "uinr": "11",
-    "ucad": "0.19",
-    "uchf": "0.13",
-    "uaud": "0.19",
-    "usgd": "0.2",
-}
-
-terra = AsyncLCDClient(
-    "https://tequila-fcd.terra.dev", "tequila-0004", gas_prices=gas_prices
-)
-
-deployer = terra.wallet(key)
-
+from contract_helpers import Contract, ClusterContract, terra
 
 THRESHOLD = 0.5
 # Percentage to deweight non-cross assets
 X = 0.2
+API_KEY = os.environ.get("AV_API", None)
+
+"""
+Recomposes according to Fully Diluted Market Cap in the terra ecosystem assets. 
+"""
 class BullishCrossRecomposer:
-    def __init__(self, cluster_contract, asset_addresses, use_test_data=False, minperiod=5, maxperiod=50, lookahead = 200, bar_length = 30):
+    def __init__(self, cluster_contract, minperiod=5, maxperiod=50, lookahead = 200, bar_length = 30):
         """ 
         Defaults to 30min tick and 200 bars of data (around 4 days).
         Asset names can also be addresses
         """
-        self.cluster_contract = cluster_contract
-        self.use_test_data = use_test_data
         self.minperiod=minperiod 
         self.maxperiod=maxperiod
-        self.asset_addresses = asset_addresses
-        self.lookahead = lookahead
 
-        # Use test data from Yahoo Finance
-        if self.use_test_data:
-            self.count = 5
-            cwd = os.path.dirname(os.path.abspath(__file__))
-            csv_format = cwd + '/{}.csv'
-            self.closes = {a: pd.read_csv(csv_format.format(a))['Close'] for a in asset_addresses}
-        else:
-            self.bar_length = bar_length
+        self.cluster_contract = cluster_contract
+
+        self.lookahead = lookahead
+        self.bar_length = bar_length
 
     def self_opt_ma(self, data):
         """
@@ -100,18 +49,11 @@ class BullishCrossRecomposer:
         percentage (rising bars) on the next bar, and then pick the best performing period length.
         """
 
-        if self.use_test_data:
-            close = data[self.count:self.count + self.lookahead].reset_index(drop=True)
-            # yesterday
-            c1 = data[self.count-1:self.count - 1 + self.lookahead].reset_index(drop=True)
-            # 3 days ago
-            c3 = data[self.count-3:self.count - 3 + self.lookahead].reset_index(drop=True)
-        else:
-            close = data[-self.lookahead:].reset_index(drop=True)
-            # yesterday
-            c1 = data[-self.lookahead- 1 : -1].reset_index(drop=True)
-            # 3 days ago
-            c3 = data[-self.lookahead - 3 : -3].reset_index(drop=True)
+        close = data[-self.lookahead:].reset_index(drop=True)
+        # yesterday
+        c1 = data[-self.lookahead- 1 : -1].reset_index(drop=True)
+        # 3 days ago
+        c3 = data[-self.lookahead - 3 : -3].reset_index(drop=True)
 
         counter_list = []
         win_list = []
@@ -146,37 +88,56 @@ class BullishCrossRecomposer:
         return best_pwp, price_gt_ma
 
     def get_mcaps(self, asset_names):
-        if asset_names != ['mFB', 'mTSLA', 'mGOOGL']:
-            raise NotImplementedError
-        else:
-            # Mock market caps in billions
-            return {
-                'mFB': 3, 
-                'mTSLA': 1, 
-                'mGOOGL': 6
-            }
+        """
+        Get actual stock market caps corresponding to mAsset
+        """
+
+        if API_KEY is None:
+            raise NameError
+
+        mcs = []
+
+        for name in asset_names:
+            try:
+                stock = name[1:]
+                url = 'https://www.alphavantage.co/query?function=OVERVIEW&symbol={}&apikey={}'.format(stock, API_KEY)
+                r = requests.get(url)
+                data = r.json()
+
+                mc = float(data['MarketCapitalization'])
+
+                mcs.append(mc)
+            except:
+                mcs.append(0)
+        
+        return mcs
 
     async def cross_weighting(self):
+
+        self.asset_addresses = await get_all_mirror_assets()
+
         has_cross, all_cross = False, True
         best_pwps = {}
         non_cross_assets = []
         asset_addresses = self.asset_addresses
 
-        if not self.use_test_data:
-            to = round(time.time() * 1000)
+        to = round(time.time() * 1000)
 
-            # Need at least (self.lookahead + 3) pieces of historical data
-            from_time = to - (self.lookahead + 4) * self.bar_length * 1000 * 60
+        # Need at least (self.lookahead + 3) pieces of historical data
+        from_time = to - (self.lookahead + 4) * self.bar_length * 1000 * 60
 
-            data = [await mirror_history_query(a, self.bar_length, from_time, to) for a in self.asset_addresses]
-            # Might need asset names from CMC
-            asset_names, max_timestamps, closes, mcs = zip(*data)
-            asset_data = {name: int(mc) for name, mc in zip(asset_names, mcs)}
-            self.closes = {name: pd.Series(close).astype('float') for name, close in zip(asset_names, closes)}
-            names_to_contracts = {name: addrs for name, addrs in zip(asset_names, self.asset_addresses)}
-        else:
-            asset_names = asset_addresses
-            asset_data = self.get_mcaps(asset_names)
+        data = [await mirror_history_query(a, self.bar_length, from_time, to) for a in self.asset_addresses]
+
+        data = [d for d in data if d[0] is not None]
+        # Might need asset names from CMC
+        asset_names, max_timestamps, closes, _ = zip(*data)
+
+        # Calculate MC of actual asset names
+        mcs = self.get_mcaps(asset_names)
+
+        asset_data = {name: int(mc) for name, mc in zip(asset_names, mcs)}
+        self.closes = {name: pd.Series(close).astype('float') for name, close in zip(asset_names, closes)}
+        names_to_contracts = {name: addrs for name, addrs in zip(asset_names, self.asset_addresses)}
 
         # Calculate best_pwps and assets with crosses
         for asset, asset_closes in self.closes.items():
@@ -219,29 +180,34 @@ class BullishCrossRecomposer:
                     target[cross_asset] += new_weight * non_cross_pool
                     print("{} target weight updated to {}".format(cross_asset, new_weight))
         assets, target_weights = zip(*target.items())
-        if not self.use_test_data:
-            assets = [names_to_contracts[a] for a in assets]
+        addresses = [names_to_contracts[a] for a in assets]
 
-        return list(assets), list(target_weights)
+        return list(addresses), list(target_weights), list(assets)
     
     async def recompose(self):
-        if self.use_test_data:
-            self.count += 1
-        assets, target_weights = await self.cross_weighting()
-        print(assets, target_weights)
+        addresses, target_weights, names = await self.cross_weighting()
+        print('Best assets', names)
+        print('Target weights', target_weights)
         target_weights = [int(100 * target_weight) for target_weight in target_weights]
-
         await self.cluster_contract.reset_target(
-            assets=[Asset.cw20_asset_info(a) for a in assets],
+            assets=[Asset.asset_info(a) for a in addresses],
             target=target_weights
         )
-        return assets, target_weights
 
+        target = await self.cluster_contract.query.target()
+        cluster = Contract("terra1xtn56y9pd7vrm7fwswtw7k4zctnm7ld9xv3p3l")
+        cluster_state = await self.cluster_contract.query.cluster_state(
+            cluster_contract_address=cluster
+        )
+
+        print("Updated Target: " , target)
+        print("Updated Cluster State: ", cluster_state)
+        return addresses, target_weights
 
 async def run_recomposition_periodically(cluster_contract, interval):
     start_time = time.time()
-    assets = []
-    recomposition_bot = BullishCrossRecomposer(cluster_contract, assets)
+    
+    recomposition_bot = BullishCrossRecomposer(cluster_contract)
 
     while True:
         await asyncio.gather(
@@ -250,6 +216,6 @@ async def run_recomposition_periodically(cluster_contract, interval):
         )
 
 if __name__ == "__main__":
-    cluster_contract = Contract("TODO")
+    cluster_contract = Contract("terra1xtn56y9pd7vrm7fwswtw7k4zctnm7ld9xv3p3l")
     interval = 24 * 60 * 60
     asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))
