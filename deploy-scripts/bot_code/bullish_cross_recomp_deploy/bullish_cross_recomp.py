@@ -105,7 +105,10 @@ class BullishCrossRecomposer:
                 data = r.json()
 
                 mc = float(data['MarketCapitalization'])
-
+        
+                if mc < 20000000000:
+                    mc = 0
+                    
                 mcs.append(mc)
             except:
                 mcs.append(0)
