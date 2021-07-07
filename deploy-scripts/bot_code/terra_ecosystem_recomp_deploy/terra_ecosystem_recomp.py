@@ -17,6 +17,7 @@ from api import Asset
 from contract_helpers import Contract, ClusterContract, terra
 
 ONE_MILLION = 1000000.0
+SECONDS_PER_DAY = 24 * 60 * 60
 
 """
 Recomposes according to Fully Diluted Market Cap in the terra ecosystem assets. 
@@ -107,5 +108,5 @@ async def run_recomposition_periodically(cluster_contract, interval):
 
 if __name__ == "__main__":
     cluster_contract = Contract("terra1ae2amnd99wppjyumwz6qet7sjx6ynq39g8zha5")
-    interval = 24 * 60 * 60
+    interval = SECONDS_PER_DAY
     asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))
