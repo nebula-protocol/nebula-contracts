@@ -20,8 +20,10 @@ from terra_sdk.key.mnemonic import MnemonicKey
 from api import Asset
 from contract_helpers import Contract, ClusterContract, terra
 
+SECONDS_PER_DAY = 24 * 60 * 60
+
 """
-Recomposes according to Fully Diluted Market Cap in the terra ecosystem assets. 
+Recomposes according to Momentum and tracks the top 5 best-performing mAssets.
 """
 class MomentumTradingRecomposer:
     def __init__(self, cluster_contract, lookback_days=30, top=5):
@@ -102,5 +104,5 @@ async def run_recomposition_periodically(cluster_contract, interval):
 
 if __name__ == "__main__":
     cluster_contract = Contract("terra1wa7frpp078hnqnlvevmqjyswvnswp4psmkjred")
-    interval = 24 * 60 * 60
+    interval = SECONDS_PER_DAY
     asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))
