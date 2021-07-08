@@ -3,6 +3,7 @@ import asyncio
 import requests
 import json
 import time
+import yfinance as yf
 
 from graphql_querier import mirror_history_query, get_all_mirror_assets
 import time
@@ -92,20 +93,22 @@ class BullishCrossRecomposer:
         Get actual stock market caps corresponding to mAsset
         """
 
-        if API_KEY is None:
-            raise NameError
+        # if API_KEY is None:
+        #     raise NameError
 
         mcs = []
 
         for name in asset_names:
             try:
                 stock = name[1:]
-                url = 'https://www.alphavantage.co/query?function=OVERVIEW&symbol={}&apikey={}'.format(stock, API_KEY)
-                r = requests.get(url)
-                data = r.json()
+                stock_info = yf.Ticker(stock).info
+                # url = 'https://www.alphavantage.co/query?function=OVERVIEW&symbol={}&apikey={}'.format(stock, API_KEY)
+                # r = requests.get(url)
+                # data = r.json()
 
-                mc = float(data['MarketCapitalization'])
-        
+                # mc = float(data['MarketCapitalization'])
+                mc = stock_info['marketCap']
+
                 if mc < 20000000000:
                     mc = 0
                     
@@ -137,8 +140,8 @@ class BullishCrossRecomposer:
 
         # Calculate MC of actual asset names
         mcs = self.get_mcaps(asset_names)
-
         asset_data = {name: int(mc) for name, mc in zip(asset_names, mcs)}
+
         self.closes = {name: pd.Series(close).astype('float') for name, close in zip(asset_names, closes)}
         names_to_contracts = {name: addrs for name, addrs in zip(asset_names, self.asset_addresses)}
 
