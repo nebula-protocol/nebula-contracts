@@ -17,6 +17,7 @@ use terraswap::querier::query_token_balance;
 use cluster_math::{imbalance, int32_vec_to_fpdec, int_vec_to_fpdec, str_vec_to_fpdec};
 use nebula_protocol::cluster_factory::ClusterExistsResponse;
 use nebula_protocol::cluster_factory::QueryMsg::ClusterExists;
+use std::cmp::min;
 
 pub fn get_cluster_state<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
@@ -311,6 +312,11 @@ pub fn redeem<S: Storage, A: Api, Q: Querier>(
 
     let cluster_state = get_cluster_state(deps, &cluster_contract)?;
     let cluster_token = cluster_state.cluster_token;
+
+    let max_tokens = min(
+        max_tokens,
+        query_token_balance(deps, &cluster_token, &env.message.sender)?,
+    );
 
     Ok(HandleResponse {
         messages: vec![
