@@ -5,7 +5,7 @@ import json
 import time
 import yfinance as yf
 
-from graphql_querier import mirror_history_query, get_all_mirror_assets
+from graphql_querier import mirror_history_query_test, get_all_mirror_assets_test
 import time
 import pandas as pd
 
@@ -120,7 +120,7 @@ class BullishCrossRecomposer:
 
     async def cross_weighting(self):
 
-        self.asset_addresses = await get_all_mirror_assets()
+        self.asset_addresses = await get_all_mirror_assets_test()
 
         has_cross, all_cross = False, True
         best_pwps = {}
@@ -132,7 +132,7 @@ class BullishCrossRecomposer:
         # Need at least (self.lookahead + 3) pieces of historical data
         from_time = to - (self.lookahead + 4) * self.bar_length * 1000 * 60
 
-        data = [await mirror_history_query(a, self.bar_length, from_time, to) for a in self.asset_addresses]
+        data = [await mirror_history_query_test(a, self.bar_length, from_time, to) for a in self.asset_addresses]
 
         data = [d for d in data if d[0] is not None]
         # Might need asset names from CMC

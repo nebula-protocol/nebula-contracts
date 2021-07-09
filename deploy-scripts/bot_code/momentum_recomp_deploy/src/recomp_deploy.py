@@ -4,7 +4,7 @@ import requests
 import json
 import time
 
-from graphql_querier import mirror_history_query, get_all_mirror_assets
+from graphql_querier import mirror_history_query_test, get_all_mirror_assets_test
 import time
 import pandas as pd
 
@@ -35,7 +35,7 @@ class MomentumTradingRecomposer:
         self.curr_asset_weights = None
 
     async def weighting(self):
-        addresses = await get_all_mirror_assets()
+        addresses = await get_all_mirror_assets_test()
 
         to = round(time.time() * 1000)
 
@@ -45,7 +45,7 @@ class MomentumTradingRecomposer:
         # Convert to millesconds
         from_time = to - minutes * 1000 * 60
 
-        data = [await mirror_history_query(a, MINUTES_PER_DAY, from_time, to) for a in addresses]
+        data = [await mirror_history_query_test(a, MINUTES_PER_DAY, from_time, to) for a in addresses]
 
         asset_names, max_timestamps, closes, _ = zip(*data)
 

@@ -7,6 +7,8 @@ from api import Asset
 from contract_helpers import Contract, ClusterContract
 import asyncio
 from base import deployer
+import requests
+import json
 
 REQUIRE_GOV = True
 
@@ -31,6 +33,34 @@ async def pricing_bot():
     print("Updated Cluster State: ", cluster_state)
     # print('setting prices')
 
+
+# Could do something like if token symbol starts with m [check with token query] -> call this endpoint
+
+
+async def get_graphql_price(address, testing=False):
+    # Note to Manav: if testing is true, that means we're using this on testnet with our made up contract
+    # for cluster tokens -> have some dictionaries in constants.py that we can use to query the actual Col-4
+    # price (of fake token) once we get to that step
+
+    query = """
+    query {{
+        asset(token: {0}) {{
+            prices {{
+                price
+            }}
+            symbol
+            name
+        }}
+    }}""".format('\"' + address + '\"')
+
+    url = 'https://graph.mirror.finance/graphql'
+    r = requests.post(url, json={'query': query})
+    r.raise_for_status()
+    asset = json.loads(r.text)['data']['asset']
+
+    price = asset['prices']['price']
+    symbol = asset['symbol']
+    return symbol, price
 
 if __name__ == "__main__":
     asyncio.get_event_loop().run_until_complete(pricing_bot())
