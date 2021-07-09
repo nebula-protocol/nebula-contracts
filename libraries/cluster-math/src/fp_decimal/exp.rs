@@ -4,6 +4,9 @@ use crate::fp_decimal::{FPDecimal, U256};
 impl FPDecimal {
     // a^b
     pub fn _pow(a: FPDecimal, b: FPDecimal) -> FPDecimal {
+        if a == FPDecimal::zero() {
+            return FPDecimal::zero();
+        }
         FPDecimal::_exp(FPDecimal::_mul(FPDecimal::_ln(a), b))
     }
 
@@ -74,5 +77,11 @@ mod tests {
             }),
             FPDecimal::E_10
         );
+    }
+
+    #[test]
+    fn test_zero() {
+        // FPDecimal::_ln(FPDecimal::zero());
+        FPDecimal::_pow(FPDecimal::zero(), FPDecimal::one().div(2i128));
     }
 }

@@ -74,18 +74,12 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
 
     let pair_info = get_pair_info(deps, &cluster_token)?;
 
-    let mut send = vec![];
-
     // transfer all asset tokens into this
     // also prepare to transfer to cluster contract
     for asset in assets {
         match asset.clone().info {
             AssetInfo::NativeToken { denom } => {
-                asset.clone().assert_sent_native_token_balance(&env)?;
-                send.push(Coin {
-                    denom,
-                    amount: asset.amount,
-                })
+                asset.clone().assert_sent_native_token_balance(&env)?
             }
             AssetInfo::Token { contract_addr } => {
                 messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -109,7 +103,7 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
             asset_amounts: assets.to_vec(),
             min_tokens: None,
         })?,
-        send,
+        send: vec![],
     }));
 
     // swap all
@@ -169,18 +163,12 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
 
     let cfg: Config = read_config(&deps.storage)?;
 
-    let mut swap_coins = vec![];
-
     match asset.info {
         AssetInfo::Token { .. } => return Err(StdError::generic_err("not native token")),
         AssetInfo::NativeToken { ref denom } => {
             if denom.clone() != cfg.base_denom {
                 return Err(StdError::generic_err("wrong base denom"));
             }
-            swap_coins.push(Coin {
-                denom: denom.clone(),
-                amount: asset.amount,
-            })
         }
     };
 
@@ -199,7 +187,7 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
             cluster_token: cluster_token.clone(),
             to_ust: false,
         })?,
-        send: swap_coins,
+        send: vec![],
     }));
 
     // record pool state difference
