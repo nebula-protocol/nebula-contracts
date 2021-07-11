@@ -43,7 +43,6 @@ if USE_TEQUILA:
     terra = AsyncLCDClient(
         "https://tequila-fcd.terra.dev", "tequila-0004", gas_prices=gas_prices
     )
-
     deployer = terra.wallet(key)
 else:
     terra = lt

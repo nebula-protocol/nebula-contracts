@@ -195,31 +195,31 @@ SYM_TO_CONTRACT_TOKEN_TEQ = {
  }
 
 CONTRACT_TOKEN_TO_SYM_TEQ = {
-    Contract("terra15tecrcm27fenchxaqde9f8ws8krfgjnqf2hhcv"): 'ANC',
-    Contract("terra1gkjll5uwqlwa8mrmtvzv435732tffpjql494fd"): 'MIR',
-    Contract("terra1pwd9etdemugqdt92t5d3g98069z0axpz9plnsk"): 'mAAPL',
-    Contract("terra1jm4j6k0e2dpug7z0glc87lwvyqh40z74f40n52"): 'mABNB',
-    Contract("terra1wa87zjty4y983yyt604hdnyr8rm9mwz7let8uz"): 'mAMC',
-    Contract("terra18mjauk9ug8y29q678c2qlee6rkd9aunrpe9q97"): 'mAMZN',
-    Contract("terra1uvzz9fchferxpg64pdshnrc49zkxjcj66uppq8"): 'mBABA',
-    Contract("terra13uya9kcnan6aevfgqxxngfpclqegvht6tfan5p"): 'mBTC',
-    Contract("terra16e3xu8ly6a622tjykfuwuv80czexece8rz0gs5"): 'mCOIN',
-    Contract("terra1rxyctpwzqvldalafvry787thslne6asjlwqjhn"): 'mETH',
-    Contract("terra1xl2tf5sjzz9phm4veh5ty5jzqrjykkqw33yt63"): 'mFB',
-    Contract("terra17sm265sez3qle769ef4hscx540wem5hvxztpxg"): 'mGLXY',
-    Contract("terra19y6tdnps3dsd7qc230tk3jplwl9jm27mpcx9af"): 'mGME',
-    Contract("terra1504y0r6pqjn3yep6njukehpqtxn0xdnruye524"): 'mGOOGL',
-    Contract("terra199yfqa5092v2udw0k0h9rau9dzel0jkf5kk3km"): 'mGS',
-    Contract("terra1n7pd3ssr9sqacwx5hekxsmdy86lwlm0fsdvnwe"): 'mIAU',
-    Contract("terra18aztjeacdfc5s30ms0558cy8lygvam3s4v69jg"): 'mMSFT',
-    Contract("terra1smu8dc2xpa9rfj525n3a3ttgwnacnjgr59smu7"): 'mNFLX',
-    Contract("terra1r20nvsd08yujq29uukva8fek6g32p848kzlkfc"): 'mQQQ',
-    Contract("terra1re6mcpu4hgzs5wc77gffsluqauanhpa8g7nmjc"): 'mSLV',
-    Contract("terra1j3l2ul7s8fkaadwdan67hejt7k5nylmxfkwg0w"): 'mSPY',
-    Contract("terra1k44gg67rnc6av8sn0602876w8we5lu3jp30yec"): 'mTSLA',
-    Contract("terra1897xd8jqjkfpr5496ur8n896gd8fud3shq3t4q"): 'mTWTR',
-    Contract("terra1c3nyehgvukzrt5k9lxzzw64d68el6cejyxjqde"): 'mUSO',
-    Contract("terra12kt7yf3r7k92dmch97u6cu2fggsewaj3kp0yq9"): 'mVIXY'
+    'terra12kt7yf3r7k92dmch97u6cu2fggsewaj3kp0yq9': 'mVIXY',
+    'terra13uya9kcnan6aevfgqxxngfpclqegvht6tfan5p': 'mBTC',
+    'terra1504y0r6pqjn3yep6njukehpqtxn0xdnruye524': 'mGOOGL',
+    'terra15tecrcm27fenchxaqde9f8ws8krfgjnqf2hhcv': 'ANC',
+    'terra16e3xu8ly6a622tjykfuwuv80czexece8rz0gs5': 'mCOIN',
+    'terra17sm265sez3qle769ef4hscx540wem5hvxztpxg': 'mGLXY',
+    'terra1897xd8jqjkfpr5496ur8n896gd8fud3shq3t4q': 'mTWTR',
+    'terra18aztjeacdfc5s30ms0558cy8lygvam3s4v69jg': 'mMSFT',
+    'terra18mjauk9ug8y29q678c2qlee6rkd9aunrpe9q97': 'mAMZN',
+    'terra199yfqa5092v2udw0k0h9rau9dzel0jkf5kk3km': 'mGS',
+    'terra19y6tdnps3dsd7qc230tk3jplwl9jm27mpcx9af': 'mGME',
+    'terra1c3nyehgvukzrt5k9lxzzw64d68el6cejyxjqde': 'mUSO',
+    'terra1gkjll5uwqlwa8mrmtvzv435732tffpjql494fd': 'MIR',
+    'terra1j3l2ul7s8fkaadwdan67hejt7k5nylmxfkwg0w': 'mSPY',
+    'terra1jm4j6k0e2dpug7z0glc87lwvyqh40z74f40n52': 'mABNB',
+    'terra1k44gg67rnc6av8sn0602876w8we5lu3jp30yec': 'mTSLA',
+    'terra1n7pd3ssr9sqacwx5hekxsmdy86lwlm0fsdvnwe': 'mIAU',
+    'terra1pwd9etdemugqdt92t5d3g98069z0axpz9plnsk': 'mAAPL',
+    'terra1r20nvsd08yujq29uukva8fek6g32p848kzlkfc': 'mQQQ',
+    'terra1re6mcpu4hgzs5wc77gffsluqauanhpa8g7nmjc': 'mSLV',
+    'terra1rxyctpwzqvldalafvry787thslne6asjlwqjhn': 'mETH',
+    'terra1smu8dc2xpa9rfj525n3a3ttgwnacnjgr59smu7': 'mNFLX',
+    'terra1uvzz9fchferxpg64pdshnrc49zkxjcj66uppq8': 'mBABA',
+    'terra1wa87zjty4y983yyt604hdnyr8rm9mwz7let8uz': 'mAMC',
+    'terra1xl2tf5sjzz9phm4veh5ty5jzqrjykkqw33yt63': 'mFB'
 }
 
 SYM_TO_MASSET_COL = {
@@ -247,4 +247,11 @@ SYM_TO_MASSET_COL = {
     'mTWTR': 'terra1cc3enj9qgchlrj34cnzhwuclc4vl2z3jl7tkqg',
     'mUSO': 'terra1lvmx8fsagy70tv0fhmfzdw9h6s3sy4prz38ugf',
     'mVIXY': 'terra19cmt6vzvhnnnfsmccaaxzy2uaj06zjktu6yzjx'
+}
+
+SYM_TO_COINGECKO_ID = { 
+    'ANC': 'anchor-protocol',
+    'uluna': 'terra-luna',
+    'MIR': 'mirror-protocol', # can use graphql for this one
+    'UST': 'terrausd'
 }
