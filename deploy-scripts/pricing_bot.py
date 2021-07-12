@@ -38,24 +38,6 @@ TESTING = True
 #     print("Updated Cluster State: ", cluster_state)
 #     # print('setting prices')
 
-def get_prices(symbols):
-
-    url = "https://api.coingecko.com/api/v3/simple/price?ids={}&vs_currencies=usd"
-
-    for info, native in symbols:
-        import pdb; pdb.set_trace()
-        if native:
-            # USE COINGECKO
-        
-            response = requests.get(url.format(SYM_TO_COINGECKO_ID[info]))
-            try:
-                data = json.loads(response.text)
-            except (ConnectionError, Timeout, TooManyRedirects) as e:
-                print(e)
-        else:
-            price = get_graphql_price(info, testing=TESTING)
-
-
 # Could do something like if token symbol starts with m [check with token query] -> call this endpoint
 
 
@@ -66,7 +48,7 @@ async def get_graphql_price(address, testing=False):
 
     if testing:
         try:
-            sym = CONTRACT_TOKEN_TO_SYM_TEQ['address']
+            sym = CONTRACT_TOKEN_TO_SYM_TEQ[address]
             col_address = SYM_TO_MASSET_COL[sym]
         except:
             raise NameError
@@ -93,6 +75,33 @@ async def get_graphql_price(address, testing=False):
     symbol = asset['symbol']
     return symbol, price
 
+async def get_prices(symbols):
+
+    url = "https://api.coingecko.com/api/v3/simple/price?ids={}&vs_currencies=usd"
+    prices = []
+    import pdb; pdb.set_trace()
+    for info, mirrored in symbols:
+        if mirrored:
+
+            # Query for mAssets
+            price = await get_graphql_price(info, testing=TESTING)
+            prices.append(price)
+
+        else:
+            # USE COINGECKO
+            cg_id = SYM_TO_COINGECKO_ID[info]
+        
+            response = requests.get(url.format(cg_id))
+            try:
+                data = json.loads(response.text)[cg_id]['usd'] * (10**-6)
+                prices.append(data)
+            except (ConnectionError, Timeout, TooManyRedirects) as e:
+                print(e)
+            
+    import pdb; pdb.set_trace()
+    print(prices)
+
+
 
 cluster_addr = sys.argv[1]
 cluster = Contract(cluster_addr)
@@ -115,17 +124,23 @@ async def pricing_bot():
             denom = asset["native_token"]["denom"]
             contract_addrs.append(denom)
             symbols.append(denom)
-            query_info.append([denom, True])
+            query_info.append([denom, False])
         else:
             addr = asset["token"]["contract_addr"]
             token_info = await Contract(addr).query.token_info()
+            symbol = token_info["symbol"]
             contract_addrs.append(addr)
-            symbols.append(token_info["symbol"])
-            query_info.append([token_info["symbol"], False])
-
+            symbols.append(symbol)
+            if symbol[0] == 'm':
+                # Use address for mirrored assets
+                query_info.append([addr, True])
+            else:
+                # Use symbol mapping for CoinGecko
+                query_info.append([symbol, False])
+            
     while True:
         # TODO: FIX THIS
-        price_data = get_prices(query_info)
+        price_data = await get_prices(query_info)
         set_prices_data = []
         for i in range(len(contract_addrs)):
             set_prices_data.append(
@@ -133,8 +148,8 @@ async def pricing_bot():
             )
 
         await oracle.set_prices(prices=set_prices_data)
-        basket_state = await cluster.query.basket_state(
-            basket_contract_address=cluster_addr
+        cluster_state = await cluster.query.cluster_state(
+            cluster_contract_address=cluster_addr
         )
         print("new prices", price_data)
         await asyncio.sleep(30)
