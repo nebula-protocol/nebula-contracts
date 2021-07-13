@@ -79,15 +79,20 @@ class TerraFullDilutedMcapRecomposer:
 
 async def run_recomposition_periodically(cluster_contract, interval):
     start_time = time.time()
+
+    ANC_ADDR = 'terra15tecrcm27fenchxaqde9f8ws8krfgjnqf2hhcv'
+    MIR_ADDR = 'terra1gkjll5uwqlwa8mrmtvzv435732tffpjql494fd'
     assets = [
         "uluna", #LUNA
-        "terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc", #ANC
-        "terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u" #MIR
+        ANC_ADDR, #ANC
+        MIR_ADDR #MIR
     ]
-    anc_token = Contract("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc") 
+    anc_token = Contract(ANC_ADDR) 
+
+    # May not be accurate on Tequila
     anc_token_info = await anc_token.query.token_info()
     anc_total_supply = float(anc_token_info['total_supply'])
-    mir_token = Contract("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u")
+    mir_token = Contract(MIR_ADDR)
     mir_token_info = await mir_token.query.token_info()
     mir_total_supply = float(mir_token_info['total_supply'])
     coins_total_supply = await terra.supply.total()

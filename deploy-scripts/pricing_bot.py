@@ -75,12 +75,12 @@ async def get_graphql_price(address, testing=False):
     symbol = asset['symbol']
     return symbol, price
 
-async def get_prices(symbols):
+async def get_prices(infos):
 
     url = "https://api.coingecko.com/api/v3/simple/price?ids={}&vs_currencies=usd"
     prices = []
     import pdb; pdb.set_trace()
-    for info, mirrored in symbols:
+    for info, mirrored in infos:
         if mirrored:
 
             # Query for mAssets

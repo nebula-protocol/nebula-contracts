@@ -8,7 +8,7 @@ from ecosystem import Ecosystem
 from contract_helpers import Contract, ClusterContract, chain
 import asyncio
 from base import deployer
-from constants import DEPLOY_ENVIRONMENT_STATUS_W_GOV
+from constants import DEPLOY_ENVIRONMENT_STATUS_W_GOV, SYM_TO_CONTRACT_TOKEN_TEQ
 
 REQUIRE_GOV = True
 
@@ -24,9 +24,12 @@ async def deploy_terra_ecosystem():
     for key in DEPLOY_ENVIRONMENT_STATUS_W_GOV:
         setattr(ecosystem, key, DEPLOY_ENVIRONMENT_STATUS_W_GOV[key])
 
+    MIR_ADDR = SYM_TO_CONTRACT_TOKEN_TEQ['MIR'].address
+    ANC_ADDR = SYM_TO_CONTRACT_TOKEN_TEQ['ANC'].address
+
     cw20_asset_tokens = [
-        Contract("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u"),  # MIR
-        Contract("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc"),  # ANC
+        Contract(MIR_ADDR),  # MIR
+        Contract(ANC_ADDR),  # ANC
     ]
 
     code_ids = ecosystem.code_ids
@@ -62,7 +65,7 @@ async def deploy_terra_ecosystem():
     create_cluster = ecosystem.factory.create_cluster(
         params={
             "name": "Terra Ecosystem",
-            "symbol": "TERTEST",
+            "symbol": "TER",
             "penalty": penalty_contract,
             "target": target_weights,
             "assets": asset_tokens,
@@ -73,16 +76,23 @@ async def deploy_terra_ecosystem():
 
     if REQUIRE_GOV:
         # only need to send once
+        gov_config = await ecosystem.gov.query.config()
+        staker_info = await ecosystem.gov.query.staker(address=deployer.key.acc_address)
+        print(staker_info)
 
-        # await ecosystem.neb_token.send(
-        #     contract=ecosystem.gov,
-        #     amount="600000000000",
-        #     msg=ecosystem.gov.stake_voting_tokens(lock_for_weeks = 104),
-        # )
+        if float(staker_info['share']) < float(gov_config['quorum']):
+            await ecosystem.neb_token.send(
+                contract=ecosystem.gov,
+                amount="600000000000",
+                msg=ecosystem.gov.stake_voting_tokens(lock_for_weeks = 104),
+            )
+            staker_info = await ecosystem.gov.query.staker(address=deployer.key.acc_address)
+            print('post send', staker_info)
 
         resp = await ecosystem.create_and_execute_poll(
             {"contract": ecosystem.factory, "msg": create_cluster}, sleep_time=30
         )
+        
     else:
         resp = await create_cluster
 
@@ -110,8 +120,8 @@ async def deploy_terra_ecosystem():
     print("cluster", cluster)
 
     prices = [
-        ("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u", "1"),
-        ("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc", "1"),
+        (MIR_ADDR, "1"),
+        (ANC_ADDR, "1"),
         ("uluna", "1")
     ]
 
@@ -120,30 +130,30 @@ async def deploy_terra_ecosystem():
     print('setting prices')
 
     mint_cw20_assets = [
-        Contract("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u"),
-        Contract("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc"),
+        Contract(MIR_ADDR),
+        Contract(ANC_ADDR),
     ]
 
     # Do this separately because we have a native asset
-    msgs = []
-    mint_assets = []
-    for asset in mint_cw20_assets:
-        msgs.append(asset.increase_allowance(spender=cluster, amount="1000"))
-        mint_assets.append(Asset.asset(asset, "1000"))
+    # msgs = []
+    # mint_assets = []
+    # for asset in mint_cw20_assets:
+    #     msgs.append(asset.increase_allowance(spender=cluster, amount="1000"))
+    #     mint_assets.append(Asset.asset(asset, "1000"))
 
-    mint_assets.append(Asset.asset("uluna", "1000", native=True))
+    # mint_assets.append(Asset.asset("uluna", "1000", native=True))
 
-    msgs.append(
-        cluster.mint(asset_amounts=mint_assets, min_tokens="100", _send={"uluna": "1000"})
-    )
+    # msgs.append(
+    #     cluster.mint(asset_amounts=mint_assets, min_tokens="100", _send={"uluna": "1000"})
+    # )
 
-    await chain(*msgs)
+    # await chain(*msgs)
     
 
-    print('mint complete')
+    # print('mint complete')
 
     resp = await cluster.query.cluster_state(cluster_contract_address=cluster)
-    print(resp)
+    print('cluster_state', resp)
 
     print(logs)
 
