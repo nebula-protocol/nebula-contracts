@@ -82,9 +82,9 @@ async def test_incentives_ops(eco: Ecosystem):
         ]
     )
     await chain(
-        eco.cluster_token.increase_allowance(spender=eco.incentives, amount="5"),
+        eco.cluster_token.increase_allowance(spender=eco.incentives, amount="10000000000"),
         eco.incentives.redeem(
-            max_tokens="5",
+            max_tokens="10000000000",
             cluster_contract=eco.cluster,
         ),
     )
@@ -103,3 +103,16 @@ async def test_incentives_ops(eco: Ecosystem):
 
     await eco.incentives.new_penalty_period()
     await eco.incentives.withdraw()
+
+    # test too high penalties are rejected properly
+    try:
+        await chain(
+            eco.asset_tokens[0].increase_allowance(spender=eco.incentives, amount="50000000000"),
+            eco.incentives.arb_cluster_mint(
+                cluster_contract=eco.cluster,
+                assets=[Asset.asset(eco.asset_tokens[0], "50000000000")]
+            )
+        )
+        assert False
+    except Exception as e:
+        assert "cluster imbalance too high" in str(e)
