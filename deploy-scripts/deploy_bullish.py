@@ -8,14 +8,14 @@ from ecosystem import Ecosystem
 from contract_helpers import Contract, ClusterContract, chain
 import asyncio
 from base import deployer
-from constants import DEPLOY_ENVIRONMENT_STATUS_W_GOV
+from constants import DEPLOY_ENVIRONMENT_STATUS_W_GOV, CONTRACT_TOKEN_TO_SYM_TEQ
 import json
 import requests
 
 REQUIRE_GOV = True
 
 
-async def deploy_bullish():
+async def deploy_momentum():
 
     ecosystem = Ecosystem(require_gov=REQUIRE_GOV)
 
@@ -26,9 +26,9 @@ async def deploy_bullish():
     for key in DEPLOY_ENVIRONMENT_STATUS_W_GOV:
         setattr(ecosystem, key, DEPLOY_ENVIRONMENT_STATUS_W_GOV[key])
 
-    # Just include MIR for now, and rely on rebalance to do things
+    # Just include MIR for now, and rely on recomp to do things
     asset_tokens = [
-        Contract("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u"),  # MIR
+        Contract("terra1gkjll5uwqlwa8mrmtvzv435732tffpjql494fd"),  # MIR
     ]
 
     code_ids = ecosystem.code_ids
@@ -65,22 +65,29 @@ async def deploy_bullish():
             "target": target_weights,
             "assets": [Asset.cw20_asset_info(i.address) for i in asset_tokens],
             "pricing_oracle": oracle,
-            "composition_oracle": 'terra1y602xtyd2ycp0c76uhn3tq7w8rj9rh7t07rwjn',
+            "composition_oracle": 'terra14ew659y4fn4dytu832k9f6l2u94668uclrywfg',
         },
     )
 
     if REQUIRE_GOV:
         # only need to send once
+        gov_config = await ecosystem.gov.query.config()
+        staker_info = await ecosystem.gov.query.staker(address=deployer.key.acc_address)
+        print(staker_info)
 
-        # await ecosystem.neb_token.send(
-        #     contract=ecosystem.gov,
-        #     amount="600000000000",
-        #     msg=ecosystem.gov.stake_voting_tokens(lock_for_weeks = 104),
-        # )
+        if float(staker_info['share']) == 0.0:
+            await ecosystem.neb_token.send(
+                contract=ecosystem.gov,
+                amount="600000000000",
+                msg=ecosystem.gov.stake_voting_tokens(lock_for_weeks = 104),
+            )
+            staker_info = await ecosystem.gov.query.staker(address=deployer.key.acc_address)
+            print('post send', staker_info)
 
         resp = await ecosystem.create_and_execute_poll(
             {"contract": ecosystem.factory, "msg": create_cluster}, sleep_time=30
         )
+
     else:
         resp = await create_cluster
 
@@ -102,39 +109,21 @@ async def deploy_bullish():
 
     print("cluster", cluster)
 
-    async def get_all_mirror_assets():
-        query = """
-        query {
-            assets {
-                token
-            }
-        }"""
-        
-        # For deploying on test network
-        url = 'https://tequila-graph.mirror.finance/graphql'
-        r = requests.post(url, json={'query': query}, headers=None)
-        r.raise_for_status()
-        assets = json.loads(r.text)['data']['assets']
-        addresses = [a['token'] for a in assets]
 
-        return addresses
-
-    addresses = await get_all_mirror_assets()
+    # Set prices so we can see if cluster deploys properly
+    addresses = list(CONTRACT_TOKEN_TO_SYM_TEQ.keys())
     prices = [
         (a, "1") for a in addresses if a is not None
     ]
 
-    # prices = [
-    #     ("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u", "1")
-    # ]
-
+    # Will use pricing bot to set prices later
     await oracle.set_prices(prices=prices)
 
     print('setting prices')
 
-    await cluster.mint(asset_amounts=["1000"], min_tokens="100")
+    # await cluster.mint(asset_amounts=["1000"], min_tokens="100")
 
-    print('mint complete')
+    # print('mint complete')
 
     resp = await cluster.query.cluster_state(cluster_contract_address=cluster)
     print(resp)
@@ -148,4 +137,4 @@ async def deploy_bullish():
 
 
 if __name__ == "__main__":
-    asyncio.get_event_loop().run_until_complete(deploy_bullish())
+    asyncio.get_event_loop().run_until_complete(deploy_momentum())

@@ -80,7 +80,7 @@ async def deploy_terra_ecosystem():
         staker_info = await ecosystem.gov.query.staker(address=deployer.key.acc_address)
         print(staker_info)
 
-        if float(staker_info['share']) < float(gov_config['quorum']):
+        if float(staker_info['share']) == 0.0:
             await ecosystem.neb_token.send(
                 contract=ecosystem.gov,
                 amount="600000000000",

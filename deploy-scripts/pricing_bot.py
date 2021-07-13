@@ -17,30 +17,6 @@ import json
 REQUIRE_GOV = True
 TESTING = True
 
-
-# async def pricing_bot():
-#     oracle = Contract("terra1qey38t4ptytznnel2ty52r42dm6tee63gnurs2") #dummy oracle
-
-#     prices = [
-#         ("terra10llyp6v3j3her8u3ce66ragytu45kcmd9asj3u", "3.76"),
-#         ("terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc", "2.27"),
-#         ("uluna", "0.000000576")
-#     ]
-
-#     await oracle.set_prices(prices=prices)
-#     cluster = Contract("terra1ae2amnd99wppjyumwz6qet7sjx6ynq39g8zha5")
-#     cluster_state = await cluster.query.cluster_state(
-#         cluster_contract_address=cluster
-#     )
-#     config = await cluster.query.config()
-#     print(config)
-
-#     print("Updated Cluster State: ", cluster_state)
-#     # print('setting prices')
-
-# Could do something like if token symbol starts with m [check with token query] -> call this endpoint
-
-
 async def get_graphql_price(address, testing=False):
     # Note to Manav: if testing is true, that means we're using this on testnet with our made up contract
     # for cluster tokens -> have some dictionaries in constants.py that we can use to query the actual Col-4
@@ -79,7 +55,6 @@ async def get_prices(infos):
 
     url = "https://api.coingecko.com/api/v3/simple/price?ids={}&vs_currencies=usd"
     prices = []
-    import pdb; pdb.set_trace()
     for info, mirrored in infos:
         if mirrored:
 
@@ -93,13 +68,18 @@ async def get_prices(infos):
         
             response = requests.get(url.format(cg_id))
             try:
-                data = json.loads(response.text)[cg_id]['usd'] * (10**-6)
+                data = json.loads(response.text)[cg_id]['usd']
+
+                # Should encompass uluna + uust (test uust)
+                if info.islower():
+                    data = data * (10**-6)
                 prices.append(data)
+
             except (ConnectionError, Timeout, TooManyRedirects) as e:
                 print(e)
             
-    import pdb; pdb.set_trace()
     print(prices)
+    return prices
 
 
 
@@ -117,7 +97,7 @@ async def pricing_bot():
     symbols = []
     query_info = []
 
-    # TODO: Native (?)
+    # TODO: Native (?)c
     for asset in cluster_state["assets"]:
         if list(asset.keys())[0] == 'native_token':
             # query coingecko
@@ -142,11 +122,12 @@ async def pricing_bot():
         # TODO: FIX THIS
         price_data = await get_prices(query_info)
         set_prices_data = []
+
         for i in range(len(contract_addrs)):
             set_prices_data.append(
-                [contract_addrs[i], str(price_data[symbols[i][0]]["price"])]
+                [contract_addrs[i], str(price_data[i])]
             )
-
+        import pdb; pdb.set_trace()
         await oracle.set_prices(prices=set_prices_data)
         cluster_state = await cluster.query.cluster_state(
             cluster_contract_address=cluster_addr
