@@ -92,11 +92,11 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
 
     let asset_amounts: Vec<Uint128> = match &asset_amounts {
         Some(weights) => {
-            let mut vec: Vec<Uint128> = Vec::new();
+            let mut vec: Vec<Uint128> = vec![Uint128(0); asset_infos.len()];
             for i in 0..asset_infos.len() {
                 for j in 0..weights.len() {
                     if weights[j].info.clone() == asset_infos[i].clone() {
-                        vec.push(weights[j].amount);
+                        vec[i] = weights[j].amount;
                         break;
                     }
                 }
