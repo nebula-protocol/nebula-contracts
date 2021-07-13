@@ -156,4 +156,4 @@ async def mirror_history_query_test(address, tick, from_stamp, to_stamp):
     
 
 async def get_all_mirror_assets_test():
-    return list(CONTRACT_TOKEN_TO_SYM_TEQ.keys())
+    return [k for k in list(CONTRACT_TOKEN_TO_SYM_TEQ.keys()) if (k[0] == 'm' or k == 'MIR')]
