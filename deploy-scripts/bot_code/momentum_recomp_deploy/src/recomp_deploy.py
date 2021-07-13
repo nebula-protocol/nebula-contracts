@@ -46,7 +46,6 @@ class MomentumTradingRecomposer:
         from_time = to - minutes * 1000 * 60
 
         data = [await mirror_history_query_test(a, MINUTES_PER_DAY, from_time, to) for a in addresses]
-
         asset_names, max_timestamps, closes, _ = zip(*data)
 
         names_to_changes = {}
