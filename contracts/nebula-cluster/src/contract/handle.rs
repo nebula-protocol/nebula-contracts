@@ -10,6 +10,7 @@ use crate::contract::query_cluster_state;
 use crate::error;
 use crate::ext_query::{
     query_collector_contract_address, query_mint_amount, query_redeem_amount, ExtQueryMsg,
+    query_cw20_balance,
 };
 use crate::state::{read_config, save_config, TargetAssetData};
 use crate::state::{read_target_asset_data, save_target_asset_data};
@@ -18,6 +19,7 @@ use cluster_math::FPDecimal;
 use nebula_protocol::cluster::HandleMsg;
 use std::str::FromStr;
 use terraswap::asset::{Asset, AssetInfo};
+use terraswap::querier::query_balance;
 
 // prices last 30s before they go from fresh to stale
 const FRESH_TIMESPAN: u64 = 30;
@@ -268,12 +270,6 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
         asset_data.push(asset_elem);
     }
 
-    let updated_assets = asset_data
-        .iter()
-        .map(|x| x.asset.clone())
-        .collect::<Vec<_>>();
-    let updated_target = asset_data.iter().map(|x| x.target).collect::<Vec<_>>();
-
     let prev_asset_data = read_target_asset_data(&deps.storage)?;
     let prev_assets = prev_asset_data
         .iter()
@@ -281,7 +277,33 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
         .collect::<Vec<_>>();
     let prev_target = prev_asset_data.iter().map(|x| x.target).collect::<Vec<_>>();
 
+    for i in 0..prev_assets.len() {
+        let prev_asset = &prev_assets[i];
+        let inv_balance = match prev_asset {
+            AssetInfo::Token { contract_addr } => {
+                query_cw20_balance(&deps, &contract_addr, &env.contract.address)
+            }
+            AssetInfo::NativeToken { denom } => {
+                query_balance(&deps, &env.contract.address, denom.clone())
+            }
+        };
+
+        if !inv_balance?.is_zero() {
+            let asset_elem = TargetAssetData {
+                asset: prev_asset.clone(),
+                target: 0,
+            };
+            asset_data.push(asset_elem);
+        }
+    }
+
     save_target_asset_data(&mut deps.storage, &asset_data)?;
+
+    let updated_assets = asset_data
+        .iter()
+        .map(|x| x.asset.clone())
+        .collect::<Vec<_>>();
+    let updated_target = asset_data.iter().map(|x| x.target).collect::<Vec<_>>();
 
     Ok(HandleResponse {
         messages: vec![],
