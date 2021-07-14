@@ -15,7 +15,7 @@ import requests
 REQUIRE_GOV = True
 
 
-async def deploy_bullish():
+async def deploy_fabmang():
 
     ecosystem = Ecosystem(require_gov=REQUIRE_GOV)
 
@@ -59,8 +59,8 @@ async def deploy_bullish():
 
     create_cluster = ecosystem.factory.create_cluster(
         params={
-            "name": "Bullish Cross (Self Optimized MA)",
-            "symbol": "BULL",
+            "name": "FAB MANG",
+            "symbol": "FABMANG",
             "penalty": penalty_contract,
             "target": target_weights,
             "assets": [Asset.cw20_asset_info(i.address) for i in asset_tokens],
@@ -137,4 +137,4 @@ async def deploy_bullish():
 
 
 if __name__ == "__main__":
-    asyncio.get_event_loop().run_until_complete(deploy_bullish())
+    asyncio.get_event_loop().run_until_complete(deploy_fabmang())

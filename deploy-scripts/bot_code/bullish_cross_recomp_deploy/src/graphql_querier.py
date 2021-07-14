@@ -116,7 +116,7 @@ async def mirror_history_query_test(address, tick, from_stamp, to_stamp):
     """
 
     try:
-        sym = CONTRACT_TOKEN_TO_SYM_TEQ['address']
+        sym = CONTRACT_TOKEN_TO_SYM_TEQ[address]
         col_address = SYM_TO_MASSET_COL[sym]
     except:
         raise NameError
