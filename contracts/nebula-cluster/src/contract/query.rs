@@ -90,16 +90,9 @@ pub fn query_cluster_state<S: Storage, A: Api, Q: Querier>(
         })
         .collect::<StdResult<Vec<Uint128>>>()?;
 
-    let target_asset_data = read_target_asset_data(&deps.storage)?;
-
     let target = target_asset_data
         .iter()
         .map(|x| x.target)
-        .collect::<Vec<_>>();
-
-    let assets = target_asset_data
-        .iter()
-        .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
 
     Ok(ClusterStateResponse {
