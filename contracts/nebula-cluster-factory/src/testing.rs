@@ -280,7 +280,7 @@
 
 //     let msg = HandleMsg::Whitelist {
 //         name: "apple derivative".to_string(),
-//         symbol: "mAPPL".to_string(),
+//         symbol: "mAAPL".to_string(),
 //         oracle_feeder: HumanAddr::from("feeder0000"),
 //         params: Params {
 //             auction_discount: Decimal::percent(5),
@@ -297,7 +297,7 @@
 //         res.log,
 //         vec![
 //             log("action", "whitelist"),
-//             log("symbol", "mAPPL"),
+//             log("symbol", "mAAPL"),
 //             log("name", "apple derivative")
 //         ]
 //     );
@@ -311,7 +311,7 @@
 //             label: None,
 //             msg: to_binary(&TokenInitMsg {
 //                 name: "apple derivative".to_string(),
-//                 symbol: "mAPPL".to_string(),
+//                 symbol: "mAAPL".to_string(),
 //                 decimals: 6u8,
 //                 initial_balances: vec![],
 //                 mint: Some(MinterResponse {
@@ -395,7 +395,7 @@
 
 //     let msg = HandleMsg::Whitelist {
 //         name: "apple derivative".to_string(),
-//         symbol: "mAPPL".to_string(),
+//         symbol: "mAAPL".to_string(),
 //         oracle_feeder: HumanAddr::from("feeder0000"),
 //         params: Params {
 //             auction_discount: Decimal::percent(5),
@@ -525,7 +525,7 @@
 
 //     let msg = HandleMsg::Whitelist {
 //         name: "apple derivative".to_string(),
-//         symbol: "mAPPL".to_string(),
+//         symbol: "mAAPL".to_string(),
 //         oracle_feeder: HumanAddr::from("feeder0000"),
 //         params: Params {
 //             auction_discount: Decimal::percent(5),
@@ -644,7 +644,7 @@
 
 //     let msg = HandleMsg::Whitelist {
 //         name: "apple derivative".to_string(),
-//         symbol: "mAPPL".to_string(),
+//         symbol: "mAAPL".to_string(),
 //         oracle_feeder: HumanAddr::from("feeder0000"),
 //         params: Params {
 //             auction_discount: Decimal::percent(5),
@@ -716,7 +716,7 @@
 //     // whitelist first item with weight 1.5
 //     let msg = HandleMsg::Whitelist {
 //         name: "apple derivative".to_string(),
-//         symbol: "mAPPL".to_string(),
+//         symbol: "mAAPL".to_string(),
 //         oracle_feeder: HumanAddr::from("feeder0000"),
 //         params: Params {
 //             auction_discount: Decimal::percent(5),
@@ -871,7 +871,7 @@
 //     // whitelist first item with weight 1.5
 //     let msg = HandleMsg::Whitelist {
 //         name: "apple derivative".to_string(),
-//         symbol: "mAPPL".to_string(),
+//         symbol: "mAAPL".to_string(),
 //         oracle_feeder: HumanAddr::from("feeder0000"),
 //         params: Params {
 //             auction_discount: Decimal::percent(5),
@@ -959,7 +959,7 @@
 //     // whitelist first item with weight 1.5
 //     let msg = HandleMsg::Whitelist {
 //         name: "apple derivative".to_string(),
-//         symbol: "mAPPL".to_string(),
+//         symbol: "mAAPL".to_string(),
 //         oracle_feeder: HumanAddr::from("feeder0000"),
 //         params: Params {
 //             auction_discount: Decimal::percent(5),
@@ -997,7 +997,7 @@
 //     // unauthorized migrate attempt
 //     let msg = HandleMsg::MigrateAsset {
 //         name: "apple migration".to_string(),
-//         symbol: "mAPPL2".to_string(),
+//         symbol: "mAAPL2".to_string(),
 //         from_token: HumanAddr::from("asset0000"),
 //         end_price: Decimal::from_ratio(2u128, 1u128),
 //     };
@@ -1029,7 +1029,7 @@
 //                 label: None,
 //                 msg: to_binary(&TokenInitMsg {
 //                     name: "apple migration".to_string(),
-//                     symbol: "mAPPL2".to_string(),
+//                     symbol: "mAAPL2".to_string(),
 //                     decimals: 6u8,
 //                     initial_balances: vec![],
 //                     mint: Some(MinterResponse {
