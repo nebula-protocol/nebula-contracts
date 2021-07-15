@@ -82,6 +82,6 @@ mod tests {
 
         // make sure target was saved
         let value = q!(&deps, TargetResponse, QueryMsg::Target {});
-        assert_eq!(vec![20, 10, 65, 5], value.target);
+        assert_eq!(vec![20, 20, 20, 20], value.target);
     }
 }

@@ -705,7 +705,7 @@ mod tests {
         };
     
         let env = mock_env(h("addr0000"), &[]);
-        let res = handle(&mut deps, env, mint_msg).unwrap();
+        // let res = handle(&mut deps, env, mint_msg).unwrap();
 
         // match res {
         //     Err(..) => (),
