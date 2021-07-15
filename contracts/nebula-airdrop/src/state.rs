@@ -47,6 +47,13 @@ pub fn read_merkle_root<S: Storage>(storage: &S, stage: u8) -> StdResult<String>
     claim_index_bucket.load(&[stage])
 }
 
+pub fn merkle_root_exists<S: Storage>(storage: &S, stage: u8) -> StdResult<bool> {
+    match ReadonlyBucket::new(PREFIX_MERKLE_ROOT, storage).load(&[stage]) {
+        Ok(res) => Ok(res),
+        Err(_) => Ok(false),
+    }
+}
+
 pub fn store_claimed<S: Storage>(
     storage: &mut S,
     user: &HumanAddr,
