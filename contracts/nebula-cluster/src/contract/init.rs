@@ -1,10 +1,22 @@
 use crate::error;
 use nebula_protocol::cluster::{InitMsg, ClusterConfig};
+use terraswap::asset::AssetInfo;
 use crate::{
     state::{save_config, save_target_asset_data, TargetAssetData},
     util::vec_to_string,
 };
-use cosmwasm_std::{log, Api, Env, Extern, InitResponse, Querier, StdResult, Storage, CosmosMsg, WasmMsg};
+use cosmwasm_std::{log, Api, Env, Extern, InitResponse, Querier, StdResult, Storage, CosmosMsg, WasmMsg, StdError};
+
+pub fn validate_targets(target_assets: Vec<AssetInfo>) -> bool {
+    for i in 0..target_assets.len()-1 {
+        for j in i+1..target_assets.len() {
+            if target_assets[i].equal(&target_assets[j]) {
+                return false;
+            }
+        };
+    }
+    return true;
+}
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -29,8 +41,14 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         penalty: msg.penalty.clone(),
     };
 
-    // TODO: See if we need clone here
     let assets = msg.assets.clone();
+
+    if !validate_targets(assets.clone()) {
+        return Err(StdError::generic_err(
+            "Cluster cannot contain duplicate assets",
+        ));
+    }
+
     let target = msg.target.clone();
 
     // TODO: Consider renaming struct name

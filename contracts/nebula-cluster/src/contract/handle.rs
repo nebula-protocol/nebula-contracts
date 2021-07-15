@@ -6,7 +6,7 @@ use cosmwasm_std::{
 use cw20::Cw20HandleMsg;
 use error::bad_weight_values;
 
-use crate::contract::query_cluster_state;
+use crate::contract::{query_cluster_state, validate_targets};
 use crate::error;
 use crate::ext_query::{
     query_collector_contract_address, query_mint_amount, query_redeem_amount, ExtQueryMsg,
@@ -261,6 +261,13 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     if target.len() != assets.len() {
         return Err(error::bad_weight_dimensions(target.len(), assets.len()));
     }
+
+    if !validate_targets(assets.clone()) {
+        return Err(StdError::generic_err(
+            "Cluster cannot contain duplicate assets",
+        ));
+    }
+
     let mut asset_data: Vec<TargetAssetData> = Vec::new();
     for i in 0..target.len() {
         let asset_elem = TargetAssetData {

@@ -37,6 +37,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 ) -> InitResult {
     validate_quorum(msg.quorum)?;
     validate_threshold(msg.threshold)?;
+    validate_voter_weight(msg.voter_weight)?;
 
     let config = Config {
         nebula_token: msg.nebula_token,
@@ -183,10 +184,12 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
         }
 
         if let Some(quorum) = quorum {
+            validate_quorum(quorum)?;
             config.quorum = quorum;
         }
 
         if let Some(threshold) = threshold {
+            validate_quorum(threshold)?;
             config.threshold = threshold;
         }
 
@@ -207,6 +210,7 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
         }
 
         if let Some(voter_weight) = voter_weight {
+            validate_voter_weight(voter_weight)?;
             config.voter_weight = voter_weight;
         }
 
@@ -271,6 +275,16 @@ fn validate_quorum(quorum: Decimal) -> StdResult<()> {
 fn validate_threshold(threshold: Decimal) -> StdResult<()> {
     if threshold > Decimal::one() {
         Err(StdError::generic_err("threshold must be 0 to 1"))
+    } else {
+        Ok(())
+    }
+}
+
+/// validate_voter_weight returns an error if the voter weight is invalid
+/// (we require 0-1)
+fn validate_voter_weight(voter_weight: Decimal) -> StdResult<()> {
+    if voter_weight > Decimal::one() {
+        Err(StdError::generic_err("quorum must be 0 to 1"))
     } else {
         Ok(())
     }
