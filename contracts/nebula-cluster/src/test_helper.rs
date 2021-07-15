@@ -2,7 +2,7 @@ pub use crate::contract::*;
 pub use crate::ext_query::*;
 pub use crate::state::*;
 pub use nebula_protocol::cluster::{InitMsg};
-pub use nebula_protocol::penalty::*;
+pub use nebula_protocol::penalty::{MintResponse, PenaltyParams};
 pub use cluster_math::*;
 pub use cosmwasm_std::testing::{mock_env, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 pub use cosmwasm_std::*;
@@ -89,8 +89,8 @@ impl CustomMockQuerier {
                         Some(base_price) => match self.oracle_querier.assets.get(&quote_asset) {
                             Some(quote_price) => Ok(to_binary(&PriceResponse {
                                 rate: decimal_division(*base_price, *quote_price),
-                                last_updated_base: 1000u64,
-                                last_updated_quote: 1000u64,
+                                last_updated_base: u64::MAX,
+                                last_updated_quote: u64::MAX,
                             })),
                             None => Err(SystemError::InvalidRequest {
                                 error: "No oracle price exists".to_string(),
@@ -141,8 +141,27 @@ impl CustomMockQuerier {
                         };
                         Ok(to_binary(&token_data.info))
                     },
+                    ExtQueryMsg::Config {} => {
+                        let config = read_config(&MockStorage::default());
+                        Ok(to_binary(&config))
+                    },
+                    ExtQueryMsg::Mint {
+                        block_height: _,
+                        cluster_token_supply: _,
+                        inventory: _,
+                        mint_asset_amounts: _,
+                        asset_prices: _,
+                        target_weights: _
+                    } => {
+                        let response  = MintResponse {
+                            mint_tokens: Uint128(99),
+                            penalty: Uint128(1234),
+                            log: vec![log("penalty", 1234)],
+                        };
+                        Ok(to_binary(&response))
+                    },
                     _ => {
-                        panic!("ExtQueryMsg type not implemented")
+                        panic!("ExtQueryMsg type not implemented");
                     }
                 }
             }
@@ -393,18 +412,27 @@ pub mod consts {
     pub fn assets_native_stage() -> Vec<AssetInfo> {
         vec![
             AssetInfo::Token {
-                contract_addr: h("wBTC"),
+                contract_addr: h("mAAPL"),
             }, 
-            AssetInfo::NativeToken {
-                denom: "uluna".to_string(),
+            AssetInfo::Token {
+                contract_addr: h("mGOOG"),
             }, 
+            AssetInfo::Token {
+                contract_addr: h("mMSFT"),
+            }, 
+            AssetInfo::Token {
+                contract_addr: h("mNFLX"),
+            }, 
+            // AssetInfo::NativeToken {
+            //     denom: "uluna".to_string(),
+            // }, 
             // AssetInfo::Token {
             //     contract_addr: h("LUNA"),
             // },
         ]
     }
     pub fn target_native_stage() -> Vec<u32> {
-        vec![50, 50]
+        vec![20, 20, 20, 20]
     }
     pub fn penalty_params() -> PenaltyParams {
         PenaltyParams {
