@@ -45,7 +45,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -57,7 +57,7 @@
 //     // cannot update mirror token after initialization
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -73,7 +73,7 @@
 //         config,
 //         ConfigResponse {
 //             owner: HumanAddr::from("owner0000"),
-//             mirror_token: HumanAddr::from("mirror0000"),
+//             nebula_token: HumanAddr::from("nebula0000"),
 //             mint_contract: HumanAddr::from("mint0000"),
 //             staking_contract: HumanAddr::from("staking0000"),
 //             commission_collector: HumanAddr::from("collector0000"),
@@ -102,7 +102,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -126,7 +126,7 @@
 //         config,
 //         ConfigResponse {
 //             owner: HumanAddr::from("owner0001"),
-//             mirror_token: HumanAddr::from("mirror0000"),
+//             nebula_token: HumanAddr::from("nebula0000"),
 //             mint_contract: HumanAddr::from("mint0000"),
 //             staking_contract: HumanAddr::from("staking0000"),
 //             commission_collector: HumanAddr::from("collector0000"),
@@ -154,7 +154,7 @@
 //         config,
 //         ConfigResponse {
 //             owner: HumanAddr::from("owner0001"),
-//             mirror_token: HumanAddr::from("mirror0000"),
+//             nebula_token: HumanAddr::from("nebula0000"),
 //             mint_contract: HumanAddr::from("mint0000"),
 //             staking_contract: HumanAddr::from("staking0000"),
 //             commission_collector: HumanAddr::from("collector0000"),
@@ -196,7 +196,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -269,7 +269,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -371,7 +371,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -501,7 +501,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -633,7 +633,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -704,7 +704,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -796,7 +796,7 @@
 //         res.messages,
 //         vec![
 //             CosmosMsg::Wasm(WasmMsg::Execute {
-//                 contract_addr: HumanAddr::from("mirror0000"),
+//                 contract_addr: HumanAddr::from("nebula0000"),
 //                 msg: to_binary(&Cw20HandleMsg::Send {
 //                     contract: HumanAddr::from("staking0000"),
 //                     amount: Uint128(3600u128),
@@ -811,7 +811,7 @@
 //                 send: vec![],
 //             }),
 //             CosmosMsg::Wasm(WasmMsg::Execute {
-//                 contract_addr: HumanAddr::from("mirror0000"),
+//                 contract_addr: HumanAddr::from("nebula0000"),
 //                 msg: to_binary(&Cw20HandleMsg::Send {
 //                     contract: HumanAddr::from("staking0000"),
 //                     amount: Uint128(3600u128),
@@ -859,7 +859,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -947,7 +947,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -1065,7 +1065,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -1205,7 +1205,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),

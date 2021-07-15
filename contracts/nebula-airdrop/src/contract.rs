@@ -69,6 +69,15 @@ pub fn update_merkle_root<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::unauthorized());
     }
 
+    let latest_stage: u8 = read_latest_stage(&deps.storage)?;
+    
+    if stage > latest_stage {
+        return Err(
+            StdError::generic_err(
+                "Cannot update merkle root of a stage later than the current latest stage"
+            )
+        );
+    }
     store_merkle_root(&mut deps.storage, stage, merkle_root.to_string())?;
 
     Ok(HandleResponse {
