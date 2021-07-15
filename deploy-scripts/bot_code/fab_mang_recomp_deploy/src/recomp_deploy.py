@@ -15,6 +15,7 @@ from terra_sdk.key.mnemonic import MnemonicKey
 
 from api import Asset
 from contract_helpers import Contract, ClusterContract, terra
+import time
 
 SECONDS_PER_DAY = 24 * 60 * 60
 
@@ -75,6 +76,6 @@ async def run_recomposition_periodically(cluster_contract, interval):
         )
 
 if __name__ == "__main__":
-    cluster_contract = Contract("terra1wa7frpp078hnqnlvevmqjyswvnswp4psmkjred") #TODO: UPDATE
+    cluster_contract = Contract("terra15qcvpgnwecl82rljfupcnl4ek9gqej4mcpy4xf") #TODO: UPDATE
     interval = SECONDS_PER_DAY
     asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))

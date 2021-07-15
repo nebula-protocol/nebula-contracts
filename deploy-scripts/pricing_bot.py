@@ -14,6 +14,8 @@ import requests
 from requests.exceptions import ConnectionError, Timeout, TooManyRedirects
 import json
 
+import numpy as np
+
 REQUIRE_GOV = True
 TESTING = True
 
@@ -48,8 +50,7 @@ async def get_graphql_price(address, testing=False):
     asset = json.loads(r.text)['data']['asset']
 
     price = asset['prices']['price']
-    symbol = asset['symbol']
-    return symbol, price
+    return price
 
 async def get_prices(infos):
 
@@ -125,9 +126,14 @@ async def pricing_bot():
 
         for i in range(len(contract_addrs)):
             set_prices_data.append(
-                [contract_addrs[i], str(price_data[i])]
+                [
+                    contract_addrs[i], np.format_float_positional(
+                        float(price_data[i]),
+                        trim='0'
+                    )
+                ]
             )
-        import pdb; pdb.set_trace()
+
         await oracle.set_prices(prices=set_prices_data)
         cluster_state = await cluster.query.cluster_state(
             cluster_contract_address=cluster_addr

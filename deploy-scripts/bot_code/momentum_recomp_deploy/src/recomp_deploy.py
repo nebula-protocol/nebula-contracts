@@ -81,7 +81,7 @@ class MomentumTradingRecomposer:
         )
 
         target = await self.cluster_contract.query.target()
-        cluster = Contract("terra1wa7frpp078hnqnlvevmqjyswvnswp4psmkjred")
+        cluster = Contract("terra1qascdg0c2gsewg6c2u8e5fdgc35mhlcufvmzna")
         cluster_state = await self.cluster_contract.query.cluster_state(
             cluster_contract_address=cluster
         )
@@ -102,6 +102,6 @@ async def run_recomposition_periodically(cluster_contract, interval):
         )
 
 if __name__ == "__main__":
-    cluster_contract = Contract("terra1wa7frpp078hnqnlvevmqjyswvnswp4psmkjred")
+    cluster_contract = Contract("terra1qascdg0c2gsewg6c2u8e5fdgc35mhlcufvmzna")
     interval = SECONDS_PER_DAY
     asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))
