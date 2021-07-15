@@ -9,7 +9,7 @@ async def test_governance_ops(eco: Ecosystem):
         penalty_params={
             "penalty_amt_lo": "0.2",
             "penalty_cutoff_lo": "0.01",
-            "penalty_amt_hi": "0.5",
+            "penalty_amt_hi": "1",
             "penalty_cutoff_hi": "0.1",
             "reward_amt": "0.05",
             "reward_cutoff": "0.02",

@@ -19,6 +19,13 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     _env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
+
+    if msg.penalty_params.penalty_amt_hi != FPDecimal::one() {
+        return Err(StdError::generic_err("penalty amount must reach one"))
+    }
+
+    // TODO: add logic that checks if penalty params result in attackable basket
+
     let cfg = PenaltyConfig {
         owner: msg.owner,
         penalty_params: msg.penalty_params,
@@ -81,6 +88,10 @@ pub fn notional_penalty<S: Storage, A: Api, Q: Querier>(
         // use penalty function
         let cutoff_lo = penalty_cutoff_lo * e;
         let cutoff_hi = penalty_cutoff_hi * e;
+
+        if imb1 > cutoff_hi {
+            return Err(StdError::generic_err("cluster imbalance too high"))
+        }
 
         // penalty function is broken into three pieces, where its flat, linear, and then flat
         // compute the area under each piece separately
