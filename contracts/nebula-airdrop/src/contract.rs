@@ -10,7 +10,7 @@ use nebula_protocol::airdrop::{
 };
 use crate::state::{
     read_claimed, read_config, read_latest_stage, read_merkle_root, store_claimed, store_config,
-    store_latest_stage, store_merkle_root, Config,
+    store_latest_stage, store_merkle_root, merkle_root_exists, Config,
 };
 
 use cw20::Cw20HandleMsg;
@@ -78,6 +78,16 @@ pub fn update_merkle_root<S: Storage, A: Api, Q: Querier>(
             )
         );
     }
+
+    // Disallow overwrites of merkle roots for existing stages
+    if merkle_root_exists(&deps.storage, stage)? {
+        return Err(
+            StdError::generic_err(
+                "Merkle root for given stage already exists"
+            )
+        );
+    }
+
     store_merkle_root(&mut deps.storage, stage, merkle_root.to_string())?;
 
     Ok(HandleResponse {
