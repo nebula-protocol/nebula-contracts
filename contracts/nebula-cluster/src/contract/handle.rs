@@ -477,9 +477,20 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         .clone()
         .ok_or_else(|| error::cluster_token_not_set())?;
 
+
     // accommmodate inputs: subsets of target assets vector
     let mut asset_weights = vec![Uint128(0); asset_infos.len()];
     let mut messages = vec![];
+
+    //Return an error if native assets not in target are sent to the mint function
+    for asset in asset_amounts.iter() {
+        if !asset_infos.contains(&asset.info) {
+            return Err(
+                StdError::generic_err("Unsupported native assets were sent to the mint function")
+            );
+        }
+    }
+
 
     for i in 0..asset_infos.len() {
         for asset in asset_amounts.iter() {
@@ -507,6 +518,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
             }
         }
     }
+
     let asset_weights = asset_weights.clone();
 
     let c = asset_weights;
