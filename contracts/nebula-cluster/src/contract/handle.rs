@@ -690,7 +690,6 @@ mod tests {
         let env = mock_env(h("addr0000"), &[]);
         let res = handle(&mut deps, env, mint_msg).unwrap();
 
-        println!("{}", res);
         // match res {
         //     Err(..) => (),
         //     _ => panic!("requires staging"),
