@@ -270,13 +270,18 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
         asset_data.push(asset_elem);
     }
 
+    let updated_assets = asset_data
+        .iter()
+        .map(|x| x.asset.clone())
+        .collect::<Vec<_>>();
+
     let prev_asset_data = read_target_asset_data(&deps.storage)?;
     let prev_assets = prev_asset_data
         .iter()
         .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
     let prev_target = prev_asset_data.iter().map(|x| x.target).collect::<Vec<_>>();
-
+    
     for i in 0..prev_assets.len() {
         let prev_asset = &prev_assets[i];
         let inv_balance = match prev_asset {
@@ -288,7 +293,7 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
             }
         };
 
-        if !inv_balance?.is_zero() {
+        if !inv_balance?.is_zero() && !updated_assets.contains(&prev_asset) {
             let asset_elem = TargetAssetData {
                 asset: prev_asset.clone(),
                 target: 0,
@@ -920,13 +925,10 @@ mod tests {
                 contract_addr: h("mMSFT"),
             },
             AssetInfo::Token {
-                contract_addr: h("mNFLX"),
-            },
-            AssetInfo::Token {
                 contract_addr: h("mGME"),
             },
         ];
-        let new_targets: Vec<u32> = vec![10, 5, 30, 5, 50];
+        let new_targets: Vec<u32> = vec![10, 5, 35, 50];
 
         let msg = HandleMsg::ResetTarget {
             assets: new_assets.clone(),
@@ -935,7 +937,8 @@ mod tests {
 
         let env = mock_env(consts::owner(), &[]);
         let res = handle(&mut deps, env, msg).unwrap();
-
+        
+        // mNFLX should still be in logs with target 0
         for log in res.log.iter() {
             println!("{}: {}", log.key, log.value);
         }
