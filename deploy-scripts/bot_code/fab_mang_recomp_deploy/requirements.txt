@@ -1,0 +1,3 @@
+yfinance==0.1.63
+requests==2.25.1
+terra_sdk==0.14.0
