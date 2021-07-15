@@ -1,15 +1,14 @@
-use crate::contract::{handle, init, query};
-use nebula_protocol::airdrop::{
-    ConfigResponse, HandleMsg, InitMsg, IsClaimedResponse, LatestStageResponse, MerkleRootResponse,
-    QueryMsg,
-};
-use cosmwasm_std::testing::{mock_dependencies, mock_env};
-use cosmwasm_std::{from_binary, log, to_binary, CosmosMsg, HumanAddr, StdError, Uint128, WasmMsg};
-use cw20::Cw20HandleMsg;
-
-
 #[cfg(test)]
 mod tests {
+    use crate::contract::{handle, init, query};
+    use nebula_protocol::airdrop::{
+        ConfigResponse, HandleMsg, InitMsg, IsClaimedResponse, LatestStageResponse, MerkleRootResponse,
+        QueryMsg,
+    };
+    use cosmwasm_std::testing::{mock_dependencies, mock_env};
+    use cosmwasm_std::{from_binary, log, to_binary, CosmosMsg, HumanAddr, StdError, Uint128, WasmMsg};
+    use cw20::Cw20HandleMsg;
+
     #[test]
     fn proper_initialization() {
         let mut deps = mock_dependencies(20, &[]);
@@ -84,12 +83,24 @@ mod tests {
         let env = mock_env("addr0000", &[]);
         let _res = init(&mut deps, env.clone(), msg).unwrap();
 
-        // register new merkle root
+        //Try invalid merkle root
         let env = mock_env("owner0000", &[]);
+        let msg = HandleMsg::RegisterMerkleRoot {
+            merkle_root: "invalidroot".to_string(),
+        };
+
+        let res = handle(&mut deps, env, msg);
+        match res {
+            Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Invalid merkle root"),
+            _ => panic!("DO NOT ENTER HERE"),
+        }
+
+        let env = mock_env("owner0000", &[]);
+        // register new merkle root
         let msg = HandleMsg::RegisterMerkleRoot {
             merkle_root: "634de21cde1044f41d90373733b0f0fb1c1c71f9652b905cdf159e73c4cf0d37".to_string(),
         };
-
+        
         let res = handle(&mut deps, env, msg).unwrap();
         assert_eq!(
             res.log,
@@ -156,7 +167,7 @@ mod tests {
         let env = mock_env("owner0000", &[]);
         let msg = HandleMsg::UpdateMerkleRoot {
             stage: 1,
-            merkle_root: "12345678".to_string(),
+            merkle_root: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2".to_string(),
         };
 
         let res = handle(&mut deps, env, msg).unwrap();
@@ -165,7 +176,7 @@ mod tests {
             vec![
                 log("action", "update_merkle_root"),
                 log("stage", "1"),
-                log("merkle_root", "12345678")
+                log("merkle_root", "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2")
             ]
         );
 
@@ -181,7 +192,7 @@ mod tests {
         )
         .unwrap();
         let merkle_root: MerkleRootResponse = from_binary(&res).unwrap();
-        assert_eq!("12345678".to_string(), merkle_root.merkle_root);
+        assert_eq!("a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2".to_string(), merkle_root.merkle_root);
     }
 
     #[test]

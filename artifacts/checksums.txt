@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 b6c2dd1c8a64dbac6159ca14acbe71dabf82b1f5c31d15724a8cdde4e12e5bd8  basket_incentives.wasm
 dd8ba13c3ea31f6fcc8892b07d9ec021efb33d1985de33b502adfdf67cfcc73e  basket_incentives_custody.wasm
 <<<<<<< HEAD
@@ -13,6 +14,9 @@ dd8ba13c3ea31f6fcc8892b07d9ec021efb33d1985de33b502adfdf67cfcc73e  basket_incenti
 8c8d15bff7ce139fb0a41fb6953e110d65dde5f1cec2b49d0b0e88659e1653d1  nebula_cluster.wasm
 >>>>>>> Audit finding fix 9,. Storing an airdrop merkle root for a future stage may cause users being unable to claim updated amounts
 =======
+=======
+9c10ae56dc6bd2021f84c278f378aaf35babf6dcb76a9145dd9786fe59e717dc  nebula_airdrop.wasm
+>>>>>>> Audit finding fix 19. Invalid merkle roots can cause panics during airdrop claims
 37ca62ab56a288e49bec758cbd8c4cf24367576760982bbcfb22c3ceb8f75134  nebula_cluster.wasm
 >>>>>>> added validations
 6e5092917e2f8e2cf14e72dd314f9929f84ccc3e050d8d2cc85296d09ea069bd  nebula_cluster_factory.wasm

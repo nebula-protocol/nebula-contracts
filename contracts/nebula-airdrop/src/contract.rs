@@ -88,6 +88,7 @@ pub fn update_merkle_root<S: Storage, A: Api, Q: Querier>(
         );
     }
 
+    validate_merkle_root(merkle_root.clone())?;
     store_merkle_root(&mut deps.storage, stage, merkle_root.to_string())?;
 
     Ok(HandleResponse {
@@ -123,6 +124,14 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
     })
 }
 
+fn validate_merkle_root(merkle_root: String) -> StdResult<()> {
+    let mut root_buf: [u8; 32] = [0; 32];
+    match hex::decode_to_slice(merkle_root, &mut root_buf) {
+        Ok(_) => Ok(()),
+        Err(_) => return Err(StdError::generic_err("Invalid merkle root")),
+    }
+}
+
 pub fn register_merkle_root<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
@@ -132,6 +141,8 @@ pub fn register_merkle_root<S: Storage, A: Api, Q: Querier>(
     if env.message.sender != config.owner {
         return Err(StdError::unauthorized());
     }
+
+    validate_merkle_root(merkle_root.clone())?;
 
     let latest_stage: u8 = read_latest_stage(&deps.storage)?;
     let stage = latest_stage + 1;
