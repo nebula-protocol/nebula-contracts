@@ -276,7 +276,7 @@ class Ecosystem:
             )
 
             resp = await self.create_and_execute_poll(
-                {"contract": self.factory, "msg": create_cluster}
+                {"contract": self.factory, "msg": create_cluster}, sleep_time=10
             )
         else:
 
