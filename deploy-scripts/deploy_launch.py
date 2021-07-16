@@ -51,34 +51,34 @@ ADDR1 = "terra149xt9vmvmk9xag5f9zlnhqdw8yr8xu5kqmtyyk"
 ADDR2 = "terra1hpwskqv92r6apn90kx3k9zk756g9j6m6zh4hmj"
 ADDR3 = deployer.key.acc_address
 
-async def deploy_token_contracts():
+async def deploy_mir_token_contracts():
 
     print('Deploying token contracts now')
     symbols_to_mir_contract = {}
     
     # ANC first
-    anc_contract = await Contract.create(
-        DEPLOY_ENVIRONMENT_STATUS_W_GOV['code_ids']['terraswap_token'],
-        name='Anchor',
-        symbol='ANC',
-        decimals=6,
-        initial_balances=[
-            {
-                "address": ADDR1,
-                "amount": "1" + "0" * 15,
-            },
-            {
-                "address": ADDR2,
-                "amount": "1" + "0" * 15,
-            },
-            {
-                "address": ADDR3,
-                "amount": "1" + "0" * 15,
-            },
-        ],
-        mint=None,
-    )
-    symbols_to_mir_contract['ANC'] = anc_contract
+    # anc_contract = await Contract.create(
+    #     DEPLOY_ENVIRONMENT_STATUS_W_GOV['code_ids']['terraswap_token'],
+    #     name='Anchor',
+    #     symbol='ANC',
+    #     decimals=6,
+    #     initial_balances=[
+    #         {
+    #             "address": ADDR1,
+    #             "amount": "1" + "0" * 15,
+    #         },
+    #         {
+    #             "address": ADDR2,
+    #             "amount": "1" + "0" * 15,
+    #         },
+    #         {
+    #             "address": ADDR3,
+    #             "amount": "1" + "0" * 15,
+    #         },
+    #     ],
+    #     mint=None,
+    # )
+    # symbols_to_mir_contract['ANC'] = anc_contract
 
     import pdb; pdb.set_trace()
 
@@ -111,9 +111,51 @@ async def deploy_token_contracts():
 
     print(symbols_to_mir_contract)
 
+
+async def deploy_token_contracts():
+
+    print('Deploying ERC20 contracts now')
+    symbols_to_contracts = {}
+    contracts_to_symbols = {}
+
+    tokens = ["AAVE", "COMP", "MKR", "CREAM", "ANC", "DOGE", "ERC20", "CUMMIES", "MEME"]
+    import pdb; pdb.set_trace()
+
+
+    for t in tokens:
+        symbol, name = t, t
+
+        contract = await Contract.create(
+            DEPLOY_ENVIRONMENT_STATUS_W_GOV['code_ids']['terraswap_token'],
+            name=name,
+            symbol=symbol,
+            decimals=6,
+            initial_balances=[
+                {
+                    "address": ADDR1,
+                    "amount": "1" + "0" * 15,
+                },
+                {
+                    "address": ADDR2,
+                    "amount": "1" + "0" * 15,
+                },
+                {
+                    "address": ADDR3,
+                    "amount": "1" + "0" * 15,
+                },
+            ],
+            mint=None,
+        )
+        symbols_to_contracts[symbol] = contract.address
+        contracts_to_symbols[symbol] = contract.address
+        
+
+    print(symbols_to_contracts)
+    print(contracts_to_symbols)
+
 async def deploy_contracts():
-    await deploy_new_incentives()
-    # await deploy_token_contracts()
+    # await deploy_new_incentives()
+    await deploy_token_contracts()
 
 if __name__ == "__main__":
     asyncio.get_event_loop().run_until_complete(deploy_contracts())

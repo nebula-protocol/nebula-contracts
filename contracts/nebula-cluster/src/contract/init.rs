@@ -35,6 +35,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 
     let cfg = ClusterConfig {
         name: msg.name.clone(),
+        description: msg.description.clone(),
         owner: msg.owner.clone(),
         cluster_token: msg.cluster_token,
         factory: msg.factory,

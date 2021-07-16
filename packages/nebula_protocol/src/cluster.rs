@@ -9,6 +9,9 @@ pub struct InitMsg {
     /// Cluster name (title)
     pub name: String,
 
+    /// Cluster description (title)
+    pub description: String,
+
     /// Cluster's permissioned owner
     pub owner: HumanAddr,
 
@@ -117,6 +120,7 @@ pub struct ClusterStateResponse {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ClusterConfig {
     pub name: String,
+    pub description: String,
     pub owner: HumanAddr,
     pub cluster_token: Option<HumanAddr>,
     pub factory: HumanAddr,

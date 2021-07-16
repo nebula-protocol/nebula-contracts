@@ -115,6 +115,9 @@ pub struct Params {
     // Symbol of cluster
     pub symbol: String,
 
+    // Description of cluster
+    pub description: String,
+
     /// Distribution weight (default is 30, which is 1/10 of NEB distribution weight)
     pub weight: Option<u32>,
 

@@ -266,6 +266,7 @@ pub fn create_cluster<S: Storage, A: Api, Q: Querier>(
             label: None,
             msg: to_binary(&ClusterInitMsg {
                 name: params.name.clone(),
+                description: params.description.clone(),
                 owner: env.contract.address.clone(),
                 assets: params.assets,
                 pricing_oracle: params.pricing_oracle.clone(),

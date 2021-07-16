@@ -5,7 +5,7 @@ use cosmwasm_std::{
 };
 
 use crate::state::{
-    merkle_root_exists, read_claimed, read_config, read_latest_stage, read_merkle_root,
+    merkle_root_exists, read_claimed, read_config, read_latest_stage, read_merkle_root, 
     store_claimed, store_config, store_latest_stage, store_merkle_root, Config,
 };
 use nebula_protocol::airdrop::{
