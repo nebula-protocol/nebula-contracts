@@ -47,8 +47,6 @@ async def initial_mint(cluster_state):
         cluster.mint(asset_amounts=mint_assets, min_tokens="100", _send=send)
     )
 
-    import pdb; pdb.set_trace()
-
     await chain(*msgs)
 
 
