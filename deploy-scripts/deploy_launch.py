@@ -118,7 +118,7 @@ async def deploy_token_contracts():
     symbols_to_contracts = {}
     contracts_to_symbols = {}
 
-    tokens = ["AAVE", "COMP", "MKR", "CREAM", "ANC", "DOGE", "ERC20", "CUMMIES", "MEME"]
+    tokens = ["AAVE", "COMP", "MKR", "CREAM", "ANC", "DOGE", "ERCTWENTY", "CUMMIES", "MEME"]
     import pdb; pdb.set_trace()
 
 

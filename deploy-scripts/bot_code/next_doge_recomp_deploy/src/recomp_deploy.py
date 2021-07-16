@@ -4,7 +4,7 @@ import requests
 import json
 from datetime import timedelta, datetime
 
-os.environ["MNEMONIC"] = mnemonic = 'lottery horn blast wealth cruise border opinion upgrade common gauge grocery evil canal lizard sad mad submit degree brave margin age lunar squirrel diet'
+os.environ["MNEMONIC"] = mnemonic = 'raise sight lemon exact duty master buyer drink runway trap tourist use camp habit crunch horror jeans rice dance castle lift couple raise vibrant'
 
 os.environ["USE_TEQUILA"] = "1"
 
@@ -35,6 +35,14 @@ class NextDogeRecomposer:
 
         #["UST, ""DOGE", "CUMMIES", "MEME", "ERC20"]
         self.asset_ids = ["terrausd", "dogecoin", "cumrocket", "degenerator", "erc20"]
+        self.asset_infos = [
+            'uust', 
+            'terra1wpa2978x6n9c6xdvfzk4uhkzvphmq5fhdnvrym',
+            'terra1kf9qa5f3uu7nq3flg2dva8c9d9lh8h5cyuextt',
+            'terra1u08z2c9r3s3avrn9l0r3m30xhcmssunvv5d0rx',
+            'terra1p0rp8he7jfnevha3k5anhd0als7azjmfhxrvjv',
+        ]
+
         self.H = 8
         self.T = 0.3
         self.X = 0.1
@@ -142,10 +150,10 @@ class NextDogeRecomposer:
         target_weights = await self.weighting(datetime.now().timestamp())
         print(self.asset_ids, target_weights)
         target_weights = [int(100 * target_weight) for target_weight in target_weights]
-        # await self.cluster_contract.reset_target(
-        #     assets=[Asset.asset_info(a) for a in self.asset_tokens],
-        #     target=target_weights
-        # )
+        await self.cluster_contract.reset_target(
+            assets=[Asset.asset_info(a) for a in self.asset_infos],
+            target=target_weights
+        )
         # target = await self.cluster_contract.query.target()
         # print("Updated Target: " , target)
 
@@ -161,6 +169,6 @@ async def run_recomposition_periodically(cluster_contract, interval):
         )
 
 if __name__ == "__main__":
-    cluster_contract = Contract("") #TODO: Update
+    cluster_contract = Contract("terra1jc2ksanuuf082quvqt5ga7p6et63ryp62kzpne") #TODO: Update
     interval = SECONDS_PER_DAY
     asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))

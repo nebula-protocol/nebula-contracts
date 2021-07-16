@@ -68,9 +68,8 @@ class TerraFullDilutedMcapRecomposer:
         )
 
         target = await self.cluster_contract.query.target()
-        cluster = Contract("terra1e9c0am0rmekqy4epkpt6t95j8rx4867unggsqr")
         cluster_state = await self.cluster_contract.query.cluster_state(
-            cluster_contract_address=cluster
+            cluster_contract_address=self.cluster_contract
         )
 
         print("Updated Target: " , target)
@@ -80,7 +79,7 @@ class TerraFullDilutedMcapRecomposer:
 async def run_recomposition_periodically(cluster_contract, interval):
     start_time = time.time()
 
-    ANC_ADDR = 'terra15tecrcm27fenchxaqde9f8ws8krfgjnqf2hhcv'
+    ANC_ADDR = 'terra16z5t7cr0ueg47tuqmwlp6ymgm2w43dyv4xnt4g'
     MIR_ADDR = 'terra1gkjll5uwqlwa8mrmtvzv435732tffpjql494fd'
     assets = [
         "uluna", #LUNA
@@ -112,6 +111,6 @@ async def run_recomposition_periodically(cluster_contract, interval):
         )
 
 if __name__ == "__main__":
-    cluster_contract = Contract("terra1e9c0am0rmekqy4epkpt6t95j8rx4867unggsqr")
+    cluster_contract = Contract("terra1dvqcpsdcnau3kycnqxe0dtmalt3zk3qnwefwws")
     interval = SECONDS_PER_DAY
     asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))

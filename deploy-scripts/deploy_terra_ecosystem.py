@@ -24,8 +24,8 @@ async def deploy_terra_ecosystem():
     for key in DEPLOY_ENVIRONMENT_STATUS_W_GOV:
         setattr(ecosystem, key, DEPLOY_ENVIRONMENT_STATUS_W_GOV[key])
 
-    MIR_ADDR = SYM_TO_CONTRACT_TOKEN_TEQ['MIR'].address
-    ANC_ADDR = SYM_TO_CONTRACT_TOKEN_TEQ['ANC'].address
+    MIR_ADDR = SYM_TO_CONTRACT_TOKEN_TEQ['MIR']
+    ANC_ADDR = SYM_TO_CONTRACT_TOKEN_TEQ['ANC']
 
     cw20_asset_tokens = [
         Contract(MIR_ADDR),  # MIR
@@ -43,7 +43,7 @@ async def deploy_terra_ecosystem():
     penalty_params = {
         "penalty_amt_lo": "0.1",
         "penalty_cutoff_lo": "0.01",
-        "penalty_amt_hi": "0.5",
+        "penalty_amt_hi": "1",
         "penalty_cutoff_hi": "0.1",
         "reward_amt": "0.05",
         "reward_cutoff": "0.02",

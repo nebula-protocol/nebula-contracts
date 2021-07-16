@@ -34,14 +34,16 @@ async def initial_mint(cluster_state):
     send = {}
     for asset_info in native_assets:
         # Increase allowance of each
-        mint_assets.append(Asset.asset(asset_info, "1000000000", native=True))
-        send[asset_info] = "1000000000"
+        mint_assets.append(Asset.asset(asset_info, "10000000", native=True))
+        send[asset_info] = "10000000"
 
-    for asset_info in mint_cw20_assets:
-        # Increase allowance of each
-        asset_contract = Contract(asset_info)
-        msgs.append(asset_contract.increase_allowance(spender=cluster, amount="1000"))
-        mint_assets.append(Asset.asset(asset_info, "1000"))
+    # for asset_info in mint_cw20_assets:
+    #     # Increase allowance of each
+    #     asset_contract = Contract(asset_info)
+    #     msgs.append(asset_contract.increase_allowance(spender=cluster, amount="1000"))
+    #     mint_assets.append(Asset.asset(asset_info, "1000"))
+
+    import pdb; pdb.set_trace()
 
     msgs.append(
         cluster.mint(asset_amounts=mint_assets, min_tokens="100", _send=send)

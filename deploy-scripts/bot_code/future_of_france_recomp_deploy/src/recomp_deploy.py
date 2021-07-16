@@ -3,7 +3,7 @@ import asyncio
 import requests
 import json
 
-os.environ["MNEMONIC"] = mnemonic = 'lottery horn blast wealth cruise border opinion upgrade common gauge grocery evil canal lizard sad mad submit degree brave margin age lunar squirrel diet'
+os.environ["MNEMONIC"] = mnemonic = 'idea salute sniff electric lecture table flag oblige pyramid light ocean heart web ramp save fiscal sting course uncle deputy way field vacant genius'
 
 os.environ["USE_TEQUILA"] = "1"
 
@@ -26,6 +26,14 @@ class FutureOfFranceRecomposer:
     def __init__(self, cluster_contract):
         self.cluster_contract = cluster_contract
         self.asset_names = ["AAVE", "COMP", "MKR", "CREAM", "ANC"]
+        self.assets_to_address = {
+            'AAVE': 'terra1rw388r5ptypzzeyqr2swc44drju3zu2j5qlaw2',
+            'ANC': 'terra16z5t7cr0ueg47tuqmwlp6ymgm2w43dyv4xnt4g',
+            'COMP': 'terra1hmuuk7230na78mgp67kf4f0qenyw9xhfjzhaay',
+            'CREAM': 'terra1dvx9np7ajmky66kz8r4dvze9e6gwsxwz5h6x4d',
+            'MKR': 'terra13rkv7zdg4huwe0z9c0k8t7gc3hxhy58c3zghec'
+        }
+        self.addresses = [self.assets_to_address[an] for an in self.asset_names]
         self.api = "https://api.llama.fi"
         self.protocol_endpoint = "protocols"
         self.tvl_endpoint = "tvl"
@@ -64,21 +72,19 @@ class FutureOfFranceRecomposer:
         denom = sum(tvls.values())
         print("Total TVL of all assets: {}M".format(denom/ONE_MILLION))
         target = [tvls[slug]/denom for slug in self.slugs]
-        asset_addresses = self.asset_names
-        #TODO: Add mapping from asset names to contract addresses
-        return asset_addresses, target
+        return self.addresses, target
         
     
     async def recompose(self):
         assets, target_weights = await self.weighting()
         print(self.asset_names, target_weights)
         target_weights = [int(100 * target_weight) for target_weight in target_weights]
-        # await self.cluster_contract.reset_target(
-        #     assets=[Asset.asset_info(a) for a in self.asset_tokens],
-        #     target=target_weights
-        # )
-        # target = await self.cluster_contract.query.target()
-        # print("Updated Target: " , target)
+        await self.cluster_contract.reset_target(
+            assets=[Asset.asset_info(a) for a in assets],
+            target=target_weights
+        )
+        target = await self.cluster_contract.query.target()
+        print("Updated Target: " , target)
 
         return self.asset_names, target_weights
 
@@ -92,6 +98,6 @@ async def run_recomposition_periodically(cluster_contract, interval):
         )
 
 if __name__ == "__main__":
-    cluster_contract = Contract("") #TODO: Update
+    cluster_contract = Contract("terra1f7x3mk32qr3kerqz4ekm2jcm00lu4jsznwq024") #TODO: Update
     interval = SECONDS_PER_DAY
     asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))
