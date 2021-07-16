@@ -1,28 +1,9 @@
-<<<<<<< HEAD
-b6c2dd1c8a64dbac6159ca14acbe71dabf82b1f5c31d15724a8cdde4e12e5bd8  basket_incentives.wasm
-dd8ba13c3ea31f6fcc8892b07d9ec021efb33d1985de33b502adfdf67cfcc73e  basket_incentives_custody.wasm
-<<<<<<< HEAD
-31b16576e9a1a4d850455e28da388a36d424d151cfc31b08050885f7627dc8cd  nebula_airdrop.wasm
-<<<<<<< HEAD
-991c59571b75717886fe2372782d31be06ca909281f7b0c0944502d5b23837fe  nebula_cluster.wasm
-=======
-1571103fd89a1561e6c5866f7401381cf8b961db67a4f3d12c18a9c07ce1fe10  nebula_cluster.wasm
->>>>>>> Fix 2. Removal of target assets from a cluster renders remaining tokens unaccessible
-=======
-72df20f98034a3f6940d539ffd27bb7bfd3c5555879f8ca199f91f71f457415d  nebula_airdrop.wasm
-<<<<<<< HEAD
-8c8d15bff7ce139fb0a41fb6953e110d65dde5f1cec2b49d0b0e88659e1653d1  nebula_cluster.wasm
->>>>>>> Audit finding fix 9,. Storing an airdrop merkle root for a future stage may cause users being unable to claim updated amounts
-=======
-=======
 9c10ae56dc6bd2021f84c278f378aaf35babf6dcb76a9145dd9786fe59e717dc  nebula_airdrop.wasm
->>>>>>> Audit finding fix 19. Invalid merkle roots can cause panics during airdrop claims
-37ca62ab56a288e49bec758cbd8c4cf24367576760982bbcfb22c3ceb8f75134  nebula_cluster.wasm
->>>>>>> added validations
+f7d6740a1104e56db23913a5b179ed2802b4808d25573a37b7ebc08b03a827bf  nebula_cluster.wasm
 6e5092917e2f8e2cf14e72dd314f9929f84ccc3e050d8d2cc85296d09ea069bd  nebula_cluster_factory.wasm
 6443289cb4e4bfffd29d59ebbad356254765d110059c8feff643dec5a158a584  nebula_collector.wasm
 8c2dc5472d1b69f9a377f41c0463d393dc69aa41d53f1f69160984e5e44e5072  nebula_community.wasm
-b27034502685324f0bf030f581cd82f65a0f8717ecebe124130e85d600961e2a  nebula_dummy_oracle.wasm
+6c4991f8ea988dfdee22f49e4e9dbc90226d3c7e71b037d726a04e74bf292a2b  nebula_dummy_oracle.wasm
 22d720356136d1647d5da2a1ee091da9430bffe3237032a33029c1038f2676da  nebula_gov.wasm
 866dd3d751901dcce26ee36cced31702b9b5472d0ca632c3509ce3436b4662bd  nebula_incentives.wasm
 c71ef380bb75b368d956e7ee6302a90e00ff2e5d9a9e0893fc7206d13344ec28  nebula_incentives_custody.wasm
