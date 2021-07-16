@@ -103,7 +103,7 @@ pub fn query_price<S: Storage, A: Api, Q: Querier>(
     }))?;
     if min(res.last_updated_quote, res.last_updated_base) < stale_threshold {
         return Err(StdError::generic_err(
-            format!("oracle prices are stale {} {} {}", res.last_updated_quote, res.last_updated_base, stale_threshold))
+            format!("oracle prices are stale"))
         );
     }
     Ok(res.rate.to_string().as_str().parse().unwrap())

@@ -52,7 +52,6 @@ fn query_price<S: Storage, A: Api, Q: Querier>(
     let rate = read_price(&deps.storage, &asset)?;
     let last_update = read_last_update_time(&deps.storage)?;
 
-    // TODO: USE LAST_UPDATE HERE
     Ok(PriceResponse {
         rate,
         last_updated_base: u64::MAX,
