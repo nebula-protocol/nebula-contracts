@@ -3,7 +3,7 @@ use std::fs::create_dir_all;
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
-use nebula_protocol::cluster::{Cw20HookMsg, HandleMsg, InitMsg, QueryMsg, ClusterConfig};
+use nebula_protocol::cluster::{ClusterConfig, Cw20HookMsg, HandleMsg, InitMsg, QueryMsg};
 
 fn main() {
     let mut out_dir = current_dir().unwrap();

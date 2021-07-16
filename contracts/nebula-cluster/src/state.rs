@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{StdResult, Storage};
 use cosmwasm_storage::{singleton, singleton_read};
-use terraswap::asset::{AssetInfo};
 use nebula_protocol::cluster::ClusterConfig;
+use terraswap::asset::AssetInfo;
 
 /// config: ClusterConfig
 pub static CONFIG_KEY: &[u8] = b"config";

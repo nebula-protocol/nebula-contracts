@@ -1,19 +1,21 @@
 use crate::error;
-use nebula_protocol::cluster::{InitMsg, ClusterConfig};
-use terraswap::asset::AssetInfo;
 use crate::{
     state::{save_config, save_target_asset_data, TargetAssetData},
     util::vec_to_string,
 };
-use cosmwasm_std::{log, Api, Env, Extern, InitResponse, Querier, StdResult, Storage, CosmosMsg, WasmMsg, StdError};
+use cosmwasm_std::{
+    log, Api, CosmosMsg, Env, Extern, InitResponse, Querier, StdError, StdResult, Storage, WasmMsg,
+};
+use nebula_protocol::cluster::{ClusterConfig, InitMsg};
+use terraswap::asset::AssetInfo;
 
 pub fn validate_targets(target_assets: Vec<AssetInfo>) -> bool {
-    for i in 0..target_assets.len()-1 {
-        for j in i+1..target_assets.len() {
+    for i in 0..target_assets.len() - 1 {
+        for j in i + 1..target_assets.len() {
             if target_assets[i].equal(&target_assets[j]) {
                 return false;
             }
-        };
+        }
     }
     return true;
 }
@@ -82,7 +84,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     } else {
         Ok(InitResponse {
             log,
-            messages: vec![]
+            messages: vec![],
         })
     }
 }

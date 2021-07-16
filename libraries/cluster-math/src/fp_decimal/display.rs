@@ -32,7 +32,7 @@ mod tests {
 
     #[test]
     fn test_fmt_sub() {
-        let input : FPDecimal = FPDecimal::ONE + FPDecimal::from(3u128).div(100i128);
+        let input: FPDecimal = FPDecimal::ONE + FPDecimal::from(3u128).div(100i128);
         assert_eq!(&format!("{}", input), "1.03");
     }
 

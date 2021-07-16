@@ -8,7 +8,7 @@ use crate::state::{read_config, store_config, Config};
 use nebula_protocol::collector::{ConfigResponse, HandleMsg, InitMsg, MigrateMsg, QueryMsg};
 use nebula_protocol::gov::Cw20HookMsg as GovCw20HookMsg;
 
-use cw20::{Cw20HandleMsg};
+use cw20::Cw20HandleMsg;
 use terraswap::asset::{Asset, AssetInfo, PairInfo};
 use terraswap::pair::{Cw20HookMsg as TerraswapCw20HookMsg, HandleMsg as TerraswapHandleMsg};
 use terraswap::querier::{query_balance, query_pair_info, query_token_balance};

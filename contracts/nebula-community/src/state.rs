@@ -10,7 +10,7 @@ static KEY_CONFIG: &[u8] = b"config";
 pub struct Config {
     pub owner: HumanAddr,        // nebula gov address
     pub nebula_token: HumanAddr, // nebula token address
-    pub spend_limit: Uint128,        // spend limit per each `spend` request
+    pub spend_limit: Uint128,    // spend limit per each `spend` request
 }
 
 pub fn store_config<S: Storage>(storage: &mut S, config: &Config) -> StdResult<()> {

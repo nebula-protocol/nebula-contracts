@@ -65,7 +65,7 @@ pub enum HandleMsg {
 pub enum QueryMsg {
     Config {},
     ClusterExists { contract_addr: HumanAddr },
-    ClusterList {}, 
+    ClusterList {},
 }
 
 // We define a custom struct for each query response

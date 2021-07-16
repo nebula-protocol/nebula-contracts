@@ -9,8 +9,8 @@ use error::bad_weight_values;
 use crate::contract::{query_cluster_state, validate_targets};
 use crate::error;
 use crate::ext_query::{
-    query_collector_contract_address, query_mint_amount, query_redeem_amount, ExtQueryMsg,
-    query_cw20_balance,
+    query_collector_contract_address, query_cw20_balance, query_mint_amount, query_redeem_amount,
+    ExtQueryMsg,
 };
 use crate::state::{read_config, save_config, TargetAssetData};
 use crate::state::{read_target_asset_data, save_target_asset_data};
@@ -288,7 +288,7 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
     let prev_target = prev_asset_data.iter().map(|x| x.target).collect::<Vec<_>>();
-    
+
     for i in 0..prev_assets.len() {
         let prev_asset = &prev_assets[i];
         let inv_balance = match prev_asset {
@@ -484,7 +484,6 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         .clone()
         .ok_or_else(|| error::cluster_token_not_set())?;
 
-
     // accommmodate inputs: subsets of target assets vector
     let mut asset_weights = vec![Uint128(0); asset_infos.len()];
     let mut messages = vec![];
@@ -492,12 +491,11 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     //Return an error if native assets not in target are sent to the mint function
     for asset in asset_amounts.iter() {
         if !asset_infos.contains(&asset.info) {
-            return Err(
-                StdError::generic_err("Unsupported native assets were sent to the mint function")
-            );
+            return Err(StdError::generic_err(
+                "Unsupported native assets were sent to the mint function",
+            ));
         }
     }
-
 
     for i in 0..asset_infos.len() {
         for asset in asset_amounts.iter() {
@@ -657,16 +655,16 @@ mod tests {
     #[test]
     fn mint() {
         let (mut deps, _init_res) = mock_init();
-        
+
         mock_querier_setup(&mut deps);
-    
+
         // Asset :: UST Price :: Balance (µ)     (+ proposed   ) :: %
         // ---
         // mAAPL ::  135.18   ::  7_290_053_159  (+ 125_000_000) :: 0.20367359382 -> 0.20391741720
         // mGOOG :: 1780.03   ::    319_710_128                  :: 0.11761841035 -> 0.11577407690
         // mMSFT ::  222.42   :: 14_219_281_228  (+ 149_000_000) :: 0.65364669475 -> 0.65013907200
         // mNFLX ::  540.82   ::    224_212_221  (+  50_090_272) :: 0.02506130106 -> 0.03016943389
-    
+
         // The set token balance should include the amount we would also like to stage
         deps.querier
             .set_token_balance("mAAPL", MOCK_CONTRACT_ADDR, 7_290_053_159)
@@ -679,7 +677,7 @@ mod tests {
                 ("mMSFT", Decimal::from_str("222.42").unwrap()),
                 ("mNFLX", Decimal::from_str("540.82").unwrap()),
             ]);
-    
+
         let asset_amounts = vec![
             Asset {
                 info: AssetInfo::Token {
@@ -710,7 +708,7 @@ mod tests {
             asset_amounts: asset_amounts.clone(),
             min_tokens: None,
         };
-    
+
         let env = mock_env(h("addr0000"), &[]);
         // let res = handle(&mut deps, env, mint_msg).unwrap();
 
@@ -718,10 +716,10 @@ mod tests {
         //     Err(..) => (),
         //     _ => panic!("requires staging"),
         // }
-    
+
         // let env = mock_env(h("addr0000"), &[]);
         // let res = handle(&mut deps, env, mint_msg).unwrap();
-    
+
         // for log in res.log.iter() {
         //     println!("{}: {}", log.key, log.value);
         // }
@@ -956,7 +954,7 @@ mod tests {
 
         let env = mock_env(consts::owner(), &[]);
         let res = handle(&mut deps, env, msg).unwrap();
-        
+
         // mNFLX should still be in logs with target 0
         for log in res.log.iter() {
             println!("{}: {}", log.key, log.value);

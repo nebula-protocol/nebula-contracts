@@ -54,11 +54,7 @@ pub fn merkle_root_exists<S: Storage>(storage: &S, stage: u8) -> StdResult<bool>
     }
 }
 
-pub fn store_claimed<S: Storage>(
-    storage: &mut S,
-    user: &HumanAddr,
-    stage: u8,
-) -> StdResult<()> {
+pub fn store_claimed<S: Storage>(storage: &mut S, user: &HumanAddr, stage: u8) -> StdResult<()> {
     let mut claim_index_bucket: Bucket<S, bool> =
         Bucket::multilevel(&[PREFIX_CLAIM_INDEX, user.as_str().as_bytes()], storage);
     claim_index_bucket.save(&[stage], &true)

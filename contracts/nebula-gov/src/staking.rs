@@ -1,4 +1,3 @@
-
 use crate::querier::load_token_balance;
 use crate::state::{
     bank_read, bank_store, config_read, config_store, poll_read, poll_store, poll_voter_read,

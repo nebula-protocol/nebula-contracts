@@ -1,9 +1,12 @@
-use cosmwasm_std::{to_binary, Api, Decimal, Extern, HumanAddr, LogAttribute, Querier, QueryRequest, StdResult, Storage, Uint128, WasmQuery, StdError};
+use cosmwasm_std::{
+    to_binary, Api, Decimal, Extern, HumanAddr, LogAttribute, Querier, QueryRequest, StdError,
+    StdResult, Storage, Uint128, WasmQuery,
+};
 use cw20::{BalanceResponse as Cw20BalanceResponse, TokenInfoResponse as Cw20TokenInfoResponse};
-use serde::{Deserialize, Serialize};
 use schemars::JsonSchema;
-use terraswap::{asset::AssetInfo};
+use serde::{Deserialize, Serialize};
 use std::cmp::min;
+use terraswap::asset::AssetInfo;
 
 /// QueryMsgs to external contracts
 #[derive(Serialize, Deserialize)]
@@ -102,9 +105,7 @@ pub fn query_price<S: Storage, A: Api, Q: Querier>(
         })?,
     }))?;
     if min(res.last_updated_quote, res.last_updated_base) < stale_threshold {
-        return Err(StdError::generic_err(
-            format!("oracle prices are stale"))
-        );
+        return Err(StdError::generic_err(format!("oracle prices are stale")));
     }
     Ok(res.rate.to_string().as_str().parse().unwrap())
 }
@@ -139,7 +140,6 @@ pub fn query_cw20_token_supply<S: Storage, A: Api, Q: Querier>(
 
     Ok(res.total_supply)
 }
-
 
 /// EXTERNAL QUERY
 /// -- Queries the cluster factory contract for the current total supply

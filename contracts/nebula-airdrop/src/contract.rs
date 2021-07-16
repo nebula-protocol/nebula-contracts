@@ -4,13 +4,13 @@ use cosmwasm_std::{
     Storage, Uint128, WasmMsg,
 };
 
+use crate::state::{
+    merkle_root_exists, read_claimed, read_config, read_latest_stage, read_merkle_root,
+    store_claimed, store_config, store_latest_stage, store_merkle_root, Config,
+};
 use nebula_protocol::airdrop::{
     ConfigResponse, HandleMsg, InitMsg, IsClaimedResponse, LatestStageResponse, MerkleRootResponse,
     MigrateMsg, QueryMsg,
-};
-use crate::state::{
-    read_claimed, read_config, read_latest_stage, read_merkle_root, store_claimed, store_config,
-    store_latest_stage, store_merkle_root, merkle_root_exists, Config,
 };
 
 use cw20::Cw20HandleMsg;
@@ -70,22 +70,18 @@ pub fn update_merkle_root<S: Storage, A: Api, Q: Querier>(
     }
 
     let latest_stage: u8 = read_latest_stage(&deps.storage)?;
-    
+
     if stage > latest_stage {
-        return Err(
-            StdError::generic_err(
-                "Cannot update merkle root of a stage later than the current latest stage"
-            )
-        );
+        return Err(StdError::generic_err(
+            "Cannot update merkle root of a stage later than the current latest stage",
+        ));
     }
 
     // Disallow overwrites of merkle roots for existing stages
     if merkle_root_exists(&deps.storage, stage)? {
-        return Err(
-            StdError::generic_err(
-                "Merkle root for given stage already exists"
-            )
-        );
+        return Err(StdError::generic_err(
+            "Merkle root for given stage already exists",
+        ));
     }
 
     validate_merkle_root(merkle_root.clone())?;

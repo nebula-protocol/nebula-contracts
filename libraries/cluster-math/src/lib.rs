@@ -1,13 +1,13 @@
 pub mod fp_decimal;
 pub mod vector;
 
-pub use fp_decimal::*;
-pub use vector::*;
-use std::str::FromStr;
 use cosmwasm_std::{StdResult, Uint128};
+pub use fp_decimal::*;
+use std::str::FromStr;
+pub use vector::*;
 
 pub fn imbalance(i: &[FPDecimal], p: &[FPDecimal], w: &[FPDecimal]) -> FPDecimal {
-    let wp =  dot(w, p);
+    let wp = dot(w, p);
     let u = mul(w, p);
     let err_portfolio = sub(&mul_const(&u, dot(i, p)), &mul_const(&mul(i, p), wp));
 
