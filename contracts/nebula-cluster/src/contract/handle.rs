@@ -18,6 +18,7 @@ use crate::util::vec_to_string;
 use cluster_math::FPDecimal;
 use nebula_protocol::cluster::HandleMsg;
 use std::str::FromStr;
+use std::u32;
 use terraswap::asset::{Asset, AssetInfo};
 use terraswap::querier::query_balance;
 
@@ -588,12 +589,12 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         if let Some(proposed_mint_total) = min_tokens {
             let mut val = 0;
             for i in 0..c.len() {
-                if inv[i].u128() % c[i].u128() != 0u128 {
+                if target[i] % c[i].u128() as u32 != 0u32 {
                     return Err(StdError::generic_err(
                         "Initial cluster assets must be in target weights",
                     ));
                 }
-                let div = inv[i].u128() / c[i].u128();
+                let div = target[i] / c[i].u128() as u32;
                 if val == 0 {
                     val = div;
                 }
