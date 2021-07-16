@@ -6,8 +6,8 @@ import asyncio
 DEFAULT_POLL_ID = 1
 DEFAULT_QUORUM = "0.3"
 DEFAULT_THRESHOLD = "0.5"
-DEFAULT_VOTING_PERIOD = 1
-DEFAULT_EFFECTIVE_DELAY = 1
+DEFAULT_VOTING_PERIOD = 4
+DEFAULT_EFFECTIVE_DELAY = 4
 DEFAULT_EXPIRATION_PERIOD = 20000
 DEFAULT_PROPOSAL_DEPOSIT = "10000000000"
 DEFAULT_SNAPSHOT_PERIOD = 0
@@ -246,6 +246,8 @@ class Ecosystem:
         assets = tuple(assets)
         oracle = await Contract.create(code_ids["nebula_dummy_oracle"])
         await oracle.set_prices(prices=list(zip(assets, asset_prices)))
+        
+        self.dummy_oracle = oracle
 
         penalty_contract = await Contract.create(
             code_ids["nebula_penalty"],
@@ -276,7 +278,7 @@ class Ecosystem:
             )
 
             resp = await self.create_and_execute_poll(
-                {"contract": self.factory, "msg": create_cluster}, sleep_time=10
+                {"contract": self.factory, "msg": create_cluster}
             )
         else:
 
