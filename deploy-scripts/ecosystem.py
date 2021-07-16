@@ -6,8 +6,8 @@ import asyncio
 DEFAULT_POLL_ID = 1
 DEFAULT_QUORUM = "0.3"
 DEFAULT_THRESHOLD = "0.5"
-DEFAULT_VOTING_PERIOD = 1
-DEFAULT_EFFECTIVE_DELAY = 1
+DEFAULT_VOTING_PERIOD = 4
+DEFAULT_EFFECTIVE_DELAY = 4
 DEFAULT_EXPIRATION_PERIOD = 20000
 DEFAULT_PROPOSAL_DEPOSIT = "10000000000"
 DEFAULT_SNAPSHOT_PERIOD = 0
@@ -43,6 +43,7 @@ class Ecosystem:
 
         self.neb_token = None
         self.neb_pair = None
+        self.dummy_oracle = None
 
     # background contracts needed to create cluster contracts
     async def initialize_base_contracts(self):
@@ -191,6 +192,7 @@ class Ecosystem:
         asset_prices,
         target_weights,
         penalty_params,
+        asset_names=None,
     ):
         print("Creating cluster...")
 
@@ -202,24 +204,44 @@ class Ecosystem:
 
         code_ids = self.code_ids
 
-        assets = [
-            (
-                await Contract.create(
-                    code_ids["terraswap_token"],
-                    name=f"Asset {i}",
-                    symbol=f"AA{chr(i + 97)}",
-                    decimals=6,
-                    initial_balances=[
-                        {
-                            "address": deployer.key.acc_address,
-                            "amount": "1" + "0" * 15,
-                        }
-                    ],
-                    mint=None,
+        if asset_names is None:
+            assets = [
+                (
+                    await Contract.create(
+                        code_ids["terraswap_token"],
+                        name=f"Asset {i}",
+                        symbol=f"AA{chr(i + 97)}",
+                        decimals=6,
+                        initial_balances=[
+                            {
+                                "address": deployer.key.acc_address,
+                                "amount": "1" + "0" * 15,
+                            }
+                        ],
+                        mint=None,
+                    )
                 )
-            )
-            for i in range(len(asset_tokens))
-        ]
+                for i in range(len(asset_tokens))
+            ]
+        else:
+            assets = [
+                (
+                    await Contract.create(
+                        code_ids["terraswap_token"],
+                        name=name,
+                        symbol=name,
+                        decimals=6,
+                        initial_balances=[
+                            {
+                                "address": deployer.key.acc_address,
+                                "amount": "1" + "0" * 15,
+                            }
+                        ],
+                        mint=None,
+                    )
+                )
+                for name in asset_names
+            ]
 
         assets = tuple(assets)
         oracle = await Contract.create(code_ids["nebula_dummy_oracle"])
@@ -241,7 +263,7 @@ class Ecosystem:
                 "target": target_weights,
                 "assets": [Asset.cw20_asset_info(i) for i in assets],
                 "pricing_oracle": oracle,
-                "composition_oracle": oracle,
+                "composition_oracle": deployer.key.acc_address,
             },
         )
 
@@ -309,7 +331,6 @@ class Ecosystem:
         )
 
         poll_id = int(resp.logs[0].events_by_type["from_contract"]["poll_id"][0])
-
         await self.gov.cast_vote(poll_id=poll_id, vote="yes", amount="600000000000")
         await asyncio.sleep(sleep_time)
 

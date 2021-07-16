@@ -1,16 +1,26 @@
 from terra_sdk.client.lcd import AsyncLCDClient
 from terra_sdk.client.localterra import AsyncLocalTerra
 from terra_sdk.core.auth import StdFee
+from terra_sdk.key.mnemonic import MnemonicKey
+
 import asyncio
 import os
 
 
 USE_TEQUILA = bool(os.environ.get("USE_TEQUILA"))
+USE_MNEMONIC = bool(os.environ.get("MNEMONIC"))
+
 CACHE_INITIALIZATION = True
 OVERWRITE_CACHE_ALLOWED = set()
 
 
 lt = AsyncLocalTerra(gas_prices={"uusd": "0.15"})
+
+if USE_MNEMONIC:
+    key = MnemonicKey(mnemonic=os.environ.get("MNEMONIC"))
+    print('using mnemonic')
+else:
+    key = lt.wallets["test1"].key
 
 if USE_TEQUILA:
     gas_prices = {
@@ -33,8 +43,7 @@ if USE_TEQUILA:
     terra = AsyncLCDClient(
         "https://tequila-fcd.terra.dev", "tequila-0004", gas_prices=gas_prices
     )
-
-    deployer = terra.wallet(lt.wallets["test1"].key)
+    deployer = terra.wallet(key)
 else:
     terra = lt
     deployer = lt.wallets["test1"]
