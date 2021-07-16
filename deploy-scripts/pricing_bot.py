@@ -70,10 +70,6 @@ async def get_prices(infos):
             response = requests.get(url.format(cg_id))
             try:
                 data = json.loads(response.text)[cg_id]['usd']
-
-                # Should encompass uluna + uust (test uust)
-                if info.islower():
-                    data = data
                 prices.append(data)
 
             except (ConnectionError, Timeout, TooManyRedirects) as e:
@@ -92,7 +88,7 @@ async def pricing_bot():
     cfg = (await cluster.query.config())["config"]
     oracle = Contract(cfg["pricing_oracle"])
 
-    await oracle.set_prices(prices=[('uust','0.0000001')])
+    await oracle.set_prices(prices=[('uust','1')])
 
     cluster_state = await cluster.query.cluster_state(cluster_contract_address=cluster_addr)
 
