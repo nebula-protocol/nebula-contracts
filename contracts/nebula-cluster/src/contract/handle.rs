@@ -589,19 +589,26 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         if let Some(proposed_mint_total) = min_tokens {
             let mut val = 0;
             for i in 0..c.len() {
-                if target[i] % c[i].u128() as u32 != 0u32 {
-                    return Err(StdError::generic_err(
-                        "Initial cluster assets must be in target weights",
-                    ));
-                }
-                let div = target[i] / c[i].u128() as u32;
+                // if target[i] % (c[i].u128() as u32) != 0u32 {
+                //     return Err(StdError::generic_err(format!(
+                //         "1. Initial cluster assets must be in target weights {} {} {}",
+                //         target[i] % (c[i].u128() as u32),
+                //         target[i],
+                //         c[i].u128() as u32
+                //     )));
+                // }
+                let div = target[i] / (c[i].u128() as u32);
                 if val == 0 {
                     val = div;
                 }
                 if div != val {
-                    return Err(StdError::generic_err(
-                        "Initial cluster assets must be in target weights",
-                    ));
+                    return Err(StdError::generic_err(format!(
+                        "Initial cluster assets must be in target weights {} {} {} {}",
+                        div,
+                        val,
+                        target[i],
+                        c[i].u128() as u32
+                    )));
                 }
             }
 
