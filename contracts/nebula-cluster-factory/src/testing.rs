@@ -45,7 +45,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -57,7 +57,7 @@
 //     // cannot update mirror token after initialization
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -73,7 +73,7 @@
 //         config,
 //         ConfigResponse {
 //             owner: HumanAddr::from("owner0000"),
-//             mirror_token: HumanAddr::from("mirror0000"),
+//             nebula_token: HumanAddr::from("nebula0000"),
 //             mint_contract: HumanAddr::from("mint0000"),
 //             staking_contract: HumanAddr::from("staking0000"),
 //             commission_collector: HumanAddr::from("collector0000"),
@@ -102,7 +102,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -126,7 +126,7 @@
 //         config,
 //         ConfigResponse {
 //             owner: HumanAddr::from("owner0001"),
-//             mirror_token: HumanAddr::from("mirror0000"),
+//             nebula_token: HumanAddr::from("nebula0000"),
 //             mint_contract: HumanAddr::from("mint0000"),
 //             staking_contract: HumanAddr::from("staking0000"),
 //             commission_collector: HumanAddr::from("collector0000"),
@@ -154,7 +154,7 @@
 //         config,
 //         ConfigResponse {
 //             owner: HumanAddr::from("owner0001"),
-//             mirror_token: HumanAddr::from("mirror0000"),
+//             nebula_token: HumanAddr::from("nebula0000"),
 //             mint_contract: HumanAddr::from("mint0000"),
 //             staking_contract: HumanAddr::from("staking0000"),
 //             commission_collector: HumanAddr::from("collector0000"),
@@ -196,7 +196,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -269,7 +269,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -280,7 +280,7 @@
 
 //     let msg = HandleMsg::Whitelist {
 //         name: "apple derivative".to_string(),
-//         symbol: "mAPPL".to_string(),
+//         symbol: "mAAPL".to_string(),
 //         oracle_feeder: HumanAddr::from("feeder0000"),
 //         params: Params {
 //             auction_discount: Decimal::percent(5),
@@ -297,7 +297,7 @@
 //         res.log,
 //         vec![
 //             log("action", "whitelist"),
-//             log("symbol", "mAPPL"),
+//             log("symbol", "mAAPL"),
 //             log("name", "apple derivative")
 //         ]
 //     );
@@ -311,7 +311,7 @@
 //             label: None,
 //             msg: to_binary(&TokenInitMsg {
 //                 name: "apple derivative".to_string(),
-//                 symbol: "mAPPL".to_string(),
+//                 symbol: "mAAPL".to_string(),
 //                 decimals: 6u8,
 //                 initial_balances: vec![],
 //                 mint: Some(MinterResponse {
@@ -371,7 +371,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -395,7 +395,7 @@
 
 //     let msg = HandleMsg::Whitelist {
 //         name: "apple derivative".to_string(),
-//         symbol: "mAPPL".to_string(),
+//         symbol: "mAAPL".to_string(),
 //         oracle_feeder: HumanAddr::from("feeder0000"),
 //         params: Params {
 //             auction_discount: Decimal::percent(5),
@@ -501,7 +501,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -525,7 +525,7 @@
 
 //     let msg = HandleMsg::Whitelist {
 //         name: "apple derivative".to_string(),
-//         symbol: "mAPPL".to_string(),
+//         symbol: "mAAPL".to_string(),
 //         oracle_feeder: HumanAddr::from("feeder0000"),
 //         params: Params {
 //             auction_discount: Decimal::percent(5),
@@ -633,7 +633,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -644,7 +644,7 @@
 
 //     let msg = HandleMsg::Whitelist {
 //         name: "apple derivative".to_string(),
-//         symbol: "mAPPL".to_string(),
+//         symbol: "mAAPL".to_string(),
 //         oracle_feeder: HumanAddr::from("feeder0000"),
 //         params: Params {
 //             auction_discount: Decimal::percent(5),
@@ -704,7 +704,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -716,7 +716,7 @@
 //     // whitelist first item with weight 1.5
 //     let msg = HandleMsg::Whitelist {
 //         name: "apple derivative".to_string(),
-//         symbol: "mAPPL".to_string(),
+//         symbol: "mAAPL".to_string(),
 //         oracle_feeder: HumanAddr::from("feeder0000"),
 //         params: Params {
 //             auction_discount: Decimal::percent(5),
@@ -796,7 +796,7 @@
 //         res.messages,
 //         vec![
 //             CosmosMsg::Wasm(WasmMsg::Execute {
-//                 contract_addr: HumanAddr::from("mirror0000"),
+//                 contract_addr: HumanAddr::from("nebula0000"),
 //                 msg: to_binary(&Cw20HandleMsg::Send {
 //                     contract: HumanAddr::from("staking0000"),
 //                     amount: Uint128(3600u128),
@@ -811,7 +811,7 @@
 //                 send: vec![],
 //             }),
 //             CosmosMsg::Wasm(WasmMsg::Execute {
-//                 contract_addr: HumanAddr::from("mirror0000"),
+//                 contract_addr: HumanAddr::from("nebula0000"),
 //                 msg: to_binary(&Cw20HandleMsg::Send {
 //                     contract: HumanAddr::from("staking0000"),
 //                     amount: Uint128(3600u128),
@@ -859,7 +859,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -871,7 +871,7 @@
 //     // whitelist first item with weight 1.5
 //     let msg = HandleMsg::Whitelist {
 //         name: "apple derivative".to_string(),
-//         symbol: "mAPPL".to_string(),
+//         symbol: "mAAPL".to_string(),
 //         oracle_feeder: HumanAddr::from("feeder0000"),
 //         params: Params {
 //             auction_discount: Decimal::percent(5),
@@ -947,7 +947,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -959,7 +959,7 @@
 //     // whitelist first item with weight 1.5
 //     let msg = HandleMsg::Whitelist {
 //         name: "apple derivative".to_string(),
-//         symbol: "mAPPL".to_string(),
+//         symbol: "mAAPL".to_string(),
 //         oracle_feeder: HumanAddr::from("feeder0000"),
 //         params: Params {
 //             auction_discount: Decimal::percent(5),
@@ -997,7 +997,7 @@
 //     // unauthorized migrate attempt
 //     let msg = HandleMsg::MigrateAsset {
 //         name: "apple migration".to_string(),
-//         symbol: "mAPPL2".to_string(),
+//         symbol: "mAAPL2".to_string(),
 //         from_token: HumanAddr::from("asset0000"),
 //         end_price: Decimal::from_ratio(2u128, 1u128),
 //     };
@@ -1029,7 +1029,7 @@
 //                 label: None,
 //                 msg: to_binary(&TokenInitMsg {
 //                     name: "apple migration".to_string(),
-//                     symbol: "mAPPL2".to_string(),
+//                     symbol: "mAAPL2".to_string(),
 //                     decimals: 6u8,
 //                     initial_balances: vec![],
 //                     mint: Some(MinterResponse {
@@ -1065,7 +1065,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
@@ -1205,7 +1205,7 @@
 
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
-//         mirror_token: HumanAddr::from("mirror0000"),
+//         nebula_token: HumanAddr::from("nebula0000"),
 //         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),

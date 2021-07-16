@@ -6,10 +6,11 @@ use cosmwasm_std::{
 use cw20::Cw20HandleMsg;
 use error::bad_weight_values;
 
-use crate::contract::query_cluster_state;
+use crate::contract::{query_cluster_state, validate_targets};
 use crate::error;
 use crate::ext_query::{
     query_collector_contract_address, query_mint_amount, query_redeem_amount, ExtQueryMsg,
+    query_cw20_balance,
 };
 use crate::state::{read_config, save_config, TargetAssetData};
 use crate::state::{read_target_asset_data, save_target_asset_data};
@@ -18,6 +19,7 @@ use cluster_math::FPDecimal;
 use nebula_protocol::cluster::HandleMsg;
 use std::str::FromStr;
 use terraswap::asset::{Asset, AssetInfo};
+use terraswap::querier::query_balance;
 
 // prices last 30s before they go from fresh to stale
 const FRESH_TIMESPAN: u64 = 30;
@@ -259,6 +261,13 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     if target.len() != assets.len() {
         return Err(error::bad_weight_dimensions(target.len(), assets.len()));
     }
+
+    if !validate_targets(assets.clone()) {
+        return Err(StdError::generic_err(
+            "Cluster cannot contain duplicate assets",
+        ));
+    }
+
     let mut asset_data: Vec<TargetAssetData> = Vec::new();
     for i in 0..target.len() {
         let asset_elem = TargetAssetData {
@@ -272,7 +281,6 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
         .iter()
         .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
-    let updated_target = asset_data.iter().map(|x| x.target).collect::<Vec<_>>();
 
     let prev_asset_data = read_target_asset_data(&deps.storage)?;
     let prev_assets = prev_asset_data
@@ -280,8 +288,34 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.asset.clone())
         .collect::<Vec<_>>();
     let prev_target = prev_asset_data.iter().map(|x| x.target).collect::<Vec<_>>();
+    
+    for i in 0..prev_assets.len() {
+        let prev_asset = &prev_assets[i];
+        let inv_balance = match prev_asset {
+            AssetInfo::Token { contract_addr } => {
+                query_cw20_balance(&deps, &contract_addr, &env.contract.address)
+            }
+            AssetInfo::NativeToken { denom } => {
+                query_balance(&deps, &env.contract.address, denom.clone())
+            }
+        };
+
+        if !inv_balance?.is_zero() && !updated_assets.contains(&prev_asset) {
+            let asset_elem = TargetAssetData {
+                asset: prev_asset.clone(),
+                target: 0,
+            };
+            asset_data.push(asset_elem);
+        }
+    }
 
     save_target_asset_data(&mut deps.storage, &asset_data)?;
+
+    let updated_assets = asset_data
+        .iter()
+        .map(|x| x.asset.clone())
+        .collect::<Vec<_>>();
+    let updated_target = asset_data.iter().map(|x| x.target).collect::<Vec<_>>();
 
     Ok(HandleResponse {
         messages: vec![],
@@ -450,9 +484,20 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         .clone()
         .ok_or_else(|| error::cluster_token_not_set())?;
 
+
     // accommmodate inputs: subsets of target assets vector
     let mut asset_weights = vec![Uint128(0); asset_infos.len()];
     let mut messages = vec![];
+
+    //Return an error if native assets not in target are sent to the mint function
+    for asset in asset_amounts.iter() {
+        if !asset_infos.contains(&asset.info) {
+            return Err(
+                StdError::generic_err("Unsupported native assets were sent to the mint function")
+            );
+        }
+    }
+
 
     for i in 0..asset_infos.len() {
         for asset in asset_amounts.iter() {
@@ -480,6 +525,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
             }
         }
     }
+
     let asset_weights = asset_weights.clone();
 
     let c = asset_weights;
@@ -604,98 +650,83 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 mod tests {
 
     use crate::test_helper::*;
-    use cw20::Cw20ReceiveMsg;
     use nebula_protocol::cluster::HandleMsg;
     use pretty_assertions::assert_eq;
     use terraswap::asset::{Asset, AssetInfo};
 
-    // #[test]
-    // fn mint() {
-    //     let (mut deps, _init_res) = mock_init();
-    //     mock_querier_setup(&mut deps);
-    //
-    //     // Asset :: UST Price :: Balance (µ)     (+ proposed   ) :: %
-    //     // ---
-    //     // mAAPL ::  135.18   ::  7_290_053_159  (+ 125_000_000) :: 0.20367359382 -> 0.20391741720
-    //     // mGOOG :: 1780.03   ::    319_710_128                  :: 0.11761841035 -> 0.11577407690
-    //     // mMSFT ::  222.42   :: 14_219_281_228  (+ 149_000_000) :: 0.65364669475 -> 0.65013907200
-    //     // mNFLX ::  540.82   ::    224_212_221  (+  50_090_272) :: 0.02506130106 -> 0.03016943389
-    //
-    //     // The set token balance should include the amount we would also like to stage
-    //     deps.querier
-    //         .set_token_balance("mAAPL", MOCK_CONTRACT_ADDR, 7_290_053_159)
-    //         .set_token_balance("mGOOG", MOCK_CONTRACT_ADDR, 319_710_128)
-    //         .set_token_balance("mMSFT", MOCK_CONTRACT_ADDR, 14_219_281_228)
-    //         .set_token_balance("mNFLX", MOCK_CONTRACT_ADDR, 224_212_221)
-    //         .set_oracle_prices(vec![
-    //             ("mAAPL", Decimal::from_str("135.18").unwrap()),
-    //             ("mGOOG", Decimal::from_str("1780.03").unwrap()),
-    //             ("mMSFT", Decimal::from_str("222.42").unwrap()),
-    //             ("mNFLX", Decimal::from_str("540.82").unwrap()),
-    //         ]);
-    //
-    //     let asset_amounts = vec![
-    //         Asset {
-    //             info: AssetInfo::Token {
-    //                 contract_addr: h("mAAPL"),
-    //             },
-    //             amount: Uint128(125_000_000),
-    //         },
-    //         Asset {
-    //             info: AssetInfo::Token {
-    //                 contract_addr: h("mGOOG"),
-    //             },
-    //             amount: Uint128::zero(),
-    //         },
-    //         Asset {
-    //             info: AssetInfo::Token {
-    //                 contract_addr: h("mMSFT"),
-    //             },
-    //             amount: Uint128(149_000_000),
-    //         },
-    //         Asset {
-    //             info: AssetInfo::Token {
-    //                 contract_addr: h("mNFLX"),
-    //             },
-    //             amount: Uint128(50_090_272),
-    //         },
-    //     ];
-    //     let mint_msg = HandleMsg::Mint {
-    //         asset_amounts: asset_amounts.clone(),
-    //         min_tokens: None,
-    //     };
-    //
-    //     let env = mock_env(h("addr0000"), &[]);
-    //     let res = handle(&mut deps, env, mint_msg.clone());
-    //     match res {
-    //         Err(..) => (),
-    //         _ => panic!("requires staging"),
-    //     }
-    //
-    //     for asset in asset_amounts {
-    //         let env = mock_env(
-    //             match asset.info {
-    //                 AssetInfo::Token { contract_addr } => contract_addr,
-    //                 AssetInfo::NativeToken { .. } => return,
-    //             },
-    //             &[],
-    //         );
-    //         let stage_asset_msg = HandleMsg::Receive(Cw20ReceiveMsg {
-    //             sender: h("addr0000"),
-    //             msg: Some(to_binary(&Cw20HookMsg::StageAsset {}).unwrap()),
-    //             amount: asset.amount,
-    //         });
-    //         handle(&mut deps, env, stage_asset_msg).unwrap();
-    //     }
-    //
-    //     let env = mock_env(h("addr0000"), &[]);
-    //     let res = handle(&mut deps, env, mint_msg).unwrap();
-    //
-    //     for log in res.log.iter() {
-    //         println!("{}: {}", log.key, log.value);
-    //     }
-    //     assert_eq!(1, res.messages.len());
-    // }
+    #[test]
+    fn mint() {
+        let (mut deps, _init_res) = mock_init();
+        
+        mock_querier_setup(&mut deps);
+    
+        // Asset :: UST Price :: Balance (µ)     (+ proposed   ) :: %
+        // ---
+        // mAAPL ::  135.18   ::  7_290_053_159  (+ 125_000_000) :: 0.20367359382 -> 0.20391741720
+        // mGOOG :: 1780.03   ::    319_710_128                  :: 0.11761841035 -> 0.11577407690
+        // mMSFT ::  222.42   :: 14_219_281_228  (+ 149_000_000) :: 0.65364669475 -> 0.65013907200
+        // mNFLX ::  540.82   ::    224_212_221  (+  50_090_272) :: 0.02506130106 -> 0.03016943389
+    
+        // The set token balance should include the amount we would also like to stage
+        deps.querier
+            .set_token_balance("mAAPL", MOCK_CONTRACT_ADDR, 7_290_053_159)
+            .set_token_balance("mGOOG", MOCK_CONTRACT_ADDR, 319_710_128)
+            .set_token_balance("mMSFT", MOCK_CONTRACT_ADDR, 14_219_281_228)
+            .set_token_balance("mNFLX", MOCK_CONTRACT_ADDR, 224_212_221)
+            .set_oracle_prices(vec![
+                ("mAAPL", Decimal::from_str("135.18").unwrap()),
+                ("mGOOG", Decimal::from_str("1780.03").unwrap()),
+                ("mMSFT", Decimal::from_str("222.42").unwrap()),
+                ("mNFLX", Decimal::from_str("540.82").unwrap()),
+            ]);
+    
+        let asset_amounts = vec![
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mAAPL"),
+                },
+                amount: Uint128(125_000_000),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mGOOG"),
+                },
+                amount: Uint128::zero(),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mMSFT"),
+                },
+                amount: Uint128(149_000_000),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mNFLX"),
+                },
+                amount: Uint128(50_090_272),
+            },
+        ];
+        let mint_msg = HandleMsg::Mint {
+            asset_amounts: asset_amounts.clone(),
+            min_tokens: None,
+        };
+    
+        let env = mock_env(h("addr0000"), &[]);
+        // let res = handle(&mut deps, env, mint_msg).unwrap();
+
+        // match res {
+        //     Err(..) => (),
+        //     _ => panic!("requires staging"),
+        // }
+    
+        // let env = mock_env(h("addr0000"), &[]);
+        // let res = handle(&mut deps, env, mint_msg).unwrap();
+    
+        // for log in res.log.iter() {
+        //     println!("{}: {}", log.key, log.value);
+        // }
+        // assert_eq!(1, res.messages.len());
+    }
     //
     // #[test]
     // // Should be same output as mint()
@@ -913,13 +944,10 @@ mod tests {
                 contract_addr: h("mMSFT"),
             },
             AssetInfo::Token {
-                contract_addr: h("mNFLX"),
-            },
-            AssetInfo::Token {
-                contract_addr: h("GME"),
+                contract_addr: h("mGME"),
             },
         ];
-        let new_targets: Vec<u32> = vec![10, 5, 30, 5, 50];
+        let new_targets: Vec<u32> = vec![10, 5, 35, 50];
 
         let msg = HandleMsg::ResetTarget {
             assets: new_assets.clone(),
@@ -928,7 +956,8 @@ mod tests {
 
         let env = mock_env(consts::owner(), &[]);
         let res = handle(&mut deps, env, msg).unwrap();
-
+        
+        // mNFLX should still be in logs with target 0
         for log in res.log.iter() {
             println!("{}: {}", log.key, log.value);
         }

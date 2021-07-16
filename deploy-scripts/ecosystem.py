@@ -246,6 +246,8 @@ class Ecosystem:
         assets = tuple(assets)
         oracle = await Contract.create(code_ids["nebula_dummy_oracle"])
         await oracle.set_prices(prices=list(zip(assets, asset_prices)))
+        
+        self.dummy_oracle = oracle
 
         penalty_contract = await Contract.create(
             code_ids["nebula_penalty"],

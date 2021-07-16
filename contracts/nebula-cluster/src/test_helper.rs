@@ -1,12 +1,11 @@
 pub use crate::contract::*;
 pub use crate::ext_query::*;
-pub use crate::msg::*;
-pub use crate::penalty::*;
 pub use crate::state::*;
+pub use nebula_protocol::cluster::{InitMsg};
+pub use nebula_protocol::penalty::{MintResponse, PenaltyParams};
 pub use cluster_math::*;
 pub use cosmwasm_std::testing::{mock_env, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 pub use cosmwasm_std::*;
-pub use cw20;
 pub use cw20::BalanceResponse as Cw20BalanceResponse;
 use cw20::TokenInfoResponse;
 use std::collections::HashMap;
@@ -90,8 +89,8 @@ impl CustomMockQuerier {
                         Some(base_price) => match self.oracle_querier.assets.get(&quote_asset) {
                             Some(quote_price) => Ok(to_binary(&PriceResponse {
                                 rate: decimal_division(*base_price, *quote_price),
-                                last_updated_base: 1000u64,
-                                last_updated_quote: 1000u64,
+                                last_updated_base: u64::MAX,
+                                last_updated_quote: u64::MAX,
                             })),
                             None => Err(SystemError::InvalidRequest {
                                 error: "No oracle price exists".to_string(),
@@ -126,7 +125,7 @@ impl CustomMockQuerier {
                             }
                         };
                         Ok(to_binary(&Cw20BalanceResponse { balance: *balance }))
-                    }
+                    },
                     ExtQueryMsg::TokenInfo {} => {
                         let token_data = match self.token_querier.tokens.get(contract_addr) {
                             Some(v) => v,
@@ -141,6 +140,28 @@ impl CustomMockQuerier {
                             }
                         };
                         Ok(to_binary(&token_data.info))
+                    },
+                    ExtQueryMsg::Config {} => {
+                        let config = read_config(&MockStorage::default());
+                        Ok(to_binary(&config))
+                    },
+                    ExtQueryMsg::Mint {
+                        block_height: _,
+                        cluster_token_supply: _,
+                        inventory: _,
+                        mint_asset_amounts: _,
+                        asset_prices: _,
+                        target_weights: _
+                    } => {
+                        let response  = MintResponse {
+                            mint_tokens: Uint128(99),
+                            penalty: Uint128(1234),
+                            log: vec![log("penalty", 1234)],
+                        };
+                        Ok(to_binary(&response))
+                    },
+                    _ => {
+                        panic!("ExtQueryMsg type not implemented");
                     }
                 }
             }
@@ -365,8 +386,14 @@ pub mod consts {
     pub fn cluster_token() -> HumanAddr {
         h("cluster")
     }
-    pub fn oracle() -> HumanAddr {
-        h("oracle")
+    pub fn factory() -> HumanAddr {
+        h("factory")
+    }
+    pub fn pricing_oracle() -> HumanAddr {
+        h("pricing_oracle")
+    }
+    pub fn composition_oracle() -> HumanAddr {
+        h("composition_oracle")
     }
     pub fn assets() -> Vec<AssetInfo> {
         vec![AssetInfo::Token {
@@ -385,26 +412,41 @@ pub mod consts {
     pub fn assets_native_stage() -> Vec<AssetInfo> {
         vec![
             AssetInfo::Token {
-                contract_addr: h("wBTC"),
+                contract_addr: h("mAAPL"),
             }, 
-            AssetInfo::NativeToken {
-                denom: "uluna".to_string(),
+            AssetInfo::Token {
+                contract_addr: h("mGOOG"),
             }, 
+            AssetInfo::Token {
+                contract_addr: h("mMSFT"),
+            }, 
+            AssetInfo::Token {
+                contract_addr: h("mNFLX"),
+            }, 
+            // AssetInfo::NativeToken {
+            //     denom: "uluna".to_string(),
+            // }, 
             // AssetInfo::Token {
             //     contract_addr: h("LUNA"),
             // },
         ]
     }
     pub fn target_native_stage() -> Vec<u32> {
-        vec![50, 50]
+        vec![20, 20, 20, 20]
     }
     pub fn penalty_params() -> PenaltyParams {
         PenaltyParams {
-            a_pos: FPDecimal::from_str("1.0").unwrap(),
-            s_pos: FPDecimal::from_str("1.0").unwrap(),
-            a_neg: FPDecimal::from_str("0.005").unwrap(),
-            s_neg: FPDecimal::from_str("0.5").unwrap(),
+            penalty_amt_lo: FPDecimal::from_str("0.1").unwrap(),
+            penalty_cutoff_lo: FPDecimal::from_str("0.01").unwrap(),
+            penalty_amt_hi: FPDecimal::from_str("0.5").unwrap(),
+            penalty_cutoff_hi: FPDecimal::from_str("0.1").unwrap(),
+            reward_amt: FPDecimal::from_str("0.05").unwrap(),
+            reward_cutoff: FPDecimal::from_str("0.02").unwrap(),
         }
+    }
+
+    pub fn penalty() -> HumanAddr {
+        h("penalty")
     }
 }
 
@@ -415,15 +457,18 @@ pub fn mock_init() -> (
     let mut deps = mock_dependencies(20, &[]);
     let msg = InitMsg {
         name: consts::name().to_string(),
-        assets: consts::assets(),
+        assets: consts::assets_native_stage(),
         owner: consts::owner(),
         cluster_token: Some(consts::cluster_token()),
-        target: consts::target(),
-        oracle: consts::oracle(),
-        penalty_params: consts::penalty_params(),
+        target: consts::target_native_stage(),
+        pricing_oracle: consts::pricing_oracle(),
+        composition_oracle: consts::composition_oracle(),
+        penalty: consts::penalty(),
+        factory: consts::factory(),
+        init_hook: None
     };
 
-    let env = mock_env(consts::oracle().as_str(), &[]);
+    let env = mock_env(consts::pricing_oracle().as_str(), &[]);
     let res = init(&mut deps, env.clone(), msg).unwrap();
     (deps, res)
 }
@@ -439,11 +484,14 @@ pub fn mock_init_native_stage() -> (
         owner: consts::owner(),
         cluster_token: Some(consts::cluster_token()),
         target: consts::target_native_stage(),
-        oracle: consts::oracle(),
-        penalty_params: consts::penalty_params(),
+        pricing_oracle: consts::pricing_oracle(),
+        composition_oracle: consts::composition_oracle(),
+        penalty: consts::penalty(),
+        factory: consts::factory(),
+        init_hook: None
     };
 
-    let env = mock_env(consts::oracle().as_str(), &[]);
+    let env = mock_env(consts::pricing_oracle().as_str(), &[]);
     let res = init(&mut deps, env.clone(), msg).unwrap();
     (deps, res)
 }

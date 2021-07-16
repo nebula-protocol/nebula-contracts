@@ -29,6 +29,7 @@ const MIN_DESC_LENGTH: usize = 4;
 const MAX_DESC_LENGTH: usize = 256;
 const MIN_LINK_LENGTH: usize = 12;
 const MAX_LINK_LENGTH: usize = 128;
+const MAX_POLLS_IN_PROGRESS: usize = 50;
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -37,6 +38,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 ) -> InitResult {
     validate_quorum(msg.quorum)?;
     validate_threshold(msg.threshold)?;
+    validate_voter_weight(msg.voter_weight)?;
 
     let config = Config {
         nebula_token: msg.nebula_token,
@@ -183,10 +185,12 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
         }
 
         if let Some(quorum) = quorum {
+            validate_quorum(quorum)?;
             config.quorum = quorum;
         }
 
         if let Some(threshold) = threshold {
+            validate_quorum(threshold)?;
             config.threshold = threshold;
         }
 
@@ -207,6 +211,7 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
         }
 
         if let Some(voter_weight) = voter_weight {
+            validate_voter_weight(voter_weight)?;
             config.voter_weight = voter_weight;
         }
 
@@ -276,6 +281,16 @@ fn validate_threshold(threshold: Decimal) -> StdResult<()> {
     }
 }
 
+/// validate_voter_weight returns an error if the voter weight is invalid
+/// (we require 0-1)
+fn validate_voter_weight(voter_weight: Decimal) -> StdResult<()> {
+    if voter_weight > Decimal::one() {
+        Err(StdError::generic_err("voter_weight must be smaller than 1"))
+    } else {
+        Ok(())
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 /// create a new poll
 pub fn create_poll<S: Storage, A: Api, Q: Querier>(
@@ -298,6 +313,19 @@ pub fn create_poll<S: Storage, A: Api, Q: Querier>(
             "Must deposit more than {} token",
             config.proposal_deposit
         )));
+    }
+
+    let polls_in_progress: usize = read_polls(
+        &deps.storage,
+        Some(PollStatus::InProgress),
+        None,
+        None,
+        None,
+        Some(true),
+    )?
+    .len();
+    if polls_in_progress.gt(&MAX_POLLS_IN_PROGRESS) {
+        return Err(StdError::generic_err("Too many polls in progress"));
     }
 
     let mut state: State = state_store(&mut deps.storage).load()?;

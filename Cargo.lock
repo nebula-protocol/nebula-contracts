@@ -58,12 +58,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b41b7ea54a0c9d92199de89e20e58d49f02f8e699814ef3fdf266f6f748d15c7"
 
 [[package]]
-name = "base64"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
-
-[[package]]
 name = "bigint"
 version = "4.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -235,7 +229,7 @@ version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f85908a2696117c8f2c1b3ce201d34a1aa9a6b3c1583a65cfb794ec66e1cfde4"
 dependencies = [
- "base64 0.11.0",
+ "base64",
  "schemars",
  "serde",
  "serde-json-wasm",
@@ -593,7 +587,7 @@ dependencies = [
 name = "nebula-cluster"
 version = "1.0.0"
 dependencies = [
- "base64 0.13.0",
+ "base64",
  "cluster-math",
  "cosmwasm-schema",
  "cosmwasm-std",

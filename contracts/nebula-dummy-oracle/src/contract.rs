@@ -4,7 +4,7 @@ use cosmwasm_std::{
 };
 
 use crate::msg::{HandleMsg, InitMsg, PriceResponse, QueryMsg};
-use crate::state::{read_price, set_price};
+use crate::state::{read_last_update_time, read_price, set_price, store_last_update_time};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     _deps: &mut Extern<S, A, Q>,
@@ -26,12 +26,13 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 
 pub fn try_set_prices<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    _env: Env,
+    env: Env,
     prices: &Vec<(String, Decimal)>,
 ) -> StdResult<HandleResponse> {
     for (asset, price) in prices.iter() {
         set_price(&mut deps.storage, asset, price)?;
     }
+    store_last_update_time(&mut deps.storage, &env.block.time)?;
     Ok(HandleResponse::default())
 }
 
@@ -49,9 +50,11 @@ fn query_price<S: Storage, A: Api, Q: Querier>(
     asset: String,
 ) -> StdResult<PriceResponse> {
     let rate = read_price(&deps.storage, &asset)?;
+    let last_update = read_last_update_time(&deps.storage)?;
+
     Ok(PriceResponse {
         rate,
         last_updated_base: u64::MAX,
-        last_updated_quote: u64::MAX,
+        last_updated_quote: last_update,
     })
 }
