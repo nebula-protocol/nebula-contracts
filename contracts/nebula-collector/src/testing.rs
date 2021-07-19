@@ -129,7 +129,7 @@ fn test_convert() {
 }
 
 #[test]
-fn test_send() {
+fn test_distribute() {
     let mut deps = mock_dependencies(20, &[]);
     deps.querier.with_token_balances(&[(
         &HumanAddr::from("nebula0000"),
