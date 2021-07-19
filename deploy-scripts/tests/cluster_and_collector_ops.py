@@ -8,6 +8,7 @@ async def test_cluster_and_collector_ops(eco: Ecosystem):
         "balance"
     ]
 
+    await eco.dummy_oracle.set_prices(prices=list(zip(eco.asset_tokens, eco.asset_prices)))
     # mint and redeem which should pass the collector some tokens in fees
     await eco.cluster.mint(["10000", "10000"])
     await eco.cluster.redeem("5000")
