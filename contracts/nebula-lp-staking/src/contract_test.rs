@@ -16,6 +16,7 @@ mod tests {
         let msg = InitMsg {
             owner: HumanAddr::from("owner"),
             nebula_token: HumanAddr::from("reward"),
+            terraswap_factory: HumanAddr::from("terraswap-factory")
         };
 
         let env = mock_env("addr", &[]);
@@ -42,6 +43,7 @@ mod tests {
         let msg = InitMsg {
             owner: HumanAddr::from("owner"),
             nebula_token: HumanAddr::from("reward"),
+            terraswap_factory: HumanAddr::from("terraswap-factory")
         };
 
         let env = mock_env("addr", &[]);
@@ -85,6 +87,7 @@ mod tests {
         let msg = InitMsg {
             owner: HumanAddr::from("owner"),
             nebula_token: HumanAddr::from("reward"),
+            terraswap_factory: HumanAddr::from("terraswap-factory")
         };
 
         let env = mock_env("addr", &[]);

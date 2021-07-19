@@ -716,6 +716,7 @@ dependencies = [
  "nebula-protocol",
  "schemars",
  "serde",
+ "terra-cosmwasm",
  "terraswap",
 ]
 

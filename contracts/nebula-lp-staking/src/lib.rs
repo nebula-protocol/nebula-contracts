@@ -7,6 +7,8 @@ mod state;
 mod contract_test;
 mod reward_test;
 mod staking_test;
+#[cfg(test)]
+mod mock_querier;
 
 #[cfg(target_arch = "wasm32")]
 cosmwasm_std::create_entry_points_with_migration!(contract);

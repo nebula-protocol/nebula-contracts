@@ -7,5 +7,6 @@ pub mod community;
 pub mod gov;
 pub mod incentives;
 pub mod incentives_custody;
+pub mod oracle;
 pub mod penalty;
 pub mod staking;

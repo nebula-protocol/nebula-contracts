@@ -381,6 +381,10 @@ pub mod consts {
         "test_cluster"
     }
 
+    pub fn description() -> &'static str {
+        "description"
+    }
+
     pub fn owner() -> HumanAddr {
         h("owner")
     }
@@ -463,6 +467,7 @@ pub fn mock_init() -> (
     let mut deps = mock_dependencies(20, &[]);
     let msg = InitMsg {
         name: consts::name().to_string(),
+        description: consts::description().to_string(),
         assets: consts::assets_native_stage(),
         owner: consts::owner(),
         cluster_token: Some(consts::cluster_token()),
@@ -486,6 +491,7 @@ pub fn mock_init_native_stage() -> (
     let mut deps = mock_dependencies(20, &[]);
     let msg = InitMsg {
         name: consts::name().to_string(),
+        description: consts::description().to_string(),
         assets: consts::assets_native_stage(),
         owner: consts::owner(),
         cluster_token: Some(consts::cluster_token()),
