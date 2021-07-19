@@ -266,7 +266,7 @@ SYM_TO_MASSET_COL = {
 SYM_TO_COINGECKO_ID = { 
     'ANC': 'anchor-protocol',
     'uluna': 'terra-luna',
-    'uust': 'terrausd',
+    'uusd': 'terrausd',
     'MIR': 'mirror-protocol', # can use graphql for this one
     'UST': 'terrausd',
     'AAVE': 'aave',

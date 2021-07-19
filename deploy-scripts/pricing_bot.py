@@ -88,7 +88,7 @@ async def pricing_bot():
     cfg = (await cluster.query.config())["config"]
     oracle = Contract(cfg["pricing_oracle"])
 
-    await oracle.set_prices(prices=[('uust','1')])
+    await oracle.set_prices(prices=[('uusd','1')])
 
     cluster_state = await cluster.query.cluster_state(cluster_contract_address=cluster_addr)
 

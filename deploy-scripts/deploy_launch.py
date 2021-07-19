@@ -1,8 +1,8 @@
 import os
 
 os.environ["USE_TEQUILA"] = "1"
-# os.environ["MNEMONIC"] = 'museum resist wealth require renew punch jeans smooth old color neutral cactus baby retreat guitar web average piano excess next strike drive game romance'
-os.environ["MNEMONIC"] = "canal tip borrow fly skirt auction volume scene great wrap wise album feature toast lawsuit ginger sweet cat reunion garlic early inspire napkin salt"
+os.environ["MNEMONIC"] = 'museum resist wealth require renew punch jeans smooth old color neutral cactus baby retreat guitar web average piano excess next strike drive game romance'
+# os.environ["MNEMONIC"] = "canal tip borrow fly skirt auction volume scene great wrap wise album feature toast lawsuit ginger sweet cat reunion garlic early inspire napkin salt"
 from api import Asset
 from ecosystem import Ecosystem
 from contract_helpers import Contract, ClusterContract, store_contract, chain
@@ -154,12 +154,13 @@ async def deploy_token_contracts():
     print(contracts_to_symbols)
 
 async def send_from_alwin_to_self():
-    SEND_TO = "terra10uuh5ujkae8s27r32v2wphzkalz06p5npjzl5n"
+    SEND_TO = "terra1hpwskqv92r6apn90kx3k9zk756g9j6m6zh4hmj"
     msgs = []
     for token, symbol in CONTRACT_TOKEN_TO_SYM_TEQ.items():
         print(symbol, token)
         contract = Contract(token)
-        transfer_out = str(10**15 - 10**6)
+        # transfer_out = str(10**15 - 10**6)
+        transfer_out = str(10**10)
         msgs.append(contract.transfer(recipient=SEND_TO, amount=transfer_out))
         print("transferred out", symbol)
         

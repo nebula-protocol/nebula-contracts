@@ -36,7 +36,7 @@ class NextDogeRecomposer:
         #["UST, ""DOGE", "CUMMIES", "MEME", "ERC20"]
         self.asset_ids = ["terrausd", "dogecoin", "cumrocket", "degenerator", "erc20"]
         self.asset_infos = [
-            'uust', 
+            'uusd', 
             'terra1wpa2978x6n9c6xdvfzk4uhkzvphmq5fhdnvrym',
             'terra1kf9qa5f3uu7nq3flg2dva8c9d9lh8h5cyuextt',
             'terra1u08z2c9r3s3avrn9l0r3m30xhcmssunvv5d0rx',
