@@ -13,6 +13,7 @@ static PREFIX_REWARD: &[u8] = b"reward";
 pub struct Config {
     pub owner: HumanAddr,
     pub nebula_token: HumanAddr,
+    pub terraswap_factory: HumanAddr,
 }
 
 pub fn store_config<S: Storage>(storage: &mut S, config: &Config) -> StdResult<()> {

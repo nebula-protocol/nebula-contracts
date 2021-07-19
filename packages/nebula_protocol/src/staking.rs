@@ -1,6 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use terraswap::asset::Asset;
 use cosmwasm_std::{Decimal, HumanAddr, Uint128};
 use cw20::Cw20ReceiveMsg;
 
@@ -8,6 +9,7 @@ use cw20::Cw20ReceiveMsg;
 pub struct InitMsg {
     pub owner: HumanAddr,
     pub nebula_token: HumanAddr,
+    pub terraswap_factory: HumanAddr,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -37,6 +39,18 @@ pub enum HandleMsg {
     Withdraw {
         // If the asset token is not given, then all rewards are withdrawn
         asset_token: Option<HumanAddr>,
+    },
+    /// Provides liquidity and automatically stakes the LP tokens
+    AutoStake {
+        assets: [Asset; 2],
+        slippage_tolerance: Option<Decimal>,
+    },
+    /// Hook to stake the minted LP tokens
+    AutoStakeHook {
+        asset_token: HumanAddr,
+        staking_token: HumanAddr,
+        staker_addr: HumanAddr,
+        prev_staking_token_amount: Uint128,
     },
 }
 
