@@ -71,14 +71,6 @@ pub struct Poll {
     pub max_voting_power: Uint128,
 }
 
-#[derive(Default, Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct VotingPower {
-    pub share: Uint128,                        // total staked balance
-    pub locked_balance: Vec<(u64, VoterInfo)>, // maps poll_id to weight voted
-    pub participated_polls: Vec<u64>,          // poll_id
-    pub lock_end_week: Option<u64>,            // time when lock on staked tokens expires
-}
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ExecuteData {
     pub contract: HumanAddr,
