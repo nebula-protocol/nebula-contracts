@@ -4,7 +4,8 @@ mod tests {
     use crate::mock_querier::mock_dependencies_with_querier;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, MOCK_CONTRACT_ADDR};
     use cosmwasm_std::{
-        from_binary, log, to_binary, Coin, CosmosMsg, Decimal, HumanAddr, StdError, Uint128, WasmMsg,
+        from_binary, log, to_binary, Coin, CosmosMsg, Decimal, HumanAddr, StdError, Uint128,
+        WasmMsg,
     };
     use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
     use nebula_protocol::staking::{
@@ -22,7 +23,7 @@ mod tests {
         let msg = InitMsg {
             owner: HumanAddr::from("owner"),
             nebula_token: HumanAddr::from("nebtoken"),
-            terraswap_factory: HumanAddr::from("terraswap-factory")
+            terraswap_factory: HumanAddr::from("terraswap-factory"),
         };
 
         let env = mock_env("addr", &[]);
@@ -150,7 +151,7 @@ mod tests {
         let msg = InitMsg {
             owner: HumanAddr::from("owner"),
             nebula_token: HumanAddr::from("nebtoken"),
-            terraswap_factory: HumanAddr::from("terraswap-factory")
+            terraswap_factory: HumanAddr::from("terraswap-factory"),
         };
 
         let env = mock_env("addr", &[]);

@@ -1,19 +1,18 @@
 use cosmwasm_std::{
-    log, to_binary, Api, Coin, CosmosMsg, Decimal, Env, Extern, HandleResponse, HandleResult, 
+    log, to_binary, Api, Coin, CosmosMsg, Decimal, Env, Extern, HandleResponse, HandleResult,
     HumanAddr, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 
-use terraswap::asset::{Asset, AssetInfo, PairInfo};
-use nebula_protocol::staking::HandleMsg;
 use crate::rewards::before_share_change;
 use crate::state::{
-    read_pool_info, rewards_read, rewards_store, store_pool_info, 
-    read_config, Config, PoolInfo, RewardInfo,
+    read_config, read_pool_info, rewards_read, rewards_store, store_pool_info, Config, PoolInfo,
+    RewardInfo,
 };
+use nebula_protocol::staking::HandleMsg;
+use terraswap::asset::{Asset, AssetInfo, PairInfo};
 
 use terraswap::pair::HandleMsg as PairHandleMsg;
 use terraswap::querier::{query_pair_info, query_token_balance};
-
 
 use cw20::Cw20HandleMsg;
 
@@ -104,12 +103,9 @@ pub fn auto_stake<S: Storage, A: Api, Q: Querier>(
     let terraswap_pair: PairInfo = query_pair_info(deps, &terraswap_factory, &asset_infos)?;
 
     // assert the token and lp token match with pool info
-    let pool_info: PoolInfo =
-        read_pool_info(&deps.storage, &token_addr)?;
+    let pool_info: PoolInfo = read_pool_info(&deps.storage, &token_addr)?;
 
-    if pool_info.staking_token
-        != terraswap_pair.liquidity_token
-    {
+    if pool_info.staking_token != terraswap_pair.liquidity_token {
         return Err(StdError::generic_err("Invalid staking token"));
     }
 

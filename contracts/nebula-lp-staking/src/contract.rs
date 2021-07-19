@@ -9,7 +9,7 @@ use nebula_protocol::staking::{
 };
 
 use crate::rewards::{deposit_reward, query_reward_info, withdraw_reward};
-use crate::staking::{bond, unbond, auto_stake, auto_stake_hook};
+use crate::staking::{auto_stake, auto_stake_hook, bond, unbond};
 use crate::state::{read_config, read_pool_info, store_config, store_pool_info, Config, PoolInfo};
 
 use cw20::Cw20ReceiveMsg;
