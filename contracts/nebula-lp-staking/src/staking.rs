@@ -224,7 +224,7 @@ fn _increase_bond_amount<S: Storage>(
     // Withdraw reward to pending reward; before changing share
     before_share_change(&pool_info, &mut reward_info)?;
 
-    // Increase total short or bond amount
+    // Increase bond amount
     pool_info.total_bond_amount += amount;
 
     reward_info.bond_amount += amount;
@@ -251,7 +251,7 @@ fn _decrease_bond_amount<S: Storage>(
     // Distribute reward to pending reward; before changing share
     before_share_change(&pool_info, &mut reward_info)?;
 
-    // Decrease total short or bond amount
+    // Decrease bond amount
     pool_info.total_bond_amount = (pool_info.total_bond_amount - amount)?;
 
     reward_info.bond_amount = (reward_info.bond_amount - amount)?;
