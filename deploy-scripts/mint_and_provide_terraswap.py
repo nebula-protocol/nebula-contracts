@@ -40,13 +40,13 @@ async def initial_mint(cluster_state):
     for asset_info in mint_cw20_assets:
         # Increase allowance of each
         asset_contract = Contract(asset_info)
-        msgs.append(asset_contract.increase_allowance(spender=cluster, amount="1000"))
-        mint_assets.append(Asset.asset(asset_info, "1000"))
+        msgs.append(asset_contract.increase_allowance(spender=cluster, amount="10000000"))
+        mint_assets.append(Asset.asset(asset_info, "10000000"))
 
-    import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
 
     msgs.append(
-        cluster.mint(asset_amounts=mint_assets, min_tokens="100", _send=send)
+        cluster.mint(asset_amounts=mint_assets, min_tokens="40000000", _send=send)
     )
 
     await chain(*msgs)
@@ -74,11 +74,11 @@ async def main():
     pair_contract = Contract(pair_info['contract_addr'])
 
     # Increase allowance
-    await cluster_token.increase_allowance(spender=pair_contract, amount="20")
+    await cluster_token.increase_allowance(spender=pair_contract, amount="20000000")
 
     # Provide liquidity
-    assets = [Asset.asset(cluster_token, "20"), Asset.asset('uusd', "10000000", native=True)]
-    await pair_contract.provide_liquidity(assets=assets, _send={"uusd": "10000000"},)
+    assets = [Asset.asset(cluster_token, "20000000"), Asset.asset('uusd', "50000000", native=True)]
+    await pair_contract.provide_liquidity(assets=assets, _send={"uusd": "50000000"},)
 
     print('Done providing liquidity')
 

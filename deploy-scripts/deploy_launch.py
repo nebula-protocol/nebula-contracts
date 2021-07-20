@@ -153,14 +153,14 @@ async def deploy_token_contracts():
     print(symbols_to_contracts)
     print(contracts_to_symbols)
 
-async def send_from_alwin_to_self():
-    SEND_TO = "terra1hpwskqv92r6apn90kx3k9zk756g9j6m6zh4hmj"
+async def quick_transfer():
+    SEND_TO = "terra149xt9vmvmk9xag5f9zlnhqdw8yr8xu5kqmtyyk"
     msgs = []
     for token, symbol in CONTRACT_TOKEN_TO_SYM_TEQ.items():
         print(symbol, token)
         contract = Contract(token)
         # transfer_out = str(10**15 - 10**6)
-        transfer_out = str(10**10)
+        transfer_out = str(10**12)
         msgs.append(contract.transfer(recipient=SEND_TO, amount=transfer_out))
         print("transferred out", symbol)
         
@@ -170,7 +170,7 @@ async def send_from_alwin_to_self():
 async def deploy_contracts():
     # await deploy_new_incentives()
     # await deploy_token_contracts()
-    await send_from_alwin_to_self()
+    await quick_transfer()
 
 if __name__ == "__main__":
     asyncio.get_event_loop().run_until_complete(deploy_contracts())
