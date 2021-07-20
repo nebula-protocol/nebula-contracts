@@ -12,9 +12,11 @@ pub struct InitMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
-    /// Can be called by the owner to reset the cluster owner
-    _ResetOwner { owner: HumanAddr },
-
+    /// OWNER-CALLABLE
+    UpdateConfig {
+        owner: Option<HumanAddr>,
+        penalty_params: Option<PenaltyParams>,
+    },
     Mint {
         block_height: u64,
         cluster_token_supply: Uint128,
