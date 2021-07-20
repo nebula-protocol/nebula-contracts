@@ -46,7 +46,7 @@ pub fn assert_cluster_exists<S: Storage, A: Api, Q: Querier>(
     if res.exists {
         Ok(true)
     } else {
-        Err(StdError::generic_err("specified does not exist"))
+        Err(StdError::generic_err("specified cluster does not exist"))
     }
 }
 
