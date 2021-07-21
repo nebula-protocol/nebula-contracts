@@ -24,7 +24,7 @@ async def test_incentives_ops(eco: Ecosystem):
     print(cluster_state)
     print(await eco.cluster_pair.query.pool())
 
-    assets = [c['token']['contract_addr'] for c in cluster_state['assets']]
+    assets = [c['info']['token']['contract_addr'] for c in cluster_state['target']]
     await eco.dummy_oracle.set_prices(prices=list(zip(assets, cluster_state['prices'])))
     resp = await eco.incentives.arb_cluster_redeem(
         cluster_contract=eco.cluster,
