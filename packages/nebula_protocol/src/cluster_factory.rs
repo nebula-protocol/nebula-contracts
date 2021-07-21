@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{Binary, HumanAddr, Uint128};
 
-use terraswap::asset::AssetInfo;
+use terraswap::asset::{Asset, AssetInfo};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
@@ -130,7 +130,6 @@ pub struct Params {
     /// Composition oracle address
     pub composition_oracle: HumanAddr,
 
-    pub assets: Vec<AssetInfo>,
-
-    pub target: Vec<u32>,
+    /// Target assets and weights
+    pub target: Vec<Asset>,
 }

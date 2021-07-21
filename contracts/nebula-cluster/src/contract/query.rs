@@ -36,16 +36,8 @@ fn query_config<S: Storage, A: Api, Q: Querier>(
 fn query_target<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
 ) -> StdResult<TargetResponse> {
-    let target_asset_data = read_target_asset_data(&deps.storage)?;
-    let target = target_asset_data
-        .iter()
-        .map(|x| x.target)
-        .collect::<Vec<_>>();
-    let assets = target_asset_data
-        .iter()
-        .map(|x| x.asset.clone())
-        .collect::<Vec<_>>();
-    Ok(TargetResponse { assets, target })
+    let target_assets = read_target_asset_data(&deps.storage)?;
+    Ok(TargetResponse { target: target_assets })
 }
 
 pub fn query_cluster_state<S: Storage, A: Api, Q: Querier>(
@@ -56,9 +48,9 @@ pub fn query_cluster_state<S: Storage, A: Api, Q: Querier>(
     let cfg = &read_config(&deps.storage)?;
 
     let target_asset_data = read_target_asset_data(&deps.storage)?;
-    let assets = target_asset_data
+    let asset_infos = target_asset_data
         .iter()
-        .map(|x| x.asset.clone())
+        .map(|x| x.info.clone())
         .collect::<Vec<_>>();
 
     let penalty: HumanAddr = HumanAddr::from(&cfg.penalty);
@@ -72,13 +64,13 @@ pub fn query_cluster_state<S: Storage, A: Api, Q: Querier>(
     let outstanding_balance_tokens = query_cw20_token_supply(&deps.querier, &cluster_token)?;
 
     // get prices for each asset
-    let prices = assets
+    let prices = asset_infos
         .iter()
         .map(|asset_info| query_price(&deps.querier, &cfg.pricing_oracle, asset_info, stale_threshold))
         .collect::<StdResult<Vec<String>>>()?;
 
     // get inventory
-    let inv: Vec<Uint128> = assets
+    let inv: Vec<Uint128> = asset_infos
         .iter()
         .map(|asset| match asset {
             AssetInfo::Token { contract_addr } => {
@@ -90,17 +82,11 @@ pub fn query_cluster_state<S: Storage, A: Api, Q: Querier>(
         })
         .collect::<StdResult<Vec<Uint128>>>()?;
 
-    let target = target_asset_data
-        .iter()
-        .map(|x| x.target)
-        .collect::<Vec<_>>();
-
     Ok(ClusterStateResponse {
         outstanding_balance_tokens,
         prices,
         inv,
-        assets,
-        target,
+        target: target_asset_data,
         penalty,
         cluster_token,
         cluster_contract_address: cluster_contract_address.clone(),

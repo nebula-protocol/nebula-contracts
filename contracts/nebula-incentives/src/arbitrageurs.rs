@@ -218,11 +218,16 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
         send: vec![],
     }));
 
+    let asset_infos = cluster_state.target
+        .iter()
+        .map(|x| x.info.clone())
+        .collect::<Vec<_>>();
+
     // send all
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract,
         msg: to_binary(&HandleMsg::SendAll {
-            asset_infos: cluster_state.assets,
+            asset_infos,
             send_to: env.message.sender,
         })?,
         send: vec![],

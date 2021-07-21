@@ -152,23 +152,6 @@ pub fn distribute<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-pub fn new_penalty_period<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-) -> HandleResult {
-    let cfg = read_config(&deps.storage)?;
-
-    if env.message.sender != cfg.owner {
-        return Err(StdError::unauthorized());
-    }
-
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![log("action", "new_penalty_period")],
-        data: None,
-    })
-}
-
 pub fn query<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     msg: QueryMsg,

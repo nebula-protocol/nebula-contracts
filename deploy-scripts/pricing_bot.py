@@ -73,7 +73,7 @@ async def get_prices(infos):
 
                 # Should encompass uluna + uust (test uust)
                 if info.islower():
-                    data = data * (10**-6)
+                    data = data
                 prices.append(data)
 
             except (ConnectionError, Timeout, TooManyRedirects) as e:
@@ -139,7 +139,7 @@ async def pricing_bot():
             cluster_contract_address=cluster_addr
         )
         print("new prices", price_data)
-        await asyncio.sleep(30)
+        await asyncio.sleep(15)
 
 if __name__ == "__main__":
     asyncio.get_event_loop().run_until_complete(pricing_bot())

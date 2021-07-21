@@ -20,7 +20,7 @@ async def test_governance_ops(eco: Ecosystem):
     await eco.create_and_execute_poll(
         {
             "contract": eco.cluster,
-            "msg": eco.cluster.reset_penalty(penalty=new_penalty_contract),
+            "msg": eco.cluster.update_config(penalty=new_penalty_contract),
         },
         distribute_collector=True,
     )

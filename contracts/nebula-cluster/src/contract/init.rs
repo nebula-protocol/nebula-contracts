@@ -1,13 +1,13 @@
 use crate::error;
 use crate::{
-    state::{save_config, save_target_asset_data, TargetAssetData},
+    state::{save_config, save_target_asset_data},
     util::vec_to_string,
 };
 use cosmwasm_std::{
     log, Api, CosmosMsg, Env, Extern, InitResponse, Querier, StdError, StdResult, Storage, WasmMsg,
 };
 use nebula_protocol::cluster::{ClusterConfig, InitMsg};
-use terraswap::asset::AssetInfo;
+use terraswap::asset::{Asset, AssetInfo};
 
 pub fn validate_targets(target_assets: Vec<AssetInfo>) -> bool {
     for i in 0..target_assets.len() - 1 {
@@ -25,13 +25,6 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     _env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
-    // make sure assets & target are same dimensions
-    if msg.target.len() != msg.assets.len() {
-        return Err(error::bad_weight_dimensions(
-            msg.target.len(),
-            msg.assets.len(),
-        ));
-    }
 
     let cfg = ClusterConfig {
         name: msg.name.clone(),
@@ -44,25 +37,18 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         penalty: msg.penalty.clone(),
     };
 
-    let assets = msg.assets.clone();
+    let asset_infos = msg.target
+        .iter()
+        .map(|x| x.info.clone())
+        .collect::<Vec<_>>();
 
-    if !validate_targets(assets.clone()) {
+    if !validate_targets(asset_infos.clone()) {
         return Err(StdError::generic_err(
             "Cluster cannot contain duplicate assets",
         ));
     }
 
-    let target = msg.target.clone();
-
-    // TODO: Consider renaming struct name
-    let mut asset_data: Vec<TargetAssetData> = Vec::new();
-    for i in 0..msg.target.len() {
-        let asset_elem = TargetAssetData {
-            asset: assets[i].clone(),
-            target: target[i].clone(),
-        };
-        asset_data.push(asset_elem);
-    }
+    let asset_data = msg.target.clone();
 
     save_config(&mut deps.storage, &cfg)?;
     save_target_asset_data(&mut deps.storage, &asset_data)?;
@@ -70,7 +56,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     let log = vec![
         log("name", msg.name),
         log("owner", msg.owner),
-        log("assets", vec_to_string(&msg.assets)),
+        log("assets", vec_to_string(&asset_infos)),
     ];
 
     if let Some(hook) = msg.init_hook {
