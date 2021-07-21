@@ -144,12 +144,12 @@ pub fn update_target<S: Storage, A: Api, Q: Querier>(
     let mut asset_data = target.clone();
 
     // Create new vec for logging and validation purpose
-    let updated_asset_infos = asset_data
+    let mut updated_asset_infos = asset_data
         .iter()
         .map(|x| x.info.clone())
         .collect::<Vec<_>>();
 
-    let updated_target_weights = asset_data
+    let mut updated_target_weights = asset_data
         .iter()
         .map(|x| x.amount.clone())
         .collect::<Vec<_>>();
@@ -570,7 +570,7 @@ pub fn receive_burn<S: Storage, A: Api, Q: Querier>(
             max_tokens,
             redeem_asset_amounts: asset_amounts.clone(),
             asset_prices: prices,
-            target_weights: target,
+            target_weights: target_weights,
         })?,
         send: vec![],
     }));
