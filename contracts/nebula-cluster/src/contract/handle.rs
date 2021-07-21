@@ -706,119 +706,7 @@ mod tests {
         };
 
         let env = mock_env(h("addr0000"), &[]);
-        let res = handle(&mut deps, env.clone(), mint_msg).unwrap();
-
-        assert_eq!(
-            res.messages[0],
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: h("mAAPL"),
-                msg: to_binary(&Cw20HandleMsg::TransferFrom {
-                    owner: h("addr0000"),
-                    recipient: h(MOCK_CONTRACT_ADDR),
-                    amount: asset_amounts[0].amount,
-                })
-                .unwrap(),
-                send: vec![],
-            }),
-        );
-
-        assert_eq!(
-            res.messages[1],
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: h("mGOOG"),
-                msg: to_binary(&Cw20HandleMsg::TransferFrom {
-                    owner: h("addr0000"),
-                    recipient: h(MOCK_CONTRACT_ADDR),
-                    amount: asset_amounts[1].amount,
-                })
-                .unwrap(),
-                send: vec![],
-            }),
-        );
-
-        assert_eq!(
-            res.messages[2],
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: h("mMSFT"),
-                msg: to_binary(&Cw20HandleMsg::TransferFrom {
-                    owner: h("addr0000"),
-                    recipient: h(MOCK_CONTRACT_ADDR),
-                    amount: asset_amounts[2].amount,
-                })
-                .unwrap(),
-                send: vec![],
-            }),
-        );
-
-        assert_eq!(
-            res.messages[3],
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: h("mNFLX"),
-                msg: to_binary(&Cw20HandleMsg::TransferFrom {
-                    owner: h("addr0000"),
-                    recipient: h(MOCK_CONTRACT_ADDR),
-                    amount: asset_amounts[3].amount,
-                })
-                .unwrap(),
-                send: vec![],
-            }),
-        );
-
-        assert_eq!(
-            res.messages[4],
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: consts::penalty(),
-                msg: to_binary(&PenaltyHandleMsg::Mint {
-                    block_height: env.block.height,
-                    cluster_token_supply: Uint128::from(1_000_000_000u128),
-                    inventory: vec![
-                        Uint128::from(7_290_053_159u128),
-                        Uint128::from(319_710_128u128),
-                        Uint128::from(14_219_281_228u128),
-                        Uint128::from(224_212_221u128)
-                    ],
-                    mint_asset_amounts: asset_amounts.iter().map(|v| v.amount).collect(),
-                    asset_prices: vec![
-                        "135.18".to_string(),
-                        "1780.03".to_string(),
-                        "222.42".to_string(),
-                        "540.82".to_string()
-                    ],
-                    target_weights: consts::target_stage(),
-                })
-                .unwrap(),
-                send: vec![],
-            })
-        );
-
-        // 3% fee_rate
-        // let mint_to_sender = 1000000 * (1 - 0.03) = 970000
-        // let protocol_fee = 1000000 - mint_to_sender = 30000
-        assert_eq!(
-            res.messages[5],
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: consts::cluster_token(),
-                msg: to_binary(&Cw20HandleMsg::Mint {
-                    amount: Uint128::from(30000u128),
-                    recipient: h("collector"),
-                })
-                .unwrap(),
-                send: vec![],
-            })
-        );
-
-        assert_eq!(
-            res.messages[6],
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: consts::cluster_token(),
-                msg: to_binary(&Cw20HandleMsg::Mint {
-                    amount: Uint128::from(970000u128),
-                    recipient: h("addr0000"),
-                })
-                .unwrap(),
-                send: vec![],
-            })
-        );
+        let res = handle(&mut deps, env, mint_msg).unwrap();
 
         // match res {
         //     Err(..) => (),
@@ -828,9 +716,9 @@ mod tests {
         // let env = mock_env(h("addr0000"), &[]);
         // let res = handle(&mut deps, env, mint_msg).unwrap();
 
-        // for log in res.log.iter() {
-        //     println!("{}: {}", log.key, log.value);
-        // }
+        for log in res.log.iter() {
+            println!("{}: {}", log.key, log.value);
+        }
         // assert_eq!(1, res.messages.len());
     }
     //
