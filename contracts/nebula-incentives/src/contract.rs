@@ -43,7 +43,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     match msg {
-        HandleMsg::_ResetOwner { owner } => reset_owner(deps, env, &owner),
+        HandleMsg::UpdateOwner { owner } => update_owner(deps, env, &owner),
         HandleMsg::Receive(msg) => receive_cw20(deps, env, msg),
         HandleMsg::Withdraw {} => withdraw_reward(deps, env),
         HandleMsg::NewPenaltyPeriod {} => new_penalty_period(deps, env),
@@ -123,7 +123,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-pub fn reset_owner<S: Storage, A: Api, Q: Querier>(
+pub fn update_owner<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     owner: &HumanAddr,
@@ -140,7 +140,7 @@ pub fn reset_owner<S: Storage, A: Api, Q: Querier>(
 
     Ok(HandleResponse {
         messages: vec![],
-        log: vec![log("action", "_reset_owner")],
+        log: vec![log("action", "update_owner")],
         data: None,
     })
 }

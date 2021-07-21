@@ -18,7 +18,7 @@ pub struct InitMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
-    _ResetOwner {
+    UpdateOwner {
         owner: HumanAddr,
     },
     Receive(Cw20ReceiveMsg),

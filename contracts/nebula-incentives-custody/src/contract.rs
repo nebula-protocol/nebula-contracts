@@ -22,12 +22,12 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     match msg {
-        HandleMsg::RequestNeb { amount } => handle_request_neb(deps, env, amount),
-        HandleMsg::_ResetOwner { owner } => handle_reset_owner(deps, env, &owner),
+        HandleMsg::RequestNeb { amount } => request_neb(deps, env, amount),
+        HandleMsg::UpdateOwner { owner } => update_owner(deps, env, &owner),
     }
 }
 
-pub fn handle_reset_owner<S: Storage, A: Api, Q: Querier>(
+pub fn update_owner<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     owner: &HumanAddr,
@@ -48,7 +48,7 @@ pub fn handle_reset_owner<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-pub fn handle_request_neb<S: Storage, A: Api, Q: Querier>(
+pub fn request_neb<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     amount: Uint128,
