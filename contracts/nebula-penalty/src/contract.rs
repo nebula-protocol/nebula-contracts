@@ -3,7 +3,7 @@ use cosmwasm_std::{
     StdError, StdResult, Storage, Uint128,
 };
 
-use crate::state::{read_config, save_config, PenaltyConfig};
+use crate::state::{PenaltyConfig, config_store, read_config, save_config};
 use cluster_math::{
     add, div_const, dot, imbalance, int32_vec_to_fpdec, int_vec_to_fpdec, mul_const,
     str_vec_to_fpdec, sub, FPDecimal,
@@ -127,13 +127,13 @@ pub fn compute_mint<S: Storage, A: Api, Q: Querier>(
     inventory: &[Uint128],
     mint_asset_amounts: &[Uint128],
     asset_prices: &[String],
-    target_weights: &[u32],
+    target_weights: &[Uint128],
 ) -> StdResult<MintResponse> {
     let n = FPDecimal::from(cluster_token_supply.u128());
     let i0 = int_vec_to_fpdec(inventory);
     let c = int_vec_to_fpdec(mint_asset_amounts);
     let p = str_vec_to_fpdec(asset_prices)?;
-    let w = int32_vec_to_fpdec(target_weights);
+    let w = int_vec_to_fpdec(target_weights);
 
     let i1 = add(&i0, &c);
 
@@ -165,14 +165,14 @@ pub fn compute_redeem<S: Storage, A: Api, Q: Querier>(
     max_tokens: &Uint128,
     redeem_asset_amounts: &[Uint128],
     asset_prices: &[String],
-    target_weights: &[u32],
+    target_weights: &[Uint128],
 ) -> StdResult<RedeemResponse> {
     let n = FPDecimal::from(cluster_token_supply.u128());
     let i0 = int_vec_to_fpdec(inventory);
     let m = FPDecimal::from(max_tokens.u128());
     let r = int_vec_to_fpdec(redeem_asset_amounts);
     let p = str_vec_to_fpdec(asset_prices)?;
-    let w = int32_vec_to_fpdec(target_weights);
+    let w = int_vec_to_fpdec(target_weights);
 
     return if redeem_asset_amounts.is_empty() {
         // pro-rata redeem
@@ -272,13 +272,24 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-pub fn try_reset_owner<S: Storage, A: Api, Q: Querier>(
+pub fn update_config<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    owner: &HumanAddr,
+    owner: Option<HumanAddr>,
+    penalty_params: Option<PenaltyParams>,
 ) -> StdResult<HandleResponse> {
-    let mut cfg = read_config(&deps.storage)?;
-    cfg.owner = owner.clone();
-    save_config(&mut deps.storage, &cfg)?;
+
+    config_store(&mut deps.storage).update(|mut config| {
+
+        if let Some(owner) = owner {
+            config.owner = owner;
+        }
+
+        if let Some(penalty_params) = penalty_params {
+            config.penalty_params = penalty_params;
+        }
+
+        Ok(config)
+    })?;
 
     Ok(HandleResponse {
         messages: vec![],
@@ -310,7 +321,7 @@ pub fn handle_mint<S: Storage, A: Api, Q: Querier>(
     inventory: &Vec<Uint128>,
     _mint_asset_amounts: &Vec<Uint128>,
     asset_prices: &Vec<String>,
-    _target_weights: &Vec<u32>,
+    _target_weights: &Vec<Uint128>,
 ) -> StdResult<HandleResponse> {
     let i = int_vec_to_fpdec(inventory);
     let p = str_vec_to_fpdec(asset_prices)?;
@@ -326,7 +337,7 @@ pub fn handle_redeem<S: Storage, A: Api, Q: Querier>(
     _max_tokens: &Uint128,
     _redeem_asset_amounts: &[Uint128],
     asset_prices: &[String],
-    _target_weights: &[u32],
+    _target_weights: &[Uint128],
 ) -> StdResult<HandleResponse> {
     let i = int_vec_to_fpdec(inventory);
     let p = str_vec_to_fpdec(asset_prices)?;
@@ -346,7 +357,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     }
 
     match msg {
-        HandleMsg::_ResetOwner { owner } => try_reset_owner(deps, &owner),
+        HandleMsg::UpdateConfig { owner, penalty_params } => update_config(deps, owner, penalty_params),
         HandleMsg::Mint {
             block_height,
             cluster_token_supply,

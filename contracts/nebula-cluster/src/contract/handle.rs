@@ -1,7 +1,4 @@
-use cosmwasm_std::{
-    log, to_binary, Api, CosmosMsg, Env, Extern, HandleResponse, HumanAddr, Querier, StdError,
-    StdResult, Storage, Uint128, WasmMsg,
-};
+use cosmwasm_std::{Api, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr, Querier, StdError, StdResult, Storage, Uint128, WasmMsg, log, to_binary};
 
 use cw20::Cw20HandleMsg;
 use error::bad_weight_values;
@@ -12,7 +9,7 @@ use crate::ext_query::{
     query_collector_contract_address, query_cw20_balance, query_mint_amount, query_redeem_amount,
     ExtQueryMsg,
 };
-use crate::state::{read_config, save_config, TargetAssetData};
+use crate::state::{config_store, read_config, save_config};
 use crate::state::{read_target_asset_data, save_target_asset_data};
 use crate::util::vec_to_string;
 use cluster_math::FPDecimal;
@@ -43,204 +40,95 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             max_tokens,
             asset_amounts,
         } => try_receive_burn(deps, env, max_tokens, asset_amounts),
-        HandleMsg::ResetTarget { assets, target } => try_reset_target(deps, env, &assets, &target),
-        HandleMsg::_SetClusterToken { cluster_token } => {
-            try_set_cluster_token(deps, env, &cluster_token)
-        }
-        HandleMsg::ResetCompositionOracle { composition_oracle } => {
-            try_reset_composition_oracle(deps, env, &composition_oracle)
-        }
-        HandleMsg::ResetPenalty { penalty } => try_reset_penalty(deps, env, &penalty),
-        HandleMsg::_ResetOwner { owner } => try_reset_owner(deps, env, &owner),
+        HandleMsg::UpdateConfig {
+            owner, 
+            name, 
+            description, 
+            cluster_token, 
+            pricing_oracle, 
+            composition_oracle, 
+            penalty, 
+            target} => update_config(
+                deps,
+                env,
+                owner,
+                name,
+                description,
+                cluster_token,
+                pricing_oracle,
+                composition_oracle,
+                penalty,
+                target,
+            ),
+        HandleMsg::UpdateTarget { target } => update_target(deps, env, &target),
     }
 }
 
-/*
-    Receives cluster tokens which are burned for assets according to
-    the given asset_weights and cluster penalty paramter. The corresponding
-    assets are taken from the cluster inventory and sent back to the user
-    along with any rewards based on whether the assets are moved towards/away
-    from the target.
-*/
-pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
+#[allow(clippy::too_many_arguments)]
+pub fn update_config<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    max_tokens: Uint128,
-    asset_amounts: Option<Vec<Asset>>,
-) -> StdResult<HandleResponse> {
-    let sender = env.message.sender.clone();
-
-    let cfg = read_config(&deps.storage)?;
-    let cluster_token = cfg
-        .cluster_token
-        .clone()
-        .ok_or_else(|| error::cluster_token_not_set())?;
-
-    let cluster_state = query_cluster_state(
-        &deps,
-        &env.contract.address,
-        env.block.time - FRESH_TIMESPAN,
-    )?;
-
-    let prices = cluster_state.prices;
-    let cluster_token_supply = cluster_state.outstanding_balance_tokens;
-    let inv = cluster_state.inv;
-    let target = cluster_state.target;
-
-    let target_asset_data = read_target_asset_data(&deps.storage)?;
-    let asset_infos = target_asset_data
-        .iter()
-        .map(|x| x.asset.clone())
-        .collect::<Vec<_>>();
-
-    let asset_amounts: Vec<Uint128> = match &asset_amounts {
-        Some(weights) => {
-            let mut vec: Vec<Uint128> = vec![Uint128(0); asset_infos.len()];
-            for i in 0..asset_infos.len() {
-                for j in 0..weights.len() {
-                    if weights[j].info.clone() == asset_infos[i].clone() {
-                        vec[i] = weights[j].amount;
-                        break;
-                    }
-                }
-            }
-            vec
+    owner: Option<HumanAddr>,
+    name: Option<String>,
+    description: Option<String>,
+    cluster_token: Option<HumanAddr>,
+    pricing_oracle: Option<HumanAddr>,
+    composition_oracle: Option<HumanAddr>,
+    penalty: Option<HumanAddr>,
+    target: Option<Vec<Asset>>
+) -> HandleResult {
+    // First, update cluster config
+    config_store(&mut deps.storage).update(|mut config| {
+        if config.owner != env.message.sender {
+            return Err(StdError::unauthorized());
         }
-        None => vec![],
+
+        if let Some(owner) = owner {
+            config.owner = owner;
+        }
+
+        if let Some(name) = name {
+            config.name = name;
+        }
+
+        match cluster_token {
+            None => {},
+            Some(_) => config.cluster_token = cluster_token,
+        }
+
+        if let Some(pricing_oracle) = pricing_oracle {
+            config.pricing_oracle = pricing_oracle;
+        }
+
+        if let Some(composition_oracle) = composition_oracle {
+            config.composition_oracle = composition_oracle;
+        }
+
+        if let Some(penalty) = penalty {
+            config.penalty = penalty;
+        }
+
+        Ok(config)
+    })?;
+
+    match target {
+        None => HandleResponse::default(),
+        Some(target ) => update_target(deps, env, &target)?,
     };
 
-    let (collector_address, fee_rate) = query_collector_contract_address(&deps, &cfg.factory)?;
-    let fee_rate: FPDecimal = FPDecimal::from_str(&*fee_rate)?;
-    let keep_rate: FPDecimal = FPDecimal::one() - fee_rate;
-
-    let token_cap = Uint128((FPDecimal::from(max_tokens.u128()) * keep_rate).into());
-
-    let redeem_response = query_redeem_amount(
-        &deps,
-        &cfg.penalty,
-        env.block.height,
-        cluster_token_supply,
-        inv.clone(),
-        token_cap,
-        asset_amounts.clone(),
-        prices.clone(),
-        target.clone(),
-    )?;
-
-    let redeem_totals = redeem_response.redeem_assets;
-
-    let estimated_cst = FPDecimal::from(redeem_response.token_cost.u128()) / keep_rate;
-    let mut token_cost = estimated_cst.into();
-
-    if FPDecimal::from(token_cost) != estimated_cst {
-        token_cost += 1;
-    }
-
-    let token_cost = Uint128(token_cost);
-
-    if token_cost > max_tokens {
-        return Err(error::above_max_tokens(token_cost, max_tokens));
-    }
-
-    let _fee_amt = FPDecimal::from(token_cost.u128()) * fee_rate;
-
-    let mut fee_amt = _fee_amt.into();
-    if FPDecimal::from(fee_amt) != _fee_amt {
-        fee_amt += 1
-    }
-
-    let fee_amt = Uint128(fee_amt);
-
-    let mut messages: Vec<CosmosMsg> = redeem_totals
-        .iter()
-        .zip(asset_infos.iter())
-        .filter(|(amt, _asset)| !amt.is_zero()) // remove 0 amounts
-        .map(|(amt, asset_info)| {
-            let asset = Asset {
-                info: asset_info.clone(),
-                amount: amt.clone(),
-            };
-
-            // TODO: Check if sender field is correct here (recipient should be sender.clone())
-            asset.into_msg(&deps, env.contract.address.clone(), sender.clone())
-        })
-        .collect::<StdResult<Vec<CosmosMsg>>>()?;
-
-    // extract cluster tokens from allowance
-    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: cluster_token.clone(),
-        msg: to_binary(&Cw20HandleMsg::TransferFrom {
-            owner: sender.clone(),
-            recipient: env.contract.address.clone(),
-            amount: token_cost,
-        })?,
-        send: vec![],
-    }));
-
-    // send fee to collector
-    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: cluster_token.clone(),
-        msg: to_binary(&Cw20HandleMsg::Transfer {
-            amount: fee_amt,
-            recipient: collector_address.clone(),
-        })?,
-        send: vec![],
-    }));
-
-    // burn the rest
-    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: cluster_token.clone(),
-        msg: to_binary(&Cw20HandleMsg::Burn {
-            amount: (token_cost - fee_amt)?,
-        })?,
-        send: vec![],
-    }));
-
-    // afterwards, notify the penalty contract that this update happened so
-    // it can make stateful updates...
-    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: cfg.penalty.clone(),
-        msg: to_binary(&ExtQueryMsg::Redeem {
-            block_height: env.block.height,
-            cluster_token_supply,
-            inventory: inv,
-            max_tokens,
-            redeem_asset_amounts: asset_amounts.clone(),
-            asset_prices: prices,
-            target_weights: target,
-        })?,
-        send: vec![],
-    }));
-
-    Ok(HandleResponse {
-        messages,
-        log: vec![
-            vec![
-                log("action", "receive:burn"),
-                log("sender", sender.clone()),
-                log("burn_amount", (token_cost - fee_amt)?),
-                log("token_cost", token_cost),
-                log("kept_as_fee", fee_amt),
-                log("asset_amounts", vec_to_string(&asset_amounts)),
-                log("redeem_totals", vec_to_string(&redeem_totals)),
-            ],
-            redeem_response.log,
-        ]
-        .concat(),
-        data: None,
-    })
+    Ok(HandleResponse::default())
 }
+
 
 /*
     Changes the cluster target weights for different assets to the given
     target weights and saves it. The ordering of the target weights is
     determined by the given assets.
 */
-pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
+pub fn update_target<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    assets: &Vec<AssetInfo>,
-    target: &[u32],
+    target: &Vec<Asset>,
 ) -> StdResult<HandleResponse> {
     // allow removal / adding
 
@@ -253,46 +141,31 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::unauthorized());
     }
 
-    // //TODO: Make sure all assets in new asset vector actually exist
-    // let provided: u32 = target.clone().iter().sum();
-    // if provided != 100 {
-    //     return Err(bad_weight_values(provided));
-    // }
+    let mut asset_data = target.clone();
 
-    if target.len() != assets.len() {
-        return Err(error::bad_weight_dimensions(target.len(), assets.len()));
-    }
+    let updated_asset_infos = asset_data
+        .iter()
+        .map(|x| x.info.clone())
+        .collect::<Vec<_>>();
 
-    if !validate_targets(assets.clone()) {
+
+    if !validate_targets(updated_asset_infos.clone()) {
         return Err(StdError::generic_err(
             "Cluster cannot contain duplicate assets",
         ));
     }
 
-    let mut asset_data: Vec<TargetAssetData> = Vec::new();
-    for i in 0..target.len() {
-        let asset_elem = TargetAssetData {
-            asset: assets[i].clone(),
-            target: target[i].clone(),
-        };
-        asset_data.push(asset_elem);
-    }
-
-    let updated_assets = asset_data
-        .iter()
-        .map(|x| x.asset.clone())
-        .collect::<Vec<_>>();
-
     let prev_asset_data = read_target_asset_data(&deps.storage)?;
-    let prev_assets = prev_asset_data
+    let prev_asset_infos = prev_asset_data
         .iter()
-        .map(|x| x.asset.clone())
+        .map(|x| x.info.clone())
         .collect::<Vec<_>>();
-    let prev_target = prev_asset_data.iter().map(|x| x.target).collect::<Vec<_>>();
 
-    for i in 0..prev_assets.len() {
-        let prev_asset = &prev_assets[i];
-        let inv_balance = match prev_asset {
+    let prev_target_weights = prev_asset_data.iter().map(|x| x.amount).collect::<Vec<_>>();
+
+    for i in 0..prev_asset_infos.len() {
+        let prev_asset_info = &prev_asset_infos[i];
+        let inv_balance = match prev_asset_info {
             AssetInfo::Token { contract_addr } => {
                 query_cw20_balance(&deps, &contract_addr, &env.contract.address)
             }
@@ -301,10 +174,10 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
             }
         };
 
-        if !inv_balance?.is_zero() && !updated_assets.contains(&prev_asset) {
-            let asset_elem = TargetAssetData {
-                asset: prev_asset.clone(),
-                target: 0,
+        if !inv_balance?.is_zero() && !updated_asset_infos.contains(&prev_asset_info) {
+            let asset_elem = Asset {
+                info: prev_asset_info.clone(),
+                amount: Uint128(0),
             };
             asset_data.push(asset_elem);
         }
@@ -312,20 +185,20 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
 
     save_target_asset_data(&mut deps.storage, &asset_data)?;
 
-    let updated_assets = asset_data
+    let updated_asset_infos = asset_data
         .iter()
-        .map(|x| x.asset.clone())
+        .map(|x| x.info.clone())
         .collect::<Vec<_>>();
-    let updated_target = asset_data.iter().map(|x| x.target).collect::<Vec<_>>();
+    let updated_target_weights = asset_data.iter().map(|x| x.amount).collect::<Vec<_>>();
 
     Ok(HandleResponse {
         messages: vec![],
         log: vec![
             log("action", "reset_target"),
-            log("prev_assets", vec_to_string(&prev_assets)),
-            log("prev_targets", vec_to_string(&prev_target)),
-            log("updated_assets", vec_to_string(&updated_assets)),
-            log("updated_targets", vec_to_string(&updated_target)),
+            log("prev_assets", vec_to_string(&prev_asset_infos)),
+            log("prev_targets", vec_to_string(&prev_target_weights)),
+            log("updated_assets", vec_to_string(&updated_asset_infos)),
+            log("updated_targets", vec_to_string(&updated_target_weights)),
         ],
         data: None,
     })
@@ -417,38 +290,185 @@ pub fn try_set_cluster_token<S: Storage, A: Api, Q: Querier>(
 }
 
 /*
-     May be called by the Cluster contract owner to reset the owner
+    Receives cluster tokens which are burned for assets according to
+    the given asset_weights and cluster penalty paramter. The corresponding
+    assets are taken from the cluster inventory and sent back to the user
+    along with any rewards based on whether the assets are moved towards/away
+    from the target.
 */
-pub fn try_reset_owner<S: Storage, A: Api, Q: Querier>(
+pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    owner: &HumanAddr,
+    max_tokens: Uint128,
+    assets: Option<Vec<Asset>>,
 ) -> StdResult<HandleResponse> {
-    let cfg = read_config(&deps.storage)?;
+    let sender = env.message.sender.clone();
 
-    // check permission
-    if env.message.sender != cfg.owner {
-        return Err(StdError::unauthorized());
+    let cfg = read_config(&deps.storage)?;
+    let cluster_token = cfg
+        .cluster_token
+        .clone()
+        .ok_or_else(|| error::cluster_token_not_set())?;
+
+    let cluster_state = query_cluster_state(
+        &deps,
+        &env.contract.address,
+        env.block.time - FRESH_TIMESPAN,
+    )?;
+
+    let prices = cluster_state.prices;
+    let cluster_token_supply = cluster_state.outstanding_balance_tokens;
+    let inv = cluster_state.inv;
+    let target = cluster_state.target;
+
+    let asset_infos = target
+        .iter()
+        .map(|x| x.info.clone())
+        .collect::<Vec<_>>();
+
+    let target_weights = target
+        .iter()
+        .map(|x| x.amount.clone())
+        .collect::<Vec<_>>();
+
+    let asset_amounts: Vec<Uint128> = match &assets {
+        Some(weights) => {
+            let mut vec: Vec<Uint128> = vec![Uint128(0); asset_infos.len()];
+            for i in 0..asset_infos.len() {
+                for j in 0..weights.len() {
+                    if weights[j].info.clone() == asset_infos[i].clone() {
+                        vec[i] = weights[j].amount;
+                        break;
+                    }
+                }
+            }
+            vec
+        }
+        None => vec![],
+    };
+
+    let (collector_address, fee_rate) = query_collector_contract_address(&deps, &cfg.factory)?;
+    let fee_rate: FPDecimal = FPDecimal::from_str(&*fee_rate)?;
+    let keep_rate: FPDecimal = FPDecimal::one() - fee_rate;
+
+    let token_cap = Uint128((FPDecimal::from(max_tokens.u128()) * keep_rate).into());
+
+    let redeem_response = query_redeem_amount(
+        &deps,
+        &cfg.penalty,
+        env.block.height,
+        cluster_token_supply,
+        inv.clone(),
+        token_cap,
+        asset_amounts.clone(),
+        prices.clone(),
+        target_weights.clone(),
+    )?;
+
+    let redeem_totals = redeem_response.redeem_assets;
+
+    let estimated_cst = FPDecimal::from(redeem_response.token_cost.u128()) / keep_rate;
+    let mut token_cost = estimated_cst.into();
+
+    if FPDecimal::from(token_cost) != estimated_cst {
+        token_cost += 1;
     }
 
-    // TODO: Error checking needed here? can this function be called more than once?
-    // if let Some(token) = cfg.cluster_token {
-    //     return Err(error::cluster_token_already_set(&token));
-    // }
+    let token_cost = Uint128(token_cost);
 
-    let mut new_cfg = cfg.clone();
-    new_cfg.owner = owner.clone();
-    save_config(&mut deps.storage, &new_cfg)?;
+    if token_cost > max_tokens {
+        return Err(error::above_max_tokens(token_cost, max_tokens));
+    }
+
+    let _fee_amt = FPDecimal::from(token_cost.u128()) * fee_rate;
+
+    let mut fee_amt = _fee_amt.into();
+    if FPDecimal::from(fee_amt) != _fee_amt {
+        fee_amt += 1
+    }
+
+    let fee_amt = Uint128(fee_amt);
+
+    let mut messages: Vec<CosmosMsg> = redeem_totals
+        .iter()
+        .zip(asset_infos.iter())
+        .filter(|(amt, _asset)| !amt.is_zero()) // remove 0 amounts
+        .map(|(amt, asset_info)| {
+            let asset = Asset {
+                info: asset_info.clone(),
+                amount: amt.clone(),
+            };
+
+            // TODO: Check if sender field is correct here (recipient should be sender.clone())
+            asset.into_msg(&deps, env.contract.address.clone(), sender.clone())
+        })
+        .collect::<StdResult<Vec<CosmosMsg>>>()?;
+
+    // extract cluster tokens from allowance
+    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: cluster_token.clone(),
+        msg: to_binary(&Cw20HandleMsg::TransferFrom {
+            owner: sender.clone(),
+            recipient: env.contract.address.clone(),
+            amount: token_cost,
+        })?,
+        send: vec![],
+    }));
+
+    // send fee to collector
+    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: cluster_token.clone(),
+        msg: to_binary(&Cw20HandleMsg::Transfer {
+            amount: fee_amt,
+            recipient: collector_address.clone(),
+        })?,
+        send: vec![],
+    }));
+
+    // burn the rest
+    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: cluster_token.clone(),
+        msg: to_binary(&Cw20HandleMsg::Burn {
+            amount: (token_cost - fee_amt)?,
+        })?,
+        send: vec![],
+    }));
+
+    // afterwards, notify the penalty contract that this update happened so
+    // it can make stateful updates...
+    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: cfg.penalty.clone(),
+        msg: to_binary(&ExtQueryMsg::Redeem {
+            block_height: env.block.height,
+            cluster_token_supply,
+            inventory: inv,
+            max_tokens,
+            redeem_asset_amounts: asset_amounts.clone(),
+            asset_prices: prices,
+            target_weights: target_weights,
+        })?,
+        send: vec![],
+    }));
 
     Ok(HandleResponse {
-        messages: vec![],
+        messages,
         log: vec![
-            log("action", "_try_reset_owner"),
-            log("cluster_token", &owner),
-        ],
+            vec![
+                log("action", "receive:burn"),
+                log("sender", sender.clone()),
+                log("burn_amount", (token_cost - fee_amt)?),
+                log("token_cost", token_cost),
+                log("kept_as_fee", fee_amt),
+                log("asset_amounts", vec_to_string(&asset_amounts)),
+                log("redeem_totals", vec_to_string(&redeem_totals)),
+            ],
+            redeem_response.log,
+        ]
+        .concat(),
         data: None,
     })
 }
+
 
 /*
     Tries to mint cluster tokens from the asset amounts given.
@@ -473,11 +493,14 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 
     let cfg = read_config(&deps.storage)?;
 
-    let target_asset_data = read_target_asset_data(&deps.storage)?;
-
-    let asset_infos = &target_asset_data
+    let asset_infos = target
         .iter()
-        .map(|x| x.asset.clone())
+        .map(|x| x.info.clone())
+        .collect::<Vec<_>>();
+
+    let target_weights = target
+        .iter()
+        .map(|x| x.amount.clone())
         .collect::<Vec<_>>();
 
     let cluster_token = cfg
@@ -542,7 +565,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
             inv.clone(),
             c.clone(),
             prices.clone(),
-            target.clone(),
+            target_weights.clone(),
         )?;
         let mint_total = mint_response.mint_tokens;
 
@@ -564,7 +587,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
                 inventory: inv,
                 mint_asset_amounts: c,
                 asset_prices: prices,
-                target_weights: target,
+                target_weights: target_weights,
             })?,
             send: vec![],
         }));
@@ -597,7 +620,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
                 //         c[i].u128() as u32
                 //     )));
                 // }
-                let div = target[i] / (c[i].u128() as u32);
+                let div = target_weights[i].u128() / c[i].u128();
                 if val == 0 {
                     val = div;
                 }
@@ -939,25 +962,34 @@ mod tests {
             .set_token_supply(consts::cluster_token(), 100_000_000)
             .set_token_balance(consts::cluster_token(), "addr0000", 20_000_000);
 
-        let new_assets = vec![
-            AssetInfo::Token {
-                contract_addr: h("mAAPL"),
+        let new_target: Vec<Asset> = vec![
+            Asset{
+                info: AssetInfo::Token {
+                    contract_addr: h("mAAPL"),
+                },
+                amount: Uint128(10)
             },
-            AssetInfo::Token {
-                contract_addr: h("mGOOG"),
+            Asset{
+                info: AssetInfo::Token {
+                    contract_addr: h("mGOOG"),
+                },
+                amount: Uint128(5)
             },
-            AssetInfo::Token {
-                contract_addr: h("mMSFT"),
+            Asset{
+                info: AssetInfo::Token {
+                    contract_addr: h("mMSFT"),
+                },
+                amount: Uint128(35)
             },
-            AssetInfo::Token {
-                contract_addr: h("mGME"),
+            Asset{
+                info: AssetInfo::Token {
+                    contract_addr: h("mGME"),
+                },
+                amount: Uint128(50)
             },
         ];
-        let new_targets: Vec<u32> = vec![10, 5, 35, 50];
-
-        let msg = HandleMsg::ResetTarget {
-            assets: new_assets.clone(),
-            target: new_targets.clone(),
+        let msg = HandleMsg::UpdateTarget {
+            target: new_target,
         };
 
         let env = mock_env(consts::owner(), &[]);

@@ -27,11 +27,8 @@ pub struct InitMsg {
     /// Target composition oracle address
     pub composition_oracle: HumanAddr,
 
-    /// Asset addresses
-    pub assets: Vec<AssetInfo>,
-
-    /// Target weight vector (not normalized)
-    pub target: Vec<u32>,
+    /// Asset addresses and target weights
+    pub target: Vec<Asset>,
 
     /// Penalty function address
     pub penalty: HumanAddr,
@@ -55,6 +52,7 @@ pub enum HandleMsg {
     },
     /// Called by recomposition oracle
     UpdateTarget { target: Vec<Asset> },
+
     /// USER-CALLABLE
     Mint {
         /// Asset amounts deposited for minting (cluster must be granted allowance or

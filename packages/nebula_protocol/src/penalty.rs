@@ -23,7 +23,7 @@ pub enum HandleMsg {
         inventory: Vec<Uint128>,
         mint_asset_amounts: Vec<Uint128>,
         asset_prices: Vec<String>,
-        target_weights: Vec<u32>,
+        target_weights: Vec<Uint128>,
     },
 
     Redeem {
@@ -33,7 +33,7 @@ pub enum HandleMsg {
         max_tokens: Uint128,
         redeem_asset_amounts: Vec<Uint128>,
         asset_prices: Vec<String>,
-        target_weights: Vec<u32>,
+        target_weights: Vec<Uint128>,
     },
 }
 
@@ -46,7 +46,7 @@ pub enum QueryMsg {
         inventory: Vec<Uint128>,
         mint_asset_amounts: Vec<Uint128>,
         asset_prices: Vec<String>,
-        target_weights: Vec<u32>,
+        target_weights: Vec<Uint128>,
     },
 
     Redeem {
@@ -56,7 +56,7 @@ pub enum QueryMsg {
         max_tokens: Uint128,
         redeem_asset_amounts: Vec<Uint128>,
         asset_prices: Vec<String>,
-        target_weights: Vec<u32>,
+        target_weights: Vec<Uint128>,
     },
 
     Params {},

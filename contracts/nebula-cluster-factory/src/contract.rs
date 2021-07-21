@@ -268,7 +268,6 @@ pub fn create_cluster<S: Storage, A: Api, Q: Querier>(
                 name: params.name.clone(),
                 description: params.description.clone(),
                 owner: env.contract.address.clone(),
-                assets: params.assets,
                 pricing_oracle: params.pricing_oracle.clone(),
                 composition_oracle: params.composition_oracle.clone(),
                 penalty: params.penalty,
@@ -324,9 +323,16 @@ pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: penalty,
                 send: vec![],
-                msg: to_binary(&ClusterHandleMsg::_ResetOwner {
-                    owner: cluster.clone(),
-                })?,
+                msg: to_binary(&ClusterHandleMsg::UpdateConfig {
+                    owner: Some(cluster.clone()),
+                    name: None,
+                    description: None,
+                    cluster_token: None,
+                    pricing_oracle: None,
+                    composition_oracle: None,
+                    penalty: None,
+                    target: None,
+                })?
             }),
             // Instantiate token
             CosmosMsg::Wasm(WasmMsg::Instantiate {
@@ -355,9 +361,16 @@ pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: cluster.clone(),
                 send: vec![],
-                msg: to_binary(&ClusterHandleMsg::_ResetOwner {
-                    owner: config.owner,
-                })?,
+                msg: to_binary(&ClusterHandleMsg::UpdateConfig {
+                    owner: Some(config.owner),
+                    name: None,
+                    description: None,
+                    cluster_token: None,
+                    pricing_oracle: None,
+                    composition_oracle: None,
+                    penalty: None,
+                    target: None,
+                })?
             }),
             // Set penalty contract owner to cluster contract
         ],
@@ -404,8 +417,15 @@ pub fn set_cluster_token_hook<S: Storage, A: Api, Q: Querier>(
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: cluster.clone(),
                 send: vec![],
-                msg: to_binary(&ClusterHandleMsg::_SetClusterToken {
-                    cluster_token: token.clone(),
+                msg: to_binary(&ClusterHandleMsg::UpdateConfig {
+                    owner: None,
+                    name: None,
+                    description: None,
+                    cluster_token: Some(token.clone()),
+                    pricing_oracle: None,
+                    composition_oracle: None,
+                    penalty: None,
+                    target: None,
                 })?,
             }),
             // set up terraswap pair

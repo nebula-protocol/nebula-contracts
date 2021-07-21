@@ -33,7 +33,7 @@ pub enum ExtQueryMsg {
         inventory: Vec<Uint128>,
         mint_asset_amounts: Vec<Uint128>,
         asset_prices: Vec<String>,
-        target_weights: Vec<u32>,
+        target_weights: Vec<Uint128>,
     },
 
     // Penalty redeem
@@ -44,7 +44,7 @@ pub enum ExtQueryMsg {
         max_tokens: Uint128,
         redeem_asset_amounts: Vec<Uint128>,
         asset_prices: Vec<String>,
-        target_weights: Vec<u32>,
+        target_weights: Vec<Uint128>,
     },
 }
 
@@ -165,7 +165,7 @@ pub fn query_mint_amount<S: Storage, A: Api, Q: Querier>(
     inventory: Vec<Uint128>,
     mint_asset_amounts: Vec<Uint128>,
     asset_prices: Vec<String>,
-    target_weights: Vec<u32>,
+    target_weights: Vec<Uint128>,
 ) -> StdResult<MintResponse> {
     let res: MintResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: penalty_address.clone(),
@@ -193,7 +193,7 @@ pub fn query_redeem_amount<S: Storage, A: Api, Q: Querier>(
     max_tokens: Uint128,
     redeem_asset_amounts: Vec<Uint128>,
     asset_prices: Vec<String>,
-    target_weights: Vec<u32>,
+    target_weights: Vec<Uint128>,
 ) -> StdResult<RedeemResponse> {
     let res: RedeemResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: penalty_address.clone(),
