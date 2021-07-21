@@ -15,9 +15,6 @@ pub static TARGET_KEY: &[u8] = b"target";
 /// asset data: Vec<AssetData>
 pub static ASSET_DATA_KEY: &[u8] = b"asset_data";
 
-/// asset: Vec<HumanAddr>
-pub static ASSETS_KEY: &[u8] = b"assets";
-
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TargetAssetData {
     pub asset: AssetInfo,

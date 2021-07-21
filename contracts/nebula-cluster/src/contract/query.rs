@@ -63,18 +63,18 @@ pub fn query_cluster_state<S: Storage, A: Api, Q: Querier>(
 
     let penalty: HumanAddr = HumanAddr::from(&cfg.penalty);
 
-    let cluster_token = &cfg
+    let cluster_token = cfg
         .cluster_token
         .clone()
         .ok_or_else(|| StdError::generic_err("no cluster token exists"))?;
 
     // get supply from cluster token
-    let outstanding_balance_tokens = query_cw20_token_supply(&deps, cluster_token)?;
+    let outstanding_balance_tokens = query_cw20_token_supply(&deps.querier, &cluster_token)?;
 
     // get prices for each asset
     let prices = assets
         .iter()
-        .map(|asset_info| query_price(&deps, &cfg.pricing_oracle, asset_info, stale_threshold))
+        .map(|asset_info| query_price(&deps.querier, &cfg.pricing_oracle, asset_info, stale_threshold))
         .collect::<StdResult<Vec<String>>>()?;
 
     // get inventory
@@ -82,7 +82,7 @@ pub fn query_cluster_state<S: Storage, A: Api, Q: Querier>(
         .iter()
         .map(|asset| match asset {
             AssetInfo::Token { contract_addr } => {
-                query_cw20_balance(&deps, &contract_addr, cluster_contract_address)
+                query_cw20_balance(&deps.querier, &contract_addr, cluster_contract_address)
             }
             AssetInfo::NativeToken { denom } => {
                 query_balance(&deps, cluster_contract_address, denom.clone())
@@ -102,7 +102,7 @@ pub fn query_cluster_state<S: Storage, A: Api, Q: Querier>(
         assets,
         target,
         penalty,
-        cluster_token: cluster_token.clone(),
+        cluster_token,
         cluster_contract_address: cluster_contract_address.clone(),
     })
 }

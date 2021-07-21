@@ -4,23 +4,23 @@ use cosmwasm_std::{
 };
 
 use cw20::Cw20HandleMsg;
-use error::bad_weight_values;
 
 use crate::contract::{query_cluster_state, validate_targets};
 use crate::error;
 use crate::ext_query::{
-    query_collector_contract_address, query_cw20_balance, query_mint_amount, query_redeem_amount,
-    ExtQueryMsg,
+    query_asset_balance, query_collector_contract_address, query_mint_amount, query_redeem_amount,
 };
 use crate::state::{read_config, save_config, TargetAssetData};
 use crate::state::{read_target_asset_data, save_target_asset_data};
 use crate::util::vec_to_string;
+
 use cluster_math::FPDecimal;
 use nebula_protocol::cluster::HandleMsg;
+use nebula_protocol::penalty::HandleMsg as PenaltyHandleMsg;
+use nebula_protocol::penalty::QueryMsg as PenaltyQueryMsg;
 use std::str::FromStr;
 use std::u32;
 use terraswap::asset::{Asset, AssetInfo};
-use terraswap::querier::query_balance;
 
 // prices last 30s before they go from fresh to stale
 const FRESH_TIMESPAN: u64 = 30;
@@ -38,31 +38,31 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::Mint {
             asset_amounts,
             min_tokens,
-        } => try_mint(deps, env, &asset_amounts, &min_tokens),
+        } => mint(deps, env, &asset_amounts, &min_tokens),
         HandleMsg::Burn {
             max_tokens,
             asset_amounts,
-        } => try_receive_burn(deps, env, max_tokens, asset_amounts),
-        HandleMsg::ResetTarget { assets, target } => try_reset_target(deps, env, &assets, &target),
+        } => receive_burn(deps, env, max_tokens, asset_amounts),
+        HandleMsg::ResetTarget { assets, target } => reset_target(deps, env, &assets, &target),
         HandleMsg::_SetClusterToken { cluster_token } => {
-            try_set_cluster_token(deps, env, &cluster_token)
+            set_cluster_token(deps, env, &cluster_token)
         }
         HandleMsg::ResetCompositionOracle { composition_oracle } => {
-            try_reset_composition_oracle(deps, env, &composition_oracle)
+            reset_composition_oracle(deps, env, &composition_oracle)
         }
-        HandleMsg::ResetPenalty { penalty } => try_reset_penalty(deps, env, &penalty),
-        HandleMsg::_ResetOwner { owner } => try_reset_owner(deps, env, &owner),
+        HandleMsg::ResetPenalty { penalty } => reset_penalty(deps, env, &penalty),
+        HandleMsg::_ResetOwner { owner } => reset_owner(deps, env, &owner),
     }
 }
 
 /*
     Receives cluster tokens which are burned for assets according to
-    the given asset_weights and cluster penalty paramter. The corresponding
+    the given asset_weights and cluster penalty parameter. The corresponding
     assets are taken from the cluster inventory and sent back to the user
     along with any rewards based on whether the assets are moved towards/away
     from the target.
 */
-pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
+pub fn receive_burn<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     max_tokens: Uint128,
@@ -73,7 +73,6 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     let cfg = read_config(&deps.storage)?;
     let cluster_token = cfg
         .cluster_token
-        .clone()
         .ok_or_else(|| error::cluster_token_not_set())?;
 
     let cluster_state = query_cluster_state(
@@ -98,7 +97,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
             let mut vec: Vec<Uint128> = vec![Uint128(0); asset_infos.len()];
             for i in 0..asset_infos.len() {
                 for j in 0..weights.len() {
-                    if weights[j].info.clone() == asset_infos[i].clone() {
+                    if weights[j].info == asset_infos[i] {
                         vec[i] = weights[j].amount;
                         break;
                     }
@@ -109,14 +108,17 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         None => vec![],
     };
 
-    let (collector_address, fee_rate) = query_collector_contract_address(&deps, &cfg.factory)?;
-    let fee_rate: FPDecimal = FPDecimal::from_str(&*fee_rate)?;
+    let (collector_address, fee_rate) =
+        query_collector_contract_address(&deps.querier, &cfg.factory)?;
+
+    let fee_rate: FPDecimal = FPDecimal::from_str(&fee_rate)?;
     let keep_rate: FPDecimal = FPDecimal::one() - fee_rate;
 
-    let token_cap = Uint128((FPDecimal::from(max_tokens.u128()) * keep_rate).into());
+    let _token_cap: u128 = (FPDecimal::from(max_tokens.u128()) * keep_rate).into();
+    let token_cap: Uint128 = Uint128::from(_token_cap);
 
     let redeem_response = query_redeem_amount(
-        &deps,
+        &deps.querier,
         &cfg.penalty,
         env.block.height,
         cluster_token_supply,
@@ -129,28 +131,19 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
 
     let redeem_totals = redeem_response.redeem_assets;
 
-    let estimated_cst = FPDecimal::from(redeem_response.token_cost.u128()) / keep_rate;
-    let mut token_cost = estimated_cst.into();
-
-    if FPDecimal::from(token_cost) != estimated_cst {
-        token_cost += 1;
+    // check token_cost is exceeding max_tokens
+    let _token_cost: FPDecimal = FPDecimal::from(redeem_response.token_cost.u128()) / keep_rate;
+    let mut token_cost: u128 = _token_cost.into();
+    if FPDecimal::from(token_cost) != _token_cost {
+        token_cost += 1u128;
     }
 
-    let token_cost = Uint128(token_cost);
-
+    let token_cost: Uint128 = Uint128::from(token_cost);
     if token_cost > max_tokens {
         return Err(error::above_max_tokens(token_cost, max_tokens));
     }
 
-    let _fee_amt = FPDecimal::from(token_cost.u128()) * fee_rate;
-
-    let mut fee_amt = _fee_amt.into();
-    if FPDecimal::from(fee_amt) != _fee_amt {
-        fee_amt += 1
-    }
-
-    let fee_amt = Uint128(fee_amt);
-
+    // send redeem_totals to sender
     let mut messages: Vec<CosmosMsg> = redeem_totals
         .iter()
         .zip(asset_infos.iter())
@@ -166,31 +159,32 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         })
         .collect::<StdResult<Vec<CosmosMsg>>>()?;
 
-    // extract cluster tokens from allowance
+    // compute fee_amt
+    let _fee_amt: FPDecimal = FPDecimal::from(token_cost.u128()) * fee_rate;
+    let mut fee_amt: u128 = _fee_amt.into();
+    if FPDecimal::from(fee_amt) != _fee_amt {
+        fee_amt += 1
+    }
+
+    // send fee to collector from allowance
+    let fee_amt: Uint128 = Uint128::from(fee_amt);
+    if !fee_amt.is_zero() {
+        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: cluster_token.clone(),
+            msg: to_binary(&Cw20HandleMsg::TransferFrom {
+                owner: sender.clone(),
+                amount: fee_amt,
+                recipient: collector_address.clone(),
+            })?,
+            send: vec![],
+        }));
+    }
+
+    // burn the rest from allowance
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: cluster_token.clone(),
-        msg: to_binary(&Cw20HandleMsg::TransferFrom {
+        msg: to_binary(&Cw20HandleMsg::BurnFrom {
             owner: sender.clone(),
-            recipient: env.contract.address.clone(),
-            amount: token_cost,
-        })?,
-        send: vec![],
-    }));
-
-    // send fee to collector
-    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: cluster_token.clone(),
-        msg: to_binary(&Cw20HandleMsg::Transfer {
-            amount: fee_amt,
-            recipient: collector_address.clone(),
-        })?,
-        send: vec![],
-    }));
-
-    // burn the rest
-    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: cluster_token.clone(),
-        msg: to_binary(&Cw20HandleMsg::Burn {
             amount: (token_cost - fee_amt)?,
         })?,
         send: vec![],
@@ -200,7 +194,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     // it can make stateful updates...
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: cfg.penalty.clone(),
-        msg: to_binary(&ExtQueryMsg::Redeem {
+        msg: to_binary(&PenaltyQueryMsg::Redeem {
             block_height: env.block.height,
             cluster_token_supply,
             inventory: inv,
@@ -217,7 +211,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
         log: vec![
             vec![
                 log("action", "receive:burn"),
-                log("sender", sender.clone()),
+                log("sender", sender),
                 log("burn_amount", (token_cost - fee_amt)?),
                 log("token_cost", token_cost),
                 log("kept_as_fee", fee_amt),
@@ -236,7 +230,7 @@ pub fn try_receive_burn<S: Storage, A: Api, Q: Querier>(
     target weights and saves it. The ordering of the target weights is
     determined by the given assets.
 */
-pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
+pub fn reset_target<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     assets: &Vec<AssetInfo>,
@@ -270,53 +264,42 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     }
 
     let mut asset_data: Vec<TargetAssetData> = Vec::new();
-    for i in 0..target.len() {
+    for (a, t) in assets.iter().zip(target) {
         let asset_elem = TargetAssetData {
-            asset: assets[i].clone(),
-            target: target[i].clone(),
+            asset: a.clone(),
+            target: t.clone(),
         };
         asset_data.push(asset_elem);
     }
 
-    let updated_assets = asset_data
-        .iter()
-        .map(|x| x.asset.clone())
-        .collect::<Vec<_>>();
+    // Create new vec for logging purpose
+    let mut updated_assets = assets.to_vec();
+    let mut updated_target = target.to_vec();
 
-    let prev_asset_data = read_target_asset_data(&deps.storage)?;
-    let prev_assets = prev_asset_data
-        .iter()
-        .map(|x| x.asset.clone())
-        .collect::<Vec<_>>();
-    let prev_target = prev_asset_data.iter().map(|x| x.target).collect::<Vec<_>>();
+    // Load previous assets & target
+    let (prev_assets, prev_target): (Vec<AssetInfo>, Vec<u32>) =
+        read_target_asset_data(&deps.storage)?
+            .iter()
+            .map(|x| (x.asset.clone(), x.target.clone()))
+            .unzip();
 
-    for i in 0..prev_assets.len() {
-        let prev_asset = &prev_assets[i];
-        let inv_balance = match prev_asset {
-            AssetInfo::Token { contract_addr } => {
-                query_cw20_balance(&deps, &contract_addr, &env.contract.address)
-            }
-            AssetInfo::NativeToken { denom } => {
-                query_balance(&deps, &env.contract.address, denom.clone())
-            }
-        };
-
-        if !inv_balance?.is_zero() && !updated_assets.contains(&prev_asset) {
+    // When previous assets are not found,
+    // then set that not found item target to zero
+    for prev_asset in prev_assets.iter() {
+        let inv_balance = query_asset_balance(&deps.querier, &env.contract.address, &prev_asset)?;
+        if !inv_balance.is_zero() && !assets.contains(&prev_asset) {
             let asset_elem = TargetAssetData {
                 asset: prev_asset.clone(),
                 target: 0,
             };
-            asset_data.push(asset_elem);
+
+            asset_data.push(asset_elem.clone());
+            updated_assets.push(asset_elem.asset);
+            updated_target.push(asset_elem.target);
         }
     }
 
     save_target_asset_data(&mut deps.storage, &asset_data)?;
-
-    let updated_assets = asset_data
-        .iter()
-        .map(|x| x.asset.clone())
-        .collect::<Vec<_>>();
-    let updated_target = asset_data.iter().map(|x| x.target).collect::<Vec<_>>();
 
     Ok(HandleResponse {
         messages: vec![],
@@ -331,49 +314,47 @@ pub fn try_reset_target<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-// Changes the composotion oracle contract for this cluster
-pub fn try_reset_composition_oracle<S: Storage, A: Api, Q: Querier>(
+// Changes the composition oracle contract for this cluster
+pub fn reset_composition_oracle<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     composition_oracle: &HumanAddr,
 ) -> StdResult<HandleResponse> {
-    let cfg = read_config(&deps.storage)?;
+    let mut cfg = read_config(&deps.storage)?;
 
     // check permission
     if env.message.sender != cfg.owner {
         return Err(StdError::unauthorized());
     }
 
-    let mut new_cfg = cfg.clone();
-    new_cfg.composition_oracle = composition_oracle.clone();
-    save_config(&mut deps.storage, &new_cfg)?;
+    cfg.composition_oracle = composition_oracle.clone();
+    save_config(&mut deps.storage, &cfg)?;
 
     Ok(HandleResponse {
         messages: vec![],
         log: vec![
             log("action", "reset_composition_oracle"),
-            log("composition_oracle", &composition_oracle),
+            log("composition_oracle", composition_oracle),
         ],
         data: None,
     })
 }
 
 // Changes the penalty contract for this cluster
-pub fn try_reset_penalty<S: Storage, A: Api, Q: Querier>(
+pub fn reset_penalty<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     penalty: &HumanAddr,
 ) -> StdResult<HandleResponse> {
-    let cfg = read_config(&deps.storage)?;
+    let mut cfg = read_config(&deps.storage)?;
 
     // check permission
     if env.message.sender != cfg.owner {
         return Err(StdError::unauthorized());
     }
 
-    let mut new_cfg = cfg.clone();
-    new_cfg.penalty = penalty.clone();
-    save_config(&mut deps.storage, &new_cfg)?;
+    cfg.penalty = penalty.clone();
+    save_config(&mut deps.storage, &cfg)?;
 
     Ok(HandleResponse {
         messages: vec![],
@@ -385,12 +366,12 @@ pub fn try_reset_penalty<S: Storage, A: Api, Q: Querier>(
 /*
      May be called by the Cluster contract owner to set the cluster token for first time
 */
-pub fn try_set_cluster_token<S: Storage, A: Api, Q: Querier>(
+pub fn set_cluster_token<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     cluster_token: &HumanAddr,
 ) -> StdResult<HandleResponse> {
-    let cfg = read_config(&deps.storage)?;
+    let mut cfg = read_config(&deps.storage)?;
 
     // check permission
     if env.message.sender != cfg.owner {
@@ -402,9 +383,8 @@ pub fn try_set_cluster_token<S: Storage, A: Api, Q: Querier>(
         return Err(error::cluster_token_already_set(&token));
     }
 
-    let mut new_cfg = cfg.clone();
-    new_cfg.cluster_token = Some(cluster_token.clone());
-    save_config(&mut deps.storage, &new_cfg)?;
+    cfg.cluster_token = Some(cluster_token.clone());
+    save_config(&mut deps.storage, &cfg)?;
 
     Ok(HandleResponse {
         messages: vec![],
@@ -419,47 +399,45 @@ pub fn try_set_cluster_token<S: Storage, A: Api, Q: Querier>(
 /*
      May be called by the Cluster contract owner to reset the owner
 */
-pub fn try_reset_owner<S: Storage, A: Api, Q: Querier>(
+pub fn reset_owner<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     owner: &HumanAddr,
 ) -> StdResult<HandleResponse> {
-    let cfg = read_config(&deps.storage)?;
+    let mut cfg = read_config(&deps.storage)?;
 
     // check permission
     if env.message.sender != cfg.owner {
         return Err(StdError::unauthorized());
     }
 
-    // TODO: Error checking needed here? can this function be called more than once?
-    // if let Some(token) = cfg.cluster_token {
-    //     return Err(error::cluster_token_already_set(&token));
-    // }
-
-    let mut new_cfg = cfg.clone();
-    new_cfg.owner = owner.clone();
-    save_config(&mut deps.storage, &new_cfg)?;
+    cfg.owner = owner.clone();
+    save_config(&mut deps.storage, &cfg)?;
 
     Ok(HandleResponse {
         messages: vec![],
-        log: vec![
-            log("action", "_try_reset_owner"),
-            log("cluster_token", &owner),
-        ],
+        log: vec![log("action", "_reset_owner"), log("cluster_token", &owner)],
         data: None,
     })
 }
 
 /*
-    Tries to mint cluster tokens from the asset amounts given.
+    Mint cluster tokens from the asset amounts given.
     Throws error if there can only be less than 'min_tokens' minted from the assets.
 */
-pub fn try_mint<S: Storage, A: Api, Q: Querier>(
+pub fn mint<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     asset_amounts: &Vec<Asset>,
     min_tokens: &Option<Uint128>,
 ) -> StdResult<HandleResponse> {
+    // duplication check for the given asset_amounts
+    if !validate_targets(asset_amounts.iter().map(|a| a.info.clone()).collect()) {
+        return Err(StdError::generic_err(
+            "The given asset_amounts contain duplicate assets",
+        ));
+    }
+
     let cluster_state = query_cluster_state(
         &deps,
         &env.contract.address,
@@ -472,7 +450,6 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
     let target = cluster_state.target;
 
     let cfg = read_config(&deps.storage)?;
-
     let target_asset_data = read_target_asset_data(&deps.storage)?;
 
     let asset_infos = &target_asset_data
@@ -485,26 +462,24 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         .clone()
         .ok_or_else(|| error::cluster_token_not_set())?;
 
-    // accommmodate inputs: subsets of target assets vector
-    let mut asset_weights = vec![Uint128(0); asset_infos.len()];
+    // accommodate inputs: subsets of target assets vector
+    let mut asset_weights = vec![Uint128::zero(); asset_infos.len()];
     let mut messages = vec![];
 
-    //Return an error if native assets not in target are sent to the mint function
+    // Return an error if assets not in target are sent to the mint function
     for asset in asset_amounts.iter() {
         if !asset_infos.contains(&asset.info) {
             return Err(StdError::generic_err(
-                "Unsupported native assets were sent to the mint function",
+                "Unsupported assets were sent to the mint function",
             ));
         }
     }
 
-    for i in 0..asset_infos.len() {
+    for (i, asset_info) in asset_infos.iter().enumerate() {
         for asset in asset_amounts.iter() {
-            if asset.info.clone() == asset_infos[i].clone() {
+            if asset.info.clone() == asset_info.clone() {
                 asset_weights[i] = asset.amount;
 
-                // validate that native token balance is correct
-                asset.assert_sent_native_token_balance(&env)?;
                 // pick up allowance from smart contracts
                 if let AssetInfo::Token { contract_addr, .. } = &asset.info {
                     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -517,6 +492,9 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
                         send: vec![],
                     }));
                 } else {
+                    // validate that native token balance is correct
+                    asset.assert_sent_native_token_balance(&env)?;
+
                     // inventory should not include native assets sent in this transaction
                     inv[i] = (inv[i] - asset.amount)?;
                 }
@@ -531,11 +509,11 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 
     let mint_to_sender;
 
-    let mut extra_logs = vec![];
     // do a regular mint
-    if cluster_token_supply != Uint128::zero() {
+    let mut extra_logs = vec![];
+    if !cluster_token_supply.is_zero() {
         let mint_response = query_mint_amount(
-            &deps,
+            &deps.querier,
             &cfg.penalty.clone(),
             env.block.height,
             cluster_token_supply,
@@ -546,19 +524,22 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         )?;
         let mint_total = mint_response.mint_tokens;
 
-        let (collector_address, fee_rate) = query_collector_contract_address(&deps, &cfg.factory)?;
+        let (collector_address, fee_rate) =
+            query_collector_contract_address(&deps.querier, &cfg.factory)?;
         let fee_rate = FPDecimal::from_str(&*fee_rate)?;
 
-        // Decimal doesn't give the ability to subtract...
-        mint_to_sender =
-            Uint128((FPDecimal::from(mint_total.u128()) * (FPDecimal::one() - fee_rate)).into());
+        // mint_to_sender = mint_total * (1 - fee_rate)
+        // protocol_fee = mint_total - mint_to_sender == mint_total * fee_rate
+        let _mint_to_sender: u128 =
+            (FPDecimal::from(mint_total.u128()) * (FPDecimal::one() - fee_rate)).into();
+        mint_to_sender = Uint128::from(_mint_to_sender);
         let protocol_fee = (mint_total - mint_to_sender)?;
 
         // afterwards, notify the penalty contract that this update happened so
         // it can make stateful updates...
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: cfg.penalty.clone(),
-            msg: to_binary(&ExtQueryMsg::Mint {
+            msg: to_binary(&PenaltyHandleMsg::Mint {
                 block_height: env.block.height,
                 cluster_token_supply,
                 inventory: inv,
@@ -570,14 +551,16 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
         }));
 
         // actually mint the tokens
-        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: cluster_token.clone(),
-            msg: to_binary(&Cw20HandleMsg::Mint {
-                amount: protocol_fee,
-                recipient: collector_address.clone(),
-            })?,
-            send: vec![],
-        }));
+        if !protocol_fee.is_zero() {
+            messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: cluster_token.clone(),
+                msg: to_binary(&Cw20HandleMsg::Mint {
+                    amount: protocol_fee,
+                    recipient: collector_address.clone(),
+                })?,
+                send: vec![],
+            }));
+        }
 
         extra_logs = mint_response.log;
         extra_logs.push(log("fee_amt", protocol_fee))
@@ -601,6 +584,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
                 if val == 0 {
                     val = div;
                 }
+
                 if div != val {
                     return Err(StdError::generic_err(format!(
                         "Initial cluster assets must be in target weights {} {} {} {}",
@@ -655,6 +639,7 @@ pub fn try_mint<S: Storage, A: Api, Q: Querier>(
 #[cfg(test)]
 mod tests {
 
+    use super::*;
     use crate::test_helper::*;
     use nebula_protocol::cluster::HandleMsg;
     use pretty_assertions::assert_eq;
@@ -662,10 +647,8 @@ mod tests {
 
     #[test]
     fn mint() {
-        let (mut deps, _init_res) = mock_init();
-
+        let (mut deps, _) = mock_init();
         mock_querier_setup(&mut deps);
-
         // Asset :: UST Price :: Balance (µ)     (+ proposed   ) :: %
         // ---
         // mAAPL ::  135.18   ::  7_290_053_159  (+ 125_000_000) :: 0.20367359382 -> 0.20391741720
@@ -712,13 +695,128 @@ mod tests {
                 amount: Uint128(50_090_272),
             },
         ];
+
+        deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
+
         let mint_msg = HandleMsg::Mint {
             asset_amounts: asset_amounts.clone(),
             min_tokens: None,
         };
 
         let env = mock_env(h("addr0000"), &[]);
-        // let res = handle(&mut deps, env, mint_msg).unwrap();
+        let res = handle(&mut deps, env.clone(), mint_msg).unwrap();
+
+        assert_eq!(
+            res.messages[0],
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: h("mAAPL"),
+                msg: to_binary(&Cw20HandleMsg::TransferFrom {
+                    owner: h("addr0000"),
+                    recipient: h(MOCK_CONTRACT_ADDR),
+                    amount: asset_amounts[0].amount,
+                })
+                .unwrap(),
+                send: vec![],
+            }),
+        );
+
+        assert_eq!(
+            res.messages[1],
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: h("mGOOG"),
+                msg: to_binary(&Cw20HandleMsg::TransferFrom {
+                    owner: h("addr0000"),
+                    recipient: h(MOCK_CONTRACT_ADDR),
+                    amount: asset_amounts[1].amount,
+                })
+                .unwrap(),
+                send: vec![],
+            }),
+        );
+
+        assert_eq!(
+            res.messages[2],
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: h("mMSFT"),
+                msg: to_binary(&Cw20HandleMsg::TransferFrom {
+                    owner: h("addr0000"),
+                    recipient: h(MOCK_CONTRACT_ADDR),
+                    amount: asset_amounts[2].amount,
+                })
+                .unwrap(),
+                send: vec![],
+            }),
+        );
+
+        assert_eq!(
+            res.messages[3],
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: h("mNFLX"),
+                msg: to_binary(&Cw20HandleMsg::TransferFrom {
+                    owner: h("addr0000"),
+                    recipient: h(MOCK_CONTRACT_ADDR),
+                    amount: asset_amounts[3].amount,
+                })
+                .unwrap(),
+                send: vec![],
+            }),
+        );
+
+        assert_eq!(
+            res.messages[4],
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: consts::penalty(),
+                msg: to_binary(&PenaltyHandleMsg::Mint {
+                    block_height: env.block.height,
+                    cluster_token_supply: Uint128::from(1_000_000_000u128),
+                    inventory: vec![
+                        Uint128::from(7_290_053_159u128),
+                        Uint128::from(319_710_128u128),
+                        Uint128::from(14_219_281_228u128),
+                        Uint128::from(224_212_221u128)
+                    ],
+                    mint_asset_amounts: asset_amounts.iter().map(|v| v.amount).collect(),
+                    asset_prices: vec![
+                        "135.18".to_string(),
+                        "1780.03".to_string(),
+                        "222.42".to_string(),
+                        "540.82".to_string()
+                    ],
+                    target_weights: consts::target_stage(),
+                })
+                .unwrap(),
+                send: vec![],
+            })
+        );
+
+        // 3% fee_rate
+        // let mint_to_sender = 1000000 * (1 - 0.03) = 970000
+        // let protocol_fee = 1000000 - mint_to_sender = 30000
+        assert_eq!(
+            res.messages[5],
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: consts::cluster_token(),
+                msg: to_binary(&Cw20HandleMsg::Mint {
+                    amount: Uint128::from(30000u128),
+                    recipient: h("collector"),
+                })
+                .unwrap(),
+                send: vec![],
+            })
+        );
+
+        assert_eq!(
+            res.messages[6],
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: consts::cluster_token(),
+                msg: to_binary(&Cw20HandleMsg::Mint {
+                    amount: Uint128::from(970000u128),
+                    recipient: h("addr0000"),
+                })
+                .unwrap(),
+                send: vec![],
+            })
+        );
 
         // match res {
         //     Err(..) => (),
