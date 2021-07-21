@@ -79,6 +79,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 #[cfg(test)]
 mod tests {
     use nebula_protocol::cluster::{QueryMsg, TargetResponse};
+    use terraswap::asset::{Asset, AssetInfo};
 
     use crate::{q, test_helper::*};
 
@@ -89,6 +90,33 @@ mod tests {
 
         // make sure target was saved
         let value = q!(&deps, TargetResponse, QueryMsg::Target {});
-        assert_eq!(vec![20, 20, 20, 20], value.target);
+        assert_eq!(
+            vec![
+            Asset{
+                info: AssetInfo::Token {
+                    contract_addr: h("mAAPL"),
+                },
+                amount: Uint128(20)
+            },
+            Asset{
+                info: AssetInfo::Token {
+                    contract_addr: h("mGOOG"),
+                },
+                amount: Uint128(20)
+            },
+            Asset{
+                info: AssetInfo::Token {
+                    contract_addr: h("mMSFT"),
+                },
+                amount: Uint128(20)
+            },
+            Asset{
+                info: AssetInfo::Token {
+                    contract_addr: h("mNFLX"),
+                },
+                amount: Uint128(20)
+            },
+        ], 
+        value.target);
     }
 }

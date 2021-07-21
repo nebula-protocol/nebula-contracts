@@ -446,6 +446,8 @@ pub fn mock_dependencies(
 
 pub mod consts {
 
+    use terraswap::asset::Asset;
+
     use super::*;
 
     pub fn name() -> &'static str {
@@ -471,51 +473,72 @@ pub mod consts {
     pub fn composition_oracle() -> HumanAddr {
         h("composition_oracle")
     }
-    pub fn assets_stage() -> Vec<AssetInfo> {
+    pub fn target_assets_stage() -> Vec<Asset> {
         vec![
-            AssetInfo::Token {
-                contract_addr: h("mAAPL"),
+            Asset{
+                info: AssetInfo::Token {
+                    contract_addr: h("mAAPL"),
+                },
+                amount: Uint128(20)
             },
-            AssetInfo::Token {
-                contract_addr: h("mGOOG"),
+            Asset{
+                info: AssetInfo::Token {
+                    contract_addr: h("mGOOG"),
+                },
+                amount: Uint128(20)
             },
-            AssetInfo::Token {
-                contract_addr: h("mMSFT"),
+            Asset{
+                info: AssetInfo::Token {
+                    contract_addr: h("mMSFT"),
+                },
+                amount: Uint128(20)
             },
-            AssetInfo::Token {
-                contract_addr: h("mNFLX"),
+            Asset{
+                info: AssetInfo::Token {
+                    contract_addr: h("mNFLX"),
+                },
+                amount: Uint128(20)
             },
         ]
     }
     pub fn target() -> Vec<u32> {
         vec![20, 10, 65, 5]
     }
-    pub fn assets_native_stage() -> Vec<AssetInfo> {
+    pub fn target_assets_native_stage() -> Vec<Asset> {
         vec![
-            AssetInfo::Token {
-                contract_addr: h("mAAPL"),
+            Asset{
+                info: AssetInfo::Token {
+                    contract_addr: h("mAAPL"),
+                },
+                amount: Uint128(20)
             },
-            AssetInfo::Token {
-                contract_addr: h("mGOOG"),
+            Asset{
+                info: AssetInfo::Token {
+                    contract_addr: h("mGOOG"),
+                },
+                amount: Uint128(20)
             },
-            AssetInfo::Token {
-                contract_addr: h("mMSFT"),
+            Asset{
+                info: AssetInfo::Token {
+                    contract_addr: h("mMSFT"),
+                },
+                amount: Uint128(20)
             },
-            AssetInfo::Token {
-                contract_addr: h("mNFLX"),
-            },
-            AssetInfo::NativeToken {
-                denom: "ukrw".to_string(),
+            Asset{
+                info: AssetInfo::NativeToken {
+                    denom: "ukrw".to_string(),
+                },
+                amount: Uint128(20)
             },
         ]
     }
 
-    pub fn target_stage() -> Vec<u32> {
-        vec![20, 20, 20, 20]
+    pub fn target_stage() -> Vec<Uint128> {
+        vec![Uint128(20), Uint128(20), Uint128(20), Uint128(20)]
     }
 
-    pub fn target_native_stage() -> Vec<u32> {
-        vec![20, 20, 20, 20, 20]
+    pub fn target_native_stage() -> Vec<Uint128> {
+        vec![Uint128(20), Uint128(20), Uint128(20), Uint128(20), Uint128(20)]
     }
 
     pub fn penalty() -> HumanAddr {
@@ -528,10 +551,9 @@ pub fn mock_init() -> (Extern<MockStorage, MockApi, WasmMockQuerier>, InitRespon
     let msg = InitMsg {
         name: consts::name().to_string(),
         description: consts::description().to_string(),
-        assets: consts::assets_stage(),
         owner: consts::owner(),
         cluster_token: Some(consts::cluster_token()),
-        target: consts::target_stage(),
+        target: consts::target_assets_stage(),
         pricing_oracle: consts::pricing_oracle(),
         composition_oracle: consts::composition_oracle(),
         penalty: consts::penalty(),
@@ -549,10 +571,9 @@ pub fn mock_init_native_stage() -> (Extern<MockStorage, MockApi, WasmMockQuerier
     let msg = InitMsg {
         name: consts::name().to_string(),
         description: consts::description().to_string(),
-        assets: consts::assets_native_stage(),
         owner: consts::owner(),
         cluster_token: Some(consts::cluster_token()),
-        target: consts::target_native_stage(),
+        target: consts::target_assets_native_stage(),
         pricing_oracle: consts::pricing_oracle(),
         composition_oracle: consts::composition_oracle(),
         penalty: consts::penalty(),

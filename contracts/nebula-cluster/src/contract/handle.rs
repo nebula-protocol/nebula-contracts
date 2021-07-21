@@ -91,6 +91,10 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
             config.name = name;
         }
 
+        if let Some(description) = description {
+            config.description = description;
+        }
+
         match cluster_token {
             None => {},
             Some(_) => config.cluster_token = cluster_token,
