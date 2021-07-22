@@ -69,11 +69,6 @@ async def test_revoke_cluster(eco: Ecosystem):
     except:
         print('Mint failed as expected') 
     
-    balance = (await eco.cluster_token.query.balance(address=deployer.key.acc_address))[
-        "balance"
-    ]
-    print('Balance before final redeem', balance)
-    resp2 = await eco.cluster.redeem("5000")
+    await eco.cluster.redeem("2000")
 
-    import pdb; pdb.set_trace()
-    print('done')
+    print("Integration test completed")
