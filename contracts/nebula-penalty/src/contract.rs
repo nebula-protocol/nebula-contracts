@@ -176,7 +176,9 @@ pub fn compute_redeem<S: Storage, A: Api, Q: Querier>(
 
     return if redeem_asset_amounts.is_empty() {
         // pro-rata redeem
-        let redeem_arr = div_const(&mul_const(&w, m * dot(&i0, &p)), n * dot(&w, &p));
+        // let redeem_arr = div_const(&mul_const(&w, m * dot(&i0, &p)), n * dot(&w, &p));
+        // pro-rata redeem for inventory
+        let redeem_arr = div_const(&mul_const(&i0, m), n);
         Ok(RedeemResponse {
             token_cost: Uint128(m.into()),
             penalty: Uint128::zero(),

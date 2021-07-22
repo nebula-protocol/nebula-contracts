@@ -49,6 +49,7 @@ pub enum HandleMsg {
         composition_oracle: Option<HumanAddr>,
         penalty: Option<HumanAddr>,
         target: Option<Vec<Asset>>, // recomp oracle
+        active: Option<bool>,
     },
     /// Called by recomposition oracle
     UpdateTarget { target: Vec<Asset> },
@@ -105,6 +106,7 @@ pub struct ClusterStateResponse {
     pub cluster_token: HumanAddr,
     pub target: Vec<Asset>,
     pub cluster_contract_address: HumanAddr,
+    pub active: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -117,4 +119,5 @@ pub struct ClusterConfig {
     pub pricing_oracle: HumanAddr,
     pub composition_oracle: HumanAddr,
     pub penalty: HumanAddr,
+    pub active: bool,
 }

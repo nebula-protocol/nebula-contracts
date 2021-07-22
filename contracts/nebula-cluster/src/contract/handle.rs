@@ -46,8 +46,9 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             cluster_token, 
             pricing_oracle, 
             composition_oracle, 
-            penalty, 
-            target} => update_config(
+            penalty,
+            target,
+            active} => update_config(
                 deps,
                 env,
                 owner,
@@ -58,6 +59,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
                 composition_oracle,
                 penalty,
                 target,
+                active
             ),
         HandleMsg::UpdateTarget { target } => update_target(deps, env, &target),
     }
@@ -75,7 +77,8 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
     pricing_oracle: Option<HumanAddr>,
     composition_oracle: Option<HumanAddr>,
     penalty: Option<HumanAddr>,
-    target: Option<Vec<Asset>>
+    target: Option<Vec<Asset>>,
+    active: Option<bool>,
 ) -> HandleResult {
     // First, update cluster config
     config_store(&mut deps.storage).update(|mut config| {
@@ -110,6 +113,10 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
 
         if let Some(penalty) = penalty {
             config.penalty = penalty;
+        }
+
+        if let Some(active) = active {
+            config.active = active;
         }
 
         Ok(config)
@@ -204,7 +211,6 @@ pub fn update_target<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-
 /*
     Mint cluster tokens from the asset amounts given.
     Throws error if there can only be less than 'min_tokens' minted from the assets.
@@ -227,6 +233,12 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
         &env.contract.address,
         env.block.time - FRESH_TIMESPAN,
     )?;
+
+    if !cluster_state.active {
+        return Err(StdError::generic_err(
+            "Trying to mint on a deactivated cluster",
+        ));
+    }
 
     let prices = cluster_state.prices;
     let cluster_token_supply = cluster_state.outstanding_balance_tokens;
@@ -440,6 +452,14 @@ pub fn receive_burn<S: Storage, A: Api, Q: Querier>(
     let sender = env.message.sender.clone();
 
     let cfg = read_config(&deps.storage)?;
+
+    // Is there an idiomatic way to do this?
+    let asset_amounts = if cfg.active {
+            None
+    } else {
+        asset_amounts
+    };
+
     let cluster_token = cfg
         .cluster_token
         .ok_or_else(|| error::cluster_token_not_set())?;

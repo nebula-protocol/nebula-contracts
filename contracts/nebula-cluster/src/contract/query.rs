@@ -47,6 +47,8 @@ pub fn query_cluster_state<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<ClusterStateResponse> {
     let cfg = &read_config(&deps.storage)?;
 
+    let active = cfg.active;
+
     let target_asset_data = read_target_asset_data(&deps.storage)?;
     let asset_infos = target_asset_data
         .iter()
@@ -90,5 +92,6 @@ pub fn query_cluster_state<S: Storage, A: Api, Q: Querier>(
         penalty,
         cluster_token,
         cluster_contract_address: cluster_contract_address.clone(),
+        active
     })
 }
