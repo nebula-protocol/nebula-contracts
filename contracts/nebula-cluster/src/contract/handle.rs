@@ -120,31 +120,6 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
             config.penalty = penalty;
         }
 
-        // if let Some(active) = active {
-        //     config.active = active;
-        // }
-
-        // match active {
-        //     None => {}
-        //     Some(active) => {
-        //         // If we switch from active -> inactive, then
-        //         // we revoke the asset
-        //         if config.active && !active {
-        //             config.active = active;
-        //         }
-        //         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        //             contract_addr: config.factory.clone(),
-        //             msg: to_binary(&FactoryHandleMsg::RevokeClusterToken {
-        //                 // cluster_token: config.cluster_token.unwrap(),
-        //                 cluster_token: config.cluster_token.clone().ok_or_else(|| {
-        //                     StdError::generic_err("No cluster token to be revoked")
-        //                 })?,
-        //             })?,
-        //             send: vec![],
-        //         }));
-        //     }
-        // }
-
         Ok(config)
     })?;
 
