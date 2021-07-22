@@ -150,7 +150,7 @@ pub fn withdraw_voting_tokens<S: Storage, A: Api, Q: Querier>(
                 - total_locked_balance)?
                 .u128();
 
-        let user_locked_balance = compute_locked_balance(deps, &mut token_manager)?;
+        let user_locked_balance = compute_locked_balance(deps, &mut token_manager, &key)?;
         let user_locked_share = user_locked_balance * total_share / total_balance;
         let user_share = token_manager.share.u128();
 
@@ -195,22 +195,38 @@ pub fn withdraw_voting_tokens<S: Storage, A: Api, Q: Querier>(
 fn compute_locked_balance<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     token_manager: &mut TokenManager,
+    voter: &[u8]
 ) -> StdResult<u128> {
-    // filter out not in-progress polls
-    token_manager.locked_balance.retain(|(poll_id, _)| {
+    // filter out not in-progress polls and get max locked
+    let mut lock_entries_to_remove: Vec<u64> = vec![];
+
+    let max_locked = token_manager
+    .locked_balance
+    .iter()
+    .filter(|(poll_id, _)| {
         let poll: Poll = poll_read(&deps.storage)
             .load(&poll_id.to_be_bytes())
             .unwrap();
 
-        poll.status == PollStatus::InProgress
-    });
+        // cleanup not needed information, voting info in polls with no rewards
+        if poll.status != PollStatus::InProgress && poll.voters_reward.is_zero()
+        {
+            poll_voter_store(&mut deps.storage, *poll_id).remove(voter);
+            lock_entries_to_remove.push(*poll_id);
+        }
 
-    Ok(token_manager
-        .locked_balance
-        .iter()
-        .map(|(_, v)| v.balance.u128())
-        .max()
-        .unwrap_or_default())
+        poll.status == PollStatus::InProgress
+    })
+    .map(|(_, v)| v.balance.u128())
+    .max()
+    .unwrap_or_default();
+
+    // cleanup, check if there was any voter info removed
+    token_manager
+    .locked_balance
+    .retain(|(poll_id, _)| !lock_entries_to_remove.contains(poll_id));
+
+    Ok(max_locked)
 }
 
 pub fn deposit_reward<S: Storage, A: Api, Q: Querier>(
