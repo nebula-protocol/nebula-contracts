@@ -37,7 +37,9 @@ fn query_target<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
 ) -> StdResult<TargetResponse> {
     let target_assets = read_target_asset_data(&deps.storage)?;
-    Ok(TargetResponse { target: target_assets })
+    Ok(TargetResponse {
+        target: target_assets,
+    })
 }
 
 pub fn query_cluster_state<S: Storage, A: Api, Q: Querier>(
@@ -68,7 +70,14 @@ pub fn query_cluster_state<S: Storage, A: Api, Q: Querier>(
     // get prices for each asset
     let prices = asset_infos
         .iter()
-        .map(|asset_info| query_price(&deps.querier, &cfg.pricing_oracle, asset_info, stale_threshold))
+        .map(|asset_info| {
+            query_price(
+                &deps.querier,
+                &cfg.pricing_oracle,
+                asset_info,
+                stale_threshold,
+            )
+        })
         .collect::<StdResult<Vec<String>>>()?;
 
     // get inventory
@@ -92,6 +101,6 @@ pub fn query_cluster_state<S: Storage, A: Api, Q: Querier>(
         penalty,
         cluster_token,
         cluster_contract_address: cluster_contract_address.clone(),
-        active
+        active,
     })
 }

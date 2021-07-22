@@ -3,7 +3,7 @@ use cosmwasm_std::{
     StdError, StdResult, Storage, Uint128,
 };
 
-use crate::state::{PenaltyConfig, config_store, read_config, save_config};
+use crate::state::{config_store, read_config, save_config, PenaltyConfig};
 use cluster_math::{
     add, div_const, dot, imbalance, int32_vec_to_fpdec, int_vec_to_fpdec, mul_const,
     str_vec_to_fpdec, sub, FPDecimal,
@@ -279,9 +279,7 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
     owner: Option<HumanAddr>,
     penalty_params: Option<PenaltyParams>,
 ) -> StdResult<HandleResponse> {
-
     config_store(&mut deps.storage).update(|mut config| {
-
         if let Some(owner) = owner {
             config.owner = owner;
         }
@@ -295,7 +293,7 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
 
     Ok(HandleResponse {
         messages: vec![],
-        log: vec![log("action", "_try_reset_owner")],
+        log: vec![log("action", "update_config")],
         data: None,
     })
 }
@@ -359,7 +357,10 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     }
 
     match msg {
-        HandleMsg::UpdateConfig { owner, penalty_params } => update_config(deps, owner, penalty_params),
+        HandleMsg::UpdateConfig {
+            owner,
+            penalty_params,
+        } => update_config(deps, owner, penalty_params),
         HandleMsg::Mint {
             block_height,
             cluster_token_supply,

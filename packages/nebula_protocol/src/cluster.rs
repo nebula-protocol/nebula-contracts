@@ -49,10 +49,12 @@ pub enum HandleMsg {
         composition_oracle: Option<HumanAddr>,
         penalty: Option<HumanAddr>,
         target: Option<Vec<Asset>>, // recomp oracle
-        active: Option<bool>,
     },
     /// Called by recomposition oracle
     UpdateTarget { target: Vec<Asset> },
+
+    /// Called by factory only and sets active to false
+    RevokeAsset {},
 
     /// USER-CALLABLE
     Mint {

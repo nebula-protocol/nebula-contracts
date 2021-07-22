@@ -43,7 +43,7 @@ pub fn update_owner<S: Storage, A: Api, Q: Querier>(
 
     Ok(HandleResponse {
         messages: vec![],
-        log: vec![log("action", "_try_reset_owner")],
+        log: vec![log("action", "update_ownder")],
         data: None,
     })
 }

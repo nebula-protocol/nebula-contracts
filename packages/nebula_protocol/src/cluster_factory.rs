@@ -56,7 +56,7 @@ pub enum HandleMsg {
         contract_addr: HumanAddr,
         msg: Binary,
     },
-    RevokeCluster {
+    RevokeClusterToken {
         cluster_contract: HumanAddr,
         cluster_token: HumanAddr,
     },

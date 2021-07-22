@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use cluster_math::FPDecimal;
 use cosmwasm_std::{HumanAddr, StdResult, Storage};
-use cosmwasm_storage::{Singleton, singleton, singleton_read};
+use cosmwasm_storage::{singleton, singleton_read, Singleton};
 use nebula_protocol::penalty::PenaltyParams;
 
 /// config: ClusterConfig

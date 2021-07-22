@@ -218,7 +218,8 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
         send: vec![],
     }));
 
-    let asset_infos = cluster_state.target
+    let asset_infos = cluster_state
+        .target
         .iter()
         .map(|x| x.info.clone())
         .collect::<Vec<_>>();

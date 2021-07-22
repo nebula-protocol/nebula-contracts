@@ -2,7 +2,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{StdResult, Storage};
-use cosmwasm_storage::{Singleton, singleton, singleton_read};
+use cosmwasm_storage::{singleton, singleton_read, Singleton};
 use nebula_protocol::cluster::ClusterConfig;
 use terraswap::asset::{Asset, AssetInfo};
 

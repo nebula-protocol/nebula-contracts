@@ -1,17 +1,24 @@
-use cosmwasm_std::{Api, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr, Querier, StdError, StdResult, Storage, Uint128, WasmMsg, log, to_binary};
+use cosmwasm_std::{
+    log, to_binary, Api, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr, Querier,
+    StdError, StdResult, Storage, Uint128, WasmMsg,
+};
 
 use cw20::Cw20HandleMsg;
 use terraswap::querier::query_balance;
 
 use crate::contract::{query_cluster_state, validate_targets};
 use crate::error;
-use crate::ext_query::{query_asset_balance, query_collector_contract_address, query_cw20_balance, query_mint_amount, query_redeem_amount};
+use crate::ext_query::{
+    query_asset_balance, query_collector_contract_address, query_cw20_balance, query_mint_amount,
+    query_redeem_amount,
+};
 use crate::state::{config_store, read_config, save_config};
 use crate::state::{read_target_asset_data, save_target_asset_data};
 use crate::util::vec_to_string;
 
 use cluster_math::FPDecimal;
 use nebula_protocol::cluster::HandleMsg;
+use nebula_protocol::cluster_factory::HandleMsg as FactoryHandleMsg;
 use nebula_protocol::penalty::HandleMsg as PenaltyHandleMsg;
 use nebula_protocol::penalty::QueryMsg as PenaltyQueryMsg;
 use std::str::FromStr;
@@ -40,31 +47,30 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             asset_amounts,
         } => receive_burn(deps, env, max_tokens, asset_amounts),
         HandleMsg::UpdateConfig {
-            owner, 
-            name, 
-            description, 
-            cluster_token, 
-            pricing_oracle, 
-            composition_oracle, 
+            owner,
+            name,
+            description,
+            cluster_token,
+            pricing_oracle,
+            composition_oracle,
             penalty,
             target,
-            active} => update_config(
-                deps,
-                env,
-                owner,
-                name,
-                description,
-                cluster_token,
-                pricing_oracle,
-                composition_oracle,
-                penalty,
-                target,
-                active
-            ),
+        } => update_config(
+            deps,
+            env,
+            owner,
+            name,
+            description,
+            cluster_token,
+            pricing_oracle,
+            composition_oracle,
+            penalty,
+            target,
+        ),
         HandleMsg::UpdateTarget { target } => update_target(deps, env, &target),
+        HandleMsg::RevokeAsset {} => revoke_asset(deps, env),
     }
 }
-
 
 #[allow(clippy::too_many_arguments)]
 pub fn update_config<S: Storage, A: Api, Q: Querier>(
@@ -78,7 +84,6 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
     composition_oracle: Option<HumanAddr>,
     penalty: Option<HumanAddr>,
     target: Option<Vec<Asset>>,
-    active: Option<bool>,
 ) -> HandleResult {
     // First, update cluster config
     config_store(&mut deps.storage).update(|mut config| {
@@ -99,7 +104,7 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
         }
 
         match cluster_token {
-            None => {},
+            None => {}
             Some(_) => config.cluster_token = cluster_token,
         }
 
@@ -115,21 +120,45 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
             config.penalty = penalty;
         }
 
-        if let Some(active) = active {
-            config.active = active;
-        }
+        // if let Some(active) = active {
+        //     config.active = active;
+        // }
+
+        // match active {
+        //     None => {}
+        //     Some(active) => {
+        //         // If we switch from active -> inactive, then
+        //         // we revoke the asset
+        //         if config.active && !active {
+        //             config.active = active;
+        //         }
+        //         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        //             contract_addr: config.factory.clone(),
+        //             msg: to_binary(&FactoryHandleMsg::RevokeClusterToken {
+        //                 // cluster_token: config.cluster_token.unwrap(),
+        //                 cluster_token: config.cluster_token.clone().ok_or_else(|| {
+        //                     StdError::generic_err("No cluster token to be revoked")
+        //                 })?,
+        //             })?,
+        //             send: vec![],
+        //         }));
+        //     }
+        // }
 
         Ok(config)
     })?;
 
     match target {
         None => HandleResponse::default(),
-        Some(target ) => update_target(deps, env, &target)?,
+        Some(target) => update_target(deps, env, &target)?,
     };
 
-    Ok(HandleResponse::default())
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![log("action", "update_config")],
+        data: None,
+    })
 }
-
 
 /*
     Changes the cluster target weights for different assets to the given
@@ -165,13 +194,11 @@ pub fn update_target<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.amount.clone())
         .collect::<Vec<_>>();
 
-
     if !validate_targets(updated_asset_infos.clone()) {
         return Err(StdError::generic_err(
             "Cluster cannot contain duplicate assets",
         ));
     }
-
 
     // Load previous assets & target
     let (prev_assets, prev_target): (Vec<AssetInfo>, Vec<Uint128>) =
@@ -212,6 +239,42 @@ pub fn update_target<S: Storage, A: Api, Q: Querier>(
 }
 
 /*
+
+*/
+pub fn revoke_asset<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+) -> StdResult<HandleResponse> {
+    // allow removal / adding
+
+    let cfg = read_config(&deps.storage)?;
+    if let None = cfg.cluster_token {
+        return Err(error::cluster_token_not_set());
+    }
+    // check permission for factory
+    if env.message.sender != cfg.factory {
+        return Err(StdError::unauthorized());
+    }
+
+    // can only revoke an active cluster
+    if !cfg.active {
+        return Err(StdError::unauthorized());
+    }
+
+    config_store(&mut deps.storage).update(|mut config| {
+        config.active = false;
+
+        Ok(config)
+    })?;
+
+    Ok(HandleResponse {
+        messages: vec![],
+        log: vec![log("action", "revoke_asset")],
+        data: None,
+    })
+}
+
+/*
     Mint cluster tokens from the asset amounts given.
     Throws error if there can only be less than 'min_tokens' minted from the assets.
 */
@@ -247,15 +310,9 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
 
     let cfg = read_config(&deps.storage)?;
 
-    let asset_infos = target
-        .iter()
-        .map(|x| x.info.clone())
-        .collect::<Vec<_>>();
+    let asset_infos = target.iter().map(|x| x.info.clone()).collect::<Vec<_>>();
 
-    let target_weights = target
-        .iter()
-        .map(|x| x.amount.clone())
-        .collect::<Vec<_>>();
+    let target_weights = target.iter().map(|x| x.amount.clone()).collect::<Vec<_>>();
 
     let cluster_token = cfg
         .cluster_token
@@ -454,11 +511,7 @@ pub fn receive_burn<S: Storage, A: Api, Q: Querier>(
     let cfg = read_config(&deps.storage)?;
 
     // Is there an idiomatic way to do this?
-    let asset_amounts = if cfg.active {
-            None
-    } else {
-        asset_amounts
-    };
+    let asset_amounts = if cfg.active { None } else { asset_amounts };
 
     let cluster_token = cfg
         .cluster_token
@@ -475,15 +528,9 @@ pub fn receive_burn<S: Storage, A: Api, Q: Querier>(
     let inv = cluster_state.inv;
     let target = cluster_state.target;
 
-    let asset_infos = target
-        .iter()
-        .map(|x| x.info.clone())
-        .collect::<Vec<_>>();
+    let asset_infos = target.iter().map(|x| x.info.clone()).collect::<Vec<_>>();
 
-    let target_weights = target
-        .iter()
-        .map(|x| x.amount.clone())
-        .collect::<Vec<_>>();
+    let target_weights = target.iter().map(|x| x.amount.clone()).collect::<Vec<_>>();
 
     let asset_amounts: Vec<Uint128> = match &asset_amounts {
         Some(weights) => {
@@ -1020,34 +1067,32 @@ mod tests {
             .set_token_balance(consts::cluster_token(), "addr0000", 20_000_000);
 
         let new_target: Vec<Asset> = vec![
-            Asset{
+            Asset {
                 info: AssetInfo::Token {
                     contract_addr: h("mAAPL"),
                 },
-                amount: Uint128(10)
+                amount: Uint128(10),
             },
-            Asset{
+            Asset {
                 info: AssetInfo::Token {
                     contract_addr: h("mGOOG"),
                 },
-                amount: Uint128(5)
+                amount: Uint128(5),
             },
-            Asset{
+            Asset {
                 info: AssetInfo::Token {
                     contract_addr: h("mMSFT"),
                 },
-                amount: Uint128(35)
+                amount: Uint128(35),
             },
-            Asset{
+            Asset {
                 info: AssetInfo::Token {
                     contract_addr: h("mGME"),
                 },
-                amount: Uint128(50)
+                amount: Uint128(50),
             },
         ];
-        let msg = HandleMsg::UpdateTarget {
-            target: new_target,
-        };
+        let msg = HandleMsg::UpdateTarget { target: new_target };
 
         let env = mock_env(consts::owner(), &[]);
         let res = handle(&mut deps, env, msg).unwrap();
