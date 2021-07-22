@@ -59,7 +59,8 @@ pub fn cluster_imbalance<S: Storage, A: Api, Q: Querier>(
     let i = int_vec_to_fpdec(&cluster_state.inv);
     let p = str_vec_to_fpdec(&cluster_state.prices)?;
 
-    let target_weights = cluster_state.target
+    let target_weights = cluster_state
+        .target
         .iter()
         .map(|x| x.amount.clone())
         .collect::<Vec<_>>();
@@ -324,7 +325,8 @@ pub fn redeem<S: Storage, A: Api, Q: Querier>(
         query_token_balance(deps, &cluster_token, &env.message.sender)?,
     );
 
-    let asset_infos = cluster_state.target
+    let asset_infos = cluster_state
+        .target
         .iter()
         .map(|x| x.info.clone())
         .collect::<Vec<_>>();

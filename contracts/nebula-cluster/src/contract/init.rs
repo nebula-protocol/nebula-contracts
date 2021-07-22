@@ -25,7 +25,6 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     _env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
-
     let cfg = ClusterConfig {
         name: msg.name.clone(),
         description: msg.description.clone(),
@@ -35,9 +34,11 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         pricing_oracle: msg.pricing_oracle.clone(),
         composition_oracle: msg.composition_oracle.clone(),
         penalty: msg.penalty.clone(),
+        active: true,
     };
 
-    let asset_infos = msg.target
+    let asset_infos = msg
+        .target
         .iter()
         .map(|x| x.info.clone())
         .collect::<Vec<_>>();
@@ -92,31 +93,32 @@ mod tests {
         let value = q!(&deps, TargetResponse, QueryMsg::Target {});
         assert_eq!(
             vec![
-            Asset{
-                info: AssetInfo::Token {
-                    contract_addr: h("mAAPL"),
+                Asset {
+                    info: AssetInfo::Token {
+                        contract_addr: h("mAAPL"),
+                    },
+                    amount: Uint128(20)
                 },
-                amount: Uint128(20)
-            },
-            Asset{
-                info: AssetInfo::Token {
-                    contract_addr: h("mGOOG"),
+                Asset {
+                    info: AssetInfo::Token {
+                        contract_addr: h("mGOOG"),
+                    },
+                    amount: Uint128(20)
                 },
-                amount: Uint128(20)
-            },
-            Asset{
-                info: AssetInfo::Token {
-                    contract_addr: h("mMSFT"),
+                Asset {
+                    info: AssetInfo::Token {
+                        contract_addr: h("mMSFT"),
+                    },
+                    amount: Uint128(20)
                 },
-                amount: Uint128(20)
-            },
-            Asset{
-                info: AssetInfo::Token {
-                    contract_addr: h("mNFLX"),
+                Asset {
+                    info: AssetInfo::Token {
+                        contract_addr: h("mNFLX"),
+                    },
+                    amount: Uint128(20)
                 },
-                amount: Uint128(20)
-            },
-        ], 
-        value.target);
+            ],
+            value.target
+        );
     }
 }

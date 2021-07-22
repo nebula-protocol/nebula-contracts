@@ -4,10 +4,10 @@ use cosmwasm_std::{
 };
 
 use crate::state::{
-    cluster_exists, get_clusters, increase_total_weight, read_all_weight, read_config,
-    read_last_distributed, read_params, read_total_weight, read_weight, record_cluster,
-    remove_params, store_config, store_last_distributed, store_params, store_total_weight,
-    store_weight, Config,
+    cluster_exists, decrease_total_weight, get_clusters, increase_total_weight, read_all_weight,
+    read_config, read_last_distributed, read_params, read_total_weight, read_weight,
+    record_cluster, remove_params, remove_weight, store_config, store_last_distributed,
+    store_params, store_total_weight, store_weight, Config,
 };
 
 use nebula_protocol::cluster_factory::{
@@ -16,6 +16,7 @@ use nebula_protocol::cluster_factory::{
 };
 
 use nebula_protocol::cluster::{HandleMsg as ClusterHandleMsg, InitMsg as ClusterInitMsg};
+use nebula_protocol::penalty::HandleMsg as PenaltyHandleMsg;
 use nebula_protocol::staking::{Cw20HookMsg as StakingCw20HookMsg, HandleMsg as StakingHandleMsg};
 
 use cw20::{Cw20HandleMsg, MinterResponse};
@@ -111,6 +112,10 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::PassCommand { contract_addr, msg } => {
             pass_command(deps, env, contract_addr, msg)
         }
+        HandleMsg::RevokeClusterToken {
+            cluster_contract,
+            cluster_token,
+        } => revoke_cluster(deps, env, cluster_contract, cluster_token),
     }
 }
 
@@ -323,16 +328,10 @@ pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: penalty,
                 send: vec![],
-                msg: to_binary(&ClusterHandleMsg::UpdateConfig {
+                msg: to_binary(&PenaltyHandleMsg::UpdateConfig {
                     owner: Some(cluster.clone()),
-                    name: None,
-                    description: None,
-                    cluster_token: None,
-                    pricing_oracle: None,
-                    composition_oracle: None,
-                    penalty: None,
-                    target: None,
-                })?
+                    penalty_params: None,
+                })?,
             }),
             // Instantiate token
             CosmosMsg::Wasm(WasmMsg::Instantiate {
@@ -370,7 +369,7 @@ pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
                     composition_oracle: None,
                     penalty: None,
                     target: None,
-                })?
+                })?,
             }),
             // Set penalty contract owner to cluster contract
         ],
@@ -586,6 +585,32 @@ pub fn _compute_rewards<S: Storage, A: Api, Q: Querier>(
         .filter(|m| m.is_ok())
         .collect::<StdResult<Vec<(HumanAddr, Uint128)>>>()?;
     Ok((rewards, distribution_amount))
+}
+
+pub fn revoke_cluster<S: Storage, A: Api, Q: Querier>(
+    deps: &mut Extern<S, A, Q>,
+    env: Env,
+    cluster_contract: HumanAddr,
+    cluster_token: HumanAddr,
+) -> HandleResult {
+    let weight = read_weight(&deps.storage, &cluster_token.clone())?;
+    remove_weight(&mut deps.storage, &cluster_token.clone());
+    decrease_total_weight(&mut deps.storage, weight)?;
+
+    Ok(HandleResponse {
+        /// send message to set active asset
+        messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: cluster_contract.clone(),
+            send: vec![],
+            msg: to_binary(&ClusterHandleMsg::RevokeAsset {})?,
+        })],
+        log: vec![
+            log("action", "revoke_asset"),
+            log("cluster_token", cluster_token.to_string()),
+            log("cluster_contract", cluster_contract),
+        ],
+        data: None,
+    })
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(

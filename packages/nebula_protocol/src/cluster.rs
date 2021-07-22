@@ -53,6 +53,9 @@ pub enum HandleMsg {
     /// Called by recomposition oracle
     UpdateTarget { target: Vec<Asset> },
 
+    /// Called by factory only and sets active to false
+    RevokeAsset {},
+
     /// USER-CALLABLE
     Mint {
         /// Asset amounts deposited for minting (cluster must be granted allowance or
@@ -105,6 +108,7 @@ pub struct ClusterStateResponse {
     pub cluster_token: HumanAddr,
     pub target: Vec<Asset>,
     pub cluster_contract_address: HumanAddr,
+    pub active: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -117,4 +121,5 @@ pub struct ClusterConfig {
     pub pricing_oracle: HumanAddr,
     pub composition_oracle: HumanAddr,
     pub penalty: HumanAddr,
+    pub active: bool,
 }

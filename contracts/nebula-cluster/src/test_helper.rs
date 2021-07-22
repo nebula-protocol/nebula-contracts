@@ -475,29 +475,29 @@ pub mod consts {
     }
     pub fn target_assets_stage() -> Vec<Asset> {
         vec![
-            Asset{
+            Asset {
                 info: AssetInfo::Token {
                     contract_addr: h("mAAPL"),
                 },
-                amount: Uint128(20)
+                amount: Uint128(20),
             },
-            Asset{
+            Asset {
                 info: AssetInfo::Token {
                     contract_addr: h("mGOOG"),
                 },
-                amount: Uint128(20)
+                amount: Uint128(20),
             },
-            Asset{
+            Asset {
                 info: AssetInfo::Token {
                     contract_addr: h("mMSFT"),
                 },
-                amount: Uint128(20)
+                amount: Uint128(20),
             },
-            Asset{
+            Asset {
                 info: AssetInfo::Token {
                     contract_addr: h("mNFLX"),
                 },
-                amount: Uint128(20)
+                amount: Uint128(20),
             },
         ]
     }
@@ -506,29 +506,29 @@ pub mod consts {
     }
     pub fn target_assets_native_stage() -> Vec<Asset> {
         vec![
-            Asset{
+            Asset {
                 info: AssetInfo::Token {
                     contract_addr: h("mAAPL"),
                 },
-                amount: Uint128(20)
+                amount: Uint128(20),
             },
-            Asset{
+            Asset {
                 info: AssetInfo::Token {
                     contract_addr: h("mGOOG"),
                 },
-                amount: Uint128(20)
+                amount: Uint128(20),
             },
-            Asset{
+            Asset {
                 info: AssetInfo::Token {
                     contract_addr: h("mMSFT"),
                 },
-                amount: Uint128(20)
+                amount: Uint128(20),
             },
-            Asset{
+            Asset {
                 info: AssetInfo::NativeToken {
                     denom: "ukrw".to_string(),
                 },
-                amount: Uint128(20)
+                amount: Uint128(20),
             },
         ]
     }
@@ -538,7 +538,13 @@ pub mod consts {
     }
 
     pub fn target_native_stage() -> Vec<Uint128> {
-        vec![Uint128(20), Uint128(20), Uint128(20), Uint128(20), Uint128(20)]
+        vec![
+            Uint128(20),
+            Uint128(20),
+            Uint128(20),
+            Uint128(20),
+            Uint128(20),
+        ]
     }
 
     pub fn penalty() -> HumanAddr {
