@@ -8,6 +8,7 @@ from ecosystem import Ecosystem
 from contract_helpers import Contract, ClusterContract
 import asyncio
 from base import deployer
+import pprint
 
 REQUIRE_GOV = True
 
@@ -23,7 +24,7 @@ async def deploy_contracts():
     await ecosystem.initialize_base_contracts()
     await ecosystem.initialize_extraneous_contracts()
 
-    print(ecosystem.__dict__)
+    pprint.pprint(ecosystem.__dict__)
 
 
 
