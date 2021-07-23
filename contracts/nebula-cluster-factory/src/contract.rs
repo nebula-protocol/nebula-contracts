@@ -589,7 +589,7 @@ pub fn _compute_rewards<S: Storage, A: Api, Q: Querier>(
 
 pub fn revoke_cluster<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    env: Env,
+    _env: Env,
     cluster_contract: HumanAddr,
     cluster_token: HumanAddr,
 ) -> HandleResult {

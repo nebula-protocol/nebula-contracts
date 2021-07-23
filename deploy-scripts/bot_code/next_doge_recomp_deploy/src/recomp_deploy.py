@@ -162,6 +162,8 @@ class NextDogeRecomposer:
             target=target
         )
 
+        target = await self.cluster_contract.query.target()
+
         cluster_state = await self.cluster_contract.query.cluster_state(
             cluster_contract_address=self.cluster_contract
         )

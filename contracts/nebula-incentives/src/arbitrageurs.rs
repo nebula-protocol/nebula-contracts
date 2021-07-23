@@ -78,7 +78,7 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
     // also prepare to transfer to cluster contract
     for asset in assets {
         match asset.clone().info {
-            AssetInfo::NativeToken { denom } => {
+            AssetInfo::NativeToken { denom: _ } => {
                 asset.clone().assert_sent_native_token_balance(&env)?
             }
             AssetInfo::Token { contract_addr } => {

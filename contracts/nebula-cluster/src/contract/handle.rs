@@ -4,21 +4,19 @@ use cosmwasm_std::{
 };
 
 use cw20::Cw20HandleMsg;
-use terraswap::querier::query_balance;
 
 use crate::contract::{query_cluster_state, validate_targets};
 use crate::error;
 use crate::ext_query::{
-    query_asset_balance, query_collector_contract_address, query_cw20_balance, query_mint_amount,
+    query_asset_balance, query_collector_contract_address, query_mint_amount,
     query_redeem_amount,
 };
-use crate::state::{config_store, read_config, save_config};
+use crate::state::{config_store, read_config};
 use crate::state::{read_target_asset_data, save_target_asset_data};
 use crate::util::vec_to_string;
 
 use cluster_math::FPDecimal;
 use nebula_protocol::cluster::HandleMsg;
-use nebula_protocol::cluster_factory::HandleMsg as FactoryHandleMsg;
 use nebula_protocol::penalty::HandleMsg as PenaltyHandleMsg;
 use nebula_protocol::penalty::QueryMsg as PenaltyQueryMsg;
 use std::str::FromStr;
@@ -169,9 +167,9 @@ pub fn update_target<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.amount.clone())
         .collect::<Vec<_>>();
 
-    if !validate_targets(updated_asset_infos.clone()) {
+    if validate_targets(&deps, &env, updated_asset_infos.clone()).is_err() {
         return Err(StdError::generic_err(
-            "Cluster cannot contain duplicate assets",
+            "Cluster must contain valid assets and cannot contain duplicate assets",
         ));
     }
 
@@ -260,9 +258,9 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
     min_tokens: &Option<Uint128>,
 ) -> StdResult<HandleResponse> {
     // duplication check for the given asset_amounts
-    if !validate_targets(asset_amounts.iter().map(|a| a.info.clone()).collect()) {
+    if validate_targets(&deps, &env, asset_amounts.iter().map(|a| a.info.clone()).collect()).is_err() {
         return Err(StdError::generic_err(
-            "The given asset_amounts contain duplicate assets",
+            "The given asset_amounts contain invalid or duplicate assets",
         ));
     }
 
