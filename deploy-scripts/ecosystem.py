@@ -182,7 +182,7 @@ class Ecosystem:
         )
 
         # stupid name mangling
-        await self.incentives_custody.__getattr__("__reset_owner")(
+        await self.incentives_custody.__getattr__("update_owner")(
             owner=self.incentives
         )
 

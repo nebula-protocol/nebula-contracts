@@ -91,10 +91,16 @@ async def test_incentives_ops(eco: Ecosystem):
     await chain(
         eco.cluster_token.increase_allowance(spender=eco.incentives, amount="10000000000"),
         eco.incentives.redeem(
-            max_tokens="10000000000",
+            max_tokens="2000",
             cluster_contract=eco.cluster,
         ),
     )
+
+    balance = (await eco.cluster_token.query.balance(address=deployer.key.acc_address))[
+        "balance"
+    ]
+    print('Balance after incentives redeem', balance)
+
     new_bal = int(
         (await eco.asset_tokens[0].query.balance(address=deployer.key.acc_address))[
             "balance"
