@@ -9,13 +9,13 @@ class Asset:
 
     @staticmethod
     def asset_info(param):
-        if param == "uluna" or param == 'uust':
+        if param == "uluna" or param == 'uusd':
             return Asset.native_asset_info(param)
         return Asset.cw20_asset_info(param)
 
     @staticmethod
     def asset(string, amount, native=False):
         if not native:
-            return {"info": Asset.cw20_asset_info(string), "amount": amount}
+            return {"info": Asset.cw20_asset_info(string), "amount": str(amount)}
         else:
-            return {"info": Asset.native_asset_info(string), "amount": amount}
+            return {"info": Asset.native_asset_info(string), "amount": str(amount)}
