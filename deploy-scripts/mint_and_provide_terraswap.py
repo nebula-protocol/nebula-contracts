@@ -15,7 +15,7 @@ cluster_addr = sys.argv[1]
 cluster = Contract(cluster_addr)
 
 async def initial_mint(cluster_state):
-    assets = cluster_state['assets']
+    assets = [t['info'] for t in cluster_state['target']]
     cluster = Contract(cluster_state['cluster_contract_address'])
     
     types = [list(a.keys())[0] for a in assets]
@@ -33,20 +33,19 @@ async def initial_mint(cluster_state):
     mint_assets = []
     send = {}
     for asset_info in native_assets:
-        # Increase allowance of each
-        mint_assets.append(Asset.asset(asset_info, "10000000", native=True))
-        send[asset_info] = "10000000"
+        mint_assets.append(Asset.asset(asset_info, "100000000", native=True))
+        send[asset_info] = "100000000"
 
     for asset_info in mint_cw20_assets:
         # Increase allowance of each
         asset_contract = Contract(asset_info)
-        msgs.append(asset_contract.increase_allowance(spender=cluster, amount="10000000"))
-        mint_assets.append(Asset.asset(asset_info, "10000000"))
+        msgs.append(asset_contract.increase_allowance(spender=cluster, amount="100000000"))
+        mint_assets.append(Asset.asset(asset_info, "100000000"))
 
     # import pdb; pdb.set_trace()
 
     msgs.append(
-        cluster.mint(asset_amounts=mint_assets, min_tokens="40000000", _send=send)
+        cluster.mint(asset_amounts=mint_assets, min_tokens="400000000", _send=send)
     )
 
     await chain(*msgs)
@@ -73,12 +72,16 @@ async def main():
 
     pair_contract = Contract(pair_info['contract_addr'])
 
+    msgs = []
+
     # Increase allowance
-    await cluster_token.increase_allowance(spender=pair_contract, amount="20000000")
+    msgs.append(cluster_token.increase_allowance(spender=pair_contract, amount="200000000"))
 
     # Provide liquidity
-    assets = [Asset.asset(cluster_token, "20000000"), Asset.asset('uusd', "50000000", native=True)]
-    await pair_contract.provide_liquidity(assets=assets, _send={"uusd": "50000000"},)
+    assets = [Asset.asset(cluster_token, "200000000"), Asset.asset('uusd', "50000000", native=True)]
+    msgs.append(pair_contract.provide_liquidity(assets=assets, _send={"uusd": "50000000"}))
+
+    await chain(*msgs)
 
     print('Done providing liquidity')
 

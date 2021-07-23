@@ -32,12 +32,6 @@ async def deploy_cluster():
         setattr(ecosystem, key, DEPLOY_ENVIRONMENT_STATUS_W_GOV[key])
 
     code_ids = ecosystem.code_ids
-    oracle = await Contract.create(
-        code_ids["nebula_dummy_oracle"],
-        terraswap_factory=ecosystem.terraswap_factory,
-        base_denom="uusd",
-    )
-    print('dummy pricing oracle', oracle)
     
     penalty_params = {
         "penalty_amt_lo": "0.1",
@@ -61,6 +55,8 @@ async def deploy_cluster():
 
     print("Trying to deploy", CT_SYM_TO_NAME[ct_symbol], ct_symbol)
 
+    oracle = ecosystem.dummy_oracle
+
     create_cluster = ecosystem.factory.create_cluster(
         params={
             "name": CT_SYM_TO_NAME[ct_symbol],
@@ -68,7 +64,7 @@ async def deploy_cluster():
             "symbol": ct_symbol,
             "penalty": penalty_contract,
             "target": assets,
-            "pricing_oracle": oracle,
+            "pricing_oracle": oracle, # Generic pricing oracle
             "composition_oracle": recomp_oracle,
         },
     )

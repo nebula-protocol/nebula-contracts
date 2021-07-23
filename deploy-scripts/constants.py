@@ -25,7 +25,7 @@ DEPLOY_ENVIRONMENT_STATUS_W_GOV = {
               'terraswap_token': '6739'},
   'collector': Contract("terra1zpjmxrk5lyz43ae5ltpahmmp8grtzm74ljfyxv"),
   'community': Contract("terra1qd5rlq6653vzetgr6xhm0uc4v6jad6wmqzwq6n"),
-  'dummy_oracle': None,
+  'dummy_oracle': Contract("terra1ajjdnwvmhgc36p75apzrzkh2ekd8af3hqlzeka"), # Hard coded
   'factory': Contract("terra18n5ayre7mwwewaltct5ntux7vg0yacer7elx44"),
   'gov': Contract("terra1ykg9llugs7drrt3qkelz0q8vjj2d4ph93xsysg"),
   'incentives': Contract("terra13kd0tkue7dlcz0wf7fmkzw6wwwh84jmuzxyjvh"),
