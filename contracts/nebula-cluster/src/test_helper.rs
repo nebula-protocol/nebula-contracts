@@ -149,20 +149,7 @@ impl WasmMockQuerier {
                         Ok(to_binary(&token_data.info))
                     }
                     ExtQueryMsg::Config {} => {
-                        let config = FactoryConfigResponse {
-                            owner: h("gov"),
-                            nebula_token: h("neb"),
-                            staking_contract: h("staking"),
-                            commission_collector: h("collector"),
-                            protocol_fee_rate: "0.01".to_string(),
-                            oracle_contract: h("oracle"),
-                            terraswap_factory: h("ts_factory"),
-                            token_code_id: 1,
-                            cluster_code_id: 1,
-                            base_denom: "uusd".to_string(),
-                            genesis_time: 1,
-                            distribution_schedule: vec![(1, 2, Uint128::from(123u128))],
-                        };
+                        let config = consts::factory_config();
                         Ok(to_binary(&config))
                     }
                     ExtQueryMsg::Mint {
@@ -173,11 +160,7 @@ impl WasmMockQuerier {
                         asset_prices: _,
                         target_weights: _,
                     } => {
-                        let response = MintResponse {
-                            mint_tokens: Uint128(99),
-                            penalty: Uint128(1234),
-                            log: vec![log("penalty", 1234)],
-                        };
+                        let response = consts::mint_response();
                         Ok(to_binary(&response))
                     }
                     ExtQueryMsg::Redeem {
@@ -546,6 +529,31 @@ pub mod consts {
 
     pub fn penalty() -> HumanAddr {
         h("penalty")
+    }
+
+    pub fn factory_config() -> FactoryConfigResponse {
+        FactoryConfigResponse {
+            owner: h("gov"),
+            nebula_token: h("neb"),
+            staking_contract: h("staking"),
+            commission_collector: h("collector"),
+            protocol_fee_rate: "0.01".to_string(),
+            oracle_contract: h("oracle"),
+            terraswap_factory: h("ts_factory"),
+            token_code_id: 1,
+            cluster_code_id: 1,
+            base_denom: "uusd".to_string(),
+            genesis_time: 1,
+            distribution_schedule: vec![(1, 2, Uint128::from(123u128))],
+        }
+    }
+
+    pub fn mint_response() -> MintResponse {
+        MintResponse {
+            mint_tokens: Uint128(99),
+            penalty: Uint128(1234),
+            log: vec![log("penalty", 1234)],
+        }
     }
 }
 
