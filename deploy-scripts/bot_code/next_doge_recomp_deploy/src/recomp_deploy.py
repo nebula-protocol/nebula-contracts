@@ -183,6 +183,6 @@ async def run_recomposition_periodically(cluster_contract, interval):
         )
 
 if __name__ == "__main__":
-    cluster_contract = Contract("terra1rkgpmrqmddwtq48e5mr4vsps53vudmd4mgvfkz")
+    cluster_contract = Contract("terra1dsqtuf79093unny85pv53230rzcwehlwxyd5hc")
     interval = SECONDS_PER_DAY
     asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))
