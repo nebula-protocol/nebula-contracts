@@ -100,21 +100,19 @@ class BullishCrossRecomposer:
 
         for name in asset_names:
             try:
+                if name[0] != 'm':
+                    raise Exception
                 stock = name[1:]
                 stock_info = yf.Ticker(stock).info
-                # url = 'https://www.alphavantage.co/query?function=OVERVIEW&symbol={}&apikey={}'.format(stock, API_KEY)
-                # r = requests.get(url)
-                # data = r.json()
 
-                # mc = float(data['MarketCapitalization'])
                 mc = stock_info['marketCap']
 
                 if mc < 20000000000:
-                    mc = 0
+                    mc = -1
                     
                 mcs.append(mc)
             except:
-                mcs.append(0)
+                mcs.append(-1)
         
         return mcs
 
@@ -125,7 +123,6 @@ class BullishCrossRecomposer:
         has_cross, all_cross = False, True
         best_pwps = {}
         non_cross_assets = []
-        asset_addresses = self.asset_addresses
 
         to = round(time.time() * 1000)
 
@@ -140,10 +137,13 @@ class BullishCrossRecomposer:
 
         # Calculate MC of actual asset names
         mcs = self.get_mcaps(asset_names)
-        asset_data = {name: int(mc) for name, mc in zip(asset_names, mcs)}
+        # Keep information only if mc > 0
+        asset_data = {name: int(mc) for name, mc in zip(asset_names, mcs) if int(mc) > 0}
+        asset_names = [name for name, mc in zip(asset_names, mcs) if int(mc) > 0]
+        relevant_asset_addresses = [addr for addr, mc in zip(self.asset_addresses, mcs) if int(mc) > 0]
 
         self.closes = {name: pd.Series(close).astype('float') for name, close in zip(asset_names, closes)}
-        names_to_contracts = {name: addrs for name, addrs in zip(asset_names, self.asset_addresses)}
+        names_to_contracts = {name: addrs for name, addrs in zip(asset_names, relevant_asset_addresses)}
 
         # Calculate best_pwps and assets with crosses
         for asset, asset_closes in self.closes.items():
