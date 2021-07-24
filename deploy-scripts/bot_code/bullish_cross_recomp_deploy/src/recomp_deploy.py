@@ -199,7 +199,8 @@ class BullishCrossRecomposer:
         target = []
         for a, t in zip(asset_tokens, target_weights):
             native = (a == 'uluna')
-            target.append(Asset.asset(a, str(t), native=native))
+            if t > 0:
+                target.append(Asset.asset(a, str(t), native=native))
 
         print(target)
 

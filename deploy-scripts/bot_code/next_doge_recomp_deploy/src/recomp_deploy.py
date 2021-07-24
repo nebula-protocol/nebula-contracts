@@ -154,7 +154,8 @@ class NextDogeRecomposer:
         target = []
         for a, t in zip(self.asset_infos, target_weights):
             native = (a == 'uluna') or (a == 'uusd')
-            target.append(Asset.asset(a, str(t), native=native))
+            if t > 0:
+                target.append(Asset.asset(a, str(t), native=native))
 
         print(target)
 

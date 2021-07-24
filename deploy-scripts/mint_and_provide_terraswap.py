@@ -46,7 +46,7 @@ async def initial_mint(cluster_state):
         mint_amt = str(int(amount) * (10**mult))
         mint_assets.append(Asset.asset(asset_info, mint_amt, native=True))
         send[asset_info] = mint_amt
-        amts.append(int(mint_amt) * 10**(-6))
+        amts.append(int(mint_amt))
 
     for asset in mint_cw20_assets:
         asset_info, amount = asset
@@ -54,7 +54,9 @@ async def initial_mint(cluster_state):
         # Increase allowance of each
         asset_contract = Contract(asset_info)
 
-        await asset_contract.increase_allowance(spender=cluster, amount=mint_amt)
+        # Uncomment if large message
+        # await asset_contract.increase_allowance(spender=cluster, amount=mint_amt)
+
         msgs.append(asset_contract.increase_allowance(spender=cluster, amount=mint_amt))
         mint_assets.append(Asset.asset(asset_info, mint_amt))
         amts.append(int(mint_amt))
@@ -70,9 +72,11 @@ async def initial_mint(cluster_state):
         cluster.mint(asset_amounts=mint_assets, min_tokens=min_tokens, _send=send)
     )
 
-    await cluster.mint(asset_amounts=mint_assets, min_tokens=min_tokens, _send=send)
+    print(cluster.mint(asset_amounts=mint_assets, min_tokens=min_tokens, _send=send).msg)
 
-    # await chain(*msgs)
+    # await cluster.mint(asset_amounts=mint_assets, min_tokens=min_tokens, _send=send)
+
+    await chain(*msgs)
 
 def cost_per_cluster_token(cluster_state):
     outstanding = int(cluster_state['outstanding_balance_tokens'])
