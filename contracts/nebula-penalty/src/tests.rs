@@ -3,6 +3,7 @@ use std::str::FromStr;
 use crate::contract::{handle, init, query};
 use crate::mock_querier::{mock_dependencies, WasmMockQuerier};
 use crate::state::{PenaltyConfig, read_config};
+use crate::contract::{notional_penalty};
 
 use cluster_math::FPDecimal;
 use cosmwasm_std::testing::{mock_env, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
@@ -87,4 +88,20 @@ fn proper_initialization() {
             last_block: 0u64,
         }
     );
+}
+
+#[test]
+fn test_notional_penalty_math() {
+    let mut deps = mock_dependencies(20, &[]);
+
+    let msg = init_msg();
+    let env = mock_env("addr0000", &[]);
+    let res = init(&mut deps, env, msg).unwrap();
+    assert_eq!(0, res.messages.len());
+    let i0 = vec![FPDecimal::one()];
+    let i1 = vec![FPDecimal::one()];
+    let w = vec![FPDecimal::one()];
+    let p = vec![FPDecimal::one()];
+    let penalty = notional_penalty(&deps, 0u64, &i0, &i1, &w, &p);
+    println!("{}", penalty.unwrap());
 }
