@@ -4,7 +4,7 @@ import requests
 import json
 import time
 
-os.environ["MNEMONIC"] = mnemonic = 'lottery horn blast wealth cruise border opinion upgrade common gauge grocery evil canal lizard sad mad submit degree brave margin age lunar squirrel diet'
+os.environ["MNEMONIC"] = mnemonic = 'idea salute sniff electric lecture table flag oblige pyramid light ocean heart web ramp save fiscal sting course uncle deputy way field vacant genius'
 
 os.environ["USE_TEQUILA"] = "1"
 
@@ -62,15 +62,20 @@ class TerraFullDilutedMcapRecomposer:
         print(self.asset_tokens, target_weights)
         target_weights = [int(100 * target_weight) for target_weight in target_weights]
 
-        await self.cluster_contract.reset_target(
-            assets=[Asset.asset_info(a) for a in self.asset_tokens],
-            target=target_weights
+        target = []
+        for a, t in zip(self.asset_tokens, target_weights):
+            native = (a == 'uluna')
+            target.append(Asset.asset(a, str(t), native=native))
+
+        print(target)
+
+        await self.cluster_contract.update_target(
+            target=target
         )
 
         target = await self.cluster_contract.query.target()
-        cluster = Contract("terra1e9c0am0rmekqy4epkpt6t95j8rx4867unggsqr")
         cluster_state = await self.cluster_contract.query.cluster_state(
-            cluster_contract_address=cluster
+            cluster_contract_address=self.cluster_contract
         )
 
         print("Updated Target: " , target)
@@ -80,7 +85,7 @@ class TerraFullDilutedMcapRecomposer:
 async def run_recomposition_periodically(cluster_contract, interval):
     start_time = time.time()
 
-    ANC_ADDR = 'terra15tecrcm27fenchxaqde9f8ws8krfgjnqf2hhcv'
+    ANC_ADDR = 'terra16z5t7cr0ueg47tuqmwlp6ymgm2w43dyv4xnt4g'
     MIR_ADDR = 'terra1gkjll5uwqlwa8mrmtvzv435732tffpjql494fd'
     assets = [
         "uluna", #LUNA
@@ -112,6 +117,6 @@ async def run_recomposition_periodically(cluster_contract, interval):
         )
 
 if __name__ == "__main__":
-    cluster_contract = Contract("terra1e9c0am0rmekqy4epkpt6t95j8rx4867unggsqr")
+    cluster_contract = Contract("terra1pk8069vrxm0lzqdqy6zq46np8e4jy3r7j0a5k9")
     interval = SECONDS_PER_DAY
     asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))

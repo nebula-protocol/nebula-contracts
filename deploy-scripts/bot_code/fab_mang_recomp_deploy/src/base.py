@@ -50,7 +50,7 @@ async def sign_and_broadcast(*msgs):
     global sequence
     try:
         tx = await deployer.create_and_sign_tx(
-            msgs=msgs, fee=StdFee(30000000, "20000000uusd"), sequence=sequence
+            msgs=msgs, gas_prices={"uusd": "0.15"}, gas_adjustment=1.5, sequence=sequence
         )
         result = await terra.tx.broadcast(tx)
         sequence += 1

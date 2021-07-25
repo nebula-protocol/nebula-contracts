@@ -14,7 +14,7 @@ use nebula_protocol::cluster::{
 use terraswap::asset::{Asset, AssetInfo};
 use terraswap::querier::query_token_balance;
 
-use cluster_math::{imbalance, int32_vec_to_fpdec, int_vec_to_fpdec, str_vec_to_fpdec};
+use cluster_math::{imbalance, int_vec_to_fpdec, str_vec_to_fpdec};
 use nebula_protocol::cluster_factory::ClusterExistsResponse;
 use nebula_protocol::cluster_factory::QueryMsg::ClusterExists;
 use std::cmp::min;

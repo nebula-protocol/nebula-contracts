@@ -4,7 +4,7 @@ import requests
 import json
 from datetime import timedelta, datetime
 
-os.environ["MNEMONIC"] = mnemonic = 'lottery horn blast wealth cruise border opinion upgrade common gauge grocery evil canal lizard sad mad submit degree brave margin age lunar squirrel diet'
+os.environ["MNEMONIC"] = mnemonic = 'parent hospital arrest brush exact giraffe glimpse exist grain curtain always depend session wash twin insane rural brain ahead destroy sudden claim story funny'
 
 os.environ["USE_TEQUILA"] = "1"
 
@@ -19,7 +19,7 @@ from contract_helpers import Contract, ClusterContract, terra
 ONE_MILLION = 1000000.0
 SECONDS_PER_DAY = 24 * 60 * 60
 
-# Memecoin Cluster Methodology
+# The Next Doge Cluster Methodology
 """
 For underlying tokens in a cluster, we define them as “activated“ and “deactivated” according to a binary activation function. 
 Consider an activation function such that when the H = 4-hour price percentage for a token exceeds T = 30%, we mark it “activated”. 
@@ -35,6 +35,14 @@ class NextDogeRecomposer:
 
         #["UST, ""DOGE", "CUMMIES", "MEME", "ERC20"]
         self.asset_ids = ["terrausd", "dogecoin", "cumrocket", "degenerator", "erc20"]
+        self.asset_infos = [
+            'uusd', 
+            'terra1wpa2978x6n9c6xdvfzk4uhkzvphmq5fhdnvrym',
+            'terra1kf9qa5f3uu7nq3flg2dva8c9d9lh8h5cyuextt',
+            'terra1u08z2c9r3s3avrn9l0r3m30xhcmssunvv5d0rx',
+            'terra1p0rp8he7jfnevha3k5anhd0als7azjmfhxrvjv',
+        ]
+
         self.H = 8
         self.T = 0.3
         self.X = 0.1
@@ -62,7 +70,7 @@ class NextDogeRecomposer:
             if self.activated_assets[asset] <= datetime.utcfromtimestamp(cur_timestamp):
                 self.deactivate_asset(asset)
                 
-    # get_price_change("terra-luna", "usd", 1557270594, 1557288000)
+    # Example: get_price_change("terra-luna", "usd", 1557270594, 1557288000)
     def get_price_change(self, asset_id, time_from, time_to):
         api_url = "https://api.coingecko.com/api/v3/coins/{id}/market_chart/range".format(
             id=asset_id
@@ -142,14 +150,29 @@ class NextDogeRecomposer:
         target_weights = await self.weighting(datetime.now().timestamp())
         print(self.asset_ids, target_weights)
         target_weights = [int(100 * target_weight) for target_weight in target_weights]
-        # await self.cluster_contract.reset_target(
-        #     assets=[Asset.asset_info(a) for a in self.asset_tokens],
-        #     target=target_weights
-        # )
-        # target = await self.cluster_contract.query.target()
-        # print("Updated Target: " , target)
 
-        return self.asset_ids, target_weights
+        target = []
+        for a, t in zip(self.asset_infos, target_weights):
+            native = (a == 'uluna') or (a == 'uusd')
+            if t > 0:
+                target.append(Asset.asset(a, str(t), native=native))
+
+        print(target)
+
+        await self.cluster_contract.update_target(
+            target=target
+        )
+
+        target = await self.cluster_contract.query.target()
+
+        cluster_state = await self.cluster_contract.query.cluster_state(
+            cluster_contract_address=self.cluster_contract
+        )
+
+        print("Updated Target: " , target)
+        print("Updated Cluster State: ", cluster_state)
+
+        return self.asset_infos, target_weights
 
 async def run_recomposition_periodically(cluster_contract, interval):
     recomposition_bot = NextDogeRecomposer(cluster_contract)
@@ -161,6 +184,6 @@ async def run_recomposition_periodically(cluster_contract, interval):
         )
 
 if __name__ == "__main__":
-    cluster_contract = Contract("") #TODO: Update
+    cluster_contract = Contract("terra1dsqtuf79093unny85pv53230rzcwehlwxyd5hc")
     interval = SECONDS_PER_DAY
     asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))

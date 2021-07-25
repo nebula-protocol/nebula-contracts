@@ -1,7 +1,7 @@
 use cosmwasm_std::{HumanAddr, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use terraswap::asset::{Asset, AssetInfo};
+use terraswap::asset::{Asset};
 use terraswap::hook::InitHook;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -87,6 +87,7 @@ pub enum QueryMsg {
         /// NOTE: remove for col-5
         cluster_contract_address: HumanAddr,
     },
+    ClusterInfo {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -109,6 +110,12 @@ pub struct ClusterStateResponse {
     pub target: Vec<Asset>,
     pub cluster_contract_address: HumanAddr,
     pub active: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct ClusterInfoResponse {
+    pub name: String,
+    pub description: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
