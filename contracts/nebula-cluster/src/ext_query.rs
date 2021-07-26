@@ -1,95 +1,22 @@
 use cosmwasm_std::{
-    to_binary, Api, Decimal, Extern, HumanAddr, LogAttribute, Querier, QueryRequest, StdError,
-    StdResult, Storage, Uint128, WasmQuery,
+    to_binary, BalanceResponse, BankQuery, HumanAddr, Querier, QueryRequest, StdError, StdResult,
+    Uint128, WasmQuery,
 };
+use cw20::Cw20QueryMsg;
 use cw20::{BalanceResponse as Cw20BalanceResponse, TokenInfoResponse as Cw20TokenInfoResponse};
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use nebula_protocol::{
+    cluster_factory::ConfigResponse as FactoryConfigResponse,
+    cluster_factory::QueryMsg as FactoryQueryMsg, oracle::PriceResponse,
+    oracle::QueryMsg as OracleQueryMsg, penalty::MintResponse,
+    penalty::QueryMsg as PenaltyQueryMsg, penalty::RedeemResponse,
+};
 use std::cmp::min;
 use terraswap::asset::AssetInfo;
 
-/// QueryMsgs to external contracts
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ExtQueryMsg {
-    // Oracle
-    Price {
-        base_asset: String,
-        quote_asset: String,
-    },
-    // Cw20
-    Balance {
-        address: HumanAddr,
-    },
-    TokenInfo {},
-
-    // get factory config
-    Config {},
-
-    // Penalty mint
-    Mint {
-        block_height: u64,
-        cluster_token_supply: Uint128,
-        inventory: Vec<Uint128>,
-        mint_asset_amounts: Vec<Uint128>,
-        asset_prices: Vec<String>,
-        target_weights: Vec<u32>,
-    },
-
-    // Penalty redeem
-    Redeem {
-        block_height: u64,
-        cluster_token_supply: Uint128,
-        inventory: Vec<Uint128>,
-        max_tokens: Uint128,
-        redeem_asset_amounts: Vec<Uint128>,
-        asset_prices: Vec<String>,
-        target_weights: Vec<u32>,
-    },
-}
-
-#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
-pub struct FactoryConfigResponse {
-    pub owner: HumanAddr,
-    pub nebula_token: HumanAddr,
-    pub staking_contract: HumanAddr,
-    pub commission_collector: HumanAddr,
-    pub protocol_fee_rate: String,
-    pub oracle_contract: HumanAddr,
-    pub terraswap_factory: HumanAddr,
-    pub token_code_id: u64,
-    pub cluster_code_id: u64,
-    pub base_denom: String,
-    pub genesis_time: u64,
-    pub distribution_schedule: Vec<(u64, u64, Uint128)>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct PriceResponse {
-    pub rate: Decimal,
-    pub last_updated_base: u64,
-    pub last_updated_quote: u64,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct MintResponse {
-    pub mint_tokens: Uint128,
-    pub penalty: Uint128,
-    pub log: Vec<LogAttribute>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct RedeemResponse {
-    pub redeem_assets: Vec<Uint128>,
-    pub penalty: Uint128,
-    pub token_cost: Uint128,
-    pub log: Vec<LogAttribute>,
-}
-
 /// EXTERNAL QUERY
 /// -- Queries the oracle contract for the current asset price
-pub fn query_price<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+pub fn query_price<Q: Querier>(
+    querier: &Q,
     pricing_oracle_address: &HumanAddr,
     asset_info: &AssetInfo,
     // prices from before < stale_threshold are considered stale
@@ -97,9 +24,9 @@ pub fn query_price<S: Storage, A: Api, Q: Querier>(
     stale_threshold: u64,
 ) -> StdResult<String> {
     // perform query
-    let res: PriceResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+    let res: PriceResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: pricing_oracle_address.clone(),
-        msg: to_binary(&ExtQueryMsg::Price {
+        msg: to_binary(&OracleQueryMsg::Price {
             base_asset: asset_info.to_string(),
             quote_asset: "uusd".to_string(),
         })?,
@@ -111,15 +38,44 @@ pub fn query_price<S: Storage, A: Api, Q: Querier>(
 }
 
 /// EXTERNAL QUERY
+/// -- Queries the asset balance of account
+pub fn query_asset_balance<Q: Querier>(
+    querier: &Q,
+    account_address: &HumanAddr,
+    asset_info: &AssetInfo,
+) -> StdResult<Uint128> {
+    match asset_info {
+        AssetInfo::Token { contract_addr } => {
+            query_cw20_balance(querier, &contract_addr, &account_address)
+        }
+        AssetInfo::NativeToken { denom } => query_balance(querier, &account_address, denom.clone()),
+    }
+}
+
+/// EXTERNAL QUERY
+/// -- Queries the native token balance of account
+pub fn query_balance<Q: Querier>(
+    querier: &Q,
+    account_addr: &HumanAddr,
+    denom: String,
+) -> StdResult<Uint128> {
+    let balance: BalanceResponse = querier.query(&QueryRequest::Bank(BankQuery::Balance {
+        address: HumanAddr::from(account_addr),
+        denom,
+    }))?;
+    Ok(balance.amount.amount)
+}
+
+/// EXTERNAL QUERY
 /// -- Queries the token_address contract for the current balance of account
-pub fn query_cw20_balance<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+pub fn query_cw20_balance<Q: Querier>(
+    querier: &Q,
     asset_address: &HumanAddr,
     account_address: &HumanAddr,
 ) -> StdResult<Uint128> {
-    let res: Cw20BalanceResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+    let res: Cw20BalanceResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: asset_address.clone(),
-        msg: to_binary(&ExtQueryMsg::Balance {
+        msg: to_binary(&Cw20QueryMsg::Balance {
             address: account_address.clone(),
         })?,
     }))?;
@@ -129,13 +85,13 @@ pub fn query_cw20_balance<S: Storage, A: Api, Q: Querier>(
 
 /// EXTERNAL QUERY
 /// -- Queries the token_address contract for the current total supply
-pub fn query_cw20_token_supply<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+pub fn query_cw20_token_supply<Q: Querier>(
+    querier: &Q,
     asset_address: &HumanAddr,
 ) -> StdResult<Uint128> {
-    let res: Cw20TokenInfoResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+    let res: Cw20TokenInfoResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: asset_address.clone(),
-        msg: to_binary(&ExtQueryMsg::TokenInfo {})?,
+        msg: to_binary(&Cw20QueryMsg::TokenInfo {})?,
     }))?;
 
     Ok(res.total_supply)
@@ -143,13 +99,13 @@ pub fn query_cw20_token_supply<S: Storage, A: Api, Q: Querier>(
 
 /// EXTERNAL QUERY
 /// -- Queries the cluster factory contract for the current total supply
-pub fn query_collector_contract_address<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+pub fn query_collector_contract_address<Q: Querier>(
+    querier: &Q,
     factory_address: &HumanAddr,
 ) -> StdResult<(HumanAddr, String)> {
-    let res: FactoryConfigResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+    let res: FactoryConfigResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: factory_address.clone(),
-        msg: to_binary(&ExtQueryMsg::Config {})?,
+        msg: to_binary(&FactoryQueryMsg::Config {})?,
     }))?;
 
     Ok((res.commission_collector, res.protocol_fee_rate))
@@ -157,19 +113,19 @@ pub fn query_collector_contract_address<S: Storage, A: Api, Q: Querier>(
 
 /// EXTERNAL QUERY
 /// -- Queries the penalty contract for the amount to mint
-pub fn query_mint_amount<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+pub fn query_mint_amount<Q: Querier>(
+    querier: &Q,
     penalty_address: &HumanAddr,
     block_height: u64,
     cluster_token_supply: Uint128,
     inventory: Vec<Uint128>,
     mint_asset_amounts: Vec<Uint128>,
     asset_prices: Vec<String>,
-    target_weights: Vec<u32>,
+    target_weights: Vec<Uint128>,
 ) -> StdResult<MintResponse> {
-    let res: MintResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+    let res: MintResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: penalty_address.clone(),
-        msg: to_binary(&ExtQueryMsg::Mint {
+        msg: to_binary(&PenaltyQueryMsg::Mint {
             block_height,
             cluster_token_supply,
             inventory,
@@ -184,8 +140,8 @@ pub fn query_mint_amount<S: Storage, A: Api, Q: Querier>(
 
 /// EXTERNAL QUERY
 /// -- Queries the penalty contract for the amount to mint
-pub fn query_redeem_amount<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+pub fn query_redeem_amount<Q: Querier>(
+    querier: &Q,
     penalty_address: &HumanAddr,
     block_height: u64,
     cluster_token_supply: Uint128,
@@ -193,11 +149,11 @@ pub fn query_redeem_amount<S: Storage, A: Api, Q: Querier>(
     max_tokens: Uint128,
     redeem_asset_amounts: Vec<Uint128>,
     asset_prices: Vec<String>,
-    target_weights: Vec<u32>,
+    target_weights: Vec<Uint128>,
 ) -> StdResult<RedeemResponse> {
-    let res: RedeemResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+    let res: RedeemResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: penalty_address.clone(),
-        msg: to_binary(&ExtQueryMsg::Redeem {
+        msg: to_binary(&PenaltyQueryMsg::Redeem {
             block_height,
             cluster_token_supply,
             inventory,

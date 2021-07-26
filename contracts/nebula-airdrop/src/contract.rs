@@ -1,20 +1,18 @@
 use cosmwasm_std::{
     log, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr,
-    InitResponse, InitResult, MigrateResponse, MigrateResult, Querier, StdError, StdResult,
-    Storage, Uint128, WasmMsg,
+    InitResponse, InitResult, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 
 use crate::state::{
-    merkle_root_exists, read_claimed, read_config, read_latest_stage, read_merkle_root,
-    store_claimed, store_config, store_latest_stage, store_merkle_root, Config,
+    read_claimed, read_config, read_latest_stage, read_merkle_root, store_claimed, store_config,
+    store_latest_stage, store_merkle_root, Config,
 };
 use nebula_protocol::airdrop::{
     ConfigResponse, HandleMsg, InitMsg, IsClaimedResponse, LatestStageResponse, MerkleRootResponse,
-    MigrateMsg, QueryMsg,
+    QueryMsg,
 };
 
 use cw20::Cw20HandleMsg;
-use hex;
 use sha3::Digest;
 use std::convert::TryInto;
 
@@ -44,9 +42,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
 ) -> HandleResult {
     match msg {
         HandleMsg::UpdateConfig { owner } => update_config(deps, env, owner),
-        HandleMsg::UpdateMerkleRoot { stage, merkle_root } => {
-            update_merkle_root(deps, env, stage, merkle_root)
-        }
         HandleMsg::RegisterMerkleRoot { merkle_root } => {
             register_merkle_root(deps, env, merkle_root)
         }
@@ -56,46 +51,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             proof,
         } => claim(deps, env, stage, amount, proof),
     }
-}
-
-pub fn update_merkle_root<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    stage: u8,
-    merkle_root: String,
-) -> StdResult<HandleResponse> {
-    let config: Config = read_config(&deps.storage)?;
-    if env.message.sender != config.owner {
-        return Err(StdError::unauthorized());
-    }
-
-    let latest_stage: u8 = read_latest_stage(&deps.storage)?;
-
-    if stage > latest_stage {
-        return Err(StdError::generic_err(
-            "Cannot update merkle root of a stage later than the current latest stage",
-        ));
-    }
-
-    // Disallow overwrites of merkle roots for existing stages
-    if merkle_root_exists(&deps.storage, stage)? {
-        return Err(StdError::generic_err(
-            "Merkle root for given stage already exists",
-        ));
-    }
-
-    validate_merkle_root(merkle_root.clone())?;
-    store_merkle_root(&mut deps.storage, stage, merkle_root.to_string())?;
-
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![
-            log("action", "update_merkle_root"),
-            log("stage", stage),
-            log("merkle_root", merkle_root),
-        ],
-        data: None,
-    })
 }
 
 pub fn update_config<S: Storage, A: Api, Q: Querier>(
@@ -124,7 +79,7 @@ fn validate_merkle_root(merkle_root: String) -> StdResult<()> {
     let mut root_buf: [u8; 32] = [0; 32];
     match hex::decode_to_slice(merkle_root, &mut root_buf) {
         Ok(_) => Ok(()),
-        Err(_) => return Err(StdError::generic_err("Invalid merkle root")),
+        Err(_) => Err(StdError::generic_err("Invalid merkle root")),
     }
 }
 
@@ -226,16 +181,18 @@ pub fn claim<S: Storage, A: Api, Q: Querier>(
 fn bytes_cmp(a: [u8; 32], b: [u8; 32]) -> std::cmp::Ordering {
     let mut i = 0;
     while i < 32 {
-        if a[i] > b[i] {
-            return std::cmp::Ordering::Greater;
-        } else if a[i] < b[i] {
-            return std::cmp::Ordering::Less;
+        match a[i].cmp(&b[i]) {
+            std::cmp::Ordering::Greater => {
+                return std::cmp::Ordering::Greater;
+            }
+            std::cmp::Ordering::Less => {
+                return std::cmp::Ordering::Less;
+            }
+            std::cmp::Ordering::Equal => i += 1,
         }
-
-        i += 1;
     }
 
-    return std::cmp::Ordering::Equal;
+    std::cmp::Ordering::Equal
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
@@ -269,10 +226,7 @@ pub fn query_merkle_root<S: Storage, A: Api, Q: Querier>(
     stage: u8,
 ) -> StdResult<MerkleRootResponse> {
     let merkle_root = read_merkle_root(&deps.storage, stage)?;
-    let resp = MerkleRootResponse {
-        stage: stage,
-        merkle_root: merkle_root,
-    };
+    let resp = MerkleRootResponse { stage, merkle_root };
 
     Ok(resp)
 }
@@ -296,12 +250,4 @@ pub fn query_is_claimed<S: Storage, A: Api, Q: Querier>(
     };
 
     Ok(resp)
-}
-
-pub fn migrate<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
-    _env: Env,
-    _msg: MigrateMsg,
-) -> MigrateResult {
-    Ok(MigrateResponse::default())
 }

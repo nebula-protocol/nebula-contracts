@@ -43,7 +43,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     msg: HandleMsg,
 ) -> StdResult<HandleResponse> {
     match msg {
-        HandleMsg::_ResetOwner { owner } => reset_owner(deps, env, &owner),
+        HandleMsg::UpdateOwner { owner } => update_owner(deps, env, &owner),
         HandleMsg::Receive(msg) => receive_cw20(deps, env, msg),
         HandleMsg::Withdraw {} => withdraw_reward(deps, env),
         HandleMsg::NewPenaltyPeriod {} => new_penalty_period(deps, env),
@@ -69,24 +69,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             cluster_contract,
             pool_before,
         ),
-        HandleMsg::ArbClusterMint {
-            cluster_contract,
-            assets,
-        } => arb_cluster_mint(deps, env, cluster_contract, &assets),
-        HandleMsg::ArbClusterRedeem {
-            cluster_contract,
-            asset,
-        } => arb_cluster_redeem(deps, env, cluster_contract, asset),
-        HandleMsg::Mint {
-            cluster_contract,
-            asset_amounts,
-            min_tokens,
-        } => mint(deps, env, cluster_contract, &asset_amounts, min_tokens),
-        HandleMsg::Redeem {
-            cluster_contract,
-            max_tokens,
-            asset_amounts,
-        } => redeem(deps, env, cluster_contract, max_tokens, asset_amounts),
         HandleMsg::_RecordRebalancerRewards {
             rebalancer,
             cluster_contract,
@@ -120,10 +102,28 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             max_tokens,
             asset_amounts,
         ),
+        HandleMsg::ArbClusterMint {
+            cluster_contract,
+            assets,
+        } => arb_cluster_mint(deps, env, cluster_contract, &assets),
+        HandleMsg::ArbClusterRedeem {
+            cluster_contract,
+            asset,
+        } => arb_cluster_redeem(deps, env, cluster_contract, asset),
+        HandleMsg::Mint {
+            cluster_contract,
+            asset_amounts,
+            min_tokens,
+        } => mint(deps, env, cluster_contract, &asset_amounts, min_tokens),
+        HandleMsg::Redeem {
+            cluster_contract,
+            max_tokens,
+            asset_amounts,
+        } => redeem(deps, env, cluster_contract, max_tokens, asset_amounts),
     }
 }
 
-pub fn reset_owner<S: Storage, A: Api, Q: Querier>(
+pub fn update_owner<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
     owner: &HumanAddr,
@@ -140,7 +140,7 @@ pub fn reset_owner<S: Storage, A: Api, Q: Querier>(
 
     Ok(HandleResponse {
         messages: vec![],
-        log: vec![log("action", "_reset_owner")],
+        log: vec![log("action", "update_owner")],
         data: None,
     })
 }

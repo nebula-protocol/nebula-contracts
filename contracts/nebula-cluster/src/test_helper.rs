@@ -5,9 +5,13 @@ pub use cluster_math::*;
 pub use cosmwasm_std::testing::{mock_env, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 pub use cosmwasm_std::*;
 pub use cw20::BalanceResponse as Cw20BalanceResponse;
-use cw20::TokenInfoResponse;
-pub use nebula_protocol::cluster::InitMsg;
-pub use nebula_protocol::penalty::{MintResponse, PenaltyParams};
+use cw20::{Cw20QueryMsg, TokenInfoResponse};
+use nebula_protocol::{
+    cluster::InitMsg,
+    cluster_factory::{ConfigResponse, QueryMsg as FactoryQueryMsg},
+    oracle::{PriceResponse, QueryMsg as OracleQueryMsg},
+    penalty::{MintResponse, PenaltyParams, QueryMsg as PenaltyQueryMsg, RedeemResponse},
+};
 use std::collections::HashMap;
 pub use std::str::FromStr;
 use terra_cosmwasm::*;
@@ -27,15 +31,16 @@ macro_rules! q {
     }};
 }
 
-pub struct CustomMockQuerier {
+pub struct WasmMockQuerier {
     pub base: MockQuerier<TerraQueryWrapper>,
     pub token_querier: TokenQuerier,     // token balances
     pub balance_querier: BalanceQuerier, // native balances
     pub oracle_querier: OracleQuerier,   // token registered prices
+    pub penalty_querier: PenaltyQuerier, // penalty querier
     pub canonical_length: usize,
 }
 
-impl Querier for CustomMockQuerier {
+impl Querier for WasmMockQuerier {
     fn raw_query(&self, bin_request: &[u8]) -> QuerierResult {
         // MockQuerier doesn't support Custom, so we ignore it completely here
         let request: QueryRequest<TerraQueryWrapper> = match from_slice(bin_request) {
@@ -56,7 +61,7 @@ pub fn decimal_division(a: Decimal, b: Decimal) -> Decimal {
     Decimal::from_ratio(DECIMAL_FRACTIONAL * a, b * DECIMAL_FRACTIONAL)
 }
 
-impl CustomMockQuerier {
+impl WasmMockQuerier {
     pub fn handle_query(&self, request: &QueryRequest<TerraQueryWrapper>) -> QuerierResult {
         match &request {
             QueryRequest::Custom(TerraQueryWrapper {
@@ -83,11 +88,11 @@ impl CustomMockQuerier {
                 }))
             }
             QueryRequest::Wasm(WasmQuery::Smart { contract_addr, msg }) => {
-                match from_binary(&msg).unwrap() {
-                    ExtQueryMsg::Price {
+                match from_binary(&msg) {
+                    Ok(OracleQueryMsg::Price {
                         base_asset,
                         quote_asset,
-                    } => match self.oracle_querier.assets.get(&base_asset) {
+                    }) => match self.oracle_querier.assets.get(&base_asset) {
                         Some(base_price) => match self.oracle_querier.assets.get(&quote_asset) {
                             Some(quote_price) => Ok(to_binary(&PriceResponse {
                                 rate: decimal_division(*base_price, *quote_price),
@@ -104,67 +109,100 @@ impl CustomMockQuerier {
                             request: msg.as_slice().into(),
                         }),
                     },
-                    ExtQueryMsg::Balance { address } => {
-                        let token_data = match self.token_querier.tokens.get(contract_addr) {
-                            Some(v) => v,
-                            None => {
-                                return Err(SystemError::InvalidRequest {
-                                    error: format!(
-                                        "No balance info exists for the contract {}",
-                                        contract_addr
-                                    ),
-                                    request: msg.as_slice().into(),
-                                })
-                            }
-                        };
-                        let balance = match token_data.balances.get(&address) {
-                            Some(v) => v,
-                            None => {
-                                return Err(SystemError::InvalidRequest {
-                                    error: "Balance not found".to_string(),
-                                    request: msg.as_slice().into(),
-                                })
-                            }
-                        };
-                        Ok(to_binary(&Cw20BalanceResponse { balance: *balance }))
-                    }
-                    ExtQueryMsg::TokenInfo {} => {
-                        let token_data = match self.token_querier.tokens.get(contract_addr) {
-                            Some(v) => v,
-                            None => {
-                                return Err(SystemError::InvalidRequest {
-                                    error: format!(
-                                        "No token info exists for the contract {}",
-                                        contract_addr
-                                    ),
-                                    request: msg.as_slice().into(),
-                                })
-                            }
-                        };
-                        Ok(to_binary(&token_data.info))
-                    }
-                    ExtQueryMsg::Config {} => {
-                        let config = read_config(&MockStorage::default());
-                        Ok(to_binary(&config))
-                    }
-                    ExtQueryMsg::Mint {
-                        block_height: _,
-                        cluster_token_supply: _,
-                        inventory: _,
-                        mint_asset_amounts: _,
-                        asset_prices: _,
-                        target_weights: _,
-                    } => {
-                        let response = MintResponse {
-                            mint_tokens: Uint128(99),
-                            penalty: Uint128(1234),
-                            log: vec![log("penalty", 1234)],
-                        };
-                        Ok(to_binary(&response))
-                    }
-                    _ => {
-                        panic!("ExtQueryMsg type not implemented");
-                    }
+                    _ => match from_binary(&msg) {
+                        Ok(Cw20QueryMsg::Balance { address }) => {
+                            let token_data = match self.token_querier.tokens.get(contract_addr) {
+                                Some(v) => v,
+                                None => {
+                                    return Err(SystemError::InvalidRequest {
+                                        error: format!(
+                                            "No balance info exists for the contract {}",
+                                            contract_addr
+                                        ),
+                                        request: msg.as_slice().into(),
+                                    })
+                                }
+                            };
+                            let balance = match token_data.balances.get(&address) {
+                                Some(v) => v,
+                                None => {
+                                    return Err(SystemError::InvalidRequest {
+                                        error: "Balance not found".to_string(),
+                                        request: msg.as_slice().into(),
+                                    })
+                                }
+                            };
+                            Ok(to_binary(&Cw20BalanceResponse { balance: *balance }))
+                        }
+                        Ok(Cw20QueryMsg::TokenInfo {}) => {
+                            let token_data = match self.token_querier.tokens.get(contract_addr) {
+                                Some(v) => v,
+                                None => {
+                                    return Err(SystemError::InvalidRequest {
+                                        error: format!(
+                                            "No token info exists for the contract {}",
+                                            contract_addr
+                                        ),
+                                        request: msg.as_slice().into(),
+                                    })
+                                }
+                            };
+                            Ok(to_binary(&token_data.info))
+                        }
+                        _ => match from_binary(&msg) {
+                            Ok(FactoryQueryMsg::Config {}) => Ok(to_binary(&ConfigResponse {
+                                owner: HumanAddr::from("owner"),
+                                nebula_token: HumanAddr::from("nebula"),
+                                staking_contract: HumanAddr::from("staking"),
+                                commission_collector: HumanAddr::from("collector"),
+                                protocol_fee_rate: "0.03".to_string(),
+                                oracle_contract: HumanAddr::from("oracle"),
+                                terraswap_factory: HumanAddr::from("terraswap_factory"),
+                                token_code_id: 1,
+                                cluster_code_id: 2,
+                                base_denom: "uusd".to_string(),
+                                genesis_time: 1000,
+                                distribution_schedule: vec![],
+                            })),
+                            _ => match from_binary(&msg) {
+                                Ok(PenaltyQueryMsg::Mint {
+                                    block_height: _,
+                                    cluster_token_supply: _,
+                                    inventory: _,
+                                    mint_asset_amounts: _,
+                                    asset_prices: _,
+                                    target_weights: _,
+                                }) => {
+                                    let response = MintResponse {
+                                        mint_tokens: self.penalty_querier.mint_tokens,
+                                        penalty: Uint128(1234),
+                                        log: vec![log("penalty", 1234)],
+                                    };
+                                    Ok(to_binary(&response))
+                                }
+                                Ok(PenaltyQueryMsg::Redeem {
+                                    block_height: _,
+                                    cluster_token_supply: _,
+                                    inventory: _,
+                                    max_tokens: _,
+                                    redeem_asset_amounts: _,
+                                    asset_prices: _,
+                                    target_weights: _,
+                                }) => {
+                                    let response = RedeemResponse {
+                                        redeem_assets: self.penalty_querier.redeem_assets.clone(),
+                                        token_cost: self.penalty_querier.token_cost,
+                                        penalty: Uint128(1234),
+                                        log: vec![log("penalty", 1234)],
+                                    };
+                                    Ok(to_binary(&response))
+                                }
+                                _ => {
+                                    panic!("ExtQueryMsg type not implemented");
+                                }
+                            },
+                        },
+                    },
                 }
             }
             _ => self.base.handle_query(request),
@@ -220,6 +258,23 @@ impl TokenQuerier {
 }
 
 #[derive(Default)]
+pub struct PenaltyQuerier {
+    pub mint_tokens: Uint128,
+    pub token_cost: Uint128,
+    pub redeem_assets: Vec<Uint128>,
+}
+
+impl PenaltyQuerier {
+    pub fn new() -> Self {
+        PenaltyQuerier {
+            mint_tokens: Uint128::zero(),
+            token_cost: Uint128::zero(),
+            redeem_assets: vec![],
+        }
+    }
+}
+
+#[derive(Default)]
 pub struct BalanceQuerier {
     // this lets us iterate over all pairs that match the first string
 
@@ -249,17 +304,18 @@ impl OracleQuerier {
     }
 }
 
-impl CustomMockQuerier {
+impl WasmMockQuerier {
     pub fn new<A: Api>(
         base: MockQuerier<TerraQueryWrapper>,
         _api: A,
         canonical_length: usize,
     ) -> Self {
-        CustomMockQuerier {
+        WasmMockQuerier {
             base,
             token_querier: TokenQuerier::default(),
             oracle_querier: OracleQuerier::default(),
             balance_querier: BalanceQuerier::default(),
+            penalty_querier: PenaltyQuerier::default(),
             canonical_length,
         }
     }
@@ -351,6 +407,21 @@ impl CustomMockQuerier {
         }
         self
     }
+
+    pub fn set_mint_amount(&mut self, mint_tokens: Uint128) -> &mut Self {
+        self.penalty_querier.mint_tokens = mint_tokens;
+        self
+    }
+
+    pub fn set_redeem_amount(
+        &mut self,
+        token_cost: Uint128,
+        redeem_assets: Vec<Uint128>,
+    ) -> &mut Self {
+        self.penalty_querier.token_cost = token_cost;
+        self.penalty_querier.redeem_assets = redeem_assets;
+        self
+    }
 }
 
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies
@@ -358,9 +429,9 @@ impl CustomMockQuerier {
 pub fn mock_dependencies(
     canonical_length: usize,
     contract_balance: &[Coin],
-) -> Extern<MockStorage, MockApi, CustomMockQuerier> {
+) -> Extern<MockStorage, MockApi, WasmMockQuerier> {
     let contract_addr = HumanAddr::from(MOCK_CONTRACT_ADDR);
-    let custom_querier: CustomMockQuerier = CustomMockQuerier::new(
+    let custom_querier: WasmMockQuerier = WasmMockQuerier::new(
         MockQuerier::new(&[(&contract_addr, contract_balance)]),
         MockApi::new(canonical_length),
         canonical_length,
@@ -374,6 +445,8 @@ pub fn mock_dependencies(
 }
 
 pub mod consts {
+
+    use terraswap::asset::Asset;
 
     use super::*;
 
@@ -400,59 +473,78 @@ pub mod consts {
     pub fn composition_oracle() -> HumanAddr {
         h("composition_oracle")
     }
-    pub fn assets() -> Vec<AssetInfo> {
+    pub fn target_assets_stage() -> Vec<Asset> {
         vec![
-            AssetInfo::Token {
-                contract_addr: h("mAAPL"),
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mAAPL"),
+                },
+                amount: Uint128(20),
             },
-            AssetInfo::Token {
-                contract_addr: h("mGOOG"),
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mGOOG"),
+                },
+                amount: Uint128(20),
             },
-            AssetInfo::Token {
-                contract_addr: h("mMSFT"),
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mMSFT"),
+                },
+                amount: Uint128(20),
             },
-            AssetInfo::Token {
-                contract_addr: h("mNFLX"),
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mNFLX"),
+                },
+                amount: Uint128(20),
             },
         ]
     }
     pub fn target() -> Vec<u32> {
         vec![20, 10, 65, 5]
     }
-    pub fn assets_native_stage() -> Vec<AssetInfo> {
+    pub fn target_assets_native_stage() -> Vec<Asset> {
         vec![
-            AssetInfo::Token {
-                contract_addr: h("mAAPL"),
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mAAPL"),
+                },
+                amount: Uint128(20),
             },
-            AssetInfo::Token {
-                contract_addr: h("mGOOG"),
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mGOOG"),
+                },
+                amount: Uint128(20),
             },
-            AssetInfo::Token {
-                contract_addr: h("mMSFT"),
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mMSFT"),
+                },
+                amount: Uint128(20),
             },
-            AssetInfo::Token {
-                contract_addr: h("mNFLX"),
+            Asset {
+                info: AssetInfo::NativeToken {
+                    denom: "ukrw".to_string(),
+                },
+                amount: Uint128(20),
             },
-            // AssetInfo::NativeToken {
-            //     denom: "uluna".to_string(),
-            // },
-            // AssetInfo::Token {
-            //     contract_addr: h("LUNA"),
-            // },
         ]
     }
-    pub fn target_native_stage() -> Vec<u32> {
-        vec![20, 20, 20, 20]
+
+    pub fn target_stage() -> Vec<Uint128> {
+        vec![Uint128(20), Uint128(20), Uint128(20), Uint128(20)]
     }
-    pub fn penalty_params() -> PenaltyParams {
-        PenaltyParams {
-            penalty_amt_lo: FPDecimal::from_str("0.1").unwrap(),
-            penalty_cutoff_lo: FPDecimal::from_str("0.01").unwrap(),
-            penalty_amt_hi: FPDecimal::from_str("0.5").unwrap(),
-            penalty_cutoff_hi: FPDecimal::from_str("0.1").unwrap(),
-            reward_amt: FPDecimal::from_str("0.05").unwrap(),
-            reward_cutoff: FPDecimal::from_str("0.02").unwrap(),
-        }
+
+    pub fn target_native_stage() -> Vec<Uint128> {
+        vec![
+            Uint128(20),
+            Uint128(20),
+            Uint128(20),
+            Uint128(20),
+            Uint128(20),
+        ]
     }
 
     pub fn penalty() -> HumanAddr {
@@ -460,18 +552,14 @@ pub mod consts {
     }
 }
 
-pub fn mock_init() -> (
-    Extern<MockStorage, MockApi, CustomMockQuerier>,
-    InitResponse,
-) {
+pub fn mock_init() -> (Extern<MockStorage, MockApi, WasmMockQuerier>, InitResponse) {
     let mut deps = mock_dependencies(20, &[]);
     let msg = InitMsg {
         name: consts::name().to_string(),
         description: consts::description().to_string(),
-        assets: consts::assets_native_stage(),
         owner: consts::owner(),
         cluster_token: Some(consts::cluster_token()),
-        target: consts::target_native_stage(),
+        target: consts::target_assets_stage(),
         pricing_oracle: consts::pricing_oracle(),
         composition_oracle: consts::composition_oracle(),
         penalty: consts::penalty(),
@@ -484,18 +572,14 @@ pub fn mock_init() -> (
     (deps, res)
 }
 
-pub fn mock_init_native_stage() -> (
-    Extern<MockStorage, MockApi, CustomMockQuerier>,
-    InitResponse,
-) {
+pub fn mock_init_native_stage() -> (Extern<MockStorage, MockApi, WasmMockQuerier>, InitResponse) {
     let mut deps = mock_dependencies(20, &[]);
     let msg = InitMsg {
         name: consts::name().to_string(),
         description: consts::description().to_string(),
-        assets: consts::assets_native_stage(),
         owner: consts::owner(),
         cluster_token: Some(consts::cluster_token()),
-        target: consts::target_native_stage(),
+        target: consts::target_assets_native_stage(),
         pricing_oracle: consts::pricing_oracle(),
         composition_oracle: consts::composition_oracle(),
         penalty: consts::penalty(),
@@ -509,7 +593,7 @@ pub fn mock_init_native_stage() -> (
 }
 
 /// sets up mock queriers with basic setup
-pub fn mock_querier_setup(deps: &mut Extern<MockStorage, MockApi, CustomMockQuerier>) {
+pub fn mock_querier_setup(deps: &mut Extern<MockStorage, MockApi, WasmMockQuerier>) {
     deps.querier
         .reset_token_querier()
         .set_token(
@@ -573,7 +657,7 @@ pub fn mock_querier_setup(deps: &mut Extern<MockStorage, MockApi, CustomMockQuer
 }
 
 /// sets up mock queriers with basic setup
-pub fn mock_querier_setup_stage_native(deps: &mut Extern<MockStorage, MockApi, CustomMockQuerier>) {
+pub fn mock_querier_setup_stage_native(deps: &mut Extern<MockStorage, MockApi, WasmMockQuerier>) {
     deps.querier
         .reset_token_querier()
         .set_token(

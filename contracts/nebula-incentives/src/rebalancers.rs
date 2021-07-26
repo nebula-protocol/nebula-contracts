@@ -14,7 +14,7 @@ use nebula_protocol::cluster::{
 use terraswap::asset::{Asset, AssetInfo};
 use terraswap::querier::query_token_balance;
 
-use cluster_math::{imbalance, int32_vec_to_fpdec, int_vec_to_fpdec, str_vec_to_fpdec};
+use cluster_math::{imbalance, int_vec_to_fpdec, str_vec_to_fpdec};
 use nebula_protocol::cluster_factory::ClusterExistsResponse;
 use nebula_protocol::cluster_factory::QueryMsg::ClusterExists;
 use std::cmp::min;
@@ -54,11 +54,18 @@ pub fn cluster_imbalance<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     cluster_contract: &HumanAddr,
 ) -> StdResult<Uint128> {
-    let contract_state = get_cluster_state(deps, cluster_contract)?;
+    let cluster_state = get_cluster_state(deps, cluster_contract)?;
 
-    let i = int_vec_to_fpdec(&contract_state.inv);
-    let p = str_vec_to_fpdec(&contract_state.prices)?;
-    let w = int32_vec_to_fpdec(&contract_state.target);
+    let i = int_vec_to_fpdec(&cluster_state.inv);
+    let p = str_vec_to_fpdec(&cluster_state.prices)?;
+
+    let target_weights = cluster_state
+        .target
+        .iter()
+        .map(|x| x.amount.clone())
+        .collect::<Vec<_>>();
+
+    let w = int_vec_to_fpdec(&target_weights);
     Ok(Uint128(imbalance(&i, &p, &w).into()))
 }
 
@@ -318,6 +325,12 @@ pub fn redeem<S: Storage, A: Api, Q: Querier>(
         query_token_balance(deps, &cluster_token, &env.message.sender)?,
     );
 
+    let asset_infos = cluster_state
+        .target
+        .iter()
+        .map(|x| x.info.clone())
+        .collect::<Vec<_>>();
+
     Ok(HandleResponse {
         messages: vec![
             CosmosMsg::Wasm(WasmMsg::Execute {
@@ -343,7 +356,7 @@ pub fn redeem<S: Storage, A: Api, Q: Querier>(
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address,
                 msg: to_binary(&HandleMsg::SendAll {
-                    asset_infos: cluster_state.assets,
+                    asset_infos,
                     send_to: env.message.sender,
                 })?,
                 send: vec![],

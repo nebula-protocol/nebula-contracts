@@ -12,26 +12,21 @@ pub struct InitMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
+    /// OWNER-CALLABLE
     UpdateConfig {
         owner: Option<HumanAddr>,
-    },
-    UpdateMerkleRoot {
-        stage: u8,
-        merkle_root: String,
     },
     RegisterMerkleRoot {
         merkle_root: String,
     },
+
+    /// USER-CALLABLE
     Claim {
         stage: u8,
         amount: Uint128,
         proof: Vec<String>,
     },
 }
-
-/// We currently take no arguments for migrations
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct MigrateMsg {}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]

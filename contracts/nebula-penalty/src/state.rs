@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use cluster_math::FPDecimal;
 use cosmwasm_std::{HumanAddr, StdResult, Storage};
-use cosmwasm_storage::{singleton, singleton_read};
+use cosmwasm_storage::{singleton, singleton_read, Singleton};
 use nebula_protocol::penalty::PenaltyParams;
 
 /// config: ClusterConfig
@@ -16,6 +16,10 @@ pub struct PenaltyConfig {
 
     pub ema: FPDecimal,
     pub last_block: u64,
+}
+
+pub fn config_store<S: Storage>(storage: &mut S) -> Singleton<S, PenaltyConfig> {
+    singleton(storage, CONFIG_KEY)
 }
 
 pub fn read_config<S: Storage>(storage: &S) -> StdResult<PenaltyConfig> {

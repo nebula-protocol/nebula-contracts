@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{Binary, HumanAddr, Uint128};
 
-use terraswap::asset::AssetInfo;
+use terraswap::asset::{Asset};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
@@ -55,6 +55,10 @@ pub enum HandleMsg {
     PassCommand {
         contract_addr: HumanAddr,
         msg: Binary,
+    },
+    RevokeClusterToken {
+        cluster_contract: HumanAddr,
+        cluster_token: HumanAddr,
     },
 
     Distribute {},
@@ -130,7 +134,6 @@ pub struct Params {
     /// Composition oracle address
     pub composition_oracle: HumanAddr,
 
-    pub assets: Vec<AssetInfo>,
-
-    pub target: Vec<u32>,
+    /// Target assets and weights
+    pub target: Vec<Asset>,
 }

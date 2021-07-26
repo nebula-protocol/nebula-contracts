@@ -78,7 +78,7 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
     // also prepare to transfer to cluster contract
     for asset in assets {
         match asset.clone().info {
-            AssetInfo::NativeToken { denom } => {
+            AssetInfo::NativeToken { denom: _ } => {
                 asset.clone().assert_sent_native_token_balance(&env)?
             }
             AssetInfo::Token { contract_addr } => {
@@ -218,11 +218,17 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
         send: vec![],
     }));
 
+    let asset_infos = cluster_state
+        .target
+        .iter()
+        .map(|x| x.info.clone())
+        .collect::<Vec<_>>();
+
     // send all
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract,
         msg: to_binary(&HandleMsg::SendAll {
-            asset_infos: cluster_state.assets,
+            asset_infos,
             send_to: env.message.sender,
         })?,
         send: vec![],

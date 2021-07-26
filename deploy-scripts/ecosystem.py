@@ -182,7 +182,7 @@ class Ecosystem:
         )
 
         # stupid name mangling
-        await self.incentives_custody.__getattr__("__reset_owner")(
+        await self.incentives_custody.__getattr__("update_owner")(
             owner=self.incentives
         )
 
@@ -200,7 +200,7 @@ class Ecosystem:
         cluster_tokens = str(cluster_tokens)
         asset_tokens = tuple(str(i) for i in asset_tokens)
         asset_prices = tuple(str(i) for i in asset_prices)
-        target_weights = tuple(int(i) for i in target_weights)
+        target_weights = tuple(str(i) for i in target_weights)
         penalty_params = {k: str(v) for k, v in penalty_params.items()}
 
         code_ids = self.code_ids
@@ -256,6 +256,8 @@ class Ecosystem:
             owner=self.factory,
         )
 
+        target = [Asset.asset(info, amount) for info, amount in zip(assets, target_weights)]
+
         create_cluster = self.factory.create_cluster(
             name="CLUSTER",
             symbol="BSK",
@@ -264,8 +266,7 @@ class Ecosystem:
                 "symbol": "BSK",
                 "description": "Test cluster",
                 "penalty": penalty_contract,
-                "target": target_weights,
-                "assets": [Asset.cw20_asset_info(i) for i in assets],
+                "target": target,
                 "pricing_oracle": oracle,
                 "composition_oracle": deployer.key.acc_address,
             },

@@ -64,6 +64,7 @@ pub enum HandleMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Cw20HookMsg {
+    /// USER-CALLABLE
     /// StakeVotingTokens a user can stake their nebula token to receive rewards
     /// or do vote on polls
     StakeVotingTokens { lock_for_weeks: Option<u64> },

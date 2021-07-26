@@ -10,8 +10,9 @@ pub struct InitMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
+    /// OWNER-CALLABLE
     RequestNeb { amount: Uint128 },
-    _ResetOwner { owner: HumanAddr },
+    UpdateOwner { owner: HumanAddr },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

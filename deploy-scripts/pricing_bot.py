@@ -2,7 +2,7 @@ import os
 import sys
 
 os.environ["USE_TEQUILA"] = "1"
-os.environ["MNEMONIC"] = mnemonic = 'museum resist wealth require renew punch jeans smooth old color neutral cactus baby retreat guitar web average piano excess next strike drive game romance'
+os.environ["MNEMONIC"] = mnemonic = 'race such cash farm action hockey false recall protect digital sort remind squeeze home area balance focus chunk rare coyote excess rhythm swarm civil'
 
 from constants import CONTRACT_TOKEN_TO_SYM_TEQ, SYM_TO_MASSET_COL, SYM_TO_COINGECKO_ID
 
@@ -70,10 +70,6 @@ async def get_prices(infos):
             response = requests.get(url.format(cg_id))
             try:
                 data = json.loads(response.text)[cg_id]['usd']
-
-                # Should encompass uluna + uust (test uust)
-                if info.islower():
-                    data = data
                 prices.append(data)
 
             except (ConnectionError, Timeout, TooManyRedirects) as e:
@@ -91,6 +87,8 @@ async def pricing_bot():
 
     cfg = (await cluster.query.config())["config"]
     oracle = Contract(cfg["pricing_oracle"])
+
+    await oracle.set_prices(prices=[('uusd','1')])
 
     cluster_state = await cluster.query.cluster_state(cluster_contract_address=cluster_addr)
 
@@ -128,7 +126,7 @@ async def pricing_bot():
             set_prices_data.append(
                 [
                     contract_addrs[i], np.format_float_positional(
-                        float(price_data[i]),
+                        np.round(float(price_data[i]), 18),
                         trim='0'
                     )
                 ]

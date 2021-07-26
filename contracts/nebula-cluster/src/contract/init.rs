@@ -1,38 +1,35 @@
-use crate::error;
 use crate::{
-    state::{save_config, save_target_asset_data, TargetAssetData},
+    state::{save_config, save_target_asset_data},
     util::vec_to_string,
 };
 use cosmwasm_std::{
     log, Api, CosmosMsg, Env, Extern, InitResponse, Querier, StdError, StdResult, Storage, WasmMsg,
 };
 use nebula_protocol::cluster::{ClusterConfig, InitMsg};
-use terraswap::asset::AssetInfo;
+use crate::ext_query::query_asset_balance;
+use terraswap::asset::{AssetInfo};
 
-pub fn validate_targets(target_assets: Vec<AssetInfo>) -> bool {
+pub fn validate_targets<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    env: &Env, 
+    target_assets: Vec<AssetInfo>
+) -> StdResult<bool> {
     for i in 0..target_assets.len() - 1 {
+        query_asset_balance(&deps.querier, &env.contract.address, &target_assets[i])?;
         for j in i + 1..target_assets.len() {
             if target_assets[i].equal(&target_assets[j]) {
-                return false;
+                return Ok(false);
             }
         }
     }
-    return true;
+    return Ok(true);
 }
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    _env: Env,
+    env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
-    // make sure assets & target are same dimensions
-    if msg.target.len() != msg.assets.len() {
-        return Err(error::bad_weight_dimensions(
-            msg.target.len(),
-            msg.assets.len(),
-        ));
-    }
-
     let cfg = ClusterConfig {
         name: msg.name.clone(),
         description: msg.description.clone(),
@@ -42,27 +39,22 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         pricing_oracle: msg.pricing_oracle.clone(),
         composition_oracle: msg.composition_oracle.clone(),
         penalty: msg.penalty.clone(),
+        active: true,
     };
 
-    let assets = msg.assets.clone();
+    let asset_infos = msg
+        .target
+        .iter()
+        .map(|x| x.info.clone())
+        .collect::<Vec<_>>();
 
-    if !validate_targets(assets.clone()) {
+    if validate_targets(&deps, &env, asset_infos.clone()).is_err() {
         return Err(StdError::generic_err(
-            "Cluster cannot contain duplicate assets",
+            "Cluster must contain valid assets and cannot contain duplicate assets",
         ));
     }
 
-    let target = msg.target.clone();
-
-    // TODO: Consider renaming struct name
-    let mut asset_data: Vec<TargetAssetData> = Vec::new();
-    for i in 0..msg.target.len() {
-        let asset_elem = TargetAssetData {
-            asset: assets[i].clone(),
-            target: target[i].clone(),
-        };
-        asset_data.push(asset_elem);
-    }
+    let asset_data = msg.target.clone();
 
     save_config(&mut deps.storage, &cfg)?;
     save_target_asset_data(&mut deps.storage, &asset_data)?;
@@ -70,7 +62,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     let log = vec![
         log("name", msg.name),
         log("owner", msg.owner),
-        log("assets", vec_to_string(&msg.assets)),
+        log("assets", vec_to_string(&asset_infos)),
     ];
 
     if let Some(hook) = msg.init_hook {
@@ -93,6 +85,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 #[cfg(test)]
 mod tests {
     use nebula_protocol::cluster::{QueryMsg, TargetResponse};
+    use terraswap::asset::{Asset, AssetInfo};
 
     use crate::{q, test_helper::*};
 
@@ -103,6 +96,34 @@ mod tests {
 
         // make sure target was saved
         let value = q!(&deps, TargetResponse, QueryMsg::Target {});
-        assert_eq!(vec![20, 20, 20, 20], value.target);
+        assert_eq!(
+            vec![
+                Asset {
+                    info: AssetInfo::Token {
+                        contract_addr: h("mAAPL"),
+                    },
+                    amount: Uint128(20)
+                },
+                Asset {
+                    info: AssetInfo::Token {
+                        contract_addr: h("mGOOG"),
+                    },
+                    amount: Uint128(20)
+                },
+                Asset {
+                    info: AssetInfo::Token {
+                        contract_addr: h("mMSFT"),
+                    },
+                    amount: Uint128(20)
+                },
+                Asset {
+                    info: AssetInfo::Token {
+                        contract_addr: h("mNFLX"),
+                    },
+                    amount: Uint128(20)
+                },
+            ],
+            value.target
+        );
     }
 }
