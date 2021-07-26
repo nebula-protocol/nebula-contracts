@@ -17,6 +17,8 @@ pub enum HandleMsg {
         owner: Option<HumanAddr>,
         penalty_params: Option<PenaltyParams>,
     },
+
+    /// USER-CALLABLE
     Mint {
         block_height: u64,
         cluster_token_supply: Uint128,

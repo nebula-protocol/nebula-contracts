@@ -63,6 +63,10 @@ pub fn record_cluster<S: Storage>(storage: &mut S, contract_addr: &HumanAddr) ->
     Bucket::new(PREFIX_CLUSTERS, storage).save(&contract_addr.as_str().as_bytes(), &true)
 }
 
+pub fn deactivate_cluster<S: Storage>(storage: &mut S, contract_addr: &HumanAddr) -> StdResult<()> {
+    Bucket::new(PREFIX_CLUSTERS, storage).save(&contract_addr.as_str().as_bytes(), &false)
+}
+
 pub fn store_params<S: Storage>(storage: &mut S, init_data: &Params) -> StdResult<()> {
     singleton(storage, KEY_PARAMS).save(init_data)
 }

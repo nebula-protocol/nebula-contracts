@@ -48,7 +48,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.info.clone())
         .collect::<Vec<_>>();
 
-    if !validate_targets(&deps, &env, asset_infos.clone()).is_err() {
+    if validate_targets(&deps, &env, asset_infos.clone()).is_err() {
         return Err(StdError::generic_err(
             "Cluster must contain valid assets and cannot contain duplicate assets",
         ));
