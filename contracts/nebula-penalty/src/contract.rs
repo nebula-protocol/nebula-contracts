@@ -70,8 +70,12 @@ pub fn notional_penalty<S: Storage, A: Api, Q: Querier>(
     let imb0 = imbalance(i0, p, w);
     let imb1 = imbalance(i1, p, w);
 
-    // for now just use the value of the original cluster as e...
-    let e = get_ema(&deps, block_height, dot(i0, p))?;
+    // e is the minimum of the EMA and the net asset value
+    // it is important to not let e exceed the nav to prevent someone
+    // pumping e to "stretch" penalty_cutoff_hi and then using it to
+    // duck the cluster imbalance too high issue
+    let nav = dot(i0, p);
+    let e = min(get_ema(&deps, block_height, nav)?, nav);
 
     let PenaltyParams {
         penalty_amt_lo,
