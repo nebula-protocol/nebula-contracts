@@ -96,7 +96,7 @@ pub struct ClusterExistsResponse {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ClusterListResponse {
-    pub contract_addrs: Vec<HumanAddr>,
+    pub contract_infos: Vec<(HumanAddr, bool)>,
 }
 
 // We define a custom struct for each query response

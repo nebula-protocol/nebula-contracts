@@ -3,12 +3,7 @@ use cosmwasm_std::{
     HumanAddr, InitResponse, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 
-use crate::state::{
-    cluster_exists, decrease_total_weight, get_clusters, increase_total_weight, read_all_weight,
-    read_config, read_last_distributed, read_params, read_total_weight, read_weight,
-    record_cluster, remove_params, remove_weight, store_config, store_last_distributed,
-    store_params, store_total_weight, store_weight, Config,
-};
+use crate::state::{Config, cluster_exists, deactivate_cluster, decrease_total_weight, get_cluster_data, increase_total_weight, read_all_weight, read_config, read_last_distributed, read_params, read_total_weight, read_weight, record_cluster, remove_params, remove_weight, store_config, store_last_distributed, store_params, store_total_weight, store_weight};
 
 use nebula_protocol::cluster_factory::{
     ClusterExistsResponse, ClusterListResponse, ConfigResponse, HandleMsg, InitMsg, Params,
@@ -596,6 +591,7 @@ pub fn revoke_cluster<S: Storage, A: Api, Q: Querier>(
     let weight = read_weight(&deps.storage, &cluster_token.clone())?;
     remove_weight(&mut deps.storage, &cluster_token.clone());
     decrease_total_weight(&mut deps.storage, weight)?;
+    deactivate_cluster(&mut deps.storage, &cluster_contract)?;
 
     Ok(HandleResponse {
         /// send message to set active asset
@@ -661,6 +657,6 @@ pub fn query_clusters<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
 ) -> StdResult<ClusterListResponse> {
     Ok(ClusterListResponse {
-        contract_addrs: get_clusters(&deps.storage)?,
+        contract_infos: get_cluster_data(&deps.storage)?,
     })
 }

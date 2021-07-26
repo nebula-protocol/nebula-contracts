@@ -71,4 +71,11 @@ async def test_revoke_cluster(eco: Ecosystem):
     
     await eco.cluster.redeem("2000")
 
+    cluster_list = await eco.factory.query.cluster_list()
+    assert (
+            not cluster_list["contract_infos"][0][1]
+        )
+
+    print(cluster_list)
+
     print("Integration test completed")
