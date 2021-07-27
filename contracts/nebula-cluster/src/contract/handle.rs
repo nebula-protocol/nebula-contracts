@@ -16,8 +16,8 @@ use crate::util::vec_to_string;
 
 use cluster_math::FPDecimal;
 use nebula_protocol::cluster::HandleMsg;
-use nebula_protocol::penalty::HandleMsg as PenaltyHandleMsg;
-use nebula_protocol::penalty::QueryMsg as PenaltyQueryMsg;
+use nebula_protocol::penalty::{HandleMsg as PenaltyHandleMsg, QueryMsg as PenaltyQueryMsg};
+ 
 use std::str::FromStr;
 use std::u32;
 use terraswap::asset::{Asset, AssetInfo};
@@ -166,7 +166,7 @@ pub fn update_target<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.amount.clone())
         .collect::<Vec<_>>();
 
-    if validate_targets(&deps, &env, updated_asset_infos.clone()).is_err() {
+    if validate_targets(&deps, &env, updated_asset_infos.clone(), None).is_err() {
         return Err(StdError::generic_err(
             "Cluster must contain valid assets and cannot contain duplicate assets",
         ));
@@ -259,13 +259,7 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
     min_tokens: &Option<Uint128>,
 ) -> StdResult<HandleResponse> {
     // duplication check for the given asset_amounts
-    if validate_targets(
-        &deps,
-        &env,
-        asset_amounts.iter().map(|a| a.info.clone()).collect(),
-    )
-    .is_err()
-    {
+    if validate_targets(&deps, &env, asset_amounts.iter().map(|a| a.info.clone()).collect(), None).is_err() {
         return Err(StdError::generic_err(
             "The given asset_amounts contain invalid or duplicate assets",
         ));
@@ -716,333 +710,76 @@ mod tests {
             min_tokens: None,
         };
 
-        let env = mock_env(h("addr0000"), &[]);
-        let res = handle(&mut deps, env.clone(), mint_msg).unwrap();
+        let addr = "addr0000";
+        let env = mock_env(h(addr), &[]);
+        let res = handle(&mut deps, env, mint_msg).unwrap();
 
-        assert_eq!(
-            res.messages[0],
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: h("mAAPL"),
-                msg: to_binary(&Cw20HandleMsg::TransferFrom {
-                    owner: h("addr0000"),
-                    recipient: h(MOCK_CONTRACT_ADDR),
-                    amount: asset_amounts[0].amount,
-                })
-                .unwrap(),
-                send: vec![],
-            }),
-        );
+        assert_eq!(5, res.log.len());
 
-        assert_eq!(
-            res.messages[1],
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: h("mGOOG"),
-                msg: to_binary(&Cw20HandleMsg::TransferFrom {
-                    owner: h("addr0000"),
-                    recipient: h(MOCK_CONTRACT_ADDR),
-                    amount: asset_amounts[1].amount,
-                })
-                .unwrap(),
-                send: vec![],
-            }),
-        );
+        for log in res.log.iter() {
+            match log.key.as_str() {
+                "action" => assert_eq!("mint", log.value),
+                "sender" => assert_eq!(addr, log.value),
+                "mint_to_sender" => assert_eq!("98", log.value),
+                "penalty" => assert_eq!("1234", log.value),
+                "fee_amt" => assert_eq!("1", log.value),
+                &_ => panic!("Invalid value found in log")
+            }
+        }
 
-        assert_eq!(
-            res.messages[2],
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: h("mMSFT"),
-                msg: to_binary(&Cw20HandleMsg::TransferFrom {
-                    owner: h("addr0000"),
-                    recipient: h(MOCK_CONTRACT_ADDR),
-                    amount: asset_amounts[2].amount,
-                })
-                .unwrap(),
-                send: vec![],
-            }),
-        );
-
-        assert_eq!(
-            res.messages[3],
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: h("mNFLX"),
-                msg: to_binary(&Cw20HandleMsg::TransferFrom {
-                    owner: h("addr0000"),
-                    recipient: h(MOCK_CONTRACT_ADDR),
-                    amount: asset_amounts[3].amount,
-                })
-                .unwrap(),
-                send: vec![],
-            }),
-        );
-
-        assert_eq!(
-            res.messages[4],
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: consts::penalty(),
-                msg: to_binary(&PenaltyHandleMsg::Mint {
-                    block_height: env.block.height,
-                    cluster_token_supply: Uint128::from(1_000_000_000u128),
-                    inventory: vec![
-                        Uint128::from(7_290_053_159u128),
-                        Uint128::from(319_710_128u128),
-                        Uint128::from(14_219_281_228u128),
-                        Uint128::from(224_212_221u128)
-                    ],
-                    mint_asset_amounts: asset_amounts.iter().map(|v| v.amount).collect(),
-                    asset_prices: vec![
-                        "135.18".to_string(),
-                        "1780.03".to_string(),
-                        "222.42".to_string(),
-                        "540.82".to_string()
-                    ],
-                    target_weights: consts::target_stage(),
-                })
-                .unwrap(),
-                send: vec![],
-            })
-        );
-
-        // 3% fee_rate
-        // let mint_to_sender = 1000000 * (1 - 0.03) = 970000
-        // let protocol_fee = 1000000 - mint_to_sender = 30000
-        assert_eq!(
-            res.messages[5],
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: consts::cluster_token(),
-                msg: to_binary(&Cw20HandleMsg::Mint {
-                    amount: Uint128::from(30000u128),
-                    recipient: h("collector"),
-                })
-                .unwrap(),
-                send: vec![],
-            })
-        );
-
-        assert_eq!(
-            res.messages[6],
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: consts::cluster_token(),
-                msg: to_binary(&Cw20HandleMsg::Mint {
-                    amount: Uint128::from(970000u128),
-                    recipient: h("addr0000"),
-                })
-                .unwrap(),
-                send: vec![],
-            })
-        );
-
-        // match res {
-        //     Err(..) => (),
-        //     _ => panic!("requires staging"),
-        // }
-
-        // let env = mock_env(h("addr0000"), &[]);
-        // let res = handle(&mut deps, env, mint_msg).unwrap();
-
-        // for log in res.log.iter() {
-        //     println!("{}: {}", log.key, log.value);
-        // }
-        // assert_eq!(1, res.messages.len());
+        assert_eq!(7, res.messages.len());
     }
-    //
-    // #[test]
-    // // Should be same output as mint()
-    // fn mint_two() {
-    //     let (mut deps, _init_res) = mock_init();
-    //     mock_querier_setup(&mut deps);
-    //
-    //     // Asset :: UST Price :: Balance (µ)     (+ proposed   ) :: %
-    //     // ---
-    //     // mAAPL ::  135.18   ::  7_290_053_159  (+ 125_000_000) :: 0.20367359382 -> 0.20391741720
-    //     // mGOOG :: 1780.03   ::    319_710_128                  :: 0.11761841035 -> 0.11577407690
-    //     // mMSFT ::  222.42   :: 14_219_281_228  (+ 149_000_000) :: 0.65364669475 -> 0.65013907200
-    //     // mNFLX ::  540.82   ::    224_212_221  (+  50_090_272) :: 0.02506130106 -> 0.03016943389
-    //     deps.querier
-    //         .set_token_balance("mAAPL", MOCK_CONTRACT_ADDR, 7_290_053_159)
-    //         .set_token_balance("mGOOG", MOCK_CONTRACT_ADDR, 319_710_128)
-    //         .set_token_balance("mMSFT", MOCK_CONTRACT_ADDR, 14_219_281_228)
-    //         .set_token_balance("mNFLX", MOCK_CONTRACT_ADDR, 224_212_221)
-    //         .set_oracle_prices(vec![
-    //             ("mAAPL", Decimal::from_str("135.18").unwrap()),
-    //             ("mGOOG", Decimal::from_str("1780.03").unwrap()),
-    //             ("mMSFT", Decimal::from_str("222.42").unwrap()),
-    //             ("mNFLX", Decimal::from_str("540.82").unwrap()),
-    //         ]);
-    //
-    //     let asset_amounts = vec![
-    //         Asset {
-    //             info: AssetInfo::Token {
-    //                 contract_addr: h("mMSFT"),
-    //             },
-    //             amount: Uint128(149_000_000),
-    //         },
-    //         Asset {
-    //             info: AssetInfo::Token {
-    //                 contract_addr: h("mNFLX"),
-    //             },
-    //             amount: Uint128(50_090_272),
-    //         },
-    //         Asset {
-    //             info: AssetInfo::Token {
-    //                 contract_addr: h("mAAPL"),
-    //             },
-    //             amount: Uint128(125_000_000),
-    //         },
-    //     ];
-    //     let mint_msg = HandleMsg::Mint {
-    //         asset_amounts: asset_amounts.clone(),
-    //         min_tokens: None,
-    //     };
-    //
-    //     let env = mock_env(h("addr0000"), &[]);
-    //     let res = handle(&mut deps, env, mint_msg.clone());
-    //     match res {
-    //         Err(..) => (),
-    //         _ => panic!("requires staging"),
-    //     }
-    //
-    //     for asset in asset_amounts {
-    //         let env = mock_env(
-    //             match asset.info {
-    //                 AssetInfo::Token { contract_addr } => contract_addr,
-    //                 AssetInfo::NativeToken { denom } => h(&denom),
-    //             },
-    //             &[],
-    //         );
-    //         let stage_asset_msg = HandleMsg::Receive(Cw20ReceiveMsg {
-    //             sender: h("addr0000"),
-    //             msg: Some(to_binary(&Cw20HookMsg::StageAsset {}).unwrap()),
-    //             amount: asset.amount,
-    //         });
-    //         handle(&mut deps, env, stage_asset_msg).unwrap();
-    //     }
-    //
-    //     let env = mock_env(h("addr0000"), &[]);
-    //     let res = handle(&mut deps, env, mint_msg).unwrap();
-    //
-    //     for log in res.log.iter() {
-    //         println!("{}: {}", log.key, log.value);
-    //     }
-    //     assert_eq!(1, res.messages.len());
-    // }
-    //
-    // #[test]
-    // fn mint_with_native_stage() {
-    //     let (mut deps, _init_res) = mock_init_native_stage();
-    //     mock_querier_setup_stage_native(&mut deps);
-    //
-    //     deps.querier
-    //         .set_token_balance("wBTC", consts::cluster_token(), 1_000_000)
-    //         .set_denom_balance("uluna", MOCK_CONTRACT_ADDR, 2_000_000)
-    //         .set_oracle_prices(vec![
-    //             ("wBTC", Decimal::from_str("30000.00").unwrap()),
-    //             ("uluna", Decimal::from_str("15.00").unwrap()),
-    //         ]);
-    //
-    //     let asset_amounts = vec![
-    //         Asset {
-    //             info: AssetInfo::NativeToken {
-    //                 denom: "uluna".to_string(),
-    //             },
-    //             amount: Uint128(1_000_000),
-    //         },
-    //     ];
-    //
-    //     let mint_msg = HandleMsg::Mint {
-    //         asset_amounts: asset_amounts.clone(),
-    //         min_tokens: None,
-    //     };
-    //
-    //     let env = mock_env(h("addr0000"), &[]);
-    //     let res = handle(&mut deps, env, mint_msg.clone());
-    //     match res {
-    //         Err(..) => (),
-    //         _ => panic!("requires staging"),
-    //     }
-    //
-    //     for asset in asset_amounts {
-    //         let env = mock_env(
-    //             h("addr0000"),
-    //             &[Coin {
-    //                 denom: "uluna".to_string(),
-    //                 amount: Uint128(1_000_000),
-    //             }],
-    //         );
-    //
-    //         if asset.is_native_token() {
-    //             let stage_asset_msg = HandleMsg::StageNativeAsset { asset };
-    //             handle(&mut deps, env, stage_asset_msg).unwrap();
-    //         };
-    //
-    //     }
-    //
-    //     let env = mock_env(h("addr0000"), &[]);
-    //     let res = handle(&mut deps, env, mint_msg).unwrap();
-    //
-    //     for log in res.log.iter() {
-    //         println!("{}: {}", log.key, log.value);
-    //     }
-    //     assert_eq!(1, res.messages.len());
-    // }
-    //
-    // #[test]
-    // fn burn() {
-    //     let (mut deps, _init_res) = mock_init();
-    //     mock_querier_setup(&mut deps);
-    //
-    //     deps.querier
-    //         .set_token_supply(consts::cluster_token(), 100_000_000)
-    //         .set_token_balance(consts::cluster_token(), "addr0000", 20_000_000);
-    //
-    //     let new_assets = vec![
-    //         Asset {
-    //             info: AssetInfo::Token {
-    //                 contract_addr: h("mAAPL"),
-    //             },
-    //             amount: Uint128(10),
-    //         },
-    //         Asset {
-    //             info: AssetInfo::Token {
-    //                 contract_addr: h("mGOOG"),
-    //             },
-    //             amount: Uint128(10),
-    //         },
-    //         Asset {
-    //             info: AssetInfo::Token {
-    //                 contract_addr: h("mMSFT"),
-    //             },
-    //             amount: Uint128(10),
-    //         },
-    //         Asset {
-    //             info: AssetInfo::Token {
-    //                 contract_addr: h("mNFLX"),
-    //             },
-    //             amount: Uint128(10),
-    //         },
-    //     ];
-    //
-    //     let msg = HandleMsg::Receive(cw20::Cw20ReceiveMsg {
-    //         msg: Some(
-    //             to_binary(&Cw20HookMsg::Burn {
-    //                 asset_weights: None,
-    //                 redeem_mins: Some(new_assets),
-    //             })
-    //                 .unwrap(),
-    //         ),
-    //         sender: h("addr0000"),
-    //         amount: Uint128(20_000_000),
-    //     });
-    //
-    //     let env = mock_env(consts::cluster_token(), &[]);
-    //     let res = handle(&mut deps, env, msg).unwrap();
-    //     for log in res.log.iter() {
-    //         println!("{}: {}", log.key, log.value);
-    //     }
-    //     assert_eq!(5, res.messages.len());
-    // }
+
+    
+    #[test]
+    fn burn() {
+        let (mut deps, _init_res) = mock_init();
+        mock_querier_setup(&mut deps);
+    
+        deps.querier
+            .set_token_supply(consts::cluster_token(), 100_000_000)
+            .set_token_balance(consts::cluster_token(), "addr0000", 20_000_000)
+            .set_token_balance("mAAPL", MOCK_CONTRACT_ADDR, 7_290_053_159)
+            .set_token_balance("mGOOG", MOCK_CONTRACT_ADDR, 319_710_128)
+            .set_token_balance("mMSFT", MOCK_CONTRACT_ADDR, 14_219_281_228)
+            .set_token_balance("mNFLX", MOCK_CONTRACT_ADDR, 224_212_221)
+            .set_oracle_prices(vec![
+                ("mAAPL", Decimal::from_str("135.18").unwrap()),
+                ("mGOOG", Decimal::from_str("1780.03").unwrap()),
+                ("mMSFT", Decimal::from_str("222.42").unwrap()),
+                ("mNFLX", Decimal::from_str("540.82").unwrap()),
+            ]);
+
+        let addr = "addr0000";
+    
+        let msg = HandleMsg::Burn {
+            max_tokens: Uint128(20_000_000),
+            asset_amounts: None,
+        };
+        let env = mock_env(h(addr), &[]);
+        let res = handle(&mut deps, env, msg).unwrap();
+        
+        assert_eq!(8, res.log.len());
+        
+        for log in res.log.iter() {
+            match log.key.as_str() {
+                "action" => assert_eq!("receive:burn", log.value),
+                "sender" => assert_eq!(addr, log.value),
+                "burn_amount" => assert_eq!("1234", log.value),
+                "token_cost" => assert_eq!("1247", log.value),
+                "kept_as_fee" => assert_eq!("13", log.value),
+                "asset_amounts" => assert_eq!("[]", log.value),
+                "redeem_totals" => assert_eq!("[99, 98, 97, 96]", log.value),
+                "penalty" => assert_eq!("1234", log.value),
+                &_ => panic!("Invalid value found in log")
+            }
+        }
+
+        assert_eq!(7, res.messages.len());
+    }
 
     #[test]
-    fn reset_target() {
+    fn update_target() {
         let (mut deps, _init_res) = mock_init();
         mock_querier_setup(&mut deps);
 
@@ -1081,9 +818,17 @@ mod tests {
         let env = mock_env(consts::owner(), &[]);
         let res = handle(&mut deps, env, msg).unwrap();
 
-        // mNFLX should still be in logs with target 0
+        assert_eq!(5, res.log.len());
+        
         for log in res.log.iter() {
-            println!("{}: {}", log.key, log.value);
+            match log.key.as_str() {
+                "action" => assert_eq!("reset_target", log.value),
+                "prev_assets" => assert_eq!("[mAAPL, mGOOG, mMSFT, mNFLX]", log.value),
+                "prev_targets" => assert_eq!("[20, 20, 20, 20]", log.value),
+                "updated_assets" => assert_eq!("[mAAPL, mGOOG, mMSFT, mGME, mNFLX]", log.value),
+                "updated_targets" => assert_eq!("[10, 5, 35, 50, 0]", log.value),
+                &_ => panic!("Invalid value found in log")
+            }
         }
         assert_eq!(0, res.messages.len());
     }

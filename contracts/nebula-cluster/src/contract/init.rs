@@ -11,11 +11,15 @@ use terraswap::asset::AssetInfo;
 
 pub fn validate_targets<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
-    env: &Env,
+    env: &Env, 
     target_assets: Vec<AssetInfo>,
+    query: Option<bool>
 ) -> StdResult<bool> {
     for i in 0..target_assets.len() - 1 {
-        query_asset_balance(&deps.querier, &env.contract.address, &target_assets[i])?;
+        let to_query = query.unwrap_or(true);
+        if to_query {
+            query_asset_balance(&deps.querier, &env.contract.address, &target_assets[i])?;
+        }
         for j in i + 1..target_assets.len() {
             if target_assets[i].equal(&target_assets[j]) {
                 return Ok(false);
@@ -48,7 +52,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.info.clone())
         .collect::<Vec<_>>();
 
-    if validate_targets(&deps, &env, asset_infos.clone()).is_err() {
+    if validate_targets(&deps, &env, asset_infos.clone(), Some(false)).is_err() {
         return Err(StdError::generic_err(
             "Cluster must contain valid assets and cannot contain duplicate assets",
         ));
