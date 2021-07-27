@@ -173,7 +173,7 @@ impl WasmMockQuerier {
                         redeem_asset_amounts: _,
                     } => {
                         let response = RedeemResponse {
-                            redeem_assets: vec![],
+                            redeem_assets: vec![Uint128(99), Uint128(98), Uint128(97), Uint128(96)],
                             penalty: Uint128(1234),
                             token_cost: Uint128(1234),
                             log: vec![log("penalty", 1234)],

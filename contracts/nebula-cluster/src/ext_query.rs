@@ -139,9 +139,9 @@ pub fn query_mint_amount<Q: Querier>(
 }
 
 /// EXTERNAL QUERY
-/// -- Queries the penalty contract for the amount to mint
-pub fn query_redeem_amount<Q: Querier>(
-    querier: &Q,
+/// -- Queries the penalty contract for the amount to redeem
+pub fn query_redeem_amount<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
     penalty_address: &HumanAddr,
     block_height: u64,
     cluster_token_supply: Uint128,

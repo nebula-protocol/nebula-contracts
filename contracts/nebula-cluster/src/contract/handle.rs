@@ -106,9 +106,9 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
             Some(_) => config.cluster_token = cluster_token,
         }
 
-        if let Some(pricing_oracle) = pricing_oracle {
-            config.pricing_oracle = pricing_oracle;
-        }
+            asset.into_msg(&deps, env.contract.address.clone(), sender.clone())
+        })
+        .collect::<StdResult<Vec<CosmosMsg>>>()?;
 
         if let Some(composition_oracle) = composition_oracle {
             config.composition_oracle = composition_oracle;
@@ -725,121 +725,53 @@ mod tests {
         assert_eq!(7, res.messages.len());
     }
 
-    //
-    // #[test]
-    // fn mint_with_native_stage() {
-    //     let (mut deps, _init_res) = mock_init_native_stage();
-    //     mock_querier_setup_stage_native(&mut deps);
-    //
-    //     deps.querier
-    //         .set_token_balance("wBTC", consts::cluster_token(), 1_000_000)
-    //         .set_denom_balance("uluna", MOCK_CONTRACT_ADDR, 2_000_000)
-    //         .set_oracle_prices(vec![
-    //             ("wBTC", Decimal::from_str("30000.00").unwrap()),
-    //             ("uluna", Decimal::from_str("15.00").unwrap()),
-    //         ]);
-    //
-    //     let asset_amounts = vec![
-    //         Asset {
-    //             info: AssetInfo::NativeToken {
-    //                 denom: "uluna".to_string(),
-    //             },
-    //             amount: Uint128(1_000_000),
-    //         },
-    //     ];
-    //
-    //     let mint_msg = HandleMsg::Mint {
-    //         asset_amounts: asset_amounts.clone(),
-    //         min_tokens: None,
-    //     };
-    //
-    //     let env = mock_env(h("addr0000"), &[]);
-    //     let res = handle(&mut deps, env, mint_msg.clone());
-    //     match res {
-    //         Err(..) => (),
-    //         _ => panic!("requires staging"),
-    //     }
-    //
-    //     for asset in asset_amounts {
-    //         let env = mock_env(
-    //             h("addr0000"),
-    //             &[Coin {
-    //                 denom: "uluna".to_string(),
-    //                 amount: Uint128(1_000_000),
-    //             }],
-    //         );
-    //
-    //         if asset.is_native_token() {
-    //             let stage_asset_msg = HandleMsg::StageNativeAsset { asset };
-    //             handle(&mut deps, env, stage_asset_msg).unwrap();
-    //         };
-    //
-    //     }
-    //
-    //     let env = mock_env(h("addr0000"), &[]);
-    //     let res = handle(&mut deps, env, mint_msg).unwrap();
-    //
-    //     for log in res.log.iter() {
-    //         println!("{}: {}", log.key, log.value);
-    //     }
-    //     assert_eq!(1, res.messages.len());
-    // }
-    //
-    // #[test]
-    // fn burn() {
-    //     let (mut deps, _init_res) = mock_init();
-    //     mock_querier_setup(&mut deps);
-    //
-    //     deps.querier
-    //         .set_token_supply(consts::cluster_token(), 100_000_000)
-    //         .set_token_balance(consts::cluster_token(), "addr0000", 20_000_000);
-    //
-    //     let new_assets = vec![
-    //         Asset {
-    //             info: AssetInfo::Token {
-    //                 contract_addr: h("mAAPL"),
-    //             },
-    //             amount: Uint128(10),
-    //         },
-    //         Asset {
-    //             info: AssetInfo::Token {
-    //                 contract_addr: h("mGOOG"),
-    //             },
-    //             amount: Uint128(10),
-    //         },
-    //         Asset {
-    //             info: AssetInfo::Token {
-    //                 contract_addr: h("mMSFT"),
-    //             },
-    //             amount: Uint128(10),
-    //         },
-    //         Asset {
-    //             info: AssetInfo::Token {
-    //                 contract_addr: h("mNFLX"),
-    //             },
-    //             amount: Uint128(10),
-    //         },
-    //     ];
-    //
-    //     let msg = HandleMsg::Receive(cw20::Cw20ReceiveMsg {
-    //         msg: Some(
-    //             to_binary(&Cw20HookMsg::Burn {
-    //                 asset_weights: None,
-    //                 redeem_mins: Some(new_assets),
-    //             })
-    //                 .unwrap(),
-    //         ),
-    //         sender: h("addr0000"),
-    //         amount: Uint128(20_000_000),
-    //     });
-    //
-    //     let env = mock_env(consts::cluster_token(), &[]);
-    //     let res = handle(&mut deps, env, msg).unwrap();
-    //     for log in res.log.iter() {
-    //         println!("{}: {}", log.key, log.value);
-    //     }
-    //     assert_eq!(5, res.messages.len());
-    // }
+    
+    #[test]
+    fn burn() {
+        let (mut deps, _init_res) = mock_init();
+        mock_querier_setup(&mut deps);
+    
+        deps.querier
+            .set_token_supply(consts::cluster_token(), 100_000_000)
+            .set_token_balance(consts::cluster_token(), "addr0000", 20_000_000)
+            .set_token_balance("mAAPL", MOCK_CONTRACT_ADDR, 7_290_053_159)
+            .set_token_balance("mGOOG", MOCK_CONTRACT_ADDR, 319_710_128)
+            .set_token_balance("mMSFT", MOCK_CONTRACT_ADDR, 14_219_281_228)
+            .set_token_balance("mNFLX", MOCK_CONTRACT_ADDR, 224_212_221)
+            .set_oracle_prices(vec![
+                ("mAAPL", Decimal::from_str("135.18").unwrap()),
+                ("mGOOG", Decimal::from_str("1780.03").unwrap()),
+                ("mMSFT", Decimal::from_str("222.42").unwrap()),
+                ("mNFLX", Decimal::from_str("540.82").unwrap()),
+            ]);
+
+        let addr = "addr0000";
+    
+        let msg = HandleMsg::Burn {
+            max_tokens: Uint128(20_000_000),
+            asset_amounts: None,
+        };
+        let env = mock_env(h(addr), &[]);
+        let res = handle(&mut deps, env, msg).unwrap();
+        
+        assert_eq!(8, res.log.len());
+        
+        for log in res.log.iter() {
+            match log.key.as_str() {
+                "action" => assert_eq!("receive:burn", log.value),
+                "sender" => assert_eq!(addr, log.value),
+                "burn_amount" => assert_eq!("1234", log.value),
+                "token_cost" => assert_eq!("1247", log.value),
+                "kept_as_fee" => assert_eq!("13", log.value),
+                "asset_amounts" => assert_eq!("[]", log.value),
+                "redeem_totals" => assert_eq!("[99, 98, 97, 96]", log.value),
+                "penalty" => assert_eq!("1234", log.value),
+                &_ => panic!("Invalid value found in log")
+            }
+        }
+
+        assert_eq!(8, res.messages.len());
+    }
 
     #[test]
     fn reset_target() {
