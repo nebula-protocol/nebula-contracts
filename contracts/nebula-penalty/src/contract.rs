@@ -12,7 +12,6 @@ use nebula_protocol::penalty::{
     HandleMsg, InitMsg, MintResponse, ParamsResponse, PenaltyParams, QueryMsg, RedeemResponse,
 };
 use std::cmp::{max, min};
-use std::str::FromStr;
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -73,7 +72,7 @@ pub fn notional_penalty<S: Storage, A: Api, Q: Querier>(
 
     // for now just use the value of the original cluster as e...
     let e = get_ema(&deps, block_height, dot(i0, p))?;
-
+    println!("ema {} {}", e, dot(i0, p));
     let PenaltyParams {
         penalty_amt_lo,
         penalty_cutoff_lo,
@@ -87,7 +86,7 @@ pub fn notional_penalty<S: Storage, A: Api, Q: Querier>(
         // use penalty function
         let cutoff_lo = penalty_cutoff_lo * e;
         let cutoff_hi = penalty_cutoff_hi * e;
-
+        println!("ema {} {}", imb1, cutoff_hi);
         if imb1 > cutoff_hi {
             return Err(StdError::generic_err("cluster imbalance too high"));
         }
