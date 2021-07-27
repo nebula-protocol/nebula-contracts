@@ -7,8 +7,8 @@ pub use cosmwasm_std::*;
 pub use cw20::BalanceResponse as Cw20BalanceResponse;
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use nebula_protocol::{
-    cluster::InitMsg,
-    cluster_factory::{ConfigResponse, QueryMsg as FactoryQueryMsg},
+    cluster::{InitMsg, QueryMsg as ClusterQueryMsg, HandleMsg as ClusterHandleMsg},
+    cluster_factory::{ConfigResponse as FactoryConfigResponse, QueryMsg as FactoryQueryMsg},
     oracle::{PriceResponse, QueryMsg as OracleQueryMsg},
     penalty::{MintResponse, PenaltyParams, QueryMsg as PenaltyQueryMsg, RedeemResponse},
 };
@@ -109,79 +109,86 @@ impl WasmMockQuerier {
                             request: msg.as_slice().into(),
                         }),
                     },
-                    ExtQueryMsg::Balance { address } => {
-                        let token_data = match self.token_querier.tokens.get(contract_addr) {
-                            Some(v) => v,
-                            None => {
-                                return Err(SystemError::InvalidRequest {
-                                    error: format!(
-                                        "No balance info exists for the contract {}",
-                                        contract_addr
-                                    ),
-                                    request: msg.as_slice().into(),
-                                })
+                    _ => match from_binary(&msg) {
+                        Ok(Cw20QueryMsg::Balance { address }) => {
+                            let token_data = match self.token_querier.tokens.get(contract_addr) {
+                                Some(v) => v,
+                                None => {
+                                    return Err(SystemError::InvalidRequest {
+                                        error: format!(
+                                            "No balance info exists for the contract {}",
+                                            contract_addr
+                                        ),
+                                        request: msg.as_slice().into(),
+                                    })
+                                }
+                            };
+                            let balance = match token_data.balances.get(&address) {
+                                Some(v) => v,
+                                None => {
+                                    return Err(SystemError::InvalidRequest {
+                                        error: "Balance not found".to_string(),
+                                        request: msg.as_slice().into(),
+                                    })
+                                }
+                            };
+                            Ok(to_binary(&Cw20BalanceResponse { balance: *balance }))
+                        },
+                        Ok(Cw20QueryMsg::TokenInfo {}) => {
+                            let token_data = match self.token_querier.tokens.get(contract_addr) {
+                                Some(v) => v,
+                                None => {
+                                    return Err(SystemError::InvalidRequest {
+                                        error: format!(
+                                            "No token info exists for the contract {}",
+                                            contract_addr
+                                        ),
+                                        request: msg.as_slice().into(),
+                                    })
+                                }
+                            };
+                            Ok(to_binary(&token_data.info))
+                        },
+                        _ => match from_binary(&msg) {
+
+                            Ok(ClusterQueryMsg::Config {}) => {
+                                let config = consts::factory_config();
+                                Ok(to_binary(&config))
+                            },
+                            _ => match from_binary(&msg) {
+                                Ok(PenaltyQueryMsg::Mint {
+                                    block_height: _,
+                                    cluster_token_supply: _,
+                                    inventory: _,
+                                    mint_asset_amounts: _,
+                                    asset_prices: _,
+                                    target_weights: _,
+                                }) => {
+                                    let response = consts::mint_response();
+                                    Ok(to_binary(&response))
+                                },
+                                Ok(PenaltyQueryMsg::Redeem {
+                                    block_height: _,
+                                    cluster_token_supply: _,
+                                    inventory: _,
+                                    max_tokens: _,
+                                    asset_prices: _,
+                                    target_weights: _, 
+                                    redeem_asset_amounts: _,
+                                }) => {
+                                    let response = RedeemResponse {
+                                        redeem_assets: vec![Uint128(99), Uint128(98), Uint128(97), Uint128(96)],
+                                        penalty: Uint128(1234),
+                                        token_cost: Uint128(1234),
+                                        log: vec![log("penalty", 1234)],
+                                    };
+                                    Ok(to_binary(&response))
+                                },
+                                _ => {
+                                    panic!("QueryMsg type not implemented");
+                                }
                             }
-                        };
-                        let balance = match token_data.balances.get(&address) {
-                            Some(v) => v,
-                            None => {
-                                return Err(SystemError::InvalidRequest {
-                                    error: "Balance not found".to_string(),
-                                    request: msg.as_slice().into(),
-                                })
-                            }
-                        };
-                        Ok(to_binary(&Cw20BalanceResponse { balance: *balance }))
-                    }
-                    ExtQueryMsg::TokenInfo {} => {
-                        let token_data = match self.token_querier.tokens.get(contract_addr) {
-                            Some(v) => v,
-                            None => {
-                                return Err(SystemError::InvalidRequest {
-                                    error: format!(
-                                        "No token info exists for the contract {}",
-                                        contract_addr
-                                    ),
-                                    request: msg.as_slice().into(),
-                                })
-                            }
-                        };
-                        Ok(to_binary(&token_data.info))
-                    }
-                    ExtQueryMsg::Config {} => {
-                        let config = consts::factory_config();
-                        Ok(to_binary(&config))
-                    }
-                    ExtQueryMsg::Mint {
-                        block_height: _,
-                        cluster_token_supply: _,
-                        inventory: _,
-                        mint_asset_amounts: _,
-                        asset_prices: _,
-                        target_weights: _,
-                    } => {
-                        let response = consts::mint_response();
-                        Ok(to_binary(&response))
-                    }
-                    ExtQueryMsg::Redeem {
-                        block_height: _,
-                        cluster_token_supply: _,
-                        inventory: _,
-                        max_tokens: _,
-                        asset_prices: _,
-                        target_weights: _, 
-                        redeem_asset_amounts: _,
-                    } => {
-                        let response = RedeemResponse {
-                            redeem_assets: vec![Uint128(99), Uint128(98), Uint128(97), Uint128(96)],
-                            penalty: Uint128(1234),
-                            token_cost: Uint128(1234),
-                            log: vec![log("penalty", 1234)],
-                        };
-                        Ok(to_binary(&response))
-                    }
-                    _ => {
-                        panic!("ExtQueryMsg type not implemented");
+                        },
                     }
                 }
             }

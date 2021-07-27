@@ -17,8 +17,8 @@ use crate::util::vec_to_string;
 
 use cluster_math::FPDecimal;
 use nebula_protocol::cluster::HandleMsg;
-use nebula_protocol::penalty::HandleMsg as PenaltyHandleMsg;
-use nebula_protocol::penalty::QueryMsg as PenaltyQueryMsg;
+use nebula_protocol::penalty::{HandleMsg as PenaltyHandleMsg, QueryMsg as PenaltyQueryMsg};
+ 
 use std::str::FromStr;
 use std::u32;
 use terraswap::asset::{Asset, AssetInfo};
@@ -106,9 +106,9 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
             Some(_) => config.cluster_token = cluster_token,
         }
 
-            asset.into_msg(&deps, env.contract.address.clone(), sender.clone())
-        })
-        .collect::<StdResult<Vec<CosmosMsg>>>()?;
+        if let Some(pricing_oracle) = pricing_oracle {
+            config.pricing_oracle = pricing_oracle;
+        }
 
         if let Some(composition_oracle) = composition_oracle {
             config.composition_oracle = composition_oracle;
@@ -167,7 +167,7 @@ pub fn update_target<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.amount.clone())
         .collect::<Vec<_>>();
 
-    if validate_targets(&deps, &env, updated_asset_infos.clone()).is_err() {
+    if validate_targets(&deps, &env, updated_asset_infos.clone(), None).is_err() {
         return Err(StdError::generic_err(
             "Cluster must contain valid assets and cannot contain duplicate assets",
         ));
@@ -258,7 +258,7 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
     min_tokens: &Option<Uint128>,
 ) -> StdResult<HandleResponse> {
     // duplication check for the given asset_amounts
-    if validate_targets(&deps, &env, asset_amounts.iter().map(|a| a.info.clone()).collect()).is_err() {
+    if validate_targets(&deps, &env, asset_amounts.iter().map(|a| a.info.clone()).collect(), None).is_err() {
         return Err(StdError::generic_err(
             "The given asset_amounts contain invalid or duplicate assets",
         ));
@@ -770,11 +770,11 @@ mod tests {
             }
         }
 
-        assert_eq!(8, res.messages.len());
+        assert_eq!(7, res.messages.len());
     }
 
     #[test]
-    fn reset_target() {
+    fn update_target() {
         let (mut deps, _init_res) = mock_init();
         mock_querier_setup(&mut deps);
 
@@ -813,9 +813,17 @@ mod tests {
         let env = mock_env(consts::owner(), &[]);
         let res = handle(&mut deps, env, msg).unwrap();
 
-        // mNFLX should still be in logs with target 0
+        assert_eq!(5, res.log.len());
+        
         for log in res.log.iter() {
-            println!("{}: {}", log.key, log.value);
+            match log.key.as_str() {
+                "action" => assert_eq!("reset_target", log.value),
+                "prev_assets" => assert_eq!("[mAAPL, mGOOG, mMSFT, mNFLX]", log.value),
+                "prev_targets" => assert_eq!("[20, 20, 20, 20]", log.value),
+                "updated_assets" => assert_eq!("[mAAPL, mGOOG, mMSFT, mGME, mNFLX]", log.value),
+                "updated_targets" => assert_eq!("[10, 5, 35, 50, 0]", log.value),
+                &_ => panic!("Invalid value found in log")
+            }
         }
         assert_eq!(0, res.messages.len());
     }
