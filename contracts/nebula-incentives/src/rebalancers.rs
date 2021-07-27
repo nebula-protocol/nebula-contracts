@@ -256,7 +256,7 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
     let cluster_state = get_cluster_state(deps, &cluster_contract)?;
     if !cluster_state.active {
         return Err(StdError::generic_err(
-            "Cannot call mint on a deactivated cluster",
+            "Cannot call mint on a decommissioned cluster",
         ));
     }
 

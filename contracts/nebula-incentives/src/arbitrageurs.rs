@@ -74,7 +74,7 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
     // Might be redundant but here to be safe
     if !cluster_state.active {
         return Err(StdError::generic_err(
-            "Cannot call ArbClusterMint on a deactivated cluster",
+            "Cannot call ArbClusterMint on a decommissioned cluster",
         ));
     }
 
@@ -171,7 +171,7 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
     // Might be redundant but here to be safe
     if !cluster_state.active {
         return Err(StdError::generic_err(
-            "Cannot call ArbClusterRedeem on a deactivated cluster",
+            "Cannot call ArbClusterRedeem on a decommissioned cluster",
         ));
     }
 

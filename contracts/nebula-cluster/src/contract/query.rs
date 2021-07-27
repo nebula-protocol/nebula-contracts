@@ -72,7 +72,7 @@ pub fn query_cluster_state<S: Storage, A: Api, Q: Querier>(
 
     if !active && stale_threshold != u64::MIN {
         return Err(StdError::generic_err(
-            "Decommissioned cluster should have int max stale threshold",
+            "Decommissioned cluster should have int min stale threshold",
         ));
     }
 

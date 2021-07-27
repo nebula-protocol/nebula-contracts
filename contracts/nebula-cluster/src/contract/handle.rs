@@ -230,7 +230,9 @@ pub fn decommission<S: Storage, A: Api, Q: Querier>(
 
     // can only decommission an active cluster
     if !cfg.active {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err(
+            "Cannot decommission an already decommissioned cluster",
+        ));;
     }
 
     config_store(&mut deps.storage).update(|mut config| {
@@ -277,7 +279,7 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
 
     if !cluster_state.active {
         return Err(StdError::generic_err(
-            "Trying to mint on a deactivated cluster",
+            "Cannot call mint on a decommissioned cluster",
         ));
     }
 
@@ -497,7 +499,7 @@ pub fn receive_burn<S: Storage, A: Api, Q: Querier>(
         .cluster_token
         .ok_or_else(|| error::cluster_token_not_set())?;
 
-    // Use max as stale threshold if pro-rata redeem
+    // Use min as stale threshold if pro-rata redeem
     let stale_threshold = match asset_amounts {
         Some(_) => env.block.time - FRESH_TIMESPAN,
         None => u64::MIN,
