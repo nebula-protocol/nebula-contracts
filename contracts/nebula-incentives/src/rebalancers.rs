@@ -230,7 +230,7 @@ pub fn internal_rewarded_redeem<S: Storage, A: Api, Q: Querier>(
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address,
-                msg: to_binary(&HandleMsg::SendAll {
+                msg: to_binary(&HandleMsg::_SendAll {
                     asset_infos: vec![AssetInfo::Token {
                         contract_addr: cluster_token,
                     }],
@@ -254,6 +254,12 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
     assert_cluster_exists(deps, &cluster_contract)?;
 
     let cluster_state = get_cluster_state(deps, &cluster_contract)?;
+    if !cluster_state.active {
+        return Err(StdError::generic_err(
+            "Cannot call mint on a deactivated cluster",
+        ));
+    }
+
     let cluster_token = cluster_state.cluster_token;
 
     let mut messages = vec![];
@@ -292,7 +298,7 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: env.contract.address,
-        msg: to_binary(&HandleMsg::SendAll {
+        msg: to_binary(&HandleMsg::_SendAll {
             asset_infos: vec![AssetInfo::Token {
                 contract_addr: cluster_token,
             }],
@@ -318,6 +324,13 @@ pub fn redeem<S: Storage, A: Api, Q: Querier>(
     assert_cluster_exists(deps, &cluster_contract)?;
 
     let cluster_state = get_cluster_state(deps, &cluster_contract)?;
+
+    // Only alow pro-rata redeem if cluster is not active
+    let asset_amounts = if !cluster_state.active {
+        None
+    } else {
+        asset_amounts
+    };
     let cluster_token = cluster_state.cluster_token;
 
     let max_tokens = min(
@@ -355,7 +368,7 @@ pub fn redeem<S: Storage, A: Api, Q: Querier>(
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address,
-                msg: to_binary(&HandleMsg::SendAll {
+                msg: to_binary(&HandleMsg::_SendAll {
                     asset_infos,
                     send_to: env.message.sender,
                 })?,

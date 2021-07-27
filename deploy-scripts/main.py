@@ -1,7 +1,7 @@
 from ecosystem import Ecosystem
 import asyncio
 from tests.provide_liquidity_and_staking import test_provide_liquidity_and_staking
-from tests.cluster_and_collector_ops import test_cluster_and_collector_ops, test_revoke_cluster
+from tests.cluster_and_collector_ops import test_cluster_and_collector_ops, test_decommission_cluster
 from tests.community_and_airdrop import test_community_and_airdrop
 from tests.governance_ops import test_governance_ops
 from tests.incentives_ops import test_incentives_ops
@@ -33,7 +33,7 @@ async def main():
     await test_community_and_airdrop(ecosystem)
     await test_governance_ops(ecosystem)
     await test_incentives_ops(ecosystem)
-    await test_revoke_cluster(ecosystem)
+    await test_decommission_cluster(ecosystem)
 
 
 if __name__ == "__main__":

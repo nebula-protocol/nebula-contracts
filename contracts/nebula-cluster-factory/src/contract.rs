@@ -3,7 +3,12 @@ use cosmwasm_std::{
     HumanAddr, InitResponse, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 
-use crate::state::{Config, cluster_exists, deactivate_cluster, decrease_total_weight, get_cluster_data, increase_total_weight, read_all_weight, read_config, read_last_distributed, read_params, read_total_weight, read_weight, record_cluster, remove_params, remove_weight, store_config, store_last_distributed, store_params, store_total_weight, store_weight};
+use crate::state::{
+    cluster_exists, deactivate_cluster, decrease_total_weight, get_cluster_data,
+    increase_total_weight, read_all_weight, read_config, read_last_distributed, read_params,
+    read_total_weight, read_weight, record_cluster, remove_params, remove_weight, store_config,
+    store_last_distributed, store_params, store_total_weight, store_weight, Config,
+};
 
 use nebula_protocol::cluster_factory::{
     ClusterExistsResponse, ClusterListResponse, ConfigResponse, HandleMsg, InitMsg, Params,
@@ -107,10 +112,10 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::PassCommand { contract_addr, msg } => {
             pass_command(deps, env, contract_addr, msg)
         }
-        HandleMsg::RevokeClusterToken {
+        HandleMsg::DecommissionCluster {
             cluster_contract,
             cluster_token,
-        } => revoke_cluster(deps, env, cluster_contract, cluster_token),
+        } => decommission_cluster(deps, env, cluster_contract, cluster_token),
     }
 }
 
@@ -582,7 +587,7 @@ pub fn _compute_rewards<S: Storage, A: Api, Q: Querier>(
     Ok((rewards, distribution_amount))
 }
 
-pub fn revoke_cluster<S: Storage, A: Api, Q: Querier>(
+pub fn decommission_cluster<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     _env: Env,
     cluster_contract: HumanAddr,
@@ -598,10 +603,10 @@ pub fn revoke_cluster<S: Storage, A: Api, Q: Querier>(
         messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: cluster_contract.clone(),
             send: vec![],
-            msg: to_binary(&ClusterHandleMsg::RevokeAsset {})?,
+            msg: to_binary(&ClusterHandleMsg::Decommission {})?,
         })],
         log: vec![
-            log("action", "revoke_asset"),
+            log("action", "decommission_asset"),
             log("cluster_token", cluster_token.to_string()),
             log("cluster_contract", cluster_contract),
         ],
