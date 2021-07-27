@@ -47,16 +47,16 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::Receive(msg) => receive_cw20(deps, env, msg),
         HandleMsg::Withdraw {} => withdraw_reward(deps, env),
         HandleMsg::NewPenaltyPeriod {} => new_penalty_period(deps, env),
-        HandleMsg::SwapAll {
+        HandleMsg::_SwapAll {
             terraswap_pair,
             cluster_token,
             to_ust,
         } => swap_all(deps, env, terraswap_pair, cluster_token, to_ust),
-        HandleMsg::SendAll {
+        HandleMsg::_SendAll {
             asset_infos,
             send_to,
         } => send_all(deps, env, &asset_infos, send_to),
-        HandleMsg::RecordTerraswapImpact {
+        HandleMsg::_RecordTerraswapImpact {
             arbitrager,
             terraswap_pair,
             cluster_contract,

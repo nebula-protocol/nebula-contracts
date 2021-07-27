@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{Binary, HumanAddr, Uint128};
 
-use terraswap::asset::{Asset};
+use terraswap::asset::Asset;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
@@ -56,7 +56,7 @@ pub enum HandleMsg {
         contract_addr: HumanAddr,
         msg: Binary,
     },
-    RevokeClusterToken {
+    DecommissionCluster {
         cluster_contract: HumanAddr,
         cluster_token: HumanAddr,
     },

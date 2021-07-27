@@ -8,8 +8,7 @@ use cw20::Cw20HandleMsg;
 use crate::contract::{query_cluster_state, validate_targets};
 use crate::error;
 use crate::ext_query::{
-    query_asset_balance, query_collector_contract_address, query_mint_amount,
-    query_redeem_amount,
+    query_asset_balance, query_collector_contract_address, query_mint_amount, query_redeem_amount,
 };
 use crate::state::{config_store, read_config};
 use crate::state::{read_target_asset_data, save_target_asset_data};
@@ -66,7 +65,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             target,
         ),
         HandleMsg::UpdateTarget { target } => update_target(deps, env, &target),
-        HandleMsg::RevokeAsset {} => revoke_asset(deps, env),
+        HandleMsg::Decommission {} => decommission(deps, env),
     }
 }
 
@@ -214,7 +213,7 @@ pub fn update_target<S: Storage, A: Api, Q: Querier>(
 /*
 
 */
-pub fn revoke_asset<S: Storage, A: Api, Q: Querier>(
+pub fn decommission<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
 ) -> StdResult<HandleResponse> {
@@ -229,9 +228,11 @@ pub fn revoke_asset<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::unauthorized());
     }
 
-    // can only revoke an active cluster
+    // can only decommission an active cluster
     if !cfg.active {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err(
+            "Cannot decommission an already decommissioned cluster",
+        ));;
     }
 
     config_store(&mut deps.storage).update(|mut config| {
@@ -242,7 +243,7 @@ pub fn revoke_asset<S: Storage, A: Api, Q: Querier>(
 
     Ok(HandleResponse {
         messages: vec![],
-        log: vec![log("action", "revoke_asset")],
+        log: vec![log("action", "decommission_asset")],
         data: None,
     })
 }
@@ -258,7 +259,13 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
     min_tokens: &Option<Uint128>,
 ) -> StdResult<HandleResponse> {
     // duplication check for the given asset_amounts
-    if validate_targets(&deps, &env, asset_amounts.iter().map(|a| a.info.clone()).collect()).is_err() {
+    if validate_targets(
+        &deps,
+        &env,
+        asset_amounts.iter().map(|a| a.info.clone()).collect(),
+    )
+    .is_err()
+    {
         return Err(StdError::generic_err(
             "The given asset_amounts contain invalid or duplicate assets",
         ));
@@ -272,7 +279,7 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
 
     if !cluster_state.active {
         return Err(StdError::generic_err(
-            "Trying to mint on a deactivated cluster",
+            "Cannot call mint on a decommissioned cluster",
         ));
     }
 
@@ -308,6 +315,12 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
     for (i, asset_info) in asset_infos.iter().enumerate() {
         for asset in asset_amounts.iter() {
             if asset.info.clone() == asset_info.clone() {
+                if target_weights[i] == Uint128(0) && asset.amount > Uint128(0) {
+                    return Err(StdError::generic_err(
+                        format!("Cannot mint with non-zero asset amount when target weight is zero for asset {}", asset.info.to_string()),
+                    ));
+                };
+
                 asset_weights[i] = asset.amount;
 
                 // pick up allowance from smart contracts
@@ -402,14 +415,13 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
         if let Some(proposed_mint_total) = min_tokens {
             let mut val = 0;
             for i in 0..c.len() {
-                // if target[i] % (c[i].u128() as u32) != 0u32 {
-                //     return Err(StdError::generic_err(format!(
-                //         "1. Initial cluster assets must be in target weights {} {} {}",
-                //         target[i] % (c[i].u128() as u32),
-                //         target[i],
-                //         c[i].u128() as u32
-                //     )));
-                // }
+                if c[i].u128() % target_weights[i].u128() != 0 {
+                    return Err(StdError::generic_err(format!(
+                        "Initial cluster assets must be a multiple of target weights at index {}",
+                        i
+                    )));
+                }
+
                 let div = target_weights[i].u128() / c[i].u128();
                 if val == 0 {
                     val = div;
@@ -417,11 +429,8 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
 
                 if div != val {
                     return Err(StdError::generic_err(format!(
-                        "Initial cluster assets must be in target weights {} {} {} {}",
-                        div,
-                        val,
-                        target[i],
-                        c[i].u128() as u32
+                        "Initial cluster assets must be a multiple of target weights at index {}",
+                        i
                     )));
                 }
             }
@@ -483,18 +492,20 @@ pub fn receive_burn<S: Storage, A: Api, Q: Querier>(
 
     let cfg = read_config(&deps.storage)?;
 
-    // Is there an idiomatic way to do this?
-    let asset_amounts = if cfg.active { None } else { asset_amounts };
+    // If cluster is not active, must do pro rata redeem
+    let asset_amounts = if !cfg.active { None } else { asset_amounts };
 
     let cluster_token = cfg
         .cluster_token
         .ok_or_else(|| error::cluster_token_not_set())?;
 
-    let cluster_state = query_cluster_state(
-        &deps,
-        &env.contract.address,
-        env.block.time - FRESH_TIMESPAN,
-    )?;
+    // Use min as stale threshold if pro-rata redeem
+    let stale_threshold = match asset_amounts {
+        Some(_) => env.block.time - FRESH_TIMESPAN,
+        None => u64::MIN,
+    };
+
+    let cluster_state = query_cluster_state(&deps, &env.contract.address, stale_threshold)?;
 
     let prices = cluster_state.prices;
     let cluster_token_supply = cluster_state.outstanding_balance_tokens;

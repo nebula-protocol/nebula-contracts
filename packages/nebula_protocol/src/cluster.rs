@@ -1,7 +1,7 @@
 use cosmwasm_std::{HumanAddr, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use terraswap::asset::{Asset};
+use terraswap::asset::Asset;
 use terraswap::hook::InitHook;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -54,7 +54,7 @@ pub enum HandleMsg {
     UpdateTarget { target: Vec<Asset> },
 
     /// Called by factory only and sets active to false
-    RevokeAsset {},
+    Decommission {},
 
     /// USER-CALLABLE
     Mint {

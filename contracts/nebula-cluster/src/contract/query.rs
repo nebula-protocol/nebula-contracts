@@ -4,7 +4,9 @@ use cosmwasm_std::{
 
 use crate::ext_query::{query_cw20_balance, query_cw20_token_supply, query_price};
 use crate::state::{read_config, read_target_asset_data};
-use nebula_protocol::cluster::{ClusterInfoResponse, ClusterStateResponse, ConfigResponse, QueryMsg, TargetResponse};
+use nebula_protocol::cluster::{
+    ClusterInfoResponse, ClusterStateResponse, ConfigResponse, QueryMsg, TargetResponse,
+};
 use terraswap::asset::AssetInfo;
 use terraswap::querier::query_balance;
 
@@ -68,7 +70,12 @@ pub fn query_cluster_state<S: Storage, A: Api, Q: Querier>(
     // get supply from cluster token
     let outstanding_balance_tokens = query_cw20_token_supply(&deps.querier, &cluster_token)?;
 
-    // get prices for each asset
+    if !active && stale_threshold != u64::MIN {
+        return Err(StdError::generic_err(
+            "Decommissioned cluster should have int min stale threshold",
+        ));
+    }
+
     let prices = asset_infos
         .iter()
         .map(|asset_info| {

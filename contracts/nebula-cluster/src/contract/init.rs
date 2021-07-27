@@ -1,3 +1,4 @@
+use crate::ext_query::query_asset_balance;
 use crate::{
     state::{save_config, save_target_asset_data},
     util::vec_to_string,
@@ -6,13 +7,12 @@ use cosmwasm_std::{
     log, Api, CosmosMsg, Env, Extern, InitResponse, Querier, StdError, StdResult, Storage, WasmMsg,
 };
 use nebula_protocol::cluster::{ClusterConfig, InitMsg};
-use crate::ext_query::query_asset_balance;
-use terraswap::asset::{AssetInfo};
+use terraswap::asset::AssetInfo;
 
 pub fn validate_targets<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
-    env: &Env, 
-    target_assets: Vec<AssetInfo>
+    env: &Env,
+    target_assets: Vec<AssetInfo>,
 ) -> StdResult<bool> {
     for i in 0..target_assets.len() - 1 {
         query_asset_balance(&deps.querier, &env.contract.address, &target_assets[i])?;

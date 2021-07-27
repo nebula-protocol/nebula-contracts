@@ -27,18 +27,18 @@ pub enum HandleMsg {
     NewPenaltyPeriod {},
 
     /// INTERNAL
-    SendAll {
+    _SendAll {
         asset_infos: Vec<AssetInfo>,
         send_to: HumanAddr,
     },
 
-    SwapAll {
+    _SwapAll {
         terraswap_pair: HumanAddr,
         cluster_token: HumanAddr,
         to_ust: bool,
     },
 
-    RecordTerraswapImpact {
+    _RecordTerraswapImpact {
         arbitrager: HumanAddr,
         terraswap_pair: HumanAddr,
         cluster_contract: HumanAddr,

@@ -5,8 +5,7 @@ use cosmwasm_std::{
 
 use crate::state::{config_store, read_config, save_config, PenaltyConfig};
 use cluster_math::{
-    add, div_const, dot, imbalance, int_vec_to_fpdec, mul_const,
-    str_vec_to_fpdec, sub, FPDecimal,
+    add, div_const, dot, imbalance, int_vec_to_fpdec, mul_const, str_vec_to_fpdec, sub, FPDecimal,
 };
 use nebula_protocol::penalty::{
     HandleMsg, InitMsg, MintResponse, ParamsResponse, PenaltyParams, QueryMsg, RedeemResponse,
