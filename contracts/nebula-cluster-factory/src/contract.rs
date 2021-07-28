@@ -42,9 +42,8 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     store_config(
         &mut deps.storage,
         &Config {
-            owner: HumanAddr::default(),
+            owner: env.message.sender,
             nebula_token: HumanAddr::default(),
-            oracle_contract: HumanAddr::default(),
             terraswap_factory: HumanAddr::default(),
             staking_contract: HumanAddr::default(),
             commission_collector: HumanAddr::default(),
@@ -71,7 +70,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::PostInitialize {
             owner,
             nebula_token,
-            oracle_contract,
             terraswap_factory,
             staking_contract,
             commission_collector,
@@ -80,7 +78,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             env,
             owner,
             nebula_token,
-            oracle_contract,
             terraswap_factory,
             staking_contract,
             commission_collector,
@@ -125,7 +122,6 @@ pub fn post_initialize<S: Storage, A: Api, Q: Querier>(
     _env: Env,
     owner: HumanAddr,
     nebula_token: HumanAddr,
-    oracle_contract: HumanAddr,
     terraswap_factory: HumanAddr,
     staking_contract: HumanAddr,
     commission_collector: HumanAddr,
@@ -137,7 +133,6 @@ pub fn post_initialize<S: Storage, A: Api, Q: Querier>(
 
     config.owner = owner;
     config.nebula_token = nebula_token;
-    config.oracle_contract = oracle_contract;
     config.terraswap_factory = terraswap_factory;
     config.staking_contract = staking_contract;
     config.commission_collector = commission_collector;
@@ -634,7 +629,6 @@ pub fn query_config<S: Storage, A: Api, Q: Querier>(
     let resp = ConfigResponse {
         owner: state.owner,
         nebula_token: state.nebula_token,
-        oracle_contract: state.oracle_contract,
         terraswap_factory: state.terraswap_factory,
         staking_contract: state.staking_contract,
         commission_collector: state.commission_collector,

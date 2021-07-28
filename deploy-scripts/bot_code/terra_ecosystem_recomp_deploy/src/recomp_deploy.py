@@ -8,11 +8,6 @@ os.environ["MNEMONIC"] = mnemonic = 'idea salute sniff electric lecture table fl
 
 os.environ["USE_TEQUILA"] = "1"
 
-from terra_sdk.client.lcd import AsyncLCDClient
-from terra_sdk.client.localterra import AsyncLocalTerra
-from terra_sdk.core.auth import StdFee
-from terra_sdk.key.mnemonic import MnemonicKey
-
 from api import Asset
 from contract_helpers import Contract, ClusterContract, terra
 
@@ -53,20 +48,22 @@ class TerraFullDilutedMcapRecomposer:
             print("{} has FDM of {}M".format(asset_id, fully_diluted_mcap/ONE_MILLION))
         denom = sum(asset_to_fdm.values())
         print("Total FDM of all assets: {}M".format(denom/ONE_MILLION))
-        target = [asset_to_fdm[asset]/denom for asset in asset_to_fdm]
-        return target
-        
-    
-    async def recompose(self):
-        target_weights = await self.weighting()
+        target_weights = [asset_to_fdm[asset]/denom for asset in asset_to_fdm]
         print(self.asset_tokens, target_weights)
-        target_weights = [int(100 * target_weight) for target_weight in target_weights]
+        target_weights = [int(10000 * target_weight) for target_weight in target_weights]
+
+        print(self.asset_tokens, target_weights)
+
 
         target = []
         for a, t in zip(self.asset_tokens, target_weights):
             native = (a == 'uluna')
             target.append(Asset.asset(a, str(t), native=native))
-
+        return target
+        
+    
+    async def recompose(self):
+        target = await self.weighting()
         print(target)
 
         await self.cluster_contract.update_target(
@@ -80,11 +77,9 @@ class TerraFullDilutedMcapRecomposer:
 
         print("Updated Target: " , target)
         print("Updated Cluster State: ", cluster_state)
-        return self.asset_tokens, target_weights
+        return target
 
-async def run_recomposition_periodically(cluster_contract, interval):
-    start_time = time.time()
-
+async def get_terra_ecosystem_info():
     ANC_ADDR = 'terra16z5t7cr0ueg47tuqmwlp6ymgm2w43dyv4xnt4g'
     MIR_ADDR = 'terra1gkjll5uwqlwa8mrmtvzv435732tffpjql494fd'
     assets = [
@@ -97,9 +92,11 @@ async def run_recomposition_periodically(cluster_contract, interval):
     # May not be accurate on Tequila
     anc_token_info = await anc_token.query.token_info()
     anc_total_supply = float(anc_token_info['total_supply'])
+
     mir_token = Contract(MIR_ADDR)
     mir_token_info = await mir_token.query.token_info()
     mir_total_supply = float(mir_token_info['total_supply'])
+
     coins_total_supply = await terra.supply.total()
     luna_total_supply = coins_total_supply.get('uluna').amount
     asset_token_supply = [
@@ -108,6 +105,14 @@ async def run_recomposition_periodically(cluster_contract, interval):
         mir_total_supply/ONE_MILLION      # MIR
     ]
     print(asset_token_supply)
+
+    return assets, asset_token_supply
+
+async def run_recomposition_periodically(cluster_contract, interval):
+    start_time = time.time()
+
+    assets, asset_token_supply = get_terra_ecosystem_info()
+    
     recomposition_bot = TerraFullDilutedMcapRecomposer(cluster_contract, assets, asset_token_supply)
 
     while True:

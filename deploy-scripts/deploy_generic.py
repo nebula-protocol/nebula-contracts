@@ -17,10 +17,7 @@ import sys
 REQUIRE_GOV = True
 
 
-ct_symbol = sys.argv[1]
-recomp_oracle = sys.argv[2]
-
-async def deploy_cluster():
+async def deploy_cluster(ct_symbol, recomp_oracle):
 
     ecosystem = Ecosystem(require_gov=REQUIRE_GOV)
 
@@ -111,9 +108,9 @@ async def deploy_cluster():
 
 
     # Set prices so we can see if cluster deploys properly
-    addresses = list(CONTRACT_TOKEN_TO_SYM_TEQ.keys())
+    price_addresses = list(CONTRACT_TOKEN_TO_SYM_TEQ.keys())
     prices = [
-        (a, "1") for a in addresses if a is not None
+        (a, "1") for a in price_addresses if a is not None
     ] + [("uusd", "1"), ("uluna", "1")]
 
     # Will use pricing bot to set prices later
@@ -130,11 +127,15 @@ async def deploy_cluster():
 
     print(logs)
 
-    print("account", deployer.key.acc_address)
+    print("deployer account", deployer.key.acc_address)
     
     print("assets", assets)
-    print("ecosystem", ecosystem.__dict__)
+    # print("ecosystem", ecosystem.__dict__)
 
+    cluster_list = await ecosystem.factory.query.cluster_list()
+    print('cluster_list', cluster_list)
 
 if __name__ == "__main__":
-    asyncio.get_event_loop().run_until_complete(deploy_cluster())
+    ct_symbol = sys.argv[1]
+    recomp_oracle = sys.argv[2]
+    asyncio.get_event_loop().run_until_complete(deploy_cluster(ct_symbol, recomp_oracle))
