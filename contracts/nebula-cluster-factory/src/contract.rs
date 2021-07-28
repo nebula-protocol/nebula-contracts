@@ -42,7 +42,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     store_config(
         &mut deps.storage,
         &Config {
-            owner: env.message.sender,
+            owner: HumanAddr::default(),
             nebula_token: HumanAddr::default(),
             terraswap_factory: HumanAddr::default(),
             staking_contract: HumanAddr::default(),

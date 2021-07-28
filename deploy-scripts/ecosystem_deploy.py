@@ -78,18 +78,6 @@ class Ecosystem:
             distribution_schedule=DEFAULT_DISTRIBUTION_SCHEDULE,
         )
 
-        self.dummy_oracle = await Contract.create(code_ids["nebula_dummy_oracle"])
-
-        # First initialize clusters here without governance
-        # TODO: Check with Mirror team to see what they do for initial genesis mAsset creation
-
-        contract_addrs, symbols, query_info = await get_query_info()
-        for ct_sym, recomp_oracle in CT_SYM_TO_RECOMP_ORACLE.items():
-            print("Trying to deploy", CT_SYM_TO_NAME[ct_sym], ct_sym)
-            await set_prices(self.dummy_oracle, contract_addrs, query_info)
-            cluster = await self.deploy_cluster(ct_sym, recomp_oracle)
-            print("Cluster address is ", cluster)
-
         print("Initializing Nebula token")
         self.neb_token = await Contract.create(
             code_ids["terraswap_token"],
@@ -142,15 +130,38 @@ class Ecosystem:
             owner=self.factory,
         )
 
-
         print("Post initialize factory including resetting the owner")
         await self.factory.post_initialize(
-            owner=self.gov if self.require_gov else deployer.key.acc_address,
+            owner=deployer.key.acc_address,
             nebula_token=self.neb_token,
             terraswap_factory=self.terraswap_factory,
             staking_contract=self.staking,
             commission_collector=self.collector,
         )
+
+        print("Try to initialize all clusters")
+        self.dummy_oracle = await Contract.create(code_ids["nebula_dummy_oracle"])
+
+        # First initialize clusters here without governance
+        # TODO: Check with Mirror team to see what they do for initial genesis mAsset creation
+
+        pprint.pprint(self.__dict__)
+
+        for key in DEPLOY_ENVIRONMENT_STATUS_W_GOV:
+            setattr(self, key, DEPLOY_ENVIRONMENT_STATUS_W_GOV[key])
+
+        contract_addrs, symbols, query_info = await get_query_info()
+        for ct_sym, recomp_oracle in CT_SYM_TO_RECOMP_ORACLE.items():
+            print("Trying to deploy", CT_SYM_TO_NAME[ct_sym], ct_sym)
+            await set_prices(self.dummy_oracle, contract_addrs, query_info)
+            cluster = await self.deploy_cluster(ct_sym, recomp_oracle)
+            print("Cluster address is ", cluster)
+
+        print("Set owner to gov")
+        await self.factory.update_config(owner=self.gov)
+
+        cluster_list = await self.factory.query.cluster_list()
+        print("Cluster list", cluster_list)
 
         print("Create Terraswap pair for NEB-UST")
         self.neb_pair = Contract(
@@ -219,8 +230,6 @@ class Ecosystem:
         }
 
         # TODO: Call recomp deploy here somehow
-        # Weight equally at first then can wait for rebalance to simplify things
-
         recomposer_func = CT_SYM_TO_RECOMPOSER[ct_symbol]
 
         if ct_symbol == 'TER':
@@ -231,11 +240,15 @@ class Ecosystem:
 
         target = await recomposer.weighting()
 
+        # target = [Asset.asset("uluna", "1", native=True)]
+
         penalty_contract = await Contract.create(
             code_ids["nebula_penalty"],
             penalty_params=penalty_params,
             owner=self.factory,
         )
+
+        print(penalty_contract)
 
         oracle = self.dummy_oracle
 
@@ -247,7 +260,8 @@ class Ecosystem:
                 "penalty": penalty_contract,
                 "target": target,
                 "pricing_oracle": oracle, # Generic pricing oracle
-                "composition_oracle": recomp_oracle,
+                # "composition_oracle": recomp_oracle,
+                "composition_oracle": deployer.key.acc_address,
             },
         )
 

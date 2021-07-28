@@ -115,7 +115,7 @@ async def set_prices(oracle, contract_addrs, query_info):
             ]
         )
 
-    print(set_prices_data)
+    # print(set_prices_data)
 
     await oracle.set_prices(prices=set_prices_data)
 
