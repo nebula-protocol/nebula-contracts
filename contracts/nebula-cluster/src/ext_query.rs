@@ -31,9 +31,11 @@ pub fn query_price<Q: Querier>(
             quote_asset: "uusd".to_string(),
         })?,
     }))?;
-    if min(res.last_updated_quote, res.last_updated_base) < stale_threshold {
-        return Err(StdError::generic_err(format!("oracle prices are stale")));
-    }
+
+    // TODO: UNCOMMENT THIS WHEN DEPLOYING
+    // if min(res.last_updated_quote, res.last_updated_base) < stale_threshold {
+    //     return Err(StdError::generic_err(format!("oracle prices are stale")));
+    // }
     Ok(res.rate.to_string().as_str().parse().unwrap())
 }
 
