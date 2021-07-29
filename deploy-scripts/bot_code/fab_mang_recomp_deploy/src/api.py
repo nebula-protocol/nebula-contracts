@@ -16,6 +16,6 @@ class Asset:
     @staticmethod
     def asset(string, amount, native=False):
         if not native:
-            return {"info": Asset.cw20_asset_info(string), "amount": amount}
+            return {"info": Asset.cw20_asset_info(string), "amount": str(amount)}
         else:
-            return {"info": Asset.native_asset_info(string), "amount": amount}
+            return {"info": Asset.native_asset_info(string), "amount": str(amount)}

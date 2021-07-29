@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{Binary, HumanAddr, Uint128};
 
-use terraswap::asset::{Asset, AssetInfo};
+use terraswap::asset::Asset;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
@@ -56,7 +56,7 @@ pub enum HandleMsg {
         contract_addr: HumanAddr,
         msg: Binary,
     },
-    RevokeClusterToken {
+    DecommissionCluster {
         cluster_contract: HumanAddr,
         cluster_token: HumanAddr,
     },
@@ -96,7 +96,7 @@ pub struct ClusterExistsResponse {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ClusterListResponse {
-    pub contract_addrs: Vec<HumanAddr>,
+    pub contract_infos: Vec<(HumanAddr, bool)>,
 }
 
 // We define a custom struct for each query response

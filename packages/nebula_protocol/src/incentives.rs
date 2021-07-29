@@ -18,6 +18,7 @@ pub struct InitMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
+    /// OWNER-CALLABLE
     UpdateOwner {
         owner: HumanAddr,
     },
@@ -25,24 +26,26 @@ pub enum HandleMsg {
     Withdraw {},
     NewPenaltyPeriod {},
 
-    SendAll {
+    /// INTERNAL
+    _SendAll {
         asset_infos: Vec<AssetInfo>,
         send_to: HumanAddr,
     },
 
-    SwapAll {
+    _SwapAll {
         terraswap_pair: HumanAddr,
         cluster_token: HumanAddr,
         to_ust: bool,
     },
 
-    RecordTerraswapImpact {
+    _RecordTerraswapImpact {
         arbitrager: HumanAddr,
         terraswap_pair: HumanAddr,
         cluster_contract: HumanAddr,
         pool_before: PoolResponse,
     },
 
+    /// USER-CALLABLE
     ArbClusterMint {
         cluster_contract: HumanAddr,
         assets: Vec<Asset>,

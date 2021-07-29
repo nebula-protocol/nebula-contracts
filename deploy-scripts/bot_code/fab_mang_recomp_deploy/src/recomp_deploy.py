@@ -4,7 +4,7 @@ import yfinance as yf
 
 from graphql_querier import SYM_TO_CONTRACT_TOKEN_TEQ
 
-os.environ["MNEMONIC"] = mnemonic = 'idea salute sniff electric lecture table flag oblige pyramid light ocean heart web ramp save fiscal sting course uncle deputy way field vacant genius'
+os.environ["MNEMONIC"] = mnemonic = 'soda buffalo melt legal zebra claw taxi peace fashion service drastic special coach state rare harsh business bulb tissue illness juice steel screen chef'
 
 os.environ["USE_TEQUILA"] = "1"
 
@@ -49,19 +49,24 @@ class FABMANGRecomposer:
         mAssets = ['m' + name for name in self.asset_names]
         target_assets = [SYM_TO_CONTRACT_TOKEN_TEQ[mAsset] for mAsset in mAssets]
 
-        await self.cluster_contract.reset_target(
-            assets=[Asset.asset_info(a) for a in target_assets],
-            target=target_weights
+        target = []
+        for a, t in zip(target_assets, target_weights):
+            native = (a == 'uluna')
+            target.append(Asset.asset(a, str(t), native=native))
+
+        print(target)
+
+        await self.cluster_contract.update_target(
+            target=target
         )
 
-        # target = await self.cluster_contract.query.target()
-        # cluster = Contract("terra1wa7frpp078hnqnlvevmqjyswvnswp4psmkjred")
-        # cluster_state = await self.cluster_contract.query.cluster_state(
-        #     cluster_contract_address=cluster
-        # )
+        target = await self.cluster_contract.query.target()
+        cluster_state = await self.cluster_contract.query.cluster_state(
+            cluster_contract_address=self.cluster_contract
+        )
 
-        # print("Updated Target: " , target)
-        # print("Updated Cluster State: ", cluster_state)
+        print("Updated Target: " , target)
+        print("Updated Cluster State: ", cluster_state)
         return target_assets, target_weights
 
 async def run_recomposition_periodically(cluster_contract, interval):
@@ -76,6 +81,6 @@ async def run_recomposition_periodically(cluster_contract, interval):
         )
 
 if __name__ == "__main__":
-    cluster_contract = Contract("terra15qcvpgnwecl82rljfupcnl4ek9gqej4mcpy4xf") #TODO: UPDATE
+    cluster_contract = Contract("terra1hpx6dtjt6lxq46t3trwqnlsvhusslmuu84z57m")
     interval = SECONDS_PER_DAY
     asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))

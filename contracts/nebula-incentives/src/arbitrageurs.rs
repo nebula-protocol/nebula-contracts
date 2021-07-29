@@ -70,6 +70,14 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
     let cfg: Config = read_config(&deps.storage)?;
 
     let cluster_state = get_cluster_state(deps, &cluster_contract)?;
+
+    // Might be redundant but here to be safe
+    if !cluster_state.active {
+        return Err(StdError::generic_err(
+            "Cannot call ArbClusterMint on a decommissioned cluster",
+        ));
+    }
+
     let cluster_token = cluster_state.cluster_token;
 
     let pair_info = get_pair_info(deps, &cluster_token)?;
@@ -78,7 +86,7 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
     // also prepare to transfer to cluster contract
     for asset in assets {
         match asset.clone().info {
-            AssetInfo::NativeToken { denom } => {
+            AssetInfo::NativeToken { denom: _ } => {
                 asset.clone().assert_sent_native_token_balance(&env)?
             }
             AssetInfo::Token { contract_addr } => {
@@ -109,7 +117,7 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
     // swap all
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.clone(),
-        msg: to_binary(&HandleMsg::SwapAll {
+        msg: to_binary(&HandleMsg::_SwapAll {
             terraswap_pair: pair_info.contract_addr.clone(),
             cluster_token,
             to_ust: true,
@@ -120,7 +128,7 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
     // record pool state difference
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.clone(),
-        msg: to_binary(&HandleMsg::RecordTerraswapImpact {
+        msg: to_binary(&HandleMsg::_RecordTerraswapImpact {
             arbitrager: env.message.sender.clone(),
             terraswap_pair: pair_info.contract_addr.clone(),
             cluster_contract,
@@ -134,7 +142,7 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract,
-        msg: to_binary(&HandleMsg::SendAll {
+        msg: to_binary(&HandleMsg::_SendAll {
             asset_infos: vec![AssetInfo::NativeToken {
                 denom: cfg.base_denom,
             }],
@@ -158,6 +166,15 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<HandleResponse> {
     assert_cluster_exists(deps, &cluster_contract)?;
 
+    let cluster_state = get_cluster_state(deps, &cluster_contract)?;
+
+    // Might be redundant but here to be safe
+    if !cluster_state.active {
+        return Err(StdError::generic_err(
+            "Cannot call ArbClusterRedeem on a decommissioned cluster",
+        ));
+    }
+
     let mut messages = vec![];
     let contract = env.contract.address.clone();
 
@@ -174,7 +191,6 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
 
     asset.assert_sent_native_token_balance(&env)?;
 
-    let cluster_state = get_cluster_state(deps, &cluster_contract)?;
     let cluster_token = cluster_state.cluster_token;
 
     let pair_info = get_pair_info(deps, &cluster_token)?;
@@ -182,7 +198,7 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
     // swap all
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.clone(),
-        msg: to_binary(&HandleMsg::SwapAll {
+        msg: to_binary(&HandleMsg::_SwapAll {
             terraswap_pair: pair_info.contract_addr.clone(),
             cluster_token: cluster_token.clone(),
             to_ust: false,
@@ -193,7 +209,7 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
     // record pool state difference
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.clone(),
-        msg: to_binary(&HandleMsg::RecordTerraswapImpact {
+        msg: to_binary(&HandleMsg::_RecordTerraswapImpact {
             arbitrager: env.message.sender.clone(),
             terraswap_pair: pair_info.contract_addr.clone(),
             cluster_contract: cluster_contract.clone(),
@@ -227,7 +243,7 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
     // send all
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract,
-        msg: to_binary(&HandleMsg::SendAll {
+        msg: to_binary(&HandleMsg::_SendAll {
             asset_infos,
             send_to: env.message.sender,
         })?,

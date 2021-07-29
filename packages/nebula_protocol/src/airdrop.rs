@@ -12,12 +12,15 @@ pub struct InitMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
+    /// OWNER-CALLABLE
     UpdateConfig {
         owner: Option<HumanAddr>,
     },
     RegisterMerkleRoot {
         merkle_root: String,
     },
+
+    /// USER-CALLABLE
     Claim {
         stage: u8,
         amount: Uint128,

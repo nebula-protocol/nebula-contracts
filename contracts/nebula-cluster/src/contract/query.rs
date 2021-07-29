@@ -4,7 +4,9 @@ use cosmwasm_std::{
 
 use crate::ext_query::{query_cw20_balance, query_cw20_token_supply, query_price};
 use crate::state::{read_config, read_target_asset_data};
-use nebula_protocol::cluster::{ClusterStateResponse, ConfigResponse, QueryMsg, TargetResponse};
+use nebula_protocol::cluster::{
+    ClusterInfoResponse, ClusterStateResponse, ConfigResponse, QueryMsg, TargetResponse,
+};
 use terraswap::asset::AssetInfo;
 use terraswap::querier::query_balance;
 
@@ -23,6 +25,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
         QueryMsg::ClusterState {
             cluster_contract_address,
         } => to_binary(&query_cluster_state(deps, &cluster_contract_address, 0)?),
+        QueryMsg::ClusterInfo {} => to_binary(&query_cluster_info(deps)?),
     }
 }
 
@@ -67,7 +70,12 @@ pub fn query_cluster_state<S: Storage, A: Api, Q: Querier>(
     // get supply from cluster token
     let outstanding_balance_tokens = query_cw20_token_supply(&deps.querier, &cluster_token)?;
 
-    // get prices for each asset
+    if !active && stale_threshold != u64::MIN {
+        return Err(StdError::generic_err(
+            "Decommissioned cluster should have int min stale threshold",
+        ));
+    }
+
     let prices = asset_infos
         .iter()
         .map(|asset_info| {
@@ -102,5 +110,17 @@ pub fn query_cluster_state<S: Storage, A: Api, Q: Querier>(
         cluster_token,
         cluster_contract_address: cluster_contract_address.clone(),
         active,
+    })
+}
+
+pub fn query_cluster_info<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+) -> StdResult<ClusterInfoResponse> {
+    let cfg = &read_config(&deps.storage)?;
+    let name = &cfg.name;
+    let description = &cfg.description;
+    Ok(ClusterInfoResponse {
+        name: name.to_string(),
+        description: description.to_string(),
     })
 }

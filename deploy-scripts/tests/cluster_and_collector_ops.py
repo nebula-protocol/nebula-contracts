@@ -42,20 +42,20 @@ async def test_cluster_and_collector_ops(eco: Ecosystem):
     # should have some neb
     assert int((await eco.neb_token.query.balance(address=eco.collector))["balance"])
 
-async def test_revoke_cluster(eco: Ecosystem):
+async def test_decommission_cluster(eco: Ecosystem):
     print("Testing death of a cluster")
 
-    revoke_cluster_token = eco.factory.revoke_cluster_token(
+    decommission_cluster = eco.factory.decommission_cluster(
         cluster_contract=eco.cluster,
         cluster_token=eco.cluster_token,
     )
 
     if eco.require_gov:
         resp = await eco.create_and_execute_poll(
-            {"contract": eco.factory, "msg": revoke_cluster_token}
+            {"contract": eco.factory, "msg": decommission_cluster}
         )
     else:
-        resp = await revoke_cluster_token
+        resp = await decommission_cluster
 
     logs = resp.logs[0].events_by_type
 
@@ -70,5 +70,12 @@ async def test_revoke_cluster(eco: Ecosystem):
         print('Mint failed as expected') 
     
     await eco.cluster.redeem("2000")
+
+    cluster_list = await eco.factory.query.cluster_list()
+    assert (
+            not cluster_list["contract_infos"][0][1]
+        )
+
+    print(cluster_list)
 
     print("Integration test completed")

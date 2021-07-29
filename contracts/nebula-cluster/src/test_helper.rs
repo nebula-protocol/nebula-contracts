@@ -7,8 +7,8 @@ pub use cosmwasm_std::*;
 pub use cw20::BalanceResponse as Cw20BalanceResponse;
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use nebula_protocol::{
-    cluster::InitMsg,
-    cluster_factory::{ConfigResponse, QueryMsg as FactoryQueryMsg},
+    cluster::{InitMsg, QueryMsg as ClusterQueryMsg, HandleMsg as ClusterHandleMsg},
+    cluster_factory::{ConfigResponse as FactoryConfigResponse, QueryMsg as FactoryQueryMsg},
     oracle::{PriceResponse, QueryMsg as OracleQueryMsg},
     penalty::{MintResponse, PenaltyParams, QueryMsg as PenaltyQueryMsg, RedeemResponse},
 };
@@ -133,7 +133,7 @@ impl WasmMockQuerier {
                                 }
                             };
                             Ok(to_binary(&Cw20BalanceResponse { balance: *balance }))
-                        }
+                        },
                         Ok(Cw20QueryMsg::TokenInfo {}) => {
                             let token_data = match self.token_querier.tokens.get(contract_addr) {
                                 Some(v) => v,
@@ -148,22 +148,13 @@ impl WasmMockQuerier {
                                 }
                             };
                             Ok(to_binary(&token_data.info))
-                        }
+                        },
                         _ => match from_binary(&msg) {
-                            Ok(FactoryQueryMsg::Config {}) => Ok(to_binary(&ConfigResponse {
-                                owner: HumanAddr::from("owner"),
-                                nebula_token: HumanAddr::from("nebula"),
-                                staking_contract: HumanAddr::from("staking"),
-                                commission_collector: HumanAddr::from("collector"),
-                                protocol_fee_rate: "0.03".to_string(),
-                                oracle_contract: HumanAddr::from("oracle"),
-                                terraswap_factory: HumanAddr::from("terraswap_factory"),
-                                token_code_id: 1,
-                                cluster_code_id: 2,
-                                base_denom: "uusd".to_string(),
-                                genesis_time: 1000,
-                                distribution_schedule: vec![],
-                            })),
+
+                            Ok(ClusterQueryMsg::Config {}) => {
+                                let config = consts::factory_config();
+                                Ok(to_binary(&config))
+                            },
                             _ => match from_binary(&msg) {
                                 Ok(PenaltyQueryMsg::Mint {
                                     block_height: _,
@@ -173,36 +164,32 @@ impl WasmMockQuerier {
                                     asset_prices: _,
                                     target_weights: _,
                                 }) => {
-                                    let response = MintResponse {
-                                        mint_tokens: self.penalty_querier.mint_tokens,
-                                        penalty: Uint128(1234),
-                                        log: vec![log("penalty", 1234)],
-                                    };
+                                    let response = consts::mint_response();
                                     Ok(to_binary(&response))
-                                }
+                                },
                                 Ok(PenaltyQueryMsg::Redeem {
                                     block_height: _,
                                     cluster_token_supply: _,
                                     inventory: _,
                                     max_tokens: _,
-                                    redeem_asset_amounts: _,
                                     asset_prices: _,
-                                    target_weights: _,
+                                    target_weights: _, 
+                                    redeem_asset_amounts: _,
                                 }) => {
                                     let response = RedeemResponse {
-                                        redeem_assets: self.penalty_querier.redeem_assets.clone(),
-                                        token_cost: self.penalty_querier.token_cost,
+                                        redeem_assets: vec![Uint128(99), Uint128(98), Uint128(97), Uint128(96)],
                                         penalty: Uint128(1234),
+                                        token_cost: Uint128(1234),
                                         log: vec![log("penalty", 1234)],
                                     };
                                     Ok(to_binary(&response))
-                                }
+                                },
                                 _ => {
-                                    panic!("ExtQueryMsg type not implemented");
+                                    panic!("QueryMsg type not implemented");
                                 }
-                            },
+                            }
                         },
-                    },
+                    }
                 }
             }
             _ => self.base.handle_query(request),
@@ -549,6 +536,31 @@ pub mod consts {
 
     pub fn penalty() -> HumanAddr {
         h("penalty")
+    }
+
+    pub fn factory_config() -> FactoryConfigResponse {
+        FactoryConfigResponse {
+            owner: h("gov"),
+            nebula_token: h("neb"),
+            staking_contract: h("staking"),
+            commission_collector: h("collector"),
+            protocol_fee_rate: "0.01".to_string(),
+            oracle_contract: h("oracle"),
+            terraswap_factory: h("ts_factory"),
+            token_code_id: 1,
+            cluster_code_id: 1,
+            base_denom: "uusd".to_string(),
+            genesis_time: 1,
+            distribution_schedule: vec![(1, 2, Uint128::from(123u128))],
+        }
+    }
+
+    pub fn mint_response() -> MintResponse {
+        MintResponse {
+            mint_tokens: Uint128(99),
+            penalty: Uint128(1234),
+            log: vec![log("penalty", 1234)],
+        }
     }
 }
 

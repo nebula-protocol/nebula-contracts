@@ -15,7 +15,10 @@ pub struct InitMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum HandleMsg {
-    Convert { asset_token: HumanAddr },
+    /// USER-CALLABLE
+    Convert {
+        asset_token: HumanAddr,
+    },
     Distribute {},
 }
 

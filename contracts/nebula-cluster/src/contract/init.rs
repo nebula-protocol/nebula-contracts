@@ -1,4 +1,4 @@
-use crate::error;
+use crate::ext_query::query_asset_balance;
 use crate::{
     state::{save_config, save_target_asset_data},
     util::vec_to_string,
@@ -9,20 +9,29 @@ use cosmwasm_std::{
 use nebula_protocol::cluster::{ClusterConfig, InitMsg};
 use terraswap::asset::{Asset, AssetInfo};
 
-pub fn validate_targets(target_assets: Vec<AssetInfo>) -> bool {
+pub fn validate_targets<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    env: &Env, 
+    target_assets: Vec<AssetInfo>,
+    query: Option<bool>
+) -> StdResult<bool> {
     for i in 0..target_assets.len() - 1 {
+        let to_query = query.unwrap_or(true);
+        if to_query {
+            query_asset_balance(&deps.querier, &env.contract.address, &target_assets[i])?;
+        }
         for j in i + 1..target_assets.len() {
             if target_assets[i].equal(&target_assets[j]) {
-                return false;
+                return Ok(false);
             }
         }
     }
-    return true;
+    return Ok(true);
 }
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    _env: Env,
+    env: Env,
     msg: InitMsg,
 ) -> StdResult<InitResponse> {
     let cfg = ClusterConfig {
@@ -43,9 +52,9 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.info.clone())
         .collect::<Vec<_>>();
 
-    if !validate_targets(asset_infos.clone()) {
+    if validate_targets(&deps, &env, asset_infos.clone(), Some(false)).is_err() {
         return Err(StdError::generic_err(
-            "Cluster cannot contain duplicate assets",
+            "Cluster must contain valid assets and cannot contain duplicate assets",
         ));
     }
 

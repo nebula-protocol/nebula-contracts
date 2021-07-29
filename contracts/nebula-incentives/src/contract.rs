@@ -47,16 +47,16 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::Receive(msg) => receive_cw20(deps, env, msg),
         HandleMsg::Withdraw {} => withdraw_reward(deps, env),
         HandleMsg::NewPenaltyPeriod {} => new_penalty_period(deps, env),
-        HandleMsg::SwapAll {
+        HandleMsg::_SwapAll {
             terraswap_pair,
             cluster_token,
             to_ust,
         } => swap_all(deps, env, terraswap_pair, cluster_token, to_ust),
-        HandleMsg::SendAll {
+        HandleMsg::_SendAll {
             asset_infos,
             send_to,
         } => send_all(deps, env, &asset_infos, send_to),
-        HandleMsg::RecordTerraswapImpact {
+        HandleMsg::_RecordTerraswapImpact {
             arbitrager,
             terraswap_pair,
             cluster_contract,
@@ -69,24 +69,6 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             cluster_contract,
             pool_before,
         ),
-        HandleMsg::ArbClusterMint {
-            cluster_contract,
-            assets,
-        } => arb_cluster_mint(deps, env, cluster_contract, &assets),
-        HandleMsg::ArbClusterRedeem {
-            cluster_contract,
-            asset,
-        } => arb_cluster_redeem(deps, env, cluster_contract, asset),
-        HandleMsg::Mint {
-            cluster_contract,
-            asset_amounts,
-            min_tokens,
-        } => mint(deps, env, cluster_contract, &asset_amounts, min_tokens),
-        HandleMsg::Redeem {
-            cluster_contract,
-            max_tokens,
-            asset_amounts,
-        } => redeem(deps, env, cluster_contract, max_tokens, asset_amounts),
         HandleMsg::_RecordRebalancerRewards {
             rebalancer,
             cluster_contract,
@@ -120,6 +102,24 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             max_tokens,
             asset_amounts,
         ),
+        HandleMsg::ArbClusterMint {
+            cluster_contract,
+            assets,
+        } => arb_cluster_mint(deps, env, cluster_contract, &assets),
+        HandleMsg::ArbClusterRedeem {
+            cluster_contract,
+            asset,
+        } => arb_cluster_redeem(deps, env, cluster_contract, asset),
+        HandleMsg::Mint {
+            cluster_contract,
+            asset_amounts,
+            min_tokens,
+        } => mint(deps, env, cluster_contract, &asset_amounts, min_tokens),
+        HandleMsg::Redeem {
+            cluster_contract,
+            max_tokens,
+            asset_amounts,
+        } => redeem(deps, env, cluster_contract, max_tokens, asset_amounts),
     }
 }
 

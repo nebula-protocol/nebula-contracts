@@ -4,10 +4,10 @@ use cosmwasm_std::{
 };
 
 use crate::state::{
-    cluster_exists, decrease_total_weight, get_clusters, increase_total_weight, read_all_weight,
-    read_config, read_last_distributed, read_params, read_total_weight, read_weight,
-    record_cluster, remove_params, remove_weight, store_config, store_last_distributed,
-    store_params, store_total_weight, store_weight, Config,
+    cluster_exists, deactivate_cluster, decrease_total_weight, get_cluster_data,
+    increase_total_weight, read_all_weight, read_config, read_last_distributed, read_params,
+    read_total_weight, read_weight, record_cluster, remove_params, remove_weight, store_config,
+    store_last_distributed, store_params, store_total_weight, store_weight, Config,
 };
 
 use nebula_protocol::cluster_factory::{
@@ -112,10 +112,10 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::PassCommand { contract_addr, msg } => {
             pass_command(deps, env, contract_addr, msg)
         }
-        HandleMsg::RevokeClusterToken {
+        HandleMsg::DecommissionCluster {
             cluster_contract,
             cluster_token,
-        } => revoke_cluster(deps, env, cluster_contract, cluster_token),
+        } => decommission_cluster(deps, env, cluster_contract, cluster_token),
     }
 }
 
@@ -587,25 +587,26 @@ pub fn _compute_rewards<S: Storage, A: Api, Q: Querier>(
     Ok((rewards, distribution_amount))
 }
 
-pub fn revoke_cluster<S: Storage, A: Api, Q: Querier>(
+pub fn decommission_cluster<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    env: Env,
+    _env: Env,
     cluster_contract: HumanAddr,
     cluster_token: HumanAddr,
 ) -> HandleResult {
     let weight = read_weight(&deps.storage, &cluster_token.clone())?;
     remove_weight(&mut deps.storage, &cluster_token.clone());
     decrease_total_weight(&mut deps.storage, weight)?;
+    deactivate_cluster(&mut deps.storage, &cluster_contract)?;
 
     Ok(HandleResponse {
         /// send message to set active asset
         messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: cluster_contract.clone(),
             send: vec![],
-            msg: to_binary(&ClusterHandleMsg::RevokeAsset {})?,
+            msg: to_binary(&ClusterHandleMsg::Decommission {})?,
         })],
         log: vec![
-            log("action", "revoke_asset"),
+            log("action", "decommission_asset"),
             log("cluster_token", cluster_token.to_string()),
             log("cluster_contract", cluster_contract),
         ],
@@ -661,6 +662,6 @@ pub fn query_clusters<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
 ) -> StdResult<ClusterListResponse> {
     Ok(ClusterListResponse {
-        contract_addrs: get_clusters(&deps.storage)?,
+        contract_infos: get_cluster_data(&deps.storage)?,
     })
 }

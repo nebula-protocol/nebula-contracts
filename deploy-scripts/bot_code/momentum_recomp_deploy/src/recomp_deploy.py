@@ -8,7 +8,7 @@ from graphql_querier import mirror_history_query_test, get_all_mirror_assets_tes
 import time
 import pandas as pd
 
-os.environ["MNEMONIC"] = mnemonic = 'idea salute sniff electric lecture table flag oblige pyramid light ocean heart web ramp save fiscal sting course uncle deputy way field vacant genius'
+os.environ["MNEMONIC"] = mnemonic = 'record sword bounce legal sea busy eight vanish assault among travel pull gravity inmate boost aerobic voyage wagon tiger own prefer cigar shell group'
 
 os.environ["USE_TEQUILA"] = "1"
 
@@ -75,15 +75,21 @@ class MomentumTradingRecomposer:
         print('Best assets', best_assets)
         print('Target weights', target_weights)
         target_weights = [int(100 * target_weight) for target_weight in target_weights]
-        await self.cluster_contract.reset_target(
-            assets=[Asset.asset_info(a) for a in target_assets],
-            target=target_weights
+
+        target = []
+        for a, t in zip(target_assets, target_weights):
+            native = (a == 'uluna')
+            target.append(Asset.asset(a, str(t), native=native))
+
+        print(target)
+
+        await self.cluster_contract.update_target(
+            target=target
         )
 
         target = await self.cluster_contract.query.target()
-        cluster = Contract("terra1qascdg0c2gsewg6c2u8e5fdgc35mhlcufvmzna")
         cluster_state = await self.cluster_contract.query.cluster_state(
-            cluster_contract_address=cluster
+            cluster_contract_address=self.cluster_contract
         )
 
         print("Updated Target: " , target)
@@ -102,6 +108,6 @@ async def run_recomposition_periodically(cluster_contract, interval):
         )
 
 if __name__ == "__main__":
-    cluster_contract = Contract("terra1qascdg0c2gsewg6c2u8e5fdgc35mhlcufvmzna")
+    cluster_contract = Contract("terra1tj6p0aknfcdgcsrt5kxy529p2hngejmnasjm4s")
     interval = SECONDS_PER_DAY
     asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))

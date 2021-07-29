@@ -139,7 +139,7 @@ pub fn query_mint_amount<Q: Querier>(
 }
 
 /// EXTERNAL QUERY
-/// -- Queries the penalty contract for the amount to mint
+/// -- Queries the penalty contract for the amount to redeem
 pub fn query_redeem_amount<Q: Querier>(
     querier: &Q,
     penalty_address: &HumanAddr,
