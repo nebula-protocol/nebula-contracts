@@ -15,7 +15,7 @@ DEFAULT_THRESHOLD = "0.5"
 DEFAULT_VOTING_PERIOD = 4
 DEFAULT_EFFECTIVE_DELAY = 4
 DEFAULT_EXPIRATION_PERIOD = 20000
-DEFAULT_PROPOSAL_DEPOSIT = "10000000000"
+DEFAULT_PROPOSAL_DEPOSIT = "10000"
 DEFAULT_SNAPSHOT_PERIOD = 0
 DEFAULT_VOTER_WEIGHT = "0.1"
 
@@ -87,7 +87,7 @@ class Ecosystem:
             initial_balances=[
                 {
                     "address": deployer.key.acc_address,
-                    "amount": "1000000000000",
+                    "amount": "1000000000000000",
                 },
                 {
                     "address": self.factory,
@@ -146,9 +146,6 @@ class Ecosystem:
         # TODO: Check with Mirror team to see what they do for initial genesis mAsset creation
 
         pprint.pprint(self.__dict__)
-
-        for key in DEPLOY_ENVIRONMENT_STATUS_W_GOV:
-            setattr(self, key, DEPLOY_ENVIRONMENT_STATUS_W_GOV[key])
 
         contract_addrs, symbols, query_info = await get_query_info()
         for ct_sym, recomp_oracle in CT_SYM_TO_RECOMP_ORACLE.items():
@@ -260,8 +257,8 @@ class Ecosystem:
                 "penalty": penalty_contract,
                 "target": target,
                 "pricing_oracle": oracle, # Generic pricing oracle
-                # "composition_oracle": recomp_oracle,
-                "composition_oracle": deployer.key.acc_address,
+                "composition_oracle": recomp_oracle,
+                # "composition_oracle": deployer.key.acc_address,
             },
         )
 
