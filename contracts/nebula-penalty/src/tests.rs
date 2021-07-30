@@ -6,12 +6,12 @@ use crate::mock_querier::{mock_dependencies, WasmMockQuerier};
 use crate::state::{read_config, PenaltyConfig};
 
 use cluster_math::{FPDecimal, dot, imbalance, int32_vec_to_fpdec, int_vec_to_fpdec, str_vec_to_fpdec};
-use cosmwasm_std::testing::{mock_env, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
+use cosmwasm_std::testing::{mock_env, MockApi, MockStorage};
 use cosmwasm_std::{
-    coins, from_binary, log, to_binary, Coin, CosmosMsg, Decimal, Env, Extern, HandleResponse,
-    HumanAddr, StdError, StdResult, Uint128, WasmMsg,
+    from_binary, log, Coin, Env, Extern,
+    HumanAddr, StdError, Uint128,
 };
-use nebula_protocol::penalty::{HandleMsg, InitMsg, MintResponse, ParamsResponse, PenaltyParams, QueryMsg, RedeemResponse};
+use nebula_protocol::penalty::{HandleMsg, InitMsg, MintResponse, PenaltyParams, QueryMsg, RedeemResponse};
 
 const TEST_CREATOR: &str = "creator";
 
