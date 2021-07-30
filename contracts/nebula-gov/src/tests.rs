@@ -1578,7 +1578,7 @@ fn happy_days_withdraw_voting_tokens_all() {
         amount: Uint128::from(11u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -1606,7 +1606,10 @@ fn happy_days_withdraw_voting_tokens_all() {
         &[(&HumanAddr::from(MOCK_CONTRACT_ADDR), &Uint128(22u128))],
     )]);
 
-    let env = mock_env(TEST_VOTER, &[]);
+    let mut env = mock_env(TEST_VOTER, &[]);
+
+    env.block.time += 104 * SECONDS_PER_WEEK;
+
     let msg = HandleMsg::WithdrawVotingTokens { amount: None };
 
     let handle_res = handle(&mut deps, env, msg.clone()).unwrap();
@@ -1653,7 +1656,7 @@ fn withdraw_voting_tokens() {
         amount: Uint128::from(11u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -1758,7 +1761,9 @@ fn withdraw_voting_tokens() {
         )
         .unwrap();
 
-    let env = mock_env(TEST_VOTER, &[]);
+    let mut env = mock_env(TEST_VOTER, &[]);
+
+    env.block.time += 104 * SECONDS_PER_WEEK;
     let msg = HandleMsg::WithdrawVotingTokens {
         amount: Some(Uint128::from(5u128)),
     };
@@ -1824,7 +1829,7 @@ fn fails_withdraw_too_many_tokens() {
         amount: Uint128::from(10u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -1834,7 +1839,8 @@ fn fails_withdraw_too_many_tokens() {
     let handle_res = handle(&mut deps, env, msg.clone()).unwrap();
     assert_stake_tokens_result(10, 0, 10, 0, handle_res, &mut deps);
 
-    let env = mock_env(TEST_VOTER, &[]);
+    let mut env = mock_env(TEST_VOTER, &[]);
+    env.block.time += 104 * SECONDS_PER_WEEK;
     let msg = HandleMsg::WithdrawVotingTokens {
         amount: Some(Uint128::from(11u128)),
     };
@@ -1881,7 +1887,7 @@ fn fails_cast_vote_twice() {
         amount: Uint128::from(11u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -1951,7 +1957,7 @@ fn happy_days_stake_voting_tokens() {
         amount: Uint128::from(11u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -1978,7 +1984,7 @@ fn fails_insufficient_funds() {
         amount: Uint128::from(0u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -2015,7 +2021,7 @@ fn fails_staking_wrong_token() {
         amount: Uint128::from(11u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -2052,7 +2058,7 @@ fn share_calculation() {
         amount: Uint128::from(100u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -2075,7 +2081,7 @@ fn share_calculation() {
         amount: Uint128::from(100u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -2172,7 +2178,7 @@ fn share_calculation_with_voter_rewards() {
         amount: Uint128::from(100u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -2217,7 +2223,7 @@ fn share_calculation_with_voter_rewards() {
         amount: Uint128::from(100u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -2477,7 +2483,7 @@ fn distribute_voting_rewards() {
         amount: Uint128::from(stake_amount),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -2604,7 +2610,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
         amount: Uint128::from(ALICE_STAKE),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -2624,7 +2630,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
         amount: Uint128::from(BOB_STAKE),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -2645,7 +2651,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
         amount: Uint128::from(CINDY_STAKE),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -3161,7 +3167,7 @@ fn test_abstain_votes_theshold() {
         amount: Uint128::from(ALICE_STAKE),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -3181,7 +3187,7 @@ fn test_abstain_votes_theshold() {
         amount: Uint128::from(BOB_STAKE),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -3200,7 +3206,7 @@ fn test_abstain_votes_theshold() {
         amount: Uint128::from(CINDY_STAKE),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -3291,7 +3297,7 @@ fn test_abstain_votes_quorum() {
         amount: Uint128::from(ALICE_STAKE),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -3311,7 +3317,7 @@ fn test_abstain_votes_quorum() {
         amount: Uint128::from(BOB_STAKE),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -3330,7 +3336,7 @@ fn test_abstain_votes_quorum() {
         amount: Uint128::from(CINDY_STAKE),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -3519,7 +3525,7 @@ fn happy_days_cast_vote_with_snapshot() {
         amount: Uint128::from(11u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -3562,7 +3568,7 @@ fn happy_days_cast_vote_with_snapshot() {
         amount: Uint128::from(11u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -3612,7 +3618,7 @@ fn happy_days_cast_vote_with_snapshot() {
         amount: Uint128::from(11u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -3924,7 +3930,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
         amount: Uint128::from(8 * stake_amount as u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
