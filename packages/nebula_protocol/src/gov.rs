@@ -43,7 +43,6 @@ pub enum HandleMsg {
         amount: Option<Uint128>,
     },
     WithdrawVotingRewards {},
-    StakeVotingRewards {},
     EndPoll {
         poll_id: u64,
     },

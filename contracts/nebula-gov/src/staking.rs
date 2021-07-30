@@ -297,61 +297,6 @@ pub fn withdraw_voting_rewards<S: Storage, A: Api, Q: Querier>(
     )
 }
 
-// this doesn't handle timed staking properly, determine whether we should keep this
-pub fn stake_voting_rewards<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
-    _env: Env,
-) -> HandleResult {
-    Err(StdError::generic_err("not implemented"))
-    // let config: Config = config_store(&mut deps.storage).load()?;
-    // let mut state: State = state_store(&mut deps.storage).load()?;
-    // let sender_address_raw = deps.api.canonical_address(&env.message.sender)?;
-    // let key = sender_address_raw.as_slice();
-    //
-    // let mut token_manager = bank_read(&deps.storage)
-    //     .load(key)
-    //     .or(Err(StdError::generic_err("Nothing staked")))?;
-    //
-    // let user_reward_amount: u128 =
-    //     withdraw_user_voting_rewards(&mut deps.storage, &sender_address_raw, &token_manager);
-    // if user_reward_amount.eq(&0u128) {
-    //     return Err(StdError::generic_err("Nothing to withdraw"));
-    // }
-    //
-    // // add the withdrawn rewards to stake pool and calculate share
-    // let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
-    // let total_balance = (load_token_balance(
-    //     &deps,
-    //     &deps.api.human_address(&config.nebula_token)?,
-    //     &state.contract_addr,
-    // )? - total_locked_balance)?;
-    //
-    // state.pending_voting_rewards = (state.pending_voting_rewards - Uint128(user_reward_amount))?;
-    //
-    // let share: Uint128 = if total_balance.is_zero() || state.total_share.is_zero() {
-    //     Uint128(user_reward_amount)
-    // } else {
-    //     Uint128(user_reward_amount).multiply_ratio(state.total_share, total_balance)
-    // };
-    //
-    // token_manager.share += share;
-    // state.total_share += share;
-    //
-    // state_store(&mut deps.storage).save(&state)?;
-    // bank_store(&mut deps.storage).save(key, &token_manager)?;
-    //
-    // Ok(HandleResponse {
-    //     messages: vec![],
-    //     data: None,
-    //     log: vec![
-    //         log("action", "stake_voting_rewards"),
-    //         log("staker", env.message.sender.as_str()),
-    //         log("share", share.to_string()),
-    //         log("amount", user_reward_amount.to_string()),
-    //     ],
-    // })
-}
-
 fn withdraw_user_voting_rewards<S: Storage>(
     storage: &mut S,
     user_address: &HumanAddr,
