@@ -617,7 +617,7 @@ fn happy_days_end_poll() {
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
-    let handle_res = handle(&mut deps, env, msg.clone()).unwrap();
+    let handle_res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
     assert_stake_tokens_result(
         stake_amount,
         DEFAULT_PROPOSAL_DEPOSIT,
@@ -632,8 +632,8 @@ fn happy_days_end_poll() {
         vote: VoteOption::Yes,
         amount: Uint128::from(stake_amount),
     };
-    let env = mock_env_height(TEST_VOTER, &[], POLL_START_HEIGHT, 10000);
-    let handle_res = handle(&mut deps, env, msg).unwrap();
+    let mut env = mock_env_height(TEST_VOTER, &[], POLL_START_HEIGHT, env.block.time);
+    let handle_res = handle(&mut deps, env.clone(), msg).unwrap();
 
     assert_eq!(
         handle_res.log,
@@ -648,7 +648,10 @@ fn happy_days_end_poll() {
 
     // not in passed status
     let msg = HandleMsg::ExecutePoll { poll_id: 1 };
-    let handle_res = handle(&mut deps, creator_env.clone(), msg).unwrap_err();
+
+    env.block.height = creator_env.block.height;
+
+    let handle_res = handle(&mut deps, env.clone(), msg).unwrap_err();
     match handle_res {
         StdError::GenericErr { msg, .. } => assert_eq!(msg, "Poll is not in passed status"),
         _ => panic!("DO NOT ENTER HERE"),
@@ -657,13 +660,18 @@ fn happy_days_end_poll() {
     creator_env.message.sender = HumanAddr::from(TEST_CREATOR);
     creator_env.block.height = &creator_env.block.height + DEFAULT_VOTING_PERIOD;
 
+    env.block.height = creator_env.block.height;
+    
     let msg = HandleMsg::EndPoll { poll_id: 1 };
-    let handle_res = handle(&mut deps, creator_env.clone(), msg).unwrap();
+    let handle_res = handle(&mut deps, env.clone(), msg).unwrap();
 
     assert_eq!(
         handle_res.log,
         vec![
             log("action", "end_poll"),
+            log("quorum", "1"),
+            log("tallied_weight", "1000"),
+            log("staked_weight", "1000"),
             log("poll_id", "1"),
             log("rejected_reason", ""),
             log("passed", "true"),
@@ -693,15 +701,21 @@ fn happy_days_end_poll() {
 
     // effective delay has not expired
     let msg = HandleMsg::ExecutePoll { poll_id: 1 };
-    let handle_res = handle(&mut deps, creator_env.clone(), msg).unwrap_err();
+
+    env.block.height = creator_env.block.height;
+
+    let handle_res = handle(&mut deps, env.clone(), msg).unwrap_err();
     match handle_res {
         StdError::GenericErr { msg, .. } => assert_eq!(msg, "Effective delay has not expired"),
         _ => panic!("DO NOT ENTER HERE"),
     }
 
     creator_env.block.height = &creator_env.block.height + DEFAULT_EFFECTIVE_DELAY;
+    env.block.height = creator_env.block.height;
+
     let msg = HandleMsg::ExecutePoll { poll_id: 1 };
-    let handle_res = handle(&mut deps, creator_env.clone(), msg).unwrap();
+    
+    let handle_res = handle(&mut deps, env.clone(), msg).unwrap();
     assert_eq!(
         handle_res.messages,
         vec![CosmosMsg::Wasm(WasmMsg::Execute {
@@ -785,7 +799,7 @@ fn happy_days_end_poll() {
             share: Uint128(stake_amount),
             locked_balance: vec![],
             pending_voting_rewards: Uint128::zero(),
-            lock_end_week: Some(creator_env.block.time / SECONDS_PER_WEEK),
+            lock_end_week: Some(env.block.time / SECONDS_PER_WEEK + 104),
         }
     );
 }
