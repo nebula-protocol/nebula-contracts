@@ -7,7 +7,7 @@ use cosmwasm_std::{
     log, Api, CosmosMsg, Env, Extern, InitResponse, Querier, StdError, StdResult, Storage, WasmMsg,
 };
 use nebula_protocol::cluster::{ClusterConfig, InitMsg};
-use terraswap::asset::AssetInfo;
+use terraswap::asset::{Asset, AssetInfo};
 
 pub fn validate_targets<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
