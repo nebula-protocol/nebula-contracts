@@ -610,7 +610,7 @@ fn happy_days_end_poll() {
         amount: Uint128::from(stake_amount as u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -842,14 +842,14 @@ fn expire_poll() {
         amount: Uint128::from(stake_amount as u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
-    let handle_res = handle(&mut deps, env, msg.clone()).unwrap();
+    let handle_res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
     assert_stake_tokens_result(
         stake_amount,
         DEFAULT_PROPOSAL_DEPOSIT,
@@ -864,7 +864,7 @@ fn expire_poll() {
         vote: VoteOption::Yes,
         amount: Uint128::from(stake_amount),
     };
-    let env = mock_env_height(TEST_VOTER, &[], POLL_START_HEIGHT, 10000);
+    let env = mock_env_height(TEST_VOTER, &[], POLL_START_HEIGHT, env.block.time);
     let handle_res = handle(&mut deps, env, msg).unwrap();
 
     assert_eq!(
@@ -894,6 +894,9 @@ fn expire_poll() {
         handle_res.log,
         vec![
             log("action", "end_poll"),
+            log("quorum", "1"),
+            log("tallied_weight", "1000"),
+            log("staked_weight", "1000"),
             log("poll_id", "1"),
             log("rejected_reason", ""),
             log("passed", "true"),
@@ -985,7 +988,7 @@ fn end_poll_zero_quorum() {
         amount: Uint128::from(stake_amount as u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -1004,6 +1007,9 @@ fn end_poll_zero_quorum() {
         handle_res.log,
         vec![
             log("action", "end_poll"),
+            log("quorum", "0"),
+            log("tallied_weight", "0"),
+            log("staked_weight", "0"),
             log("poll_id", "1"),
             log("rejected_reason", "Quorum not reached"),
             log("passed", "false"),
@@ -1085,7 +1091,7 @@ fn end_poll_quorum_rejected() {
         amount: Uint128::from(stake_amount as u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -1131,6 +1137,9 @@ fn end_poll_quorum_rejected() {
         handle_res.log,
         vec![
             log("action", "end_poll"),
+            log("quorum", "0.1"),
+            log("tallied_weight", "10"),
+            log("staked_weight", "100"),
             log("poll_id", "1"),
             log("rejected_reason", "Quorum not reached"),
             log("passed", "false"),
@@ -1166,6 +1175,9 @@ fn end_poll_quorum_rejected_noting_staked() {
         handle_res.log,
         vec![
             log("action", "end_poll"),
+            log("quorum", "0"),
+            log("tallied_weight", "0"),
+            log("staked_weight", "0"),
             log("poll_id", "1"),
             log("rejected_reason", "Quorum not reached"),
             log("passed", "false"),
@@ -1207,7 +1219,7 @@ fn end_poll_nay_rejected() {
         amount: Uint128::from(voter1_stake as u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -1237,7 +1249,7 @@ fn end_poll_nay_rejected() {
         amount: Uint128::from(voter2_stake as u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -1272,6 +1284,9 @@ fn end_poll_nay_rejected() {
         handle_res.log,
         vec![
             log("action", "end_poll"),
+            log("quorum", "0.90909090909090909"),
+            log("tallied_weight", "1000"),
+            log("staked_weight", "1100"),
             log("poll_id", "1"),
             log("rejected_reason", "Threshold not reached"),
             log("passed", "false"),
@@ -1309,17 +1324,16 @@ fn fails_cast_vote_not_enough_staked() {
         amount: Uint128::from(10u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
     });
-
     let env = mock_env(VOTING_TOKEN, &[]);
-    let handle_res = handle(&mut deps, env, msg.clone()).unwrap();
+    let handle_res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
     assert_stake_tokens_result(10, DEFAULT_PROPOSAL_DEPOSIT, 10, 1, handle_res, &mut deps);
 
-    let env = mock_env_height(TEST_VOTER, &coins(11, VOTING_TOKEN), 0, 10000);
+    let env = mock_env_height(TEST_VOTER, &coins(11, VOTING_TOKEN), 0, env.block.time);
     let msg = HandleMsg::CastVote {
         poll_id: 1,
         vote: VoteOption::Yes,
@@ -1362,22 +1376,23 @@ fn happy_days_cast_vote() {
         )],
     )]);
 
+    let lock_for_weeks = 104u64;
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(11u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(lock_for_weeks),
             })
             .unwrap(),
         ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
-    let handle_res = handle(&mut deps, env, msg.clone()).unwrap();
+    let handle_res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
     assert_stake_tokens_result(11, DEFAULT_PROPOSAL_DEPOSIT, 11, 1, handle_res, &mut deps);
 
-    let env = mock_env_height(TEST_VOTER, &coins(11, VOTING_TOKEN), 0, 10000);
+    let env = mock_env_height(TEST_VOTER, &coins(11, VOTING_TOKEN), 0, env.block.time);
     let amount = 10u128;
     let msg = HandleMsg::CastVote {
         poll_id: 1,
@@ -1419,7 +1434,7 @@ fn happy_days_cast_vote() {
                 }
             )],
             pending_voting_rewards: Uint128::zero(),
-            lock_end_week: Some(env.block.time / SECONDS_PER_WEEK),
+            lock_end_week: Some(env.block.time / SECONDS_PER_WEEK + lock_for_weeks),
         }
     );
 
@@ -1473,7 +1488,7 @@ fn happy_days_withdraw_voting_tokens() {
         amount: Uint128::from(11u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
@@ -1506,7 +1521,20 @@ fn happy_days_withdraw_voting_tokens() {
         amount: Some(Uint128::from(11u128)),
     };
 
+    let handle_res = handle(&mut deps, env.clone(), msg.clone());
+
+    // Should not allow withdrawal of tokens before lock up expiry.
+    match handle_res {
+        Ok(_) => panic!("Must return error"),
+        Err(StdError::GenericErr { msg, .. }) => 
+            assert_eq!(msg, "User is trying to withdraw tokens before expiry."),
+        Err(e) => panic!("Unexpected error: {:?}", e),
+    }
+
+    let env = mock_env_height(TEST_VOTER, &[], 0, env.block.time + 104 * SECONDS_PER_WEEK);
+
     let handle_res = handle(&mut deps, env, msg.clone()).unwrap();
+
     let msg = handle_res.messages.get(0).expect("no message");
 
     assert_eq!(
@@ -3806,14 +3834,14 @@ fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
         amount: Uint128::from(stake_amount as u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
-    let handle_res = handle(&mut deps, env, msg.clone()).unwrap();
+    let handle_res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
     assert_stake_tokens_result(
         stake_amount,
         DEFAULT_PROPOSAL_DEPOSIT,
@@ -3828,8 +3856,8 @@ fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
         vote: VoteOption::Yes,
         amount: Uint128::from(stake_amount),
     };
-    let env = mock_env_height(TEST_VOTER, &[], POLL_START_HEIGHT, 10000);
-    let handle_res = handle(&mut deps, env, msg).unwrap();
+    let env = mock_env_height(TEST_VOTER, &[], POLL_START_HEIGHT, env.block.time);
+    let handle_res = handle(&mut deps, env.clone(), msg).unwrap();
 
     assert_eq!(
         handle_res.log,
@@ -3858,17 +3886,17 @@ fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
     //cast another vote
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER_2),
-        amount: Uint128::from(8 * stake_amount as u128),
+        amount: Uint128::from(9 * stake_amount as u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),
     });
 
-    let env = mock_env(VOTING_TOKEN, &[]);
-    let _handle_res = handle(&mut deps, env, msg.clone()).unwrap();
+    let env = mock_env_height(VOTING_TOKEN, &[], 0, env.block.time);
+    let _handle_res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
 
     // another voter cast a vote
     let msg = HandleMsg::CastVote {
@@ -3876,7 +3904,7 @@ fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
         vote: VoteOption::Yes,
         amount: Uint128::from(stake_amount),
     };
-    let env = mock_env_height(TEST_VOTER_2, &[], creator_env.block.height, 10000);
+    let env = mock_env_height(TEST_VOTER_2, &[], POLL_START_HEIGHT, env.block.time);
     let handle_res = handle(&mut deps, env, msg).unwrap();
 
     assert_eq!(
@@ -3901,6 +3929,9 @@ fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
         handle_res.log,
         vec![
             log("action", "end_poll"),
+            log("quorum", "0.2"),
+            log("tallied_weight", "2000"),
+            log("staked_weight", "10000"),
             log("poll_id", "1"),
             log("rejected_reason", "Quorum not reached"),
             log("passed", "false"),
@@ -3969,7 +4000,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
         amount: Uint128::from(stake_amount as u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
-                lock_for_weeks: Some(0u64),
+                lock_for_weeks: Some(104u64),
             })
             .unwrap(),
         ),

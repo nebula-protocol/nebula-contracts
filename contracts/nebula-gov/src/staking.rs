@@ -63,12 +63,11 @@ pub fn stake_voting_tokens<S: Storage, A: Api, Q: Querier>(
     let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
     let total_balance = (load_token_balance(&deps, &config.nebula_token, &state.contract_addr)?
         - (total_locked_balance + amount))?;
-
     let share = if total_balance.is_zero() || state.total_share.is_zero() {
         amount
     } else {
         amount.multiply_ratio(state.total_share, total_balance)
-    };
+    };    
 
     let mut total_voting_power = total_voting_power_read(&deps.storage).load()?;
 
@@ -113,7 +112,7 @@ pub fn stake_voting_tokens<S: Storage, A: Api, Q: Querier>(
     state_store(&mut deps.storage).save(&state)?;
     bank_store(&mut deps.storage).save(key, &token_manager)?;
     total_voting_power_store(&mut deps.storage).save(&total_voting_power)?;
-
+    
     Ok(HandleResponse {
         messages: vec![],
         data: None,

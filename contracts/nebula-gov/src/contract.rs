@@ -603,6 +603,7 @@ pub fn cast_vote<S: Storage, A: Api, Q: Querier>(
     let total_balance = (load_token_balance(&deps, &config.nebula_token, &state.contract_addr)?
         - total_locked_balance)?;
 
+
     let voting_power = calc_voting_power(
         token_manager
             .share
@@ -610,6 +611,7 @@ pub fn cast_vote<S: Storage, A: Api, Q: Querier>(
         token_manager.lock_end_week.unwrap(),
         env.block.time / SECONDS_PER_WEEK,
     );
+    
     if voting_power < amount {
         return Err(StdError::generic_err(
             "User does not have enough staked tokens.",

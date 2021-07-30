@@ -232,7 +232,7 @@ pub fn decommission<S: Storage, A: Api, Q: Querier>(
     if !cfg.active {
         return Err(StdError::generic_err(
             "Cannot decommission an already decommissioned cluster",
-        ));;
+        ));
     }
 
     config_store(&mut deps.storage).update(|mut config| {
