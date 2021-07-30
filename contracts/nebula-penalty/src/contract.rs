@@ -89,6 +89,7 @@ pub fn notional_penalty<S: Storage, A: Api, Q: Querier>(
         // use penalty function
         let cutoff_lo = penalty_cutoff_lo * e;
         let cutoff_hi = penalty_cutoff_hi * e;
+
         if imb1 > cutoff_hi {
             return Err(StdError::generic_err("cluster imbalance too high"));
         }
