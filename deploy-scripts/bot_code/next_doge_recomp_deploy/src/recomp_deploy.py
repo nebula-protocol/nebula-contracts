@@ -5,13 +5,7 @@ import json
 from datetime import timedelta, datetime
 
 os.environ["MNEMONIC"] = mnemonic = 'parent hospital arrest brush exact giraffe glimpse exist grain curtain always depend session wash twin insane rural brain ahead destroy sudden claim story funny'
-
 os.environ["USE_TEQUILA"] = "1"
-
-from terra_sdk.client.lcd import AsyncLCDClient
-from terra_sdk.client.localterra import AsyncLocalTerra
-from terra_sdk.core.auth import StdFee
-from terra_sdk.key.mnemonic import MnemonicKey
 
 from api import Asset
 from contract_helpers import Contract, ClusterContract, terra
@@ -106,7 +100,8 @@ class NextDogeRecomposer:
             activated_asset_to_mcap[asset_id] = mcap
         return activated_asset_to_mcap
     
-    async def weighting(self, curr_timestamp):
+    async def weighting(self):
+        curr_timestamp = datetime.now().timestamp()
         self.try_deactivate_expired(curr_timestamp)
 
         # Check if an activation event was triggered in the past H hours
@@ -143,19 +138,20 @@ class NextDogeRecomposer:
                 target_weights.append(weight)
         else:
             target_weights = self.default_weights
-        return target_weights
-        
-    
-    async def recompose(self):
-        target_weights = await self.weighting(datetime.now().timestamp())
-        print(self.asset_ids, target_weights)
-        target_weights = [int(100 * target_weight) for target_weight in target_weights]
+
+        target_weights = [int(10000 * target_weight) for target_weight in target_weights]
 
         target = []
         for a, t in zip(self.asset_infos, target_weights):
             native = (a == 'uluna') or (a == 'uusd')
             if t > 0:
                 target.append(Asset.asset(a, str(t), native=native))
+
+        return target
+        
+    
+    async def recompose(self):
+        target = await self.weighting()
 
         print(target)
 
@@ -172,7 +168,7 @@ class NextDogeRecomposer:
         print("Updated Target: " , target)
         print("Updated Cluster State: ", cluster_state)
 
-        return self.asset_infos, target_weights
+        return target
 
 async def run_recomposition_periodically(cluster_contract, interval):
     recomposition_bot = NextDogeRecomposer(cluster_contract)

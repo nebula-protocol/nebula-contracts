@@ -4,13 +4,7 @@ import requests
 import json
 
 os.environ["MNEMONIC"] = mnemonic = 'trash comic lawn fatal jewel alien twin drip immense general rose ahead coffee rack liquid bottom because unveil clean butter leave wear slam surprise'
-
 os.environ["USE_TEQUILA"] = "1"
-
-from terra_sdk.client.lcd import AsyncLCDClient
-from terra_sdk.client.localterra import AsyncLocalTerra
-from terra_sdk.core.auth import StdFee
-from terra_sdk.key.mnemonic import MnemonicKey
 
 from api import Asset
 from contract_helpers import Contract, ClusterContract, terra
@@ -70,13 +64,8 @@ class FutureOfFranceRecomposer:
             print("{} has TVL of {}M".format(slug, tvl/ONE_MILLION))
         denom = sum(tvls.values())
         print("Total TVL of all assets: {}M".format(denom/ONE_MILLION))
-        target = [tvls[slug]/denom for slug in self.slugs]
+        target_weights = [tvls[slug]/denom for slug in self.slugs]
         asset_tokens = [self.assets_to_address[an] for an in self.asset_names]
-        return asset_tokens, target
-        
-    
-    async def recompose(self):
-        asset_tokens, target_weights = await self.weighting()
         print(self.asset_names, target_weights)
         target_weights = [int(100 * target_weight) for target_weight in target_weights]
 
@@ -84,7 +73,12 @@ class FutureOfFranceRecomposer:
         for a, t in zip(asset_tokens, target_weights):
             native = (a == 'uluna')
             target.append(Asset.asset(a, str(t), native=native))
-
+        return target
+        
+    
+    async def recompose(self):
+        target = await self.weighting()
+        
         print(target)
 
         await self.cluster_contract.update_target(
@@ -98,7 +92,7 @@ class FutureOfFranceRecomposer:
 
         print("Updated Target: " , target)
         print("Updated Cluster State: ", cluster_state)
-        return self.asset_names, target_weights
+        return target
 
 async def run_recomposition_periodically(cluster_contract, interval):
     recomposition_bot = FutureOfFranceRecomposer(cluster_contract)

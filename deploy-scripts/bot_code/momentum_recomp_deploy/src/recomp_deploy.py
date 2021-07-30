@@ -12,11 +12,6 @@ os.environ["MNEMONIC"] = mnemonic = 'record sword bounce legal sea busy eight va
 
 os.environ["USE_TEQUILA"] = "1"
 
-from terra_sdk.client.lcd import AsyncLCDClient
-from terra_sdk.client.localterra import AsyncLocalTerra
-from terra_sdk.core.auth import StdFee
-from terra_sdk.key.mnemonic import MnemonicKey
-
 from api import Asset
 from contract_helpers import Contract, ClusterContract, terra
 
@@ -67,19 +62,21 @@ class MomentumTradingRecomposer:
         name_to_addr = {name: addrs for name, addrs in zip(asset_names, addresses)}
         target_assets = [name_to_addr[b_a] for b_a in best_assets]
 
-        return target_assets, target_weights, best_assets
-    
-    async def recompose(self):
-
-        target_assets, target_weights, best_assets = await self.weighting()
         print('Best assets', best_assets)
         print('Target weights', target_weights)
+
         target_weights = [int(100 * target_weight) for target_weight in target_weights]
 
         target = []
         for a, t in zip(target_assets, target_weights):
             native = (a == 'uluna')
             target.append(Asset.asset(a, str(t), native=native))
+
+        return target
+    
+    async def recompose(self):
+
+        target = await self.weighting()
 
         print(target)
 
@@ -94,7 +91,7 @@ class MomentumTradingRecomposer:
 
         print("Updated Target: " , target)
         print("Updated Cluster State: ", cluster_state)
-        return target_assets, target_weights
+        return target
 
 async def run_recomposition_periodically(cluster_contract, interval):
     start_time = time.time()

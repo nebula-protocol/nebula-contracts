@@ -1,40 +1,47 @@
 from contract_helpers import Contract, ClusterContract
+from bot_code.bullish_cross_recomp_deploy.src.recomp_deploy import BullishCrossRecomposer
+from bot_code.next_doge_recomp_deploy.src.recomp_deploy import NextDogeRecomposer
+from bot_code.momentum_recomp_deploy.src.recomp_deploy import MomentumTradingRecomposer
+from bot_code.terra_ecosystem_recomp_deploy.src.recomp_deploy import TerraFullDilutedMcapRecomposer, get_terra_ecosystem_info
+from bot_code.fab_mang_recomp_deploy.src.recomp_deploy import FABMANGRecomposer
+from bot_code.future_of_france_recomp_deploy.src.recomp_deploy import FutureOfFranceRecomposer
+
 
 DEPLOY_ENVIRONMENT_STATUS_W_GOV = {
-  'airdrop': Contract("terra1f6mg20qnt638qq69f2tvw4nk7mlu470y56s2zn"),
+  'airdrop': Contract("terra1r8ff3p8rxuverx3y52gd5a7r7vgw756vvthqcs"),
   'asset_prices': None,
   'asset_tokens': None,
   'cluster': None,
   'cluster_pair': None,
   'cluster_token': None,
-  'code_ids': {'nebula_airdrop': '6747',
-              'nebula_cluster': '6732',
-              'nebula_cluster_factory': '6740',
-              'nebula_collector': '6742',
-              'nebula_community': '6746',
-              'nebula_dummy_oracle': '6741',
-              'nebula_gov': '6734',
-              'nebula_incentives': '6744',
-              'nebula_incentives_custody': '6743',
-              'nebula_lp_staking': '6737',
-              'nebula_penalty': '6736',
-              'terraswap_factory': '6733',
-              'terraswap_oracle': '6735',
-              'terraswap_pair': '6738',
-              'terraswap_router': '6745',
-              'terraswap_token': '6739'},
-  'collector': Contract("terra1zpjmxrk5lyz43ae5ltpahmmp8grtzm74ljfyxv"),
-  'community': Contract("terra1qd5rlq6653vzetgr6xhm0uc4v6jad6wmqzwq6n"),
-  'dummy_oracle': Contract("terra1ajjdnwvmhgc36p75apzrzkh2ekd8af3hqlzeka"), # Hard coded
-  'factory': Contract("terra18n5ayre7mwwewaltct5ntux7vg0yacer7elx44"),
-  'gov': Contract("terra1ykg9llugs7drrt3qkelz0q8vjj2d4ph93xsysg"),
-  'incentives': Contract("terra13kd0tkue7dlcz0wf7fmkzw6wwwh84jmuzxyjvh"),
-  'incentives_custody': Contract("terra18k8jtzphryx3ghh95mxq904n63c78404wfhsfw"),
+  'code_ids': {'nebula_airdrop': '6906',
+              'nebula_cluster': '6891',
+              'nebula_cluster_factory': '6899',
+              'nebula_collector': '6901',
+              'nebula_community': '6905',
+              'nebula_dummy_oracle': '6900',
+              'nebula_gov': '6893',
+              'nebula_incentives': '6903',
+              'nebula_incentives_custody': '6902',
+              'nebula_lp_staking': '6896',
+              'nebula_penalty': '6895',
+              'terraswap_factory': '6892',
+              'terraswap_oracle': '6894',
+              'terraswap_pair': '6897',
+              'terraswap_router': '6904',
+              'terraswap_token': '6898'},
+  'collector': Contract("terra1jlkjgzzdej6784vpqfllqnayy65tfrswq9zef0"),
+  'community': Contract("terra1rh5gvl0pz8t8u7mm58x4ywhnp6zrttp45wkmur"),
+  'dummy_oracle': Contract("terra1ajjdnwvmhgc36p75apzrzkh2ekd8af3hqlzeka"),
+  'factory': Contract("terra193w6tr2c2lyfhj2lnjekh9u94w97adh3d6ftu0"),
+  'gov': Contract("terra14drm949cen0cny43zjfrdgyqffy7g4c08p0fzr"),
+  'incentives': Contract("terra195e4pkkurjj0ul597yupare6z9kwyp6x092x63"),
+  'incentives_custody': Contract("terra1qt36asnys8tgf4cqlw6ss2uzq0zv7nd07dcl9w"),
   'lp_token': None,
-  'neb_pair': Contract("terra13eccqfr3stmnlhdj6azxh9ur8nq3qcaj47fpje"),
-  'neb_token': Contract("terra1nrsdypzxrlpz98kumlhecwwama3g72lcszz0fw"),
+  'neb_pair': Contract("terra1as6rm64lfdet0w850t0ysvykmrlq8ll9lss35t"),
+  'neb_token': Contract("terra13qhg3v5kpkmqm7tu4hetll0lvnjdlpth5a5w3t"),
   'require_gov': True,
-  'staking': Contract("terra1p89np5346pwjxfxrd0euzgnuzvw3lltw8xmwmh"),
+  'staking': Contract("terra18fjkqd9hcyw3rlunfa69catnrr0stq4v80w2v4"),
   'terraswap_factory': Contract("terra18qpjm4zkvqnpjpw0zn0tdr8gdzvt8au35v45xf")
 }
 
@@ -280,7 +287,7 @@ SYM_TO_COINGECKO_ID = {
     'MEME': 'degenerator'
 }
 
-# Helper for deplying
+# Helper for deploying
 CT_SYM_TO_NAME = { 
     'TER': 'Terra Ecosystem',
     'FABMANG': 'FAB MANG',
@@ -288,4 +295,24 @@ CT_SYM_TO_NAME = {
     'BULL': 'Bullish Cross',
     'FOF': 'The Future of France',
     'NOGE': 'The Next Doge',
+}
+
+# Helper for deploying
+CT_SYM_TO_RECOMP_ORACLE = { 
+    'TER': 'terra14ew659y4fn4dytu832k9f6l2u94668uclrywfg',
+    'FABMANG': 'terra1k5ymxx67tl6cd3dk4kxwt7mwl03dnuqggm8vsv',
+    'MOMENTUM': 'terra1m0z2ul2kzz2ua2fttstn0wkm2fp500pm9am396',
+    'BULL': 'terra1e3u7msymmkxu8u68rdvg0nqmq7zaafttcq64ky',
+    'FOF': 'terra17qfm7gmtcup5tjq99rhm7a685x6vffg3v8u3wk',
+    'NOGE': 'terra14s0lccdf88wq7t0hxkzwwnglskh588dy0nxzkc',
+}
+
+# Helper for deploying
+CT_SYM_TO_RECOMPOSER = { 
+    'TER': TerraFullDilutedMcapRecomposer,
+    'FABMANG': FABMANGRecomposer,
+    'MOMENTUM': MomentumTradingRecomposer,
+    'BULL': BullishCrossRecomposer,
+    'FOF': FutureOfFranceRecomposer,
+    'NOGE': NextDogeRecomposer,
 }

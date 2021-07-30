@@ -13,11 +13,6 @@ os.environ["MNEMONIC"] = mnemonic = 'know ice noble near track exercise present 
 
 os.environ["USE_TEQUILA"] = "1"
 
-from terra_sdk.client.lcd import AsyncLCDClient
-from terra_sdk.client.localterra import AsyncLocalTerra
-from terra_sdk.core.auth import StdFee
-from terra_sdk.key.mnemonic import MnemonicKey
-
 from api import Asset
 from contract_helpers import Contract, ClusterContract, terra
 
@@ -116,7 +111,7 @@ class BullishCrossRecomposer:
         
         return mcs
 
-    async def cross_weighting(self):
+    async def weighting(self):
 
         self.asset_addresses = await get_all_mirror_assets_test()
 
@@ -188,13 +183,13 @@ class BullishCrossRecomposer:
         assets, target_weights = zip(*target.items())
         asset_tokens = [names_to_contracts[a] for a in assets]
 
-        return list(asset_tokens), list(target_weights), list(assets)
-    
-    async def recompose(self):
-        asset_tokens, target_weights, names = await self.cross_weighting()
+        asset_tokens, target_weights, names = list(asset_tokens), list(target_weights), list(assets)
+
         print('Best assets', names)
         print('Target weights', target_weights)
-        target_weights = [int(100 * target_weight) for target_weight in target_weights]
+
+
+        target_weights = [int(10000 * target_weight) for target_weight in target_weights]
 
         target = []
         for a, t in zip(asset_tokens, target_weights):
@@ -202,6 +197,11 @@ class BullishCrossRecomposer:
             if t > 0:
                 target.append(Asset.asset(a, str(t), native=native))
 
+        return target
+    
+    async def recompose(self):
+        target = await self.weighting()
+        
         print(target)
 
         await self.cluster_contract.update_target(
@@ -215,7 +215,7 @@ class BullishCrossRecomposer:
 
         print("Updated Target: " , target)
         print("Updated Cluster State: ", cluster_state)
-        return asset_tokens, target_weights
+        return target
 
 async def run_recomposition_periodically(cluster_contract, interval):
     start_time = time.time()

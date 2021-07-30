@@ -18,7 +18,6 @@ static PREFIX_CLUSTERS: &[u8] = b"clusters";
 pub struct Config {
     pub owner: HumanAddr,
     pub nebula_token: HumanAddr,
-    pub oracle_contract: HumanAddr,
     pub terraswap_factory: HumanAddr,
     pub staking_contract: HumanAddr,
     pub commission_collector: HumanAddr,

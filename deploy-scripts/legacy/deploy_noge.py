@@ -8,16 +8,14 @@ from ecosystem import Ecosystem
 from contract_helpers import Contract, ClusterContract, chain
 import asyncio
 from base import deployer
-from constants import DEPLOY_ENVIRONMENT_STATUS_W_GOV, CONTRACT_TOKEN_TO_SYM_TEQ, CT_SYM_TO_NAME
+from constants import DEPLOY_ENVIRONMENT_STATUS_W_GOV, CONTRACT_TOKEN_TO_SYM_TEQ
 import json
 import requests
-
-import sys
 
 REQUIRE_GOV = True
 
 
-async def deploy_cluster(ct_symbol, recomp_oracle):
+async def deploy_noge():
 
     ecosystem = Ecosystem(require_gov=REQUIRE_GOV)
 
@@ -28,7 +26,18 @@ async def deploy_cluster(ct_symbol, recomp_oracle):
     for key in DEPLOY_ENVIRONMENT_STATUS_W_GOV:
         setattr(ecosystem, key, DEPLOY_ENVIRONMENT_STATUS_W_GOV[key])
 
+    # Just include MIR for now, and rely on recomp to do things
+    asset_tokens = [
+        Contract("terra1gkjll5uwqlwa8mrmtvzv435732tffpjql494fd"),  # MIR
+    ]
+
     code_ids = ecosystem.code_ids
+    oracle = await Contract.create(
+        code_ids["nebula_dummy_oracle"],
+        terraswap_factory=ecosystem.terraswap_factory,
+        base_denom="uusd",
+    )
+    print('dummy pricing oracle', oracle)
     
     penalty_params = {
         "penalty_amt_lo": "0.1",
@@ -40,9 +49,7 @@ async def deploy_cluster(ct_symbol, recomp_oracle):
     }
 
     # Weight equally at first then can wait for rebalance to simplify things
-    assets = [
-        Asset.asset("terra1gkjll5uwqlwa8mrmtvzv435732tffpjql494fd", "1") # MIR
-    ]
+    target_weights = [1]
 
     penalty_contract = await Contract.create(
         code_ids["nebula_penalty"],
@@ -50,19 +57,15 @@ async def deploy_cluster(ct_symbol, recomp_oracle):
         owner=ecosystem.factory,
     )
 
-    print("Trying to deploy", CT_SYM_TO_NAME[ct_symbol], ct_symbol)
-
-    oracle = ecosystem.dummy_oracle
-
     create_cluster = ecosystem.factory.create_cluster(
         params={
-            "name": CT_SYM_TO_NAME[ct_symbol],
-            "description": f"Testing {ct_symbol} cluster",
-            "symbol": ct_symbol,
+            "name": "The Next DOGE",
+            "symbol": "NOGE",
             "penalty": penalty_contract,
-            "target": assets,
-            "pricing_oracle": oracle, # Generic pricing oracle
-            "composition_oracle": recomp_oracle,
+            "target": target_weights,
+            "assets": [Asset.cw20_asset_info(i.address) for i in asset_tokens],
+            "pricing_oracle": oracle,
+            "composition_oracle": 'terra1y602xtyd2ycp0c76uhn3tq7w8rj9rh7t07rwjn',
         },
     )
 
@@ -82,7 +85,7 @@ async def deploy_cluster(ct_symbol, recomp_oracle):
             print('post send', staker_info)
 
         resp = await ecosystem.create_and_execute_poll(
-            {"contract": ecosystem.factory, "msg": create_cluster}, sleep_time=45
+            {"contract": ecosystem.factory, "msg": create_cluster}, sleep_time=30
         )
 
     else:
@@ -101,17 +104,17 @@ async def deploy_cluster(ct_symbol, recomp_oracle):
     cluster = ClusterContract(
         addresses[3],
         cluster_token,
-        None,
+        asset_tokens,
     )
 
     print("cluster", cluster)
 
 
     # Set prices so we can see if cluster deploys properly
-    price_addresses = list(CONTRACT_TOKEN_TO_SYM_TEQ.keys())
+    addresses = list(CONTRACT_TOKEN_TO_SYM_TEQ.keys())
     prices = [
-        (a, "1") for a in price_addresses if a is not None
-    ] + [("uusd", "1"), ("uluna", "1")]
+        (a, "1") for a in addresses if a is not None
+    ]
 
     # Will use pricing bot to set prices later
     await oracle.set_prices(prices=prices)
@@ -127,15 +130,11 @@ async def deploy_cluster(ct_symbol, recomp_oracle):
 
     print(logs)
 
-    print("deployer account", deployer.key.acc_address)
+    print("account", deployer.key.acc_address)
     
-    print("assets", assets)
-    # print("ecosystem", ecosystem.__dict__)
+    print("assets", asset_tokens)
+    print("ecosystem", ecosystem.__dict__)
 
-    cluster_list = await ecosystem.factory.query.cluster_list()
-    print('cluster_list', cluster_list)
 
 if __name__ == "__main__":
-    ct_symbol = sys.argv[1]
-    recomp_oracle = sys.argv[2]
-    asyncio.get_event_loop().run_until_complete(deploy_cluster(ct_symbol, recomp_oracle))
+    asyncio.get_event_loop().run_until_complete(deploy_noge())

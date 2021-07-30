@@ -78,9 +78,7 @@ async def get_prices(infos):
     print(prices)
     return prices
 
-async def pricing_bot():
-    oracle = Contract("terra1ajjdnwvmhgc36p75apzrzkh2ekd8af3hqlzeka")
-
+async def get_query_info():
     contract_addrs = []
     symbols = []
     query_info = []
@@ -100,6 +98,31 @@ async def pricing_bot():
         else:
             # Use symbol mapping for CoinGecko
             query_info.append([symbol, False])
+
+    return contract_addrs, symbols, query_info
+
+async def set_prices(oracle, contract_addrs, query_info):
+    price_data = await get_prices(query_info)
+    set_prices_data = []
+
+    for i in range(len(contract_addrs)):
+        set_prices_data.append(
+            [
+                contract_addrs[i], np.format_float_positional(
+                    np.round(float(price_data[i]), 18),
+                    trim='0'
+                )
+            ]
+        )
+
+    # print(set_prices_data)
+
+    await oracle.set_prices(prices=set_prices_data)
+
+async def pricing_bot():
+    oracle = Contract("terra1ajjdnwvmhgc36p75apzrzkh2ekd8af3hqlzeka")
+
+    contract_addrs, symbols, query_info = get_query_info()
             
     while True:
         # TODO: FIX THIS

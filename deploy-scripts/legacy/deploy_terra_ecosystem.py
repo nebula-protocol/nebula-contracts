@@ -8,16 +8,12 @@ from ecosystem import Ecosystem
 from contract_helpers import Contract, ClusterContract, chain
 import asyncio
 from base import deployer
-from constants import DEPLOY_ENVIRONMENT_STATUS_W_GOV, CONTRACT_TOKEN_TO_SYM_TEQ, CT_SYM_TO_NAME
-import json
-import requests
-
-import sys
+from constants import DEPLOY_ENVIRONMENT_STATUS_W_GOV, SYM_TO_CONTRACT_TOKEN_TEQ
 
 REQUIRE_GOV = True
 
 
-async def deploy_cluster(ct_symbol, recomp_oracle):
+async def deploy_terra_ecosystem():
 
     ecosystem = Ecosystem(require_gov=REQUIRE_GOV)
 
@@ -28,7 +24,21 @@ async def deploy_cluster(ct_symbol, recomp_oracle):
     for key in DEPLOY_ENVIRONMENT_STATUS_W_GOV:
         setattr(ecosystem, key, DEPLOY_ENVIRONMENT_STATUS_W_GOV[key])
 
+    MIR_ADDR = SYM_TO_CONTRACT_TOKEN_TEQ['MIR']
+    ANC_ADDR = SYM_TO_CONTRACT_TOKEN_TEQ['ANC']
+
+    cw20_asset_tokens = [
+        Contract(MIR_ADDR),  # MIR
+        Contract(ANC_ADDR),  # ANC
+    ]
+
     code_ids = ecosystem.code_ids
+    oracle = await Contract.create(
+        code_ids["nebula_dummy_oracle"],
+        terraswap_factory=ecosystem.terraswap_factory,
+        base_denom="uusd",
+    )
+    print('dummy pricing oracle', oracle)
     
     penalty_params = {
         "penalty_amt_lo": "0.1",
@@ -40,9 +50,8 @@ async def deploy_cluster(ct_symbol, recomp_oracle):
     }
 
     # Weight equally at first then can wait for rebalance to simplify things
-    assets = [
-        Asset.asset("terra1gkjll5uwqlwa8mrmtvzv435732tffpjql494fd", "1") # MIR
-    ]
+    target_weights = [1, 1, 1]
+    # target_weights = [1, 1]
 
     penalty_contract = await Contract.create(
         code_ids["nebula_penalty"],
@@ -50,19 +59,18 @@ async def deploy_cluster(ct_symbol, recomp_oracle):
         owner=ecosystem.factory,
     )
 
-    print("Trying to deploy", CT_SYM_TO_NAME[ct_symbol], ct_symbol)
-
-    oracle = ecosystem.dummy_oracle
+    # Asset tokens to include
+    asset_tokens = [Asset.cw20_asset_info(i) for i in cw20_asset_tokens] + [Asset.native_asset_info('uluna')]
 
     create_cluster = ecosystem.factory.create_cluster(
         params={
-            "name": CT_SYM_TO_NAME[ct_symbol],
-            "description": f"Testing {ct_symbol} cluster",
-            "symbol": ct_symbol,
+            "name": "Terra Ecosystem",
+            "symbol": "TER",
             "penalty": penalty_contract,
-            "target": assets,
-            "pricing_oracle": oracle, # Generic pricing oracle
-            "composition_oracle": recomp_oracle,
+            "target": target_weights,
+            "assets": asset_tokens,
+            "pricing_oracle": oracle,
+            "composition_oracle": 'terra1qyz9ps2dpv8ay4rg4hy65fvc3wjxu83s246tpy',
         },
     )
 
@@ -82,9 +90,9 @@ async def deploy_cluster(ct_symbol, recomp_oracle):
             print('post send', staker_info)
 
         resp = await ecosystem.create_and_execute_poll(
-            {"contract": ecosystem.factory, "msg": create_cluster}, sleep_time=45
+            {"contract": ecosystem.factory, "msg": create_cluster}, sleep_time=30
         )
-
+        
     else:
         resp = await create_cluster
 
@@ -97,45 +105,63 @@ async def deploy_cluster(ct_symbol, recomp_oracle):
     cluster_pair = Contract(addresses[1])
     lp_token = Contract(addresses[0])
 
-    # Use this because cw20
-    cluster = ClusterContract(
+    cluster_info = ClusterContract(
         addresses[3],
         cluster_token,
-        None,
+        asset_tokens,
+    )
+
+    print(cluster_info)
+
+    cluster = Contract(
+        addresses[3],
     )
 
     print("cluster", cluster)
 
-
-    # Set prices so we can see if cluster deploys properly
-    price_addresses = list(CONTRACT_TOKEN_TO_SYM_TEQ.keys())
     prices = [
-        (a, "1") for a in price_addresses if a is not None
-    ] + [("uusd", "1"), ("uluna", "1")]
+        (MIR_ADDR, "1"),
+        (ANC_ADDR, "1"),
+        ("uluna", "1")
+    ]
 
-    # Will use pricing bot to set prices later
     await oracle.set_prices(prices=prices)
 
     print('setting prices')
 
-    # await cluster.mint(asset_amounts=["1000"], min_tokens="100")
+    mint_cw20_assets = [
+        Contract(MIR_ADDR),
+        Contract(ANC_ADDR),
+    ]
+
+    # Do this separately because we have a native asset
+    # msgs = []
+    # mint_assets = []
+    # for asset in mint_cw20_assets:
+    #     msgs.append(asset.increase_allowance(spender=cluster, amount="1000"))
+    #     mint_assets.append(Asset.asset(asset, "1000"))
+
+    # mint_assets.append(Asset.asset("uluna", "1000", native=True))
+
+    # msgs.append(
+    #     cluster.mint(asset_amounts=mint_assets, min_tokens="100", _send={"uluna": "1000"})
+    # )
+
+    # await chain(*msgs)
+    
 
     # print('mint complete')
 
     resp = await cluster.query.cluster_state(cluster_contract_address=cluster)
-    print(resp)
+    print('cluster_state', resp)
 
     print(logs)
 
-    print("deployer account", deployer.key.acc_address)
+    print("account", deployer.key.acc_address)
     
-    print("assets", assets)
-    # print("ecosystem", ecosystem.__dict__)
+    print("assets", asset_tokens)
+    print("ecosystem", ecosystem.__dict__)
 
-    cluster_list = await ecosystem.factory.query.cluster_list()
-    print('cluster_list', cluster_list)
 
 if __name__ == "__main__":
-    ct_symbol = sys.argv[1]
-    recomp_oracle = sys.argv[2]
-    asyncio.get_event_loop().run_until_complete(deploy_cluster(ct_symbol, recomp_oracle))
+    asyncio.get_event_loop().run_until_complete(deploy_terra_ecosystem())

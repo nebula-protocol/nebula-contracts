@@ -25,7 +25,6 @@ pub enum HandleMsg {
         terraswap_factory: HumanAddr,
         nebula_token: HumanAddr,
         staking_contract: HumanAddr,
-        oracle_contract: HumanAddr,
         commission_collector: HumanAddr,
     },
     UpdateConfig {
@@ -80,7 +79,6 @@ pub struct ConfigResponse {
     pub staking_contract: HumanAddr,
     pub commission_collector: HumanAddr,
     pub protocol_fee_rate: String,
-    pub oracle_contract: HumanAddr,
     pub terraswap_factory: HumanAddr,
     pub token_code_id: u64,
     pub cluster_code_id: u64,
