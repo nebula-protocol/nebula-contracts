@@ -1,6 +1,12 @@
 pub mod contract;
 pub mod state;
 
+#[cfg(test)]
+mod tests;
+
+#[cfg(test)]
+mod mock_querier;
+
 #[cfg(target_arch = "wasm32")]
 mod wasm {
     use super::contract;
