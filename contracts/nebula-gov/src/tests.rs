@@ -2618,7 +2618,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
             &Uint128((ALICE_STAKE + DEFAULT_PROPOSAL_DEPOSIT * 2) as u128),
         )],
     )]);
-    // Alice stakes 750 MIR
+    // Alice stakes 750 NEB
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(ALICE),
         amount: Uint128::from(ALICE_STAKE),
@@ -2638,7 +2638,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
             &Uint128((ALICE_STAKE + BOB_STAKE + DEFAULT_PROPOSAL_DEPOSIT * 2) as u128),
         )],
     )]);
-    // Bob stakes 250 MIR
+    // Bob stakes 250 NEB
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(BOB),
         amount: Uint128::from(BOB_STAKE),
@@ -2659,7 +2659,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
             ),
         )],
     )]);
-    // Cindy stakes 250 MIR
+    // Cindy stakes 250 NEB
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(CINDY),
         amount: Uint128::from(CINDY_STAKE),
@@ -2717,7 +2717,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
         )],
     )]);
 
-    // Collector sends 2000 MIR with 50% voting weight
+    // Collector sends 2000 NEB with 50% voting weight
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_COLLECTOR),
         amount: Uint128::from(2000000000u128),
@@ -2845,7 +2845,7 @@ fn distribute_voting_rewards_only_to_polls_in_progress() {
         .save(&2u64.to_be_bytes(), &true)
         .unwrap();
 
-    // Collector sends 2000 MIR with 50% voting weight
+    // Collector sends 2000 NEB with 50% voting weight
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_COLLECTOR),
         amount: Uint128::from(2000000000u128),
@@ -2942,7 +2942,7 @@ fn test_staking_and_voting_rewards() {
             &Uint128((ALICE_STAKE + DEFAULT_PROPOSAL_DEPOSIT) as u128),
         )],
     )]);
-    // Alice stakes 750 MIR
+    // Alice stakes 750 NEB
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(ALICE),
         amount: Uint128::from(ALICE_STAKE),
@@ -2962,7 +2962,7 @@ fn test_staking_and_voting_rewards() {
             &Uint128((ALICE_STAKE + BOB_STAKE + DEFAULT_PROPOSAL_DEPOSIT) as u128),
         )],
     )]);
-    // Bob stakes 250 MIR
+    // Bob stakes 250 NEB
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(BOB),
         amount: Uint128::from(BOB_STAKE),
@@ -3002,7 +3002,7 @@ fn test_staking_and_voting_rewards() {
         )],
     )]);
 
-    // Collector sends 2000 MIR with 50% voting weight
+    // Collector sends 2000 NEB with 50% voting weight
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_COLLECTOR),
         amount: Uint128::from(2_000_000_000u128),
@@ -3175,7 +3175,7 @@ fn test_abstain_votes_theshold() {
             &Uint128((ALICE_STAKE + DEFAULT_PROPOSAL_DEPOSIT) as u128),
         )],
     )]);
-    // Alice stakes 750 MIR
+    // Alice stakes 750 NEB
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(ALICE),
         amount: Uint128::from(ALICE_STAKE),
@@ -3195,7 +3195,7 @@ fn test_abstain_votes_theshold() {
             &Uint128((ALICE_STAKE + BOB_STAKE + DEFAULT_PROPOSAL_DEPOSIT) as u128),
         )],
     )]);
-    // Bob stakes 250 MIR
+    // Bob stakes 250 NEB
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(BOB),
         amount: Uint128::from(BOB_STAKE),
@@ -3214,7 +3214,7 @@ fn test_abstain_votes_theshold() {
             &Uint128((ALICE_STAKE + BOB_STAKE + CINDY_STAKE + DEFAULT_PROPOSAL_DEPOSIT) as u128),
         )],
     )]);
-    // Cindy stakes 260 MIR
+    // Cindy stakes 260 NEB
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(CINDY),
         amount: Uint128::from(CINDY_STAKE),
@@ -3305,7 +3305,7 @@ fn test_abstain_votes_quorum() {
             &Uint128((ALICE_STAKE + DEFAULT_PROPOSAL_DEPOSIT) as u128),
         )],
     )]);
-    // Alice stakes 750 MIR
+    // Alice stakes 750 NEB
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(ALICE),
         amount: Uint128::from(ALICE_STAKE),
@@ -3325,7 +3325,7 @@ fn test_abstain_votes_quorum() {
             &Uint128((ALICE_STAKE + BOB_STAKE + DEFAULT_PROPOSAL_DEPOSIT) as u128),
         )],
     )]);
-    // Bob stakes 50 MIR
+    // Bob stakes 50 NEB
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(BOB),
         amount: Uint128::from(BOB_STAKE),
@@ -3344,7 +3344,7 @@ fn test_abstain_votes_quorum() {
             &Uint128((ALICE_STAKE + BOB_STAKE + CINDY_STAKE + DEFAULT_PROPOSAL_DEPOSIT) as u128),
         )],
     )]);
-    // Cindy stakes 50 MIR
+    // Cindy stakes 50 NEB
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(CINDY),
         amount: Uint128::from(CINDY_STAKE),
@@ -3546,11 +3546,11 @@ fn happy_days_cast_vote_with_snapshot() {
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
-    let handle_res = handle(&mut deps, env, msg.clone()).unwrap();
+    let handle_res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
     assert_stake_tokens_result(11, DEFAULT_PROPOSAL_DEPOSIT, 11, 1, handle_res, &mut deps);
 
     //cast_vote without snapshot
-    let env = mock_env_height(TEST_VOTER, &coins(11, VOTING_TOKEN), 0, 10000);
+    let env = mock_env_height(TEST_VOTER, &coins(11, VOTING_TOKEN), 0, env.block.time);
     let amount = 10u128;
 
     let msg = HandleMsg::CastVote {
@@ -3589,7 +3589,7 @@ fn happy_days_cast_vote_with_snapshot() {
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
-    let _handle_res = handle(&mut deps, env, msg.clone()).unwrap();
+    let _handle_res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
 
     // another voter cast a vote
     let msg = HandleMsg::CastVote {
@@ -3597,7 +3597,7 @@ fn happy_days_cast_vote_with_snapshot() {
         vote: VoteOption::Yes,
         amount: Uint128::from(10u128),
     };
-    let env = mock_env_height(TEST_VOTER_2, &[], end_height - 9, 10000);
+    let env = mock_env_height(TEST_VOTER_2, &[], end_height - 9, env.block.time);
     let handle_res = handle(&mut deps, env.clone(), msg).unwrap();
     assert_cast_vote_success(TEST_VOTER_2, amount, 1, VoteOption::Yes, handle_res);
 
@@ -3639,13 +3639,13 @@ fn happy_days_cast_vote_with_snapshot() {
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
-    let _handle_res = handle(&mut deps, env, msg.clone()).unwrap();
+    let _handle_res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
     let msg = HandleMsg::CastVote {
         poll_id: 1,
         vote: VoteOption::Yes,
         amount: Uint128::from(10u128),
     };
-    let env = mock_env_height(TEST_VOTER_3, &[], end_height - 8, 10000);
+    let env = mock_env_height(TEST_VOTER_3, &[], end_height - 8, env.block.time);
     let handle_res = handle(&mut deps, env.clone(), msg).unwrap();
     assert_cast_vote_success(TEST_VOTER_3, amount, 1, VoteOption::Yes, handle_res);
 
@@ -3881,7 +3881,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
-    let handle_res = handle(&mut deps, env, msg.clone()).unwrap();
+    let handle_res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
     assert_stake_tokens_result(
         stake_amount,
         DEFAULT_PROPOSAL_DEPOSIT,
@@ -3896,8 +3896,8 @@ fn happy_days_end_poll_with_controlled_quorum() {
         vote: VoteOption::Yes,
         amount: Uint128::from(stake_amount),
     };
-    let env = mock_env_height(TEST_VOTER, &[], POLL_START_HEIGHT, 10000);
-    let handle_res = handle(&mut deps, env, msg).unwrap();
+    let env = mock_env_height(TEST_VOTER, &[], POLL_START_HEIGHT, env.block.time);
+    let handle_res = handle(&mut deps, env.clone(), msg).unwrap();
 
     assert_eq!(
         handle_res.log,
@@ -3911,6 +3911,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
     );
 
     creator_env.block.height = &creator_env.block.height + DEFAULT_VOTING_PERIOD - 10;
+    creator_env.block.time = env.block.time;
 
     // send SnapshotPoll
     let fix_res = handle(
@@ -3941,7 +3942,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
     //cast another vote
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER_2),
-        amount: Uint128::from(8 * stake_amount as u128),
+        amount: Uint128::from(9 * stake_amount as u128),
         msg: Some(
             to_binary(&Cw20HookMsg::StakeVotingTokens {
                 lock_for_weeks: Some(104u64),
@@ -3951,14 +3952,14 @@ fn happy_days_end_poll_with_controlled_quorum() {
     });
 
     let env = mock_env(VOTING_TOKEN, &[]);
-    let _handle_res = handle(&mut deps, env, msg.clone()).unwrap();
+    let _handle_res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
 
     let msg = HandleMsg::CastVote {
         poll_id: 1,
         vote: VoteOption::Yes,
-        amount: Uint128::from(8 * stake_amount),
+        amount: Uint128::from(9 * stake_amount),
     };
-    let env = mock_env_height(TEST_VOTER_2, &[], creator_env.block.height, 10000);
+    let env = mock_env_height(TEST_VOTER_2, &[], creator_env.block.height, env.block.time);
     let handle_res = handle(&mut deps, env, msg).unwrap();
 
     assert_eq!(
@@ -3966,7 +3967,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
         vec![
             log("action", "cast_vote"),
             log("poll_id", POLL_ID),
-            log("amount", "8000"),
+            log("amount", "9000"),
             log("voter", TEST_VOTER_2),
             log("vote_option", "yes"),
         ]
@@ -3983,6 +3984,9 @@ fn happy_days_end_poll_with_controlled_quorum() {
         handle_res.log,
         vec![
             log("action", "end_poll"),
+            log("quorum", "1"),
+            log("tallied_weight", "10000"),
+            log("staked_weight", "10000"),
             log("poll_id", "1"),
             log("rejected_reason", ""),
             log("passed", "true"),
@@ -4004,11 +4008,11 @@ fn happy_days_end_poll_with_controlled_quorum() {
     let res = query(&deps, QueryMsg::Poll { poll_id: 1 }).unwrap();
     let value: PollResponse = from_binary(&res).unwrap();
     assert_eq!(
-        stake_amount,
+        10 * stake_amount,
         value.total_balance_at_end_poll.unwrap().u128()
     );
 
-    assert_eq!(value.yes_votes.u128(), 9 * stake_amount);
+    assert_eq!(value.yes_votes.u128(), 10 * stake_amount);
 
     // actual staked amount is 10 times bigger than staked amount
     let actual_staked_weight = (load_token_balance(

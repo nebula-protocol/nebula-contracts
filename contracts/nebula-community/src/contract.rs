@@ -70,7 +70,7 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
 
 /// Spend
 /// Owner can execute spend operation to send
-/// `amount` of MIR token to `recipient` for community purpose
+/// `amount` of NEB token to `recipient` for community purpose
 pub fn spend<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,

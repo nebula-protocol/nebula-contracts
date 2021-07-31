@@ -412,7 +412,7 @@ pub fn end_poll<S: Storage, A: Api, Q: Querier>(
     let mut messages: Vec<CosmosMsg> = vec![];
     let config: Config = config_read(&deps.storage).load()?;
     let mut state: State = state_read(&deps.storage).load()?;
-
+    
     let staked_weight = a_poll.max_voting_power;
     let quorum = if staked_weight != Uint128::zero() {
         Decimal::from_ratio(tallied_weight, staked_weight)
@@ -650,7 +650,7 @@ pub fn cast_vote<S: Storage, A: Api, Q: Querier>(
     let time_to_end = a_poll.end_height - env.block.height;
 
     if time_to_end < config.snapshot_period && a_poll.staked_amount.is_none() {
-        a_poll.staked_amount = Some(total_balance);
+        a_poll.staked_amount = Some(a_poll.max_voting_power);
     }
 
     poll_store(&mut deps.storage).save(&poll_id.to_be_bytes(), &a_poll)?;
@@ -701,7 +701,16 @@ pub fn snapshot_poll<S: Storage, A: Api, Q: Querier>(
     let staked_amount = (load_token_balance(&deps, &config.nebula_token, &state.contract_addr)?
         - total_locked_balance)?;
 
-    a_poll.staked_amount = Some(staked_amount);
+    let total_voting_power = total_voting_power_read(&deps.storage).load()?;
+    // don't need to zero anything out here -- if the user does have voting power then
+    // the entry at current_week has to be filled with a valid value
+    let current_week = (env.block.time / SECONDS_PER_WEEK) % M;
+    a_poll.max_voting_power = max(
+        a_poll.max_voting_power,
+        total_voting_power.voting_power[current_week as usize],
+    );
+
+    a_poll.staked_amount = Some(a_poll.max_voting_power);
 
     poll_store(&mut deps.storage).save(&poll_id.to_be_bytes(), &a_poll)?;
 
