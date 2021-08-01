@@ -3638,6 +3638,21 @@ fn snapshot_poll() {
         )],
     )]);
 
+    let msg = HandleMsg::Receive(Cw20ReceiveMsg {
+        sender: HumanAddr::from(TEST_VOTER),
+        amount: Uint128::from(stake_amount),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(104u64),
+            })
+            .unwrap(),
+        ),
+    });
+
+    let env = mock_env(VOTING_TOKEN, &[]);
+    let handle_res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
+    assert_stake_tokens_result(stake_amount, DEFAULT_PROPOSAL_DEPOSIT, stake_amount, 1, handle_res, &mut deps);
+
     let fix_res = handle(
         &mut deps,
         creator_env.clone(),
@@ -4142,9 +4157,9 @@ fn happy_days_end_poll_with_controlled_quorum() {
         handle_res.log,
         vec![
             log("action", "end_poll"),
-            log("quorum", "1"),
+            log("quorum", "10"),
             log("tallied_weight", "10000"),
-            log("staked_weight", "10000"),
+            log("staked_weight", "1000"),
             log("poll_id", "1"),
             log("rejected_reason", ""),
             log("passed", "true"),
@@ -4166,7 +4181,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
     let res = query(&deps, QueryMsg::Poll { poll_id: 1 }).unwrap();
     let value: PollResponse = from_binary(&res).unwrap();
     assert_eq!(
-        10 * stake_amount,
+        stake_amount,
         value.total_balance_at_end_poll.unwrap().u128()
     );
 

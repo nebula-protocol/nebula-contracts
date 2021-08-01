@@ -412,8 +412,13 @@ pub fn end_poll<S: Storage, A: Api, Q: Querier>(
     let mut messages: Vec<CosmosMsg> = vec![];
     let config: Config = config_read(&deps.storage).load()?;
     let mut state: State = state_read(&deps.storage).load()?;
-    
-    let staked_weight = a_poll.max_voting_power;
+
+    let staked_weight = if let Some(staked_amount) = a_poll.staked_amount {
+            staked_amount
+    } else {
+            a_poll.max_voting_power
+    };
+
     let quorum = if staked_weight != Uint128::zero() {
         Decimal::from_ratio(tallied_weight, staked_weight)
     } else {
@@ -694,13 +699,6 @@ pub fn snapshot_poll<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::generic_err("Snapshot has already occurred"));
     }
 
-    // store the current staked amount for quorum calculation
-    let state: State = state_store(&mut deps.storage).load()?;
-
-    let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
-    let staked_amount = (load_token_balance(&deps, &config.nebula_token, &state.contract_addr)?
-        - total_locked_balance)?;
-
     let total_voting_power = total_voting_power_read(&deps.storage).load()?;
     // don't need to zero anything out here -- if the user does have voting power then
     // the entry at current_week has to be filled with a valid value
@@ -719,7 +717,7 @@ pub fn snapshot_poll<S: Storage, A: Api, Q: Querier>(
         log: vec![
             log("action", "snapshot_poll"),
             log("poll_id", poll_id.to_string()),
-            log("staked_amount", staked_amount),
+            log("staked_amount", a_poll.max_voting_power),
         ],
         data: None,
     })
