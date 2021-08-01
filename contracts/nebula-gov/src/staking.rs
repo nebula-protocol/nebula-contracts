@@ -1,16 +1,17 @@
 use crate::querier::load_token_balance;
 use crate::state::{
     bank_read, bank_store, config_read, config_store, poll_read, poll_store, poll_voter_read,
-    poll_voter_store, read_polls, state_read, state_store, total_voting_power_read,
+    poll_voter_store, read_bank_stakers, read_polls, state_read, state_store, total_voting_power_read,
     total_voting_power_store, Config, Poll, State, TokenManager, TotalVotingPower,
 };
 
 use cosmwasm_std::{
-    log, to_binary, Api, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr, Querier,
+    log, to_binary, Api, CanonicalAddr, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr, Querier,
     StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 use cw20::Cw20HandleMsg;
-use nebula_protocol::gov::{PollStatus, StakerResponse, VoterInfo};
+use nebula_protocol::common::OrderBy;
+use nebula_protocol::gov::{PollStatus, SharesResponse, SharesResponseItem, StakerResponse, VoterInfo};
 
 pub static SECONDS_PER_WEEK: u64 = 604800u64; //60 * 60 * 24 * 7
 pub static M: u64 = 104u64; //Max weeks
@@ -489,4 +490,37 @@ pub fn increase_lock_time<S: Storage, A: Api, Q: Querier>(
     } else {
         Err(StdError::generic_err("User has no tokens staked."))
     }
+}
+
+pub fn query_shares<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    start_after: Option<HumanAddr>,
+    limit: Option<u32>,
+    order_by: Option<OrderBy>,
+) -> StdResult<SharesResponse> {
+    let stakers: Vec<(HumanAddr, TokenManager)> = if let Some(start_after) = start_after {
+        read_bank_stakers(
+            &deps.storage,
+            Some(start_after),
+            limit,
+            order_by,
+        )?
+    } else {
+        read_bank_stakers(&deps.storage, None, limit, order_by)?
+    };
+
+    let stakers_shares: Vec<SharesResponseItem> = stakers
+        .iter()
+        .map(|item| {
+            let (k, v) = item;
+            SharesResponseItem {
+                staker: k.clone(),
+                share: v.share,
+            }
+        })
+        .collect();
+
+    Ok(SharesResponse {
+        stakers: stakers_shares,
+    })
 }

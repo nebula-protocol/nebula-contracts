@@ -1,4 +1,4 @@
-use cosmwasm_std::{Binary, Decimal, HumanAddr, ReadonlyStorage, StdResult, Storage, Uint128};
+use cosmwasm_std::{Binary, CanonicalAddr, Decimal, HumanAddr, ReadonlyStorage, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -218,6 +218,29 @@ pub fn bank_store<S: Storage>(storage: &mut S) -> Bucket<S, TokenManager> {
 
 pub fn bank_read<S: Storage>(storage: &S) -> ReadonlyBucket<S, TokenManager> {
     bucket_read(PREFIX_BANK, storage)
+}
+
+pub fn read_bank_stakers<'a, S: ReadonlyStorage>(
+    storage: &'a S,
+    start_after: Option<HumanAddr>,
+    limit: Option<u32>,
+    order_by: Option<OrderBy>,
+) -> StdResult<Vec<(HumanAddr, TokenManager)>> {
+    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
+    let (start, end, order_by) = match order_by {
+        Some(OrderBy::Asc) => (calc_range_start_addr(start_after), None, OrderBy::Asc),
+        _ => (None, calc_range_end_addr(start_after), OrderBy::Desc),
+    };
+
+    let stakers: ReadonlyBucket<'a, S, TokenManager> = ReadonlyBucket::new(PREFIX_BANK, storage);
+    stakers
+        .range(start.as_deref(), end.as_deref(), order_by.into())
+        .take(limit)
+        .map(|item| {
+            let (k, v) = item?;
+            Ok((HumanAddr::from(unsafe { std::str::from_utf8_unchecked(&k) }), v))
+        })
+        .collect()
 }
 
 // this will set the first key after the provided key, by appending a 1 byte

@@ -16,8 +16,8 @@ use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
 use nebula_protocol::common::OrderBy;
 use nebula_protocol::gov::{
     ConfigResponse, Cw20HookMsg, ExecuteMsg, HandleMsg, InitMsg, PollResponse, PollStatus,
-    PollsResponse, QueryMsg, StakerResponse, StateResponse, VoteOption, VoterInfo, VotersResponse,
-    VotersResponseItem,
+    PollsResponse, QueryMsg, SharesResponse, SharesResponseItem, StakerResponse, StateResponse, 
+    VoteOption, VoterInfo, VotersResponse, VotersResponseItem,
 };
 
 const VOTING_TOKEN: &str = "voting_token";
@@ -3446,6 +3446,152 @@ fn test_abstain_votes_quorum() {
             log("rejected_reason", "Quorum not reached"),
             log("passed", "false"),
         ]
+    );
+}
+
+#[test]
+fn test_query_shares() {
+    let mut deps = mock_dependencies(20, &[]);
+    mock_init(&mut deps);
+
+    let voter_0_addr = HumanAddr::from("staker0000");
+    let voter_1_addr = HumanAddr::from("staker0001");
+    let voter_2_addr = HumanAddr::from("staker0002");
+
+    bank_store(&mut deps.storage)
+        .save(
+            &voter_0_addr.as_str().as_bytes(),
+            &TokenManager {
+                share: Uint128(11u128),
+                locked_balance: vec![],
+                participated_polls: vec![],
+                lock_end_week: Some(104u64)
+            },
+        )
+        .unwrap();
+    bank_store(&mut deps.storage)
+        .save(
+            &voter_1_addr.as_str().as_bytes(),
+            &TokenManager {
+                share: Uint128(22u128),
+                locked_balance: vec![],
+                participated_polls: vec![],
+                lock_end_week: Some(104u64)
+            },
+        )
+        .unwrap();
+    bank_store(&mut deps.storage)
+        .save(
+            &voter_2_addr.as_str().as_bytes(),
+            &TokenManager {
+                share: Uint128(33u128),
+                locked_balance: vec![],
+                participated_polls: vec![],
+                lock_end_week: Some(104u64)
+            },
+        )
+        .unwrap();
+
+    // query everything Asc
+    let res = query(
+        &deps,
+        QueryMsg::Shares {
+            start_after: None,
+            limit: None,
+            order_by: Some(OrderBy::Asc),
+        },
+    )
+    .unwrap();
+    let response: SharesResponse = from_binary(&res).unwrap();
+    assert_eq!(
+        response.stakers,
+        vec![
+            SharesResponseItem {
+                staker: HumanAddr::from("staker0000"),
+                share: Uint128(11u128),
+            },
+            SharesResponseItem {
+                staker: HumanAddr::from("staker0001"),
+                share: Uint128(22u128),
+            },
+            SharesResponseItem {
+                staker: HumanAddr::from("staker0002"),
+                share: Uint128(33u128),
+            },
+        ]
+    );
+
+    // query everything Desc
+    let res = query(
+        &deps,
+        QueryMsg::Shares {
+            start_after: None,
+            limit: None,
+            order_by: Some(OrderBy::Desc),
+        },
+    )
+    .unwrap();
+    let response: SharesResponse = from_binary(&res).unwrap();
+    assert_eq!(
+        response.stakers,
+        vec![
+            SharesResponseItem {
+                staker: HumanAddr::from("staker0002"),
+                share: Uint128(33u128),
+            },
+            SharesResponseItem {
+                staker: HumanAddr::from("staker0001"),
+                share: Uint128(22u128),
+            },
+            SharesResponseItem {
+                staker: HumanAddr::from("staker0000"),
+                share: Uint128(11u128),
+            },
+        ]
+    );
+
+    // limit 2
+    let res = query(
+        &deps,
+        QueryMsg::Shares {
+            start_after: None,
+            limit: Some(2u32),
+            order_by: Some(OrderBy::Asc),
+        },
+    )
+    .unwrap();
+    let response: SharesResponse = from_binary(&res).unwrap();
+    assert_eq!(
+        response.stakers,
+        vec![
+            SharesResponseItem {
+                staker: HumanAddr::from("staker0000"),
+                share: Uint128(11u128),
+            },
+            SharesResponseItem {
+                staker: HumanAddr::from("staker0001"),
+                share: Uint128(22u128),
+            },
+        ]
+    );
+
+    // start after staker0001 and limit 1
+    let res = query(
+        &deps,
+        QueryMsg::Shares {
+            start_after: Some(HumanAddr::from("staker0001")),
+            limit: Some(1u32),
+            order_by: Some(OrderBy::Asc),
+        },
+    )
+    .unwrap();
+    let response: SharesResponse = from_binary(&res).unwrap();
+    assert_eq!(
+        response.stakers,
+        vec![SharesResponseItem {
+            staker: HumanAddr::from("staker0002"),
+            share: Uint128(33u128),
+        },]
     );
 }
 
