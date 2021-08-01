@@ -93,7 +93,7 @@ class TerraswapPoolSimulation:
         
     def execute_swap(self, offer_asset: Asset):
         """
-        Changes internal state of the class.
+        Changes internal state of the simulation.
         For most cases, offer_asset will be in UST
         """
         return_amt, spread_amt, commission_amt = self.simulate_swap(offer_asset=offer_asset)
@@ -108,6 +108,8 @@ class TerraswapPoolSimulation:
             self.asset0[2] -= return_amt
         else:
             raise NotImplementedError
+
+        return return_amt, spread_amt, commission_amt
 
 async def main():
     simulator = TerraswapPoolSimulation(pair_contract)

@@ -11,8 +11,9 @@ import numpy as np
 cluster = Contract(sys.argv[1])
 
 class ClusterSimulatorWithPenalty:
-    def __init__(self, cluster_contract):
+    def __init__(self, cluster_contract, collector_fee = 0.001):
         self.cluster_contract = cluster_contract
+        self.collector_fee = collector_fee
         
     async def set_initial_state(self):
         cluster_state = await cluster.query.cluster_state(cluster_contract_address=self.cluster_contract)
@@ -21,10 +22,10 @@ class ClusterSimulatorWithPenalty:
         self.penalty = Contract(cluster_state['penalty'])
         self.supply = float(cluster_state['outstanding_balance_tokens'])
 
-        penalty_info = await self.penalty.query.params()
-        curr_ema = float(penalty_info['ema'])
-        last_block = int(penalty_info['last_block'])
-        params = {k: float(v) for k,v in penalty_info['penalty_params'].items()}
+        self.penalty_info = await self.penalty.query.params()
+        curr_ema = float(self.penalty_info['ema'])
+        last_block = int(self.penalty_info['last_block'])
+        params = {k: float(v) for k,v in self.penalty_info['penalty_params'].items()}
 
         self.curr_ema, self.penalty_params, self.last_block = curr_ema, params, last_block
 
@@ -55,6 +56,9 @@ class ClusterSimulatorWithPenalty:
             return factor * self.curr_ema + (1-factor) * net_asset_value
         else:
             return net_asset_value
+
+    def update_ema(self, block_height, net_asset_value):
+        self.curr_ema = self.get_ema(block_height, net_asset_value)
     
 
     def notional_penalty(self, block_height, curr_inv, new_inv):
@@ -75,30 +79,30 @@ class ClusterSimulatorWithPenalty:
             cutoff_lo = penalty_cutoff_lo * e
             cutoff_hi = penalty_cutoff_hi * e
 
-            if imb1 < cutoff_hi:
+            if imb1 > cutoff_hi:
                 print("this move causes cluster imbalance too high error but we will ignore")
 
-                # penalty function is broken into three pieces, where its flat, linear, and then flat
-                # compute the area under each piece separately
+            # penalty function is broken into three pieces, where its flat, linear, and then flat
+            # compute the area under each piece separately
 
-                penalty_1 = (min(imb1, cutoff_lo) - min(imb0, cutoff_lo)) * penalty_amt_lo
+            penalty_1 = (min(imb1, cutoff_lo) - min(imb0, cutoff_lo)) * penalty_amt_lo
 
-                # clip to only middle portion
-                imb0_mid = min(max(imb0, cutoff_lo), cutoff_hi)
-                imb1_mid = min(max(imb1, cutoff_lo), cutoff_hi)
+            # clip to only middle portion
+            imb0_mid = min(max(imb0, cutoff_lo), cutoff_hi)
+            imb1_mid = min(max(imb1, cutoff_lo), cutoff_hi)
 
-                amt_gap = penalty_amt_hi - penalty_amt_lo
-                cutoff_gap = cutoff_hi - cutoff_lo
+            amt_gap = penalty_amt_hi - penalty_amt_lo
+            cutoff_gap = cutoff_hi - cutoff_lo
 
-                # value of y when x is at imb0_mid and imb1_mid respectively
-                imb0_mid_height = (imb0_mid - cutoff_lo) * amt_gap / cutoff_gap + penalty_amt_lo
-                imb1_mid_height = (imb1_mid - cutoff_lo) * amt_gap / cutoff_gap + penalty_amt_lo
+            # value of y when x is at imb0_mid and imb1_mid respectively
+            imb0_mid_height = (imb0_mid - cutoff_lo) * amt_gap / cutoff_gap + penalty_amt_lo
+            imb1_mid_height = (imb1_mid - cutoff_lo) * amt_gap / cutoff_gap + penalty_amt_lo
 
-                # area of a trapezoid
-                penalty_2 = (imb0_mid_height + imb1_mid_height) * (imb1_mid - imb0_mid) / 2
-                penalty_3 = (max(imb1, cutoff_hi) - max(imb0, cutoff_hi)) * penalty_amt_hi
+            # area of a trapezoid
+            penalty_2 = (imb0_mid_height + imb1_mid_height) * (imb1_mid - imb0_mid) / 2
+            penalty_3 = (max(imb1, cutoff_hi) - max(imb0, cutoff_hi)) * penalty_amt_hi
 
-                return -(penalty_1 + penalty_2 + penalty_3)
+            return -(penalty_1 + penalty_2 + penalty_3)
         else:
             # use reward function
             cutoff = reward_cutoff * e
@@ -120,6 +124,7 @@ class ClusterSimulatorWithPenalty:
         amts = np.array(amts)
 
         penalty = self.notional_penalty(block_height, inv, inv + amts)
+
         notional_value = np.dot(amts, self.prices) + penalty
         mint_subtotal = self.supply * notional_value / np.dot(inv, self.prices)
 
@@ -170,6 +175,24 @@ class ClusterSimulatorWithPenalty:
         amt_high = 10 # Use some heuristic too like 2 * notional value 
 
         return idx
+
+    def execute_mint(self, amts, block_height=None):
+        if block_height is None:
+            block_height = self.last_block
+        mint_amt = self.simulate_mint(amts, block_height=block_height, inv=None)
+        self.supply += mint_amt
+        self.base_inv += amts
+        self.update_ema(block_height, np.dot(self.base_inv, self.prices))
+        return mint_amt
+
+    def reset_to_cluster_state(self):
+        self.base_inv = np.array([float(i) for i in self.cluster_state['inv']])
+        self.supply = float(self.cluster_state['outstanding_balance_tokens'])
+        self.last_block = int(self.penalty_info['last_block'])
+        self.curr_ema = float(self.penalty_info['ema'])
+
+    def get_curr_imbalance(self):
+        return self.imbalance(self.base_inv)
 
 async def main():
     simulator = ClusterSimulatorWithPenalty(cluster)
