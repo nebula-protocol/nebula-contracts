@@ -549,7 +549,6 @@ pub mod consts {
             staking_contract: h("staking"),
             commission_collector: h("collector"),
             protocol_fee_rate: "0.01".to_string(),
-            oracle_contract: h("oracle"),
             terraswap_factory: h("ts_factory"),
             token_code_id: 1,
             cluster_code_id: 1,
