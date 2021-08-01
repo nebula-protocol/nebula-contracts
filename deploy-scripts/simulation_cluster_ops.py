@@ -125,7 +125,51 @@ class ClusterSimulatorWithPenalty:
 
         return mint_subtotal
 
+    def simulate_redeem(self, amts=None, cluster_tokens = None, block_height=None, inv=None):
+        """
+        amts: list of token counts to add to self.base_inv
+
+        NOTE: This returns how much cluster token it will cost to redeem amts if
+        amts is not empty
+        """
+        if inv is None:
+            inv = np.array(self.base_inv)
+
+        if block_height is None:
+            block_height = self.last_block
+
+        assert (cluster_tokens or amts)
+
+        if amts is not None:
+            amts = np.array(amts)
+
+            penalty = self.notional_penalty(block_height, inv, inv + amts)
+            notional_value = np.dot(amts, self.prices) - penalty
+            redeem_cost = self.supply * notional_value / np.dot(inv, self.prices)
+            return redeem_cost, amts
+
+        if cluster_tokens is not None:
+            redeem_arr =  inv * cluster_tokens / self.supply
+            return cluster_tokens, redeem_arr
+
+        raise NotImplementedError
         
+
+    def smart_redeem(self, cluster_tokens_chunk, idx, block_height=None, inv=None):
+        """
+        Description: We want to find out the amount of asset[idx] to redeem against 
+        that will cost cluster_tokens_chunk. The current method is a binary search.
+        """
+        if inv is None:
+            inv = np.array(self.base_inv)
+
+        if block_height is None:
+            block_height = self.last_block
+
+        amt_low = 0
+        amt_high = 10 # Use some heuristic too like 2 * notional value 
+
+        return idx
 
 async def main():
     simulator = ClusterSimulatorWithPenalty(cluster)

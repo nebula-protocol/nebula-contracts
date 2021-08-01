@@ -313,6 +313,7 @@ pub fn record_terraswap_impact<S: Storage, A: Api, Q: Querier>(
 
         // how much dollars needs to move to set this cluster back into balance?
         // first compute what the pool should look like if optimally balanced
+        // true_denom, true_bsk represent what the pool should look like
         // true_denom = true_bsk * fair_value
         // true_bsk = prod / true_denom
         // true_denom = prod / true_denom * fair_value
