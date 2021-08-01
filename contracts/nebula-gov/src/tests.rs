@@ -4,7 +4,8 @@ use crate::querier::load_token_balance;
 use crate::staking::SECONDS_PER_WEEK;
 use crate::state::{
     bank_read, bank_store, config_read, poll_indexer_store, poll_store, poll_voter_read,
-    poll_voter_store, state_read, Config, Poll, State, TokenManager,
+    poll_voter_store, state_read, total_voting_power_read, Config, Poll, State, TokenManager,
+    TotalVotingPower,
 };
 
 use cosmwasm_std::testing::{mock_env, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
@@ -4327,6 +4328,541 @@ fn increase_lock_time() {
             total_share: Uint128::from(0u128),
             total_deposit: Uint128::zero(),
             pending_voting_rewards: Uint128::zero(),
+        }
+    );
+}
+
+#[test]
+fn stake_voting_tokens_multiple_lock_end_weeks() {
+    let mut deps = mock_dependencies(20, &[]);
+    mock_init(&mut deps);
+
+    let stake_amount = 1000u128;
+    deps.querier.with_token_balances(&[(
+        &HumanAddr::from(VOTING_TOKEN),
+        &[(&HumanAddr::from(MOCK_CONTRACT_ADDR), &Uint128(stake_amount))],
+    )]);
+
+    let msg = HandleMsg::Receive(Cw20ReceiveMsg {
+        sender: HumanAddr::from(TEST_VOTER),
+        amount: Uint128::from(stake_amount),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: None,
+            })
+            .unwrap(),
+        ),
+    });
+
+    let env = mock_env(VOTING_TOKEN, &[]);
+    let handle_res = handle(&mut deps, env, msg.clone());
+
+    // Must specify lock_for_weeks when user stakes for the first time
+    match handle_res {
+        Ok(_) => panic!("Must return error"),
+        Err(StdError::GenericErr { msg, .. }) => {
+            assert_eq!(msg, "Must specify lock_for_weeks if no tokens staked.")
+        }
+        Err(e) => panic!("Unexpected error: {:?}", e),
+    }
+
+    let msg = HandleMsg::Receive(Cw20ReceiveMsg {
+        sender: HumanAddr::from(TEST_VOTER),
+        amount: Uint128::from(stake_amount),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(1000u64),
+            })
+            .unwrap(),
+        ),
+    });
+
+    let env = mock_env(VOTING_TOKEN, &[]);
+    let handle_res = handle(&mut deps, env, msg.clone());
+
+    // Must specify lock_for_weeks when user stakes for the first time
+    match handle_res {
+        Ok(_) => panic!("Must return error"),
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Lock time exceeds the maximum."),
+        Err(e) => panic!("Unexpected error: {:?}", e),
+    }
+
+    let lock_period = 10u64;
+    let msg = HandleMsg::Receive(Cw20ReceiveMsg {
+        sender: HumanAddr::from(TEST_VOTER),
+        amount: Uint128::from(stake_amount),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(lock_period),
+            })
+            .unwrap(),
+        ),
+    });
+
+    let env = mock_env(VOTING_TOKEN, &[]);
+    let handle_res = handle(&mut deps, env, msg.clone()).unwrap();
+    assert_stake_tokens_result(stake_amount, 0, stake_amount, 0, handle_res, &mut deps);
+
+    let new_lock_period = lock_period + 1;
+    let msg = HandleMsg::Receive(Cw20ReceiveMsg {
+        sender: HumanAddr::from(TEST_VOTER),
+        amount: Uint128::from(stake_amount),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(new_lock_period),
+            })
+            .unwrap(),
+        ),
+    });
+
+    let env = mock_env(VOTING_TOKEN, &[]);
+    let handle_res = handle(&mut deps, env.clone(), msg.clone());
+
+    // Cannot specify lock for weeks when staking tokens again
+    match handle_res {
+        Ok(_) => panic!("Must return error"),
+        Err(StdError::GenericErr { msg, .. }) =>
+            assert_eq!(
+                msg,
+                "Cannot specify lock_for_weeks if tokens already staked. To change the lock time, use increase_lock_time"
+            ),
+        Err(e) => panic!("Unexpected error: {:?}", e),
+    }
+
+    deps.querier.with_token_balances(&[(
+        &HumanAddr::from(VOTING_TOKEN),
+        &[(
+            &HumanAddr::from(MOCK_CONTRACT_ADDR),
+            &Uint128(2 * stake_amount),
+        )],
+    )]);
+
+    let msg = HandleMsg::Receive(Cw20ReceiveMsg {
+        sender: HumanAddr::from(TEST_VOTER),
+        amount: Uint128::from(stake_amount),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: None,
+            })
+            .unwrap(),
+        ),
+    });
+
+    let env = mock_env(VOTING_TOKEN, &[]);
+    let handle_res = handle(&mut deps, env, msg.clone()).unwrap();
+
+    assert_stake_tokens_result(2 * stake_amount, 0, stake_amount, 0, handle_res, &mut deps);
+}
+
+#[test]
+fn total_voting_power_calculation() {
+    let mut deps = mock_dependencies(20, &[]);
+    mock_init(&mut deps);
+
+    let stake_amount = 1000u128;
+    deps.querier.with_token_balances(&[(
+        &HumanAddr::from(VOTING_TOKEN),
+        &[(&HumanAddr::from(MOCK_CONTRACT_ADDR), &Uint128(stake_amount))],
+    )]);
+
+    let lock_period = 10u64;
+    let msg = HandleMsg::Receive(Cw20ReceiveMsg {
+        sender: HumanAddr::from(TEST_VOTER),
+        amount: Uint128::from(stake_amount),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(lock_period),
+            })
+            .unwrap(),
+        ),
+    });
+
+    let env = mock_env(VOTING_TOKEN, &[]);
+    let handle_res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
+    assert_stake_tokens_result(stake_amount, 0, stake_amount, 0, handle_res, &mut deps);
+
+    let total_voting_power = total_voting_power_read(&mut deps.storage).load().unwrap();
+    let current_week = env.block.time / SECONDS_PER_WEEK;
+
+    assert_eq!(
+        total_voting_power,
+        TotalVotingPower {
+            voting_power: [
+                Uint128(76),
+                Uint128(67),
+                Uint128(57),
+                Uint128(48),
+                Uint128(38),
+                Uint128(28),
+                Uint128(19),
+                Uint128(9),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(96),
+                Uint128(86)
+            ]
+            .to_vec(),
+            last_upd: current_week
+        }
+    );
+
+    let msg = HandleMsg::IncreaseLockTime {
+        increase_weeks: 30u64,
+    };
+
+    let mut env = mock_env(TEST_VOTER, &[]);
+
+    // Make 5 weeks pass by
+    env.block.time += 5 * SECONDS_PER_WEEK;
+
+    let handle_res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
+
+    let total_voting_power = total_voting_power_read(&mut deps.storage).load().unwrap();
+    let current_week = env.block.time / SECONDS_PER_WEEK;
+
+    assert_eq!(
+        total_voting_power,
+        TotalVotingPower {
+            voting_power: [
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(336),
+                Uint128(326),
+                Uint128(317),
+                Uint128(307),
+                Uint128(298),
+                Uint128(288),
+                Uint128(278),
+                Uint128(269),
+                Uint128(259),
+                Uint128(250),
+                Uint128(240),
+                Uint128(230),
+                Uint128(221),
+                Uint128(211),
+                Uint128(201),
+                Uint128(192),
+                Uint128(182),
+                Uint128(173),
+                Uint128(163),
+                Uint128(153),
+                Uint128(144),
+                Uint128(134),
+                Uint128(125),
+                Uint128(115),
+                Uint128(105),
+                Uint128(96),
+                Uint128(86),
+                Uint128(76),
+                Uint128(67),
+                Uint128(57),
+                Uint128(48),
+                Uint128(38),
+                Uint128(28),
+                Uint128(19),
+                Uint128(9),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0)
+            ]
+            .to_vec(),
+            last_upd: current_week
+        }
+    );
+
+    deps.querier.with_token_balances(&[(
+        &HumanAddr::from(VOTING_TOKEN),
+        &[(
+            &HumanAddr::from(MOCK_CONTRACT_ADDR),
+            &Uint128(2 * stake_amount),
+        )],
+    )]);
+
+    let msg = HandleMsg::Receive(Cw20ReceiveMsg {
+        sender: HumanAddr::from(TEST_VOTER_2),
+        amount: Uint128::from(stake_amount),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(52u64),
+            })
+            .unwrap(),
+        ),
+    });
+
+    let env = mock_env_height(VOTING_TOKEN, &[], env.block.height, env.block.time);
+    let handle_res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
+    assert_stake_tokens_result(2 * stake_amount, 0, stake_amount, 0, handle_res, &mut deps);
+
+    let total_voting_power = total_voting_power_read(&mut deps.storage).load().unwrap();
+    let current_week = env.block.time / SECONDS_PER_WEEK;
+
+    assert_eq!(
+        total_voting_power,
+        TotalVotingPower {
+            voting_power: vec![
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(836),
+                Uint128(816),
+                Uint128(797),
+                Uint128(778),
+                Uint128(759),
+                Uint128(739),
+                Uint128(720),
+                Uint128(701),
+                Uint128(682),
+                Uint128(663),
+                Uint128(643),
+                Uint128(624),
+                Uint128(605),
+                Uint128(586),
+                Uint128(566),
+                Uint128(547),
+                Uint128(528),
+                Uint128(509),
+                Uint128(489),
+                Uint128(470),
+                Uint128(451),
+                Uint128(432),
+                Uint128(413),
+                Uint128(393),
+                Uint128(374),
+                Uint128(355),
+                Uint128(336),
+                Uint128(316),
+                Uint128(297),
+                Uint128(278),
+                Uint128(259),
+                Uint128(239),
+                Uint128(220),
+                Uint128(201),
+                Uint128(182),
+                Uint128(163),
+                Uint128(153),
+                Uint128(144),
+                Uint128(134),
+                Uint128(125),
+                Uint128(115),
+                Uint128(105),
+                Uint128(96),
+                Uint128(86),
+                Uint128(76),
+                Uint128(67),
+                Uint128(57),
+                Uint128(48),
+                Uint128(38),
+                Uint128(28),
+                Uint128(19),
+                Uint128(9),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0),
+                Uint128(0)
+            ]
+            .to_vec(),
+            last_upd: current_week
         }
     );
 }

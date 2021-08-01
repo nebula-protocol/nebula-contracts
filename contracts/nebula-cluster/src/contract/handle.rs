@@ -17,7 +17,7 @@ use crate::util::vec_to_string;
 use cluster_math::FPDecimal;
 use nebula_protocol::cluster::HandleMsg;
 use nebula_protocol::penalty::{HandleMsg as PenaltyHandleMsg, QueryMsg as PenaltyQueryMsg};
- 
+
 use std::str::FromStr;
 use std::u32;
 use terraswap::asset::{Asset, AssetInfo};
@@ -259,7 +259,14 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
     min_tokens: &Option<Uint128>,
 ) -> StdResult<HandleResponse> {
     // duplication check for the given asset_amounts
-    if validate_targets(&deps, &env, asset_amounts.iter().map(|a| a.info.clone()).collect(), None).is_err() {
+    if validate_targets(
+        &deps,
+        &env,
+        asset_amounts.iter().map(|a| a.info.clone()).collect(),
+        None,
+    )
+    .is_err()
+    {
         return Err(StdError::generic_err(
             "The given asset_amounts contain invalid or duplicate assets",
         ));
@@ -723,19 +730,18 @@ mod tests {
                 "mint_to_sender" => assert_eq!("98", log.value),
                 "penalty" => assert_eq!("1234", log.value),
                 "fee_amt" => assert_eq!("1", log.value),
-                &_ => panic!("Invalid value found in log")
+                &_ => panic!("Invalid value found in log"),
             }
         }
 
         assert_eq!(7, res.messages.len());
     }
 
-    
     #[test]
     fn burn() {
         let (mut deps, _init_res) = mock_init();
         mock_querier_setup(&mut deps);
-    
+
         deps.querier
             .set_token_supply(consts::cluster_token(), 100_000_000)
             .set_token_balance(consts::cluster_token(), "addr0000", 20_000_000)
@@ -751,16 +757,16 @@ mod tests {
             ]);
 
         let addr = "addr0000";
-    
+
         let msg = HandleMsg::Burn {
             max_tokens: Uint128(20_000_000),
             asset_amounts: None,
         };
         let env = mock_env(h(addr), &[]);
         let res = handle(&mut deps, env, msg).unwrap();
-        
+
         assert_eq!(8, res.log.len());
-        
+
         for log in res.log.iter() {
             match log.key.as_str() {
                 "action" => assert_eq!("receive:burn", log.value),
@@ -771,7 +777,7 @@ mod tests {
                 "asset_amounts" => assert_eq!("[]", log.value),
                 "redeem_totals" => assert_eq!("[99, 98, 97, 96]", log.value),
                 "penalty" => assert_eq!("1234", log.value),
-                &_ => panic!("Invalid value found in log")
+                &_ => panic!("Invalid value found in log"),
             }
         }
 
@@ -819,7 +825,7 @@ mod tests {
         let res = handle(&mut deps, env, msg).unwrap();
 
         assert_eq!(5, res.log.len());
-        
+
         for log in res.log.iter() {
             match log.key.as_str() {
                 "action" => assert_eq!("reset_target", log.value),
@@ -827,7 +833,7 @@ mod tests {
                 "prev_targets" => assert_eq!("[20, 20, 20, 20]", log.value),
                 "updated_assets" => assert_eq!("[mAAPL, mGOOG, mMSFT, mGME, mNFLX]", log.value),
                 "updated_targets" => assert_eq!("[10, 5, 35, 50, 0]", log.value),
-                &_ => panic!("Invalid value found in log")
+                &_ => panic!("Invalid value found in log"),
             }
         }
         assert_eq!(0, res.messages.len());

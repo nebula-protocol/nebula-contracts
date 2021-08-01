@@ -11,9 +11,9 @@ use terraswap::asset::{Asset, AssetInfo};
 
 pub fn validate_targets<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
-    env: &Env, 
+    env: &Env,
     target_assets: Vec<AssetInfo>,
-    query: Option<bool>
+    query: Option<bool>,
 ) -> StdResult<bool> {
     for i in 0..target_assets.len() - 1 {
         let to_query = query.unwrap_or(true);

@@ -1,6 +1,6 @@
 use crate::querier::load_token_balance;
 use crate::staking::{
-    calc_voting_power, deposit_reward, increase_lock_time, query_staker, query_shares,
+    calc_voting_power, deposit_reward, increase_lock_time, query_shares, query_staker,
     stake_voting_tokens, withdraw_voting_rewards, withdraw_voting_tokens, M, SECONDS_PER_WEEK,
 };
 use crate::state::{
@@ -414,9 +414,9 @@ pub fn end_poll<S: Storage, A: Api, Q: Querier>(
     let mut state: State = state_read(&deps.storage).load()?;
 
     let staked_weight = if let Some(staked_amount) = a_poll.staked_amount {
-            staked_amount
+        staked_amount
     } else {
-            a_poll.max_voting_power
+        a_poll.max_voting_power
     };
 
     let quorum = if staked_weight != Uint128::zero() {
@@ -607,7 +607,6 @@ pub fn cast_vote<S: Storage, A: Api, Q: Querier>(
     let total_balance = (load_token_balance(&deps, &config.nebula_token, &state.contract_addr)?
         - total_locked_balance)?;
 
-
     let voting_power = calc_voting_power(
         token_manager
             .share
@@ -615,7 +614,7 @@ pub fn cast_vote<S: Storage, A: Api, Q: Querier>(
         token_manager.lock_end_week.unwrap(),
         env.block.time / SECONDS_PER_WEEK,
     );
-    
+
     if voting_power < amount {
         return Err(StdError::generic_err(
             "User does not have enough staked tokens.",

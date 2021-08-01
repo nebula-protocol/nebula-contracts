@@ -7,8 +7,8 @@ use crate::state::{
 };
 
 use cosmwasm_std::{
-    log, to_binary, Api, CanonicalAddr, CosmosMsg, Env, Extern, HandleResponse, HandleResult,
-    HumanAddr, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
+    log, to_binary, Api, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr, Querier,
+    StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 use cw20::Cw20HandleMsg;
 use nebula_protocol::common::OrderBy;
@@ -79,7 +79,7 @@ pub fn stake_voting_tokens<S: Storage, A: Api, Q: Querier>(
 
     if let Some(_) = token_manager.lock_end_week {
         if lock_for_weeks.is_some() {
-            return Err(StdError::generic_err("cannot specify lock_for_weeks if tokens already staked. To change the lock time, use increase_lock_time"));
+            return Err(StdError::generic_err("Cannot specify lock_for_weeks if tokens already staked. To change the lock time, use increase_lock_time"));
         }
         // remove existing impact of this address from voting pool
         adjust_total_voting_power(
@@ -92,7 +92,7 @@ pub fn stake_voting_tokens<S: Storage, A: Api, Q: Querier>(
     } else {
         if lock_for_weeks.is_none() {
             return Err(StdError::generic_err(
-                "must specify lock_for_weeks if no tokens staked",
+                "Must specify lock_for_weeks if no tokens staked.",
             ));
         }
         if lock_for_weeks.unwrap() > M {

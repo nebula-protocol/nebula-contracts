@@ -1,4 +1,4 @@
-use cosmwasm_std::{Binary, CanonicalAddr, Decimal, HumanAddr, ReadonlyStorage, StdResult, Storage, Uint128};
+use cosmwasm_std::{Binary, Decimal, HumanAddr, ReadonlyStorage, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -238,7 +238,10 @@ pub fn read_bank_stakers<'a, S: ReadonlyStorage>(
         .take(limit)
         .map(|item| {
             let (k, v) = item?;
-            Ok((HumanAddr::from(unsafe { std::str::from_utf8_unchecked(&k) }), v))
+            Ok((
+                HumanAddr::from(unsafe { std::str::from_utf8_unchecked(&k) }),
+                v,
+            ))
         })
         .collect()
 }
