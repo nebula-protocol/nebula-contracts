@@ -75,7 +75,7 @@ pub fn stake_voting_tokens<S: Storage, A: Api, Q: Querier>(
 
     if let Some(_) = token_manager.lock_end_week {
         if lock_for_weeks.is_some() {
-            return Err(StdError::generic_err("cannot specify lock_for_weeks if tokens already staked. to change the lock time use increase_lock_time"));
+            return Err(StdError::generic_err("cannot specify lock_for_weeks if tokens already staked. To change the lock time, use increase_lock_time"));
         }
         // remove existing impact of this address from voting pool
         adjust_total_voting_power(
