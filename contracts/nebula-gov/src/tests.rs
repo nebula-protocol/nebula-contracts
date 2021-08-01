@@ -16,7 +16,7 @@ use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
 use nebula_protocol::common::OrderBy;
 use nebula_protocol::gov::{
     ConfigResponse, Cw20HookMsg, ExecuteMsg, HandleMsg, InitMsg, PollResponse, PollStatus,
-    PollsResponse, QueryMsg, SharesResponse, SharesResponseItem, StakerResponse, StateResponse, 
+    PollsResponse, QueryMsg, SharesResponse, SharesResponseItem, StakerResponse, StateResponse,
     VoteOption, VoterInfo, VotersResponse, VotersResponseItem,
 };
 
@@ -661,7 +661,7 @@ fn happy_days_end_poll() {
     creator_env.block.height = &creator_env.block.height + DEFAULT_VOTING_PERIOD;
 
     env.block.height = creator_env.block.height;
-    
+
     let msg = HandleMsg::EndPoll { poll_id: 1 };
     let handle_res = handle(&mut deps, env.clone(), msg).unwrap();
 
@@ -714,7 +714,7 @@ fn happy_days_end_poll() {
     env.block.height = creator_env.block.height;
 
     let msg = HandleMsg::ExecutePoll { poll_id: 1 };
-    
+
     let handle_res = handle(&mut deps, env.clone(), msg).unwrap();
     assert_eq!(
         handle_res.messages,
@@ -1540,8 +1540,9 @@ fn happy_days_withdraw_voting_tokens() {
     // Should not allow withdrawal of tokens before lock up expiry.
     match handle_res {
         Ok(_) => panic!("Must return error"),
-        Err(StdError::GenericErr { msg, .. }) => 
-            assert_eq!(msg, "User is trying to withdraw tokens before expiry."),
+        Err(StdError::GenericErr { msg, .. }) => {
+            assert_eq!(msg, "User is trying to withdraw tokens before expiry.")
+        }
         Err(e) => panic!("Unexpected error: {:?}", e),
     }
 
@@ -3104,12 +3105,17 @@ fn test_staking_and_voting_rewards() {
             &Uint128((ALICE_STAKE + BOB_STAKE + 1_000_000_000) as u128),
         )],
     )]);
-    
+
     // withdraw remaining voting tokens
     let msg = HandleMsg::WithdrawVotingTokens { amount: None };
 
     let lock_expiry_duration = 104 * SECONDS_PER_WEEK;
-    let env = mock_env_height(ALICE, &[], env.block.height, env.block.time + lock_expiry_duration);
+    let env = mock_env_height(
+        ALICE,
+        &[],
+        env.block.height,
+        env.block.time + lock_expiry_duration,
+    );
 
     let res = handle(&mut deps, env.clone(), msg).unwrap();
     assert_eq!(
@@ -3129,7 +3135,12 @@ fn test_staking_and_voting_rewards() {
     )]);
     // withdraw remaining voting tokens
     let msg = HandleMsg::WithdrawVotingTokens { amount: None };
-    let env = mock_env_height(BOB, &[], env.block.height, env.block.time + lock_expiry_duration);
+    let env = mock_env_height(
+        BOB,
+        &[],
+        env.block.height,
+        env.block.time + lock_expiry_duration,
+    );
     let res = handle(&mut deps, env, msg).unwrap();
     assert_eq!(
         res.log,
@@ -3465,7 +3476,7 @@ fn test_query_shares() {
                 share: Uint128(11u128),
                 locked_balance: vec![],
                 participated_polls: vec![],
-                lock_end_week: Some(104u64)
+                lock_end_week: Some(104u64),
             },
         )
         .unwrap();
@@ -3476,7 +3487,7 @@ fn test_query_shares() {
                 share: Uint128(22u128),
                 locked_balance: vec![],
                 participated_polls: vec![],
-                lock_end_week: Some(104u64)
+                lock_end_week: Some(104u64),
             },
         )
         .unwrap();
@@ -3487,7 +3498,7 @@ fn test_query_shares() {
                 share: Uint128(33u128),
                 locked_balance: vec![],
                 participated_polls: vec![],
-                lock_end_week: Some(104u64)
+                lock_end_week: Some(104u64),
             },
         )
         .unwrap();
@@ -3651,7 +3662,14 @@ fn snapshot_poll() {
 
     let env = mock_env(VOTING_TOKEN, &[]);
     let handle_res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
-    assert_stake_tokens_result(stake_amount, DEFAULT_PROPOSAL_DEPOSIT, stake_amount, 1, handle_res, &mut deps);
+    assert_stake_tokens_result(
+        stake_amount,
+        DEFAULT_PROPOSAL_DEPOSIT,
+        stake_amount,
+        1,
+        handle_res,
+        &mut deps,
+    );
 
     let fix_res = handle(
         &mut deps,
@@ -4198,4 +4216,117 @@ fn happy_days_end_poll_with_controlled_quorum() {
     .unwrap();
 
     assert_eq!(actual_staked_weight.u128(), (10 * stake_amount))
+}
+
+#[test]
+fn increase_lock_time() {
+    let mut deps = mock_dependencies(20, &[]);
+    mock_init(&mut deps);
+
+    let stake_amount = 1000u128;
+    deps.querier.with_token_balances(&[(
+        &HumanAddr::from(VOTING_TOKEN),
+        &[(&HumanAddr::from(MOCK_CONTRACT_ADDR), &Uint128(stake_amount))],
+    )]);
+
+    let initial_lock_period = 10u64;
+    let msg = HandleMsg::Receive(Cw20ReceiveMsg {
+        sender: HumanAddr::from(TEST_VOTER),
+        amount: Uint128::from(stake_amount),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(initial_lock_period),
+            })
+            .unwrap(),
+        ),
+    });
+
+    let env = mock_env(VOTING_TOKEN, &[]);
+    let handle_res = handle(&mut deps, env, msg.clone()).unwrap();
+    assert_stake_tokens_result(stake_amount, 0, stake_amount, 0, handle_res, &mut deps);
+
+    let state: State = state_read(&mut deps.storage).load().unwrap();
+    assert_eq!(
+        state,
+        State {
+            contract_addr: HumanAddr::from(MOCK_CONTRACT_ADDR),
+            poll_count: 0,
+            total_share: Uint128::from(stake_amount),
+            total_deposit: Uint128::zero(),
+            pending_voting_rewards: Uint128::zero(),
+        }
+    );
+
+    let env = mock_env(TEST_VOTER, &[]);
+    let msg = HandleMsg::IncreaseLockTime {
+        increase_weeks: 95u64,
+    };
+
+    let handle_res = handle(&mut deps, env.clone(), msg.clone());
+
+    // Should not allow lock time exceeding 104 weeks.
+    match handle_res {
+        Ok(_) => panic!("Must return error"),
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Lock time exceeds the maximum."),
+        Err(e) => panic!("Unexpected error: {:?}", e),
+    }
+
+    let increased_lock_period = 20u64;
+
+    let env = mock_env(TEST_VOTER, &[]);
+    let msg = HandleMsg::IncreaseLockTime {
+        increase_weeks: increased_lock_period,
+    };
+
+    let handle_res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
+
+    assert_eq!(
+        handle_res.log,
+        vec![
+            log("action", "increase_lock_time"),
+            log("sender", "voter1"),
+            log("previous_lock_end_week", "2608"),
+            log("new_lock_end_week", "2628"),
+        ],
+    );
+
+    let mut env = mock_env(TEST_VOTER, &[]);
+
+    env.block.time += initial_lock_period * SECONDS_PER_WEEK;
+
+    let msg = HandleMsg::WithdrawVotingTokens {
+        amount: Some(Uint128::from(stake_amount)),
+    };
+
+    let handle_res = handle(&mut deps, env.clone(), msg.clone());
+
+    // Make sure increase_lock_time worked and tokens cannot be withdrawn before lock time expires
+    match handle_res {
+        Ok(_) => panic!("Must return error"),
+        Err(StdError::GenericErr { msg, .. }) => {
+            assert_eq!(msg, "User is trying to withdraw tokens before expiry.")
+        }
+        Err(e) => panic!("Unexpected error: {:?}", e),
+    }
+
+    env.block.time += increased_lock_period * SECONDS_PER_WEEK;
+    let msg = HandleMsg::WithdrawVotingTokens {
+        amount: Some(Uint128::from(stake_amount)),
+    };
+
+    let handle_res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
+
+    handle_res.messages.get(0).expect("no message");
+
+    let state: State = state_read(&mut deps.storage).load().unwrap();
+    assert_eq!(
+        state,
+        State {
+            contract_addr: HumanAddr::from(MOCK_CONTRACT_ADDR),
+            poll_count: 0,
+            total_share: Uint128::from(0u128),
+            total_deposit: Uint128::zero(),
+            pending_voting_rewards: Uint128::zero(),
+        }
+    );
 }

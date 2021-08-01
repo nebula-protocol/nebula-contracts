@@ -1,17 +1,20 @@
 use crate::querier::load_token_balance;
 use crate::state::{
     bank_read, bank_store, config_read, config_store, poll_read, poll_store, poll_voter_read,
-    poll_voter_store, read_bank_stakers, read_polls, state_read, state_store, total_voting_power_read,
-    total_voting_power_store, Config, Poll, State, TokenManager, TotalVotingPower,
+    poll_voter_store, read_bank_stakers, read_polls, state_read, state_store,
+    total_voting_power_read, total_voting_power_store, Config, Poll, State, TokenManager,
+    TotalVotingPower,
 };
 
 use cosmwasm_std::{
-    log, to_binary, Api, CanonicalAddr, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr, Querier,
-    StdError, StdResult, Storage, Uint128, WasmMsg,
+    log, to_binary, Api, CanonicalAddr, CosmosMsg, Env, Extern, HandleResponse, HandleResult,
+    HumanAddr, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 use cw20::Cw20HandleMsg;
 use nebula_protocol::common::OrderBy;
-use nebula_protocol::gov::{PollStatus, SharesResponse, SharesResponseItem, StakerResponse, VoterInfo};
+use nebula_protocol::gov::{
+    PollStatus, SharesResponse, SharesResponseItem, StakerResponse, VoterInfo,
+};
 
 pub static SECONDS_PER_WEEK: u64 = 604800u64; //60 * 60 * 24 * 7
 pub static M: u64 = 104u64; //Max weeks
@@ -68,7 +71,7 @@ pub fn stake_voting_tokens<S: Storage, A: Api, Q: Querier>(
         amount
     } else {
         amount.multiply_ratio(state.total_share, total_balance)
-    };    
+    };
 
     let mut total_voting_power = total_voting_power_read(&deps.storage).load()?;
 
@@ -93,7 +96,7 @@ pub fn stake_voting_tokens<S: Storage, A: Api, Q: Querier>(
             ));
         }
         if lock_for_weeks.unwrap() > M {
-            return Err(StdError::generic_err("lock time exceeds maximum"));
+            return Err(StdError::generic_err("Lock time exceeds the maximum."));
         }
         token_manager.lock_end_week = Some(current_week + lock_for_weeks.unwrap());
     }
@@ -113,7 +116,7 @@ pub fn stake_voting_tokens<S: Storage, A: Api, Q: Querier>(
     state_store(&mut deps.storage).save(&state)?;
     bank_store(&mut deps.storage).save(key, &token_manager)?;
     total_voting_power_store(&mut deps.storage).save(&total_voting_power)?;
-    
+
     Ok(HandleResponse {
         messages: vec![],
         data: None,
@@ -450,7 +453,7 @@ pub fn increase_lock_time<S: Storage, A: Api, Q: Querier>(
 
     if let Some(lock_end_week) = token_manager.lock_end_week {
         if lock_end_week + increase_weeks - current_week > M {
-            return Err(StdError::generic_err("lock time exceeds maximum"));
+            return Err(StdError::generic_err("Lock time exceeds the maximum."));
         }
 
         adjust_total_voting_power(
@@ -499,12 +502,7 @@ pub fn query_shares<S: Storage, A: Api, Q: Querier>(
     order_by: Option<OrderBy>,
 ) -> StdResult<SharesResponse> {
     let stakers: Vec<(HumanAddr, TokenManager)> = if let Some(start_after) = start_after {
-        read_bank_stakers(
-            &deps.storage,
-            Some(start_after),
-            limit,
-            order_by,
-        )?
+        read_bank_stakers(&deps.storage, Some(start_after), limit, order_by)?
     } else {
         read_bank_stakers(&deps.storage, None, limit, order_by)?
     };
