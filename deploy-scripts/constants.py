@@ -6,6 +6,7 @@ from bot_code.terra_ecosystem_recomp_deploy.src.recomp_deploy import TerraFullDi
 from bot_code.fab_mang_recomp_deploy.src.recomp_deploy import FABMANGRecomposer
 from bot_code.future_of_france_recomp_deploy.src.recomp_deploy import FutureOfFranceRecomposer
 
+terraswap_factory_teq = Contract("terra18qpjm4zkvqnpjpw0zn0tdr8gdzvt8au35v45xf")
 
 DEPLOY_ENVIRONMENT_STATUS_W_GOV = {
   'airdrop': Contract("terra1r8ff3p8rxuverx3y52gd5a7r7vgw756vvthqcs"),
