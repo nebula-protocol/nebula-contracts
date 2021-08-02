@@ -5,13 +5,14 @@ use crate::contract::{handle, init, query};
 use crate::mock_querier::{mock_dependencies, WasmMockQuerier};
 use crate::state::{read_config, PenaltyConfig};
 
-use cluster_math::{FPDecimal, dot, imbalance, int32_vec_to_fpdec, int_vec_to_fpdec, str_vec_to_fpdec};
-use cosmwasm_std::testing::{mock_env, MockApi, MockStorage};
-use cosmwasm_std::{
-    from_binary, log, Coin, Env, Extern,
-    HumanAddr, StdError, Uint128,
+use cluster_math::{
+    dot, imbalance, int32_vec_to_fpdec, int_vec_to_fpdec, str_vec_to_fpdec, FPDecimal,
 };
-use nebula_protocol::penalty::{HandleMsg, InitMsg, MintResponse, PenaltyParams, QueryMsg, RedeemResponse};
+use cosmwasm_std::testing::{mock_env, MockApi, MockStorage};
+use cosmwasm_std::{from_binary, log, Coin, Env, Extern, HumanAddr, StdError, Uint128};
+use nebula_protocol::penalty::{
+    HandleMsg, InitMsg, MintResponse, PenaltyParams, QueryMsg, RedeemResponse,
+};
 
 const TEST_CREATOR: &str = "creator";
 
@@ -151,7 +152,7 @@ fn test_notional_penalty_math() {
     let curr_inv = int32_vec_to_fpdec(&[47, 50, 53]);
     let nav = dot(&curr_inv, &p);
     update_ema(&mut deps, 60, nav).unwrap();
-    
+
     let i1 = int32_vec_to_fpdec(&[90, 100, 110]);
     let penalty = notional_penalty(&deps, 160u64, &i0, &i1, &w, &p);
     match penalty {
@@ -185,7 +186,7 @@ fn test_mint_actions() {
 
     // Set up EMA
     let curr_inv = &[Uint128(1000), Uint128(1010), Uint128(994)];
-    
+
     let nav = dot(&int_vec_to_fpdec(curr_inv), &p);
     update_ema(&mut deps, 60, nav).unwrap();
 
@@ -207,7 +208,10 @@ fn test_mint_actions() {
     let response: MintResponse = from_binary(&res).unwrap();
     assert_eq!(response.mint_tokens, Uint128(999706));
     assert_eq!(response.penalty, Uint128::zero());
-    assert_eq!(response.log, vec![log("penalty", FPDecimal::from_str("-4.2").unwrap())]);
+    assert_eq!(
+        response.log,
+        vec![log("penalty", FPDecimal::from_str("-4.2").unwrap())]
+    );
 
     // Simulate target weights changing dramatically
     let weights = &[Uint128(200), Uint128(100), Uint128(100)];
@@ -226,32 +230,35 @@ fn test_mint_actions() {
     )
     .unwrap();
 
-
     let response: MintResponse = from_binary(&res).unwrap();
-
 
     assert_eq!(response.mint_tokens, Uint128(2230596));
     assert_eq!(response.penalty, Uint128(197));
-    assert_eq!(response.log, vec![log("penalty", FPDecimal::from_str("197.5260869565").unwrap())]);
-
+    assert_eq!(
+        response.log,
+        vec![log(
+            "penalty",
+            FPDecimal::from_str("197.5260869565").unwrap()
+        )]
+    );
 
     let weights = &[Uint128(100), Uint128(100), Uint128(100)];
     let mint_asset_amounts = &[Uint128(1000), Uint128(1010), Uint128(994)];
     let curr_inv = &[Uint128(2000), Uint128(2020), Uint128(1988)];
-    let msg = HandleMsg::Mint { 
-        block_height: 120, 
+    let msg = HandleMsg::Mint {
+        block_height: 120,
         cluster_token_supply: Uint128(1000000),
-        inventory: curr_inv.to_vec(), 
-        mint_asset_amounts: mint_asset_amounts.to_vec(), 
-        asset_prices: p_strs.to_vec(), 
-        target_weights: weights.to_vec()
+        inventory: curr_inv.to_vec(),
+        mint_asset_amounts: mint_asset_amounts.to_vec(),
+        asset_prices: p_strs.to_vec(),
+        target_weights: weights.to_vec(),
     };
 
     let res = handle(&mut deps, env, msg).unwrap();
     for log in res.log.iter() {
         match log.key.as_str() {
             "new_ema" => assert_eq!("15660.8249220857780489", log.value),
-            &_ => panic!("Invalid value found in log")
+            &_ => panic!("Invalid value found in log"),
         }
     }
 }
@@ -270,7 +277,7 @@ fn test_redeem_actions() {
 
     // Set up EMA
     let curr_inv = &[Uint128(1000), Uint128(1010), Uint128(994)];
-    
+
     let nav = dot(&int_vec_to_fpdec(curr_inv), &p);
     update_ema(&mut deps, 60, nav).unwrap();
 
@@ -292,9 +299,15 @@ fn test_redeem_actions() {
 
     let response: RedeemResponse = from_binary(&res).unwrap();
     assert_eq!(response.token_cost, Uint128(100000));
-    assert_eq!(response.redeem_assets, vec![Uint128(100), Uint128(100), Uint128(100)]);
+    assert_eq!(
+        response.redeem_assets,
+        vec![Uint128(100), Uint128(100), Uint128(100)]
+    );
     assert_eq!(response.penalty, Uint128::zero());
-    assert_eq!(response.log, vec![log("penalty", FPDecimal::from_str("0").unwrap())]);
+    assert_eq!(
+        response.log,
+        vec![log("penalty", FPDecimal::from_str("0").unwrap())]
+    );
 
     let redeem_asset_amounts = &[];
 
@@ -314,29 +327,31 @@ fn test_redeem_actions() {
 
     let response: RedeemResponse = from_binary(&res).unwrap();
     assert_eq!(response.token_cost, Uint128(100000));
-    assert_eq!(response.redeem_assets, vec![Uint128(100), Uint128(101), Uint128(99)]);
+    assert_eq!(
+        response.redeem_assets,
+        vec![Uint128(100), Uint128(101), Uint128(99)]
+    );
     assert_eq!(response.penalty, Uint128::zero());
     assert_eq!(response.log, vec![]);
-
 
     let weights = &[Uint128(100), Uint128(100), Uint128(100)];
     let mint_asset_amounts = &[Uint128(1000), Uint128(1010), Uint128(994)];
     let curr_inv = &[Uint128(900), Uint128(910), Uint128(904)];
-    let msg = HandleMsg::Redeem { 
-        block_height: 120, 
+    let msg = HandleMsg::Redeem {
+        block_height: 120,
         cluster_token_supply: Uint128(1000000),
-        inventory: curr_inv.to_vec(), 
+        inventory: curr_inv.to_vec(),
         redeem_asset_amounts: mint_asset_amounts.to_vec(),
         max_tokens: Uint128(10000),
-        asset_prices: p_strs.to_vec(), 
-        target_weights: weights.to_vec()
+        asset_prices: p_strs.to_vec(),
+        target_weights: weights.to_vec(),
     };
 
     let res = handle(&mut deps, env, msg).unwrap();
     for log in res.log.iter() {
         match log.key.as_str() {
             "new_ema" => assert_eq!("14167.248198160163609915", log.value),
-            &_ => panic!("Invalid value found in log")
+            &_ => panic!("Invalid value found in log"),
         }
     }
 }

@@ -11,8 +11,8 @@ use crate::state::{
 };
 
 use nebula_protocol::cluster_factory::{
-    ClusterExistsResponse, ClusterListResponse, ConfigResponse, HandleMsg, InitMsg, Params,
-    QueryMsg,
+    ClusterExistsResponse, ClusterListResponse, ConfigResponse, DistributionInfoResponse,
+    HandleMsg, InitMsg, Params, QueryMsg,
 };
 
 use nebula_protocol::cluster::{HandleMsg as ClusterHandleMsg, InitMsg as ClusterInitMsg};
@@ -618,6 +618,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
             to_binary(&query_cluster_exists(deps, contract_addr)?)
         }
         QueryMsg::ClusterList {} => to_binary(&query_clusters(deps)?),
+        QueryMsg::DistributionInfo {} => to_binary(&query_distribution_info(deps)?),
     }
 }
 
@@ -637,6 +638,22 @@ pub fn query_config<S: Storage, A: Api, Q: Querier>(
         base_denom: state.base_denom,
         genesis_time: state.genesis_time,
         distribution_schedule: state.distribution_schedule,
+    };
+
+    Ok(resp)
+}
+
+pub fn query_distribution_info<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+) -> StdResult<DistributionInfoResponse> {
+    let weights: Vec<(HumanAddr, u32)> = read_all_weight(&deps.storage)?;
+    let last_distributed = read_last_distributed(&deps.storage)?;
+    let resp = DistributionInfoResponse {
+        last_distributed,
+        weights: weights
+            .iter()
+            .map(|w| Ok((w.0.clone(), w.1)))
+            .collect::<StdResult<Vec<(HumanAddr, u32)>>>()?,
     };
 
     Ok(resp)

@@ -49,8 +49,6 @@ impl WasmMockQuerier {
 
 impl WasmMockQuerier {
     pub fn new(base: MockQuerier<Empty>) -> Self {
-        WasmMockQuerier {
-            base,
-        }
+        WasmMockQuerier { base }
     }
 }

@@ -7,10 +7,10 @@ pub use cosmwasm_std::*;
 pub use cw20::BalanceResponse as Cw20BalanceResponse;
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use nebula_protocol::{
-    cluster::{HandleMsg as ClusterHandleMsg, InitMsg, QueryMsg as ClusterQueryMsg},
-    cluster_factory::{ConfigResponse as FactoryConfigResponse, QueryMsg as FactoryQueryMsg},
+    cluster::{InitMsg, QueryMsg as ClusterQueryMsg},
+    cluster_factory::ConfigResponse as FactoryConfigResponse,
     oracle::{PriceResponse, QueryMsg as OracleQueryMsg},
-    penalty::{MintResponse, PenaltyParams, QueryMsg as PenaltyQueryMsg, RedeemResponse},
+    penalty::{MintResponse, QueryMsg as PenaltyQueryMsg, RedeemResponse},
 };
 use std::collections::HashMap;
 pub use std::str::FromStr;

@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    to_binary, BalanceResponse, BankQuery, HumanAddr, Querier, QueryRequest, StdError, StdResult,
-    Uint128, WasmQuery,
+    to_binary, BalanceResponse, BankQuery, HumanAddr, Querier, QueryRequest, StdResult, Uint128,
+    WasmQuery,
 };
 use cw20::Cw20QueryMsg;
 use cw20::{BalanceResponse as Cw20BalanceResponse, TokenInfoResponse as Cw20TokenInfoResponse};
@@ -10,7 +10,6 @@ use nebula_protocol::{
     oracle::QueryMsg as OracleQueryMsg, penalty::MintResponse,
     penalty::QueryMsg as PenaltyQueryMsg, penalty::RedeemResponse,
 };
-use std::cmp::min;
 use terraswap::asset::AssetInfo;
 
 /// EXTERNAL QUERY
@@ -21,7 +20,7 @@ pub fn query_price<Q: Querier>(
     asset_info: &AssetInfo,
     // prices from before < stale_threshold are considered stale
     // and result in an error
-    stale_threshold: u64,
+    _stale_threshold: u64,
 ) -> StdResult<String> {
     // perform query
     let res: PriceResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {

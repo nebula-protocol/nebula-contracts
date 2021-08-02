@@ -19,7 +19,6 @@ use nebula_protocol::cluster::HandleMsg;
 use nebula_protocol::penalty::{HandleMsg as PenaltyHandleMsg, QueryMsg as PenaltyQueryMsg};
 
 use std::str::FromStr;
-use std::u32;
 use terraswap::asset::{Asset, AssetInfo};
 
 // prices last 30s before they go from fresh to stale

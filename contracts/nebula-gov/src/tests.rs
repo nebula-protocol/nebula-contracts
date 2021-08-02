@@ -4910,13 +4910,16 @@ fn test_unstake_before_claiming_voting_rewards() {
     let msg = HandleMsg::Receive(Cw20ReceiveMsg {
         sender: HumanAddr::from(TEST_VOTER),
         amount: Uint128::from(stake_amount),
-        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {
-            lock_for_weeks: Some(104u64)
-        }).unwrap()),
+        msg: Some(
+            to_binary(&Cw20HookMsg::StakeVotingTokens {
+                lock_for_weeks: Some(104u64),
+            })
+            .unwrap(),
+        ),
     });
 
     let env = mock_env_height(VOTING_TOKEN, &[], env.block.height, env.block.time);
-    let _res = handle(&mut deps, env.clone( ), msg).unwrap();
+    let _res = handle(&mut deps, env.clone(), msg).unwrap();
 
     let msg = HandleMsg::CastVote {
         poll_id: 1,
@@ -4945,7 +4948,10 @@ fn test_unstake_before_claiming_voting_rewards() {
 
     // END POLL
     let env = mock_env_height(
-        TEST_VOTER, &[], env.block.height + DEFAULT_VOTING_PERIOD, env.block.time
+        TEST_VOTER,
+        &[],
+        env.block.height + DEFAULT_VOTING_PERIOD,
+        env.block.time,
     );
     let msg = HandleMsg::EndPoll { poll_id: 1 };
     let _res = handle(&mut deps, env.clone(), msg).unwrap();
@@ -5007,7 +5013,7 @@ fn test_unstake_before_claiming_voting_rewards() {
     let token_manager = bank_read(&mut deps.storage)
         .load(&HumanAddr::from(TEST_VOTER).as_str().as_bytes())
         .unwrap();
-    
+
     assert_eq!(token_manager.locked_balance, vec![]);
 
     // expect err

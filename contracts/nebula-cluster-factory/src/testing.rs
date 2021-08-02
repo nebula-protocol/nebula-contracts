@@ -173,7 +173,7 @@ fn test_update_config() {
         owner: None,
         distribution_schedule: None,
         token_code_id: Some(TOKEN_CODE_ID + 1),
-        cluster_code_id: Some(CLUSTER_CODE_ID + 1)
+        cluster_code_id: Some(CLUSTER_CODE_ID + 1),
     };
 
     let env = mock_env("owner0000", &[]);
@@ -184,77 +184,62 @@ fn test_update_config() {
     }
 }
 
-// #[test]
-// fn test_update_weight() {
-//     let mut deps = mock_dependencies(20, &[]);
-//     let msg = InitMsg {
-//         base_denom: BASE_DENOM.to_string(),
-//         token_code_id: TOKEN_CODE_ID,
-//         distribution_schedule: vec![],
-//     };
+#[test]
+fn test_update_weight() {
+    let mut deps = mock_dependencies(20, &[]);
+    let msg = InitMsg {
+        base_denom: BASE_DENOM.to_string(),
+        token_code_id: TOKEN_CODE_ID,
+        cluster_code_id: CLUSTER_CODE_ID,
+        protocol_fee_rate: PROTOCOL_FEE_RATE.to_string(),
+        distribution_schedule: vec![],
+    };
 
-//     let env = mock_env("addr0000", &[]);
-//     let _res = init(&mut deps, env.clone(), msg).unwrap();
+    let env = mock_env("addr0000", &[]);
+    let _res = init(&mut deps, env.clone(), msg).unwrap();
 
-//     let msg = HandleMsg::PostInitialize {
-//         owner: HumanAddr::from("owner0000"),
-//         nebula_token: HumanAddr::from("nebula0000"),
-//         mint_contract: HumanAddr::from("mint0000"),
-//         staking_contract: HumanAddr::from("staking0000"),
-//         commission_collector: HumanAddr::from("collector0000"),
-//         oracle_contract: HumanAddr::from("oracle0000"),
-//         terraswap_factory: HumanAddr::from("terraswapfactory"),
-//     };
-//     let _res = handle(&mut deps, env.clone(), msg).unwrap();
+    let msg = HandleMsg::PostInitialize {
+        owner: HumanAddr::from("owner0000"),
+        nebula_token: HumanAddr::from("nebula0000"),
+        staking_contract: HumanAddr::from("staking0000"),
+        commission_collector: HumanAddr::from("collector0000"),
+        terraswap_factory: HumanAddr::from("terraswapfactory"),
+    };
+    let _res = handle(&mut deps, env.clone(), msg).unwrap();
 
-//     store_total_weight(&mut deps.storage, 100).unwrap();
-//     store_weight(
-//         &mut deps.storage,
-//         &deps
-//             .api
-//             .canonical_address(&HumanAddr::from("asset0000"))
-//             .unwrap(),
-//         10,
-//     )
-//     .unwrap();
+    store_total_weight(&mut deps.storage, 100).unwrap();
+    store_weight(&mut deps.storage, &HumanAddr::from("asset0000"), 10).unwrap();
 
-//     // incrase weight
-//     let msg = HandleMsg::UpdateWeight {
-//         asset_token: HumanAddr::from("asset0000"),
-//         weight: 20,
-//     };
-//     let env = mock_env("owner0001", &[]);
-//     let res = handle(&mut deps, env, msg.clone()).unwrap_err();
-//     match res {
-//         StdError::Unauthorized { .. } => {}
-//         _ => panic!("DO NOT ENTER HERE"),
-//     }
+    // incrase weight
+    let msg = HandleMsg::UpdateWeight {
+        asset_token: HumanAddr::from("asset0000"),
+        weight: 20,
+    };
+    let env = mock_env("owner0001", &[]);
+    let res = handle(&mut deps, env, msg.clone()).unwrap_err();
+    match res {
+        StdError::Unauthorized { .. } => {}
+        _ => panic!("DO NOT ENTER HERE"),
+    }
 
-//     let env = mock_env("owner0000", &[]);
-//     let _res = handle(&mut deps, env, msg).unwrap();
-//     let res = query(&deps, QueryMsg::DistributionInfo {}).unwrap();
-//     let distribution_info: DistributionInfoResponse = from_binary(&res).unwrap();
-//     assert_eq!(
-//         distribution_info,
-//         DistributionInfoResponse {
-//             weights: vec![(HumanAddr::from("asset0000"), 20)],
-//             last_distributed: 1_571_797_419,
-//         }
-//     );
+    let env = mock_env("owner0000", &[]);
+    let _res = handle(&mut deps, env, msg).unwrap();
+    let res = query(&deps, QueryMsg::DistributionInfo {}).unwrap();
+    let distribution_info: DistributionInfoResponse = from_binary(&res).unwrap();
+    assert_eq!(
+        distribution_info,
+        DistributionInfoResponse {
+            weights: vec![(HumanAddr::from("asset0000"), 20)],
+            last_distributed: 1_571_797_419,
+        }
+    );
 
-//     assert_eq!(
-//         read_weight(
-//             &deps.storage,
-//             &deps
-//                 .api
-//                 .canonical_address(&HumanAddr::from("asset0000"))
-//                 .unwrap()
-//         )
-//         .unwrap(),
-//         20u32
-//     );
-//     assert_eq!(read_total_weight(&deps.storage).unwrap(), 110u32);
-// }
+    assert_eq!(
+        read_weight(&deps.storage, &HumanAddr::from("asset0000")).unwrap(),
+        20u32
+    );
+    assert_eq!(read_total_weight(&deps.storage).unwrap(), 110u32);
+}
 
 // #[test]
 // fn test_whitelist() {
