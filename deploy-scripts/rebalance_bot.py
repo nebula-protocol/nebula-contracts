@@ -181,7 +181,7 @@ class RebalancingBot:
         uusd_ret_asset_vals = [int(log.events_by_type['from_contract']['return_amount'][0]) for log in res_swaps.logs]
 
         print(f"Rebalancing net us {uusd_ret_asset_vals - sum(uusd_distrs)}")
-        
+
         return sum(uusd_ret_asset_vals)
 
 
@@ -202,10 +202,7 @@ class RebalancingBot:
                 print("Found rebalance opportunity")
                 await self.execute_easy_mint_and_redeem(i, uusd_distribution)
 
-async def run_rebalance_periodically(cluster_contract, interval):
-    factory_contract = Contract(sys.argv[1])
-    incentives_contract = Contract(sys.argv[2])
-    
+async def run_rebalance_periodically(factory_contract, incentives_contract, interval):
     rebalancing_bot = RebalancingBot(factory_contract, incentives_contract)
 
     while True:
@@ -217,6 +214,7 @@ async def run_rebalance_periodically(cluster_contract, interval):
             RebalancingBot.perform_rebalance(),
         )
 
+# Playground function to look at logs
 async def testing():
     uluna_pair = await get_pair_contract_uusd(Asset.asset('uluna', 0, native=True))
     anc_pair = await get_pair_contract_uusd(Asset.asset('terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc', 0, native=False))
@@ -251,6 +249,8 @@ async def testing():
     print('goddamn bro')
 
 if __name__ == "__main__":
-    asyncio.get_event_loop().run_until_complete(testing())
-    # interval = INTERVAL
-    # asyncio.get_event_loop().run_until_complete(run_rebalance_periodically(factory_contract, interval))
+    # asyncio.get_event_loop().run_until_complete(testing())
+    interval = INTERVAL
+    factory_contract = Contract(sys.argv[1])
+    incentives_contract = Contract(sys.argv[2])
+    asyncio.get_event_loop().run_until_complete(run_rebalance_periodically(factory_contract, incentives_contract, interval))
