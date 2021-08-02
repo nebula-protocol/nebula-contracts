@@ -4866,3 +4866,152 @@ fn total_voting_power_calculation() {
         }
     );
 }
+
+#[test]
+fn test_unstake_before_claiming_voting_rewards() {
+    let mut deps = mock_dependencies(20, &[]);
+    let msg = InitMsg {
+        nebula_token: HumanAddr::from(VOTING_TOKEN),
+        quorum: Decimal::percent(DEFAULT_QUORUM),
+        threshold: Decimal::percent(DEFAULT_THRESHOLD),
+        voting_period: DEFAULT_VOTING_PERIOD,
+        effective_delay: DEFAULT_EFFECTIVE_DELAY,
+        expiration_period: DEFAULT_EXPIRATION_PERIOD,
+        proposal_deposit: Uint128(DEFAULT_PROPOSAL_DEPOSIT),
+        voter_weight: Decimal::percent(50), // distribute 50% rewards to voters
+        snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
+    };
+
+    let env = mock_env(TEST_CREATOR, &[]);
+    let _res = init(&mut deps, env, msg).expect("contract successfully handles InitMsg");
+
+    let env = mock_env(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let handle_res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
+
+    assert_create_poll_result(
+        1,
+        env.block.height + DEFAULT_VOTING_PERIOD,
+        TEST_CREATOR,
+        handle_res,
+        &mut deps,
+    );
+
+    let stake_amount = 100u128;
+
+    deps.querier.with_token_balances(&[(
+        &HumanAddr::from(VOTING_TOKEN),
+        &[(
+            &HumanAddr::from(MOCK_CONTRACT_ADDR),
+            &Uint128((stake_amount + DEFAULT_PROPOSAL_DEPOSIT) as u128),
+        )],
+    )]);
+
+    let msg = HandleMsg::Receive(Cw20ReceiveMsg {
+        sender: HumanAddr::from(TEST_VOTER),
+        amount: Uint128::from(stake_amount),
+        msg: Some(to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: Some(104u64)
+        }).unwrap()),
+    });
+
+    let env = mock_env_height(VOTING_TOKEN, &[], env.block.height, env.block.time);
+    let _res = handle(&mut deps, env.clone( ), msg).unwrap();
+
+    let msg = HandleMsg::CastVote {
+        poll_id: 1,
+        vote: VoteOption::Yes,
+        amount: Uint128::from(stake_amount),
+    };
+    let env = mock_env_height(TEST_VOTER, &[], env.block.height, env.block.time);
+    let _res = handle(&mut deps, env.clone(), msg).unwrap();
+
+    deps.querier.with_token_balances(&[(
+        &HumanAddr::from(VOTING_TOKEN),
+        &[(
+            &HumanAddr::from(MOCK_CONTRACT_ADDR),
+            &Uint128((stake_amount + DEFAULT_PROPOSAL_DEPOSIT + 100u128) as u128),
+        )],
+    )]);
+
+    let msg = HandleMsg::Receive(Cw20ReceiveMsg {
+        sender: HumanAddr::from(TEST_COLLECTOR),
+        amount: Uint128::from(100u128),
+        msg: Some(to_binary(&Cw20HookMsg::DepositReward {}).unwrap()),
+    });
+
+    let env = mock_env_height(VOTING_TOKEN, &[], env.block.height, env.block.time);
+    let _res = handle(&mut deps, env.clone(), msg).unwrap();
+
+    // END POLL
+    let env = mock_env_height(
+        TEST_VOTER, &[], env.block.height + DEFAULT_VOTING_PERIOD, env.block.time
+    );
+    let msg = HandleMsg::EndPoll { poll_id: 1 };
+    let _res = handle(&mut deps, env.clone(), msg).unwrap();
+
+    deps.querier.with_token_balances(&[(
+        &HumanAddr::from(VOTING_TOKEN),
+        &[(
+            &HumanAddr::from(MOCK_CONTRACT_ADDR),
+            &Uint128((stake_amount + 100u128) as u128),
+        )],
+    )]);
+
+    // UNSTAKE VOTING TOKENS
+    let msg = HandleMsg::WithdrawVotingTokens { amount: None };
+    let mut env = mock_env_height(TEST_VOTER, &[], env.block.height, env.block.time);
+
+    //Make 2 years pass by so lock expires
+    env.block.time += 104 * SECONDS_PER_WEEK;
+    let res = handle(&mut deps, env, msg).unwrap();
+    assert_eq!(
+        res.log,
+        vec![
+            log("action", "withdraw"),
+            log("recipient", TEST_VOTER),
+            log("amount", (stake_amount + 50u128).to_string()), // 100 + 50% of 100
+        ]
+    );
+
+    let token_manager = bank_read(&mut deps.storage)
+        .load(&HumanAddr::from(TEST_VOTER).as_str().as_bytes())
+        .unwrap();
+    assert_eq!(
+        token_manager.locked_balance,
+        vec![(
+            1u64,
+            VoterInfo {
+                vote: VoteOption::Yes,
+                balance: Uint128::from(stake_amount),
+            }
+        )]
+    );
+
+    // SUCCESS
+    let msg = HandleMsg::WithdrawVotingRewards {};
+    let env = mock_env_height(TEST_VOTER, &[], 0, 10000);
+    let res = handle(&mut deps, env.clone(), msg).unwrap();
+
+    // user can withdraw 50% of total staked (weight = 50% poll share = 100%)
+    assert_eq!(
+        res.log,
+        vec![
+            log("action", "withdraw_voting_rewards"),
+            log("recipient", TEST_VOTER),
+            log("amount", 50),
+        ]
+    );
+
+    // make sure now the state is clean
+    let token_manager = bank_read(&mut deps.storage)
+        .load(&HumanAddr::from(TEST_VOTER).as_str().as_bytes())
+        .unwrap();
+    
+    assert_eq!(token_manager.locked_balance, vec![]);
+
+    // expect err
+    poll_voter_read(&mut deps.storage, 1u64)
+        .load(&HumanAddr::from(TEST_VOTER).as_str().as_bytes())
+        .unwrap_err();
+}
