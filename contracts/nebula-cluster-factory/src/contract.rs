@@ -254,7 +254,7 @@ pub fn create_cluster<S: Storage, A: Api, Q: Querier>(
     }
 
     if read_params(&deps.storage).is_ok() {
-        return Err(StdError::generic_err("A whitelist process is in progress"));
+        return Err(StdError::generic_err("A cluster creation process is in progress"));
     }
 
     store_params(&mut deps.storage, &params)?;
@@ -273,7 +273,6 @@ pub fn create_cluster<S: Storage, A: Api, Q: Querier>(
                 penalty: params.penalty,
                 cluster_token: None,
                 target: params.target,
-                // TODO: Write separate init hook for cluster
                 init_hook: Some(InitHook {
                     contract_addr: env.contract.address,
                     msg: to_binary(&HandleMsg::TokenCreationHook {})?,
