@@ -2,23 +2,24 @@ import os
 import asyncio
 import yfinance as yf
 
-os.environ["MNEMONIC"] = mnemonic = 'soda buffalo melt legal zebra claw taxi peace fashion service drastic special coach state rare harsh business bulb tissue illness juice steel screen chef'
+os.environ["MNEMONIC"] = mnemonic = 'museum resist wealth require renew punch jeans smooth old color neutral cactus baby retreat guitar web average piano excess next strike drive game romance'
 os.environ["USE_TEQUILA"] = "1"
 
 from api import Asset
-from contract_helpers import Contract, ClusterContract, terra, deployer
+from contract_helpers import Contract, chain, ClusterContract, terra, deployer
 from easy_mint import EasyMintOptimizer
-from sim_utils import unpack_asset_info
+from sim_utils import unpack_asset_info, get_pair_contract_uusd
 import time
 import sys
 
 INTERVAL = 5 * 60
 
-factory_contract = Contract(sys.argv[1])
-
 class RebalancingBot:
-    def __init__(self, factory_contract, gain_threshold=2000000):
+    def __init__(self, factory_contract, incentives_contract, gain_threshold=2000000):
         self.factory_contract = factory_contract
+
+        # All mints and redeems will be eligible for rewards
+        self.incentives_contract = incentives_contract
 
         # How much to gain via rebalancing to do the trade
         self.gain_threshold = gain_threshold
@@ -84,30 +85,104 @@ class RebalancingBot:
 
     async def execute_easy_mint_and_redeem(self, idx, uusd_distrs):
         """
-        Simulates full loop for specific cluster and returns expected reward
+        Actually does minting and redeeming
         """
         cluster = self.clusters[idx]
         optimizer = self.easy_mint_optimizers[idx]
-        optimal_asset_allocation, uusd_per_asset, expected_cluster_tokens = optimizer.find_optimal_allocation(uusd_cost)
 
         target_assets = optimizer.cluster_simulator.target_assets
         pair_contracts = [ts_sim.pair_contract for ts_sim in optimizer.terraswap_simulators]
 
+        # Might have to split into two transactions if gas fees are an issue
+        msgs = []
+
         # Swap from UST on Terraswap pair
+        for idx, p in enumerate(pair_contracts):
+            amt = str(uusd_distrs[idx])
+            msgs.append(
+                p.swap(
+                    offer_asset=Asset.asset("uusd", amount=amt, native=True),
+                    _send={"uusd": amt},
+                )
+            )
 
-        # Mint or incentives mint on cluster 
+        res_swaps = chain(*msgs)
+        ret_asset_vals = [int(log.events_by_type['from_contract']['return_amount'][0]) for log in res_swaps.logs]
 
-        # Increase allowance / craft send message for native assets
+        # Prepare to incentives mint on cluster
+        msgs = []
+        mint_assets = []
+        send = {}
+        for idx, t in enumerate(target_assets):
+            asset_name, is_native = unpack_asset_info(t)
+            amt_to_mint = str(ret_asset_vals[idx])
+            send = None
+            # Prepare for sending
+            if is_native:
+                send[asset_name] = amt_to_mint
+            else:
+                # Must increase allowance before incentives minting
+                token_contract = Contract(asset_name)
+                token_contract.increase_allowance(amount=amt_to_mint, spender=self.incentives_contract)
+            
+            mint_assets.append(Asset.asset(asset_name, amt_to_mint, native=is_native))
 
-        # Incentives mint on cluster 
+        # Finally, incentives mint on cluster
+        msgs.append(
+            self.incentives.mint(
+                cluster_contract=cluster,
+                asset_amounts=mint_assets,
+                _send=send
+            )
+        )
+
+        res_mint = await chain(*msgs)
+        ct_tokens_received = int(res_mint.logs[-1].events_by_type["from_contract"]["mint_to_sender"][0])
 
         # Increase cluster token allowance
+        cluster_token = optimizer.cluster_simulator.cluster_state['cluster_token']
+        res_redeem = await chain(
+            cluster_token.increase_allowance(spender=self.incentives_contract, amount=str(ct_tokens_received)),
+            self.incentives.redeem(
+                max_tokens=str(ct_tokens_received),
+                cluster_contract=cluster,
+            ),
+        )
 
         # Incentives pro-rata redeem on cluster [TODO: Smart redeem]
 
-        # Increase allowance again on tokens / craft send message
+        # This is a string like '[1, 1]' so we must convert
+        redeem_amts = res_redeem.logs[-1].events_by_type["from_contract"]['redeem_totals'][0]
+        redeem_asset_vals = [int(r) for r in redeem_amts[1:-1].split(',')]
 
         # Swap back from tokens / native tokens to UST
+        msgs = []
+        for idx, t in enumerate(target_assets):
+            p = pair_contracts[idx]
+            asset_name, is_native = unpack_asset_info(t)
+            amt_to_mint = str(redeem_asset_vals[idx])
+            send = None
+
+            # Prepare for sending
+            if is_native:
+                send = {asset_name: amt_to_mint}
+            else:
+                # Must increase allowance before swapping cw20
+                token_contract = Contract(asset_name)
+                msgs.append(token_contract.increase_allowance(amount=amt_to_mint, spender=p))
+            msgs.append(
+                p.swap(
+                    offer_asset=Asset.asset(asset_name, amount=amt_to_mint, native=is_native),
+                    _send=send,
+                )
+            )
+        await chain(*msgs)
+
+        uusd_ret_asset_vals = [int(log.events_by_type['from_contract']['return_amount'][0]) for log in res_swaps.logs]
+
+        print(f"Rebalancing net us {uusd_ret_asset_vals - sum(uusd_distrs)}")
+        
+        return sum(uusd_ret_asset_vals)
 
 
     async def perform_rebalance(self):
@@ -128,12 +203,13 @@ class RebalancingBot:
                 await self.execute_easy_mint_and_redeem(i, uusd_distribution)
 
 async def run_rebalance_periodically(cluster_contract, interval):
-    start_time = time.time()
+    factory_contract = Contract(sys.argv[1])
+    incentives_contract = Contract(sys.argv[2])
     
-    rebalancing_bot = RebalancingBot(factory_contract)
+    rebalancing_bot = RebalancingBot(factory_contract, incentives_contract)
 
     while True:
-        await rebalancing_bot.set_infos()
+        await rebalancing_bot.reset_infos()
         print(rebalancing_bot.clusters)
         print(rebalancing_bot.uusd_balance)
         await asyncio.gather(
@@ -141,6 +217,40 @@ async def run_rebalance_periodically(cluster_contract, interval):
             RebalancingBot.perform_rebalance(),
         )
 
+async def testing():
+    uluna_pair = await get_pair_contract_uusd(Asset.asset('uluna', 0, native=True))
+    anc_pair = await get_pair_contract_uusd(Asset.asset('terra1747mad58h0w4y589y3sk84r5efqdev9q4r02pc', 0, native=False))
+
+    pair_contracts = [Contract(uluna_pair), Contract(anc_pair)]
+
+    uusd_distrs = [10000, 10000]
+
+    msgs = []
+    for idx, p in enumerate(pair_contracts):
+        amt = str(uusd_distrs[idx])
+        msgs.append(
+            p.swap(
+                offer_asset=Asset.asset("uusd", amount=amt, native=True),
+                _send={"uusd": amt},
+            )
+        )
+
+    result = await chain(*msgs)
+    print(result)
+
+    assert(len(pair_contracts) == len(result.logs))
+    print('logs be like', result.logs[0])
+    res_logs = result.logs[1]
+
+    for log in result.logs:
+        ret_val = int(log.events_by_type['from_contract']['return_amount'][0])
+        print(ret_val)
+    
+    import pdb; pdb.set_trace()
+    
+    print('goddamn bro')
+
 if __name__ == "__main__":
-    interval = INTERVAL
-    asyncio.get_event_loop().run_until_complete(run_rebalance_periodically(factory_contract, interval))
+    asyncio.get_event_loop().run_until_complete(testing())
+    # interval = INTERVAL
+    # asyncio.get_event_loop().run_until_complete(run_rebalance_periodically(factory_contract, interval))

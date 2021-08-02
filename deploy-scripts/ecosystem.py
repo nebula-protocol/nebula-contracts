@@ -318,7 +318,7 @@ class Ecosystem:
         pprint.pprint(cluster_list)
 
         assert (
-            cluster_state["cluster_contract_address"]
+            cluster_state["cluster_contract_address"] 
             == cluster_list["contract_infos"][0][0]
         )
 

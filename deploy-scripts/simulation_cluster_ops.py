@@ -8,8 +8,6 @@ import asyncio
 import sys
 import numpy as np
 
-cluster = Contract(sys.argv[1])
-
 class ClusterSimulatorWithPenalty:
     def __init__(self, cluster_contract, collector_fee = 0.001):
         self.cluster_contract = cluster_contract
@@ -208,6 +206,7 @@ class ClusterSimulatorWithPenalty:
         return self.imbalance(self.base_inv)
 
 async def main():
+    cluster = Contract(sys.argv[1])
     simulator = ClusterSimulatorWithPenalty(cluster)
     await simulator.reset_initial_state()
     print(simulator.cluster_state)

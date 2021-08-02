@@ -10,8 +10,6 @@ from api import Asset
 import sys
 import numpy as np
 
-pair_contract = Contract(sys.argv[1])
-
 class TerraswapPoolSimulation:
     def __init__(self, pair_contract, commission_rate=0.03):
         """
@@ -111,6 +109,7 @@ class TerraswapPoolSimulation:
         return return_amt, spread_amt, commission_amt
 
 async def main():
+    pair_contract = Contract(sys.argv[1])
     simulator = TerraswapPoolSimulation(pair_contract)
     await simulator.reset()
     print(simulator.pool_info)
