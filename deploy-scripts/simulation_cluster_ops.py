@@ -145,6 +145,7 @@ class ClusterSimulatorWithPenalty:
 
         assert (cluster_tokens or amts)
 
+        # If user specifies amts, go through penalty logic
         if amts is not None:
             amts = np.array(amts)
 
@@ -153,6 +154,7 @@ class ClusterSimulatorWithPenalty:
             redeem_cost = self.supply * notional_value / np.dot(inv, self.prices)
             return redeem_cost, amts
 
+        # Pro-rata redeem
         if cluster_tokens is not None:
             redeem_arr =  inv * cluster_tokens / self.supply
             return cluster_tokens, redeem_arr
@@ -196,6 +198,7 @@ class ClusterSimulatorWithPenalty:
         return redeem_cost, returned_amts
 
     def reset_to_cluster_state(self):
+        # Doesn't query blockchain
         self.base_inv = np.array([float(i) for i in self.cluster_state['inv']])
         self.supply = float(self.cluster_state['outstanding_balance_tokens'])
         self.last_block = int(self.penalty_info['last_block'])

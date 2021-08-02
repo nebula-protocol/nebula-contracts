@@ -98,8 +98,6 @@ async def main():
     print("Base inv before algo", cluster_simulator.base_inv)
     print("Imbalance before algo", cluster_simulator.get_curr_imbalance())
 
-
-    print("did this work")
     opt_allocs, opt_uusd_spends, expected_ct_amount = easy_minter.find_optimal_allocation(uusd_amount)
     print(f'Opt asset alloc: {opt_allocs}, opt uusd spend: {opt_uusd_spends}, expected amount: {expected_ct_amount}')
 
