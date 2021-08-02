@@ -1,7 +1,7 @@
 use crate::contract::{handle, init, query};
 use crate::mock_querier::mock_dependencies;
 
-use crate::state::{read_params, read_total_weight, read_weight, store_total_weight, store_weight};
+use crate::state::{cluster_exists, read_params, read_total_weight, read_weight, store_total_weight, store_weight};
 use cosmwasm_std::testing::{mock_env, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::Api;
 use cosmwasm_std::{
@@ -15,8 +15,8 @@ use nebula_protocol::cluster_factory::{
 
 use nebula_protocol::cluster::{HandleMsg as ClusterHandleMsg, InitMsg as ClusterInitMsg};
 use nebula_protocol::oracle::HandleMsg as OracleHandleMsg;
-use nebula_protocol::staking::Cw20HookMsg as StakingCw20HookMsg;
-use nebula_protocol::staking::HandleMsg as StakingHandleMsg;
+use nebula_protocol::staking::{Cw20HookMsg as StakingCw20HookMsg, HandleMsg as StakingHandleMsg};
+use nebula_protocol::penalty::HandleMsg as PenaltyHandleMsg;
 use terraswap::asset::{Asset, AssetInfo};
 use terraswap::factory::HandleMsg as TerraswapFactoryHandleMsg;
 use terraswap::hook::InitHook;
@@ -31,6 +31,44 @@ fn mock_env_time(signer: &HumanAddr, time: u64) -> Env {
 /// Convenience function for creating inline HumanAddr
 pub fn h(s: &str) -> HumanAddr {
     HumanAddr(s.to_string())
+}
+
+pub fn get_input_params() -> Params {
+    Params {
+        name: "Test Cluster".to_string(),
+        symbol: "TEST".to_string(),
+        description: "Sample cluster for testing".to_string(),
+        weight: Some(30u32),
+        penalty: HumanAddr::from("penalty0000"),
+        pricing_oracle: HumanAddr::from("pricing_oracle0000"),
+        composition_oracle: HumanAddr::from("comp_oracle0000"),
+        target: vec![
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mAAPL"),
+                },
+                amount: Uint128(20),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mGOOG"),
+                },
+                amount: Uint128(20),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mMSFT"),
+                },
+                amount: Uint128(20),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mNFLX"),
+                },
+                amount: Uint128(20),
+            },
+        ]
+    }
 }
 
 static TOKEN_CODE_ID: u64 = 8u64;
@@ -273,41 +311,7 @@ fn test_create_cluster() {
 
     let _res = handle(&mut deps, env.clone(), msg).unwrap();
 
-    let input_params: Params = Params {
-        name: "Test Cluster".to_string(),
-        symbol: "TEST".to_string(),
-        description: "Sample cluster for testing".to_string(),
-        weight: Some(30u32),
-        penalty: HumanAddr::from("penalty0000"),
-        pricing_oracle: HumanAddr::from("pricing_oracle0000"),
-        composition_oracle: HumanAddr::from("comp_oracle0000"),
-        target: vec![
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: h("mAAPL"),
-                },
-                amount: Uint128(20),
-            },
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: h("mGOOG"),
-                },
-                amount: Uint128(20),
-            },
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: h("mMSFT"),
-                },
-                amount: Uint128(20),
-            },
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: h("mNFLX"),
-                },
-                amount: Uint128(20),
-            },
-        ]
-    };
+    let input_params: Params = get_input_params();
     let msg = HandleMsg::CreateCluster {
         params: input_params.clone()
     };
@@ -358,7 +362,7 @@ fn test_create_cluster() {
 
     let res = handle(&mut deps, env.clone(), msg.clone()).unwrap_err();
     match res {
-        StdError::GenericErr { msg, .. } => assert_eq!(msg, "A cluster creation process is in progress"),
+        StdError::GenericErr { msg, .. } => assert_eq!(msg, "A cluster registration process is in progress"),
         _ => panic!("DO NOT ENTER HERE"),
     }
 
@@ -370,331 +374,175 @@ fn test_create_cluster() {
     }
 }
 
-// #[test]
-// fn test_token_creation_hook() {
-//     let mut deps = mock_dependencies(20, &[]);
+#[test]
+fn test_token_creation_hook() {
+    let mut deps = mock_dependencies(20, &[]);
 
-//     let msg = InitMsg {
-//         base_denom: BASE_DENOM.to_string(),
-//         token_code_id: TOKEN_CODE_ID,
-//         distribution_schedule: vec![],
-//     };
+    let msg = InitMsg {
+        base_denom: BASE_DENOM.to_string(),
+        token_code_id: TOKEN_CODE_ID,
+        cluster_code_id: CLUSTER_CODE_ID,
+        protocol_fee_rate: PROTOCOL_FEE_RATE.to_string(),
+        distribution_schedule: vec![],
+    };
 
-//     let env = mock_env("addr0000", &[]);
-//     let _res = init(&mut deps, env.clone(), msg).unwrap();
+    let env = mock_env("addr0000", &[]);
+    let _res = init(&mut deps, env.clone(), msg).unwrap();
 
-//     let msg = HandleMsg::PostInitialize {
-//         owner: HumanAddr::from("owner0000"),
-//         nebula_token: HumanAddr::from("nebula0000"),
-//         mint_contract: HumanAddr::from("mint0000"),
-//         staking_contract: HumanAddr::from("staking0000"),
-//         commission_collector: HumanAddr::from("collector0000"),
-//         oracle_contract: HumanAddr::from("oracle0000"),
-//         terraswap_factory: HumanAddr::from("terraswapfactory"),
-//     };
-//     let _res = handle(&mut deps, env.clone(), msg).unwrap();
+    let msg = HandleMsg::PostInitialize {
+        owner: HumanAddr::from("owner0000"),
+        nebula_token: HumanAddr::from("nebula0000"),
+        staking_contract: HumanAddr::from("staking0000"),
+        commission_collector: HumanAddr::from("collector0000"),
+        terraswap_factory: HumanAddr::from("terraswapfactory"),
+    };
 
-//     // There is no whitelist process; failed
-//     let msg = HandleMsg::TokenCreationHook {
-//         oracle_feeder: HumanAddr::from("feeder0000"),
-//     };
-//     let env = mock_env("asset0000", &[]);
-//     let res = handle(&mut deps, env.clone(), msg.clone());
-//     match res {
-//         Err(StdError::GenericErr { msg, .. }) => {
-//             assert_eq!(msg, "No whitelist process in progress")
-//         }
-//         _ => panic!("DO NOT ENTER HERE"),
-//     }
+    let _res = handle(&mut deps, env.clone(), msg).unwrap();
 
-//     let msg = HandleMsg::Whitelist {
-//         name: "apple derivative".to_string(),
-//         symbol: "mAAPL".to_string(),
-//         oracle_feeder: HumanAddr::from("feeder0000"),
-//         params: Params {
-//             auction_discount: Decimal::percent(5),
-//             min_collateral_ratio: Decimal::percent(150),
-//             weight: Some(100u32),
-//             mint_period: None,
-//             min_collateral_ratio_after_migration: None,
-//         },
-//     };
-//     let env = mock_env("owner0000", &[]);
-//     let _res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
+    // There is no cluster registration process; failed
+    let msg = HandleMsg::TokenCreationHook {};
+    let env = mock_env("asset0000", &[]);
+    let res = handle(&mut deps, env.clone(), msg.clone());
+    match res {
+        Err(StdError::GenericErr { msg, .. }) => {
+            assert_eq!(msg, "No cluster registration process in progress")
+        }
+        _ => panic!("DO NOT ENTER HERE"),
+    }
 
-//     let msg = HandleMsg::TokenCreationHook {
-//         oracle_feeder: HumanAddr::from("feeder0000"),
-//     };
-//     let env = mock_env("asset0000", &[]);
-//     let res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
-//     assert_eq!(
-//         res.messages,
-//         vec![
-//             CosmosMsg::Wasm(WasmMsg::Execute {
-//                 contract_addr: HumanAddr::from("mint0000"),
-//                 send: vec![],
-//                 msg: to_binary(&MintHandleMsg::RegisterAsset {
-//                     asset_token: HumanAddr::from("asset0000"),
-//                     auction_discount: Decimal::percent(5),
-//                     min_collateral_ratio: Decimal::percent(150),
-//                     mint_end: None,
-//                     min_collateral_ratio_after_migration: None,
-//                 })
-//                 .unwrap(),
-//             }),
-//             CosmosMsg::Wasm(WasmMsg::Execute {
-//                 contract_addr: HumanAddr::from("oracle0000"),
-//                 send: vec![],
-//                 msg: to_binary(&OracleHandleMsg::RegisterAsset {
-//                     asset_token: HumanAddr::from("asset0000"),
-//                     feeder: HumanAddr::from("feeder0000"),
-//                 })
-//                 .unwrap(),
-//             }),
-//             CosmosMsg::Wasm(WasmMsg::Execute {
-//                 contract_addr: HumanAddr::from("terraswapfactory"),
-//                 send: vec![],
-//                 msg: to_binary(&TerraswapFactoryHandleMsg::CreatePair {
-//                     asset_infos: [
-//                         AssetInfo::NativeToken {
-//                             denom: BASE_DENOM.to_string(),
-//                         },
-//                         AssetInfo::Token {
-//                             contract_addr: HumanAddr::from("asset0000"),
-//                         },
-//                     ],
-//                     init_hook: Some(InitHook {
-//                         msg: to_binary(&HandleMsg::TerraswapCreationHook {
-//                             asset_token: HumanAddr::from("asset0000"),
-//                         })
-//                         .unwrap(),
-//                         contract_addr: HumanAddr::from(MOCK_CONTRACT_ADDR),
-//                     }),
-//                 })
-//                 .unwrap(),
-//             })
-//         ]
-//     );
+    let input_params: Params = get_input_params();
+    let msg = HandleMsg::CreateCluster {
+        params: input_params.clone()
+    };
+    let env = mock_env("owner0000", &[]);
+    let _res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
 
-//     let res = query(&deps, QueryMsg::DistributionInfo {}).unwrap();
-//     let distribution_info: DistributionInfoResponse = from_binary(&res).unwrap();
-//     assert_eq!(
-//         distribution_info,
-//         DistributionInfoResponse {
-//             weights: vec![(HumanAddr::from("asset0000"), 100)],
-//             last_distributed: 1_571_797_419,
-//         }
-//     );
+    let msg = HandleMsg::TokenCreationHook {};
+    
+    let env = mock_env("asset0000", &[]);
+    let res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
+    assert_eq!(
+        res.messages,
+        vec![
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: input_params.penalty.clone(),
+                send: vec![],
+                msg: to_binary(&PenaltyHandleMsg::UpdateConfig {
+                    owner: Some(h("asset0000")),
+                    penalty_params: None,
+                })
+                .unwrap(),
+            }),
+            CosmosMsg::Wasm(WasmMsg::Instantiate {
+                code_id: TOKEN_CODE_ID,
+                send: vec![],
+                label: None,
+                msg: to_binary(&TokenInitMsg {
+                    name: input_params.name.clone(),
+                    symbol: input_params.symbol.clone(),
+                    decimals: 6u8,
+                    initial_balances: vec![],
+                    mint: Some(MinterResponse {
+                        minter: h("asset0000"),
+                        cap: None,
+                    }),
+                    // Set Cluster Token
+                    init_hook: Some(InitHook {
+                        contract_addr: h(MOCK_CONTRACT_ADDR),
+                        msg: to_binary(&HandleMsg::SetClusterTokenHook {
+                            cluster: h("asset0000"),
+                        })
+                        .unwrap(),
+                    }),
+                })
+                .unwrap(),
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: h("asset0000"),
+                send: vec![],
+                msg: to_binary(&ClusterHandleMsg::UpdateConfig {
+                    owner: Some(h("owner0000")),
+                    name: None,
+                    description: None,
+                    cluster_token: None,
+                    pricing_oracle: None,
+                    composition_oracle: None,
+                    penalty: None,
+                    target: None,
+                })
+                .unwrap(),
+            }),
+        ]
+    );
+    
+    assert_eq!(
+        res.log,
+        vec![log("cluster_addr", "asset0000")]
+    );
 
-//     // There is no whitelist process; failed
-//     let msg = HandleMsg::TokenCreationHook {
-//         oracle_feeder: HumanAddr::from("feeder0000"),
-//     };
-//     let env = mock_env("asset0000", &[]);
-//     let res = handle(&mut deps, env.clone(), msg.clone());
-//     match res {
-//         Err(StdError::GenericErr { msg, .. }) => {
-//             assert_eq!(msg, "No whitelist process in progress")
-//         }
-//         _ => panic!("DO NOT ENTER HERE"),
-//     }
-// }
+    assert_eq!(
+        cluster_exists(&deps.storage, &h("asset0000")),
+        Ok(true)
+    )
+}
 
-// #[test]
-// fn test_token_creation_hook_without_weight() {
-//     let mut deps = mock_dependencies(20, &[]);
+#[test]
+fn test_terraswap_creation_hook() {
+    let mut deps = mock_dependencies(20, &[]);
 
-//     let msg = InitMsg {
-//         base_denom: BASE_DENOM.to_string(),
-//         token_code_id: TOKEN_CODE_ID,
-//         distribution_schedule: vec![],
-//     };
+    let msg = InitMsg {
+        base_denom: BASE_DENOM.to_string(),
+        token_code_id: TOKEN_CODE_ID,
+        cluster_code_id: CLUSTER_CODE_ID,
+        protocol_fee_rate: PROTOCOL_FEE_RATE.to_string(),
+        distribution_schedule: vec![],
+    };
 
-//     let env = mock_env("addr0000", &[]);
-//     let _res = init(&mut deps, env.clone(), msg).unwrap();
+    let env = mock_env("addr0000", &[]);
+    let _res = init(&mut deps, env.clone(), msg).unwrap();
 
-//     let msg = HandleMsg::PostInitialize {
-//         owner: HumanAddr::from("owner0000"),
-//         nebula_token: HumanAddr::from("nebula0000"),
-//         mint_contract: HumanAddr::from("mint0000"),
-//         staking_contract: HumanAddr::from("staking0000"),
-//         commission_collector: HumanAddr::from("collector0000"),
-//         oracle_contract: HumanAddr::from("oracle0000"),
-//         terraswap_factory: HumanAddr::from("terraswapfactory"),
-//     };
-//     let _res = handle(&mut deps, env.clone(), msg).unwrap();
+    let msg = HandleMsg::PostInitialize {
+        owner: HumanAddr::from("owner0000"),
+        nebula_token: HumanAddr::from("nebula0000"),
+        staking_contract: HumanAddr::from("staking0000"),
+        commission_collector: HumanAddr::from("collector0000"),
+        terraswap_factory: HumanAddr::from("terraswapfactory"),
+    };
 
-//     // There is no whitelist process; failed
-//     let msg = HandleMsg::TokenCreationHook {
-//         oracle_feeder: HumanAddr::from("feeder0000"),
-//     };
-//     let env = mock_env("asset0000", &[]);
-//     let res = handle(&mut deps, env.clone(), msg.clone());
-//     match res {
-//         Err(StdError::GenericErr { msg, .. }) => {
-//             assert_eq!(msg, "No whitelist process in progress")
-//         }
-//         _ => panic!("DO NOT ENTER HERE"),
-//     }
+    let _res = handle(&mut deps, env.clone(), msg).unwrap();
 
-//     let msg = HandleMsg::Whitelist {
-//         name: "apple derivative".to_string(),
-//         symbol: "mAAPL".to_string(),
-//         oracle_feeder: HumanAddr::from("feeder0000"),
-//         params: Params {
-//             auction_discount: Decimal::percent(5),
-//             min_collateral_ratio: Decimal::percent(150),
-//             weight: None,
-//             mint_period: None,
-//             min_collateral_ratio_after_migration: None,
-//         },
-//     };
-//     let env = mock_env("owner0000", &[]);
-//     let _res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
+    let input_params: Params = get_input_params();
+    let msg = HandleMsg::CreateCluster {
+        params: input_params.clone()
+    };
+    let env = mock_env("owner0000", &[]);
+    let _res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
 
-//     let msg = HandleMsg::TokenCreationHook {
-//         oracle_feeder: HumanAddr::from("feeder0000"),
-//     };
-//     let env = mock_env("asset0000", &[]);
-//     let res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
-//     assert_eq!(
-//         res.messages,
-//         vec![
-//             CosmosMsg::Wasm(WasmMsg::Execute {
-//                 contract_addr: HumanAddr::from("mint0000"),
-//                 send: vec![],
-//                 msg: to_binary(&MintHandleMsg::RegisterAsset {
-//                     asset_token: HumanAddr::from("asset0000"),
-//                     auction_discount: Decimal::percent(5),
-//                     min_collateral_ratio: Decimal::percent(150),
-//                     mint_end: None,
-//                     min_collateral_ratio_after_migration: None,
-//                 })
-//                 .unwrap(),
-//             }),
-//             CosmosMsg::Wasm(WasmMsg::Execute {
-//                 contract_addr: HumanAddr::from("oracle0000"),
-//                 send: vec![],
-//                 msg: to_binary(&OracleHandleMsg::RegisterAsset {
-//                     asset_token: HumanAddr::from("asset0000"),
-//                     feeder: HumanAddr::from("feeder0000"),
-//                 })
-//                 .unwrap(),
-//             }),
-//             CosmosMsg::Wasm(WasmMsg::Execute {
-//                 contract_addr: HumanAddr::from("terraswapfactory"),
-//                 send: vec![],
-//                 msg: to_binary(&TerraswapFactoryHandleMsg::CreatePair {
-//                     asset_infos: [
-//                         AssetInfo::NativeToken {
-//                             denom: BASE_DENOM.to_string(),
-//                         },
-//                         AssetInfo::Token {
-//                             contract_addr: HumanAddr::from("asset0000"),
-//                         },
-//                     ],
-//                     init_hook: Some(InitHook {
-//                         msg: to_binary(&HandleMsg::TerraswapCreationHook {
-//                             asset_token: HumanAddr::from("asset0000"),
-//                         })
-//                         .unwrap(),
-//                         contract_addr: HumanAddr::from(MOCK_CONTRACT_ADDR),
-//                     }),
-//                 })
-//                 .unwrap(),
-//             })
-//         ]
-//     );
+    let msg = HandleMsg::TokenCreationHook {};
+    let env = mock_env("asset0000", &[]);
+    let _res = handle(&mut deps, env, msg).unwrap();
 
-//     let res = query(&deps, QueryMsg::DistributionInfo {}).unwrap();
-//     let distribution_info: DistributionInfoResponse = from_binary(&res).unwrap();
-//     assert_eq!(
-//         distribution_info,
-//         DistributionInfoResponse {
-//             weights: vec![(HumanAddr::from("asset0000"), 30)],
-//             last_distributed: 1_571_797_419,
-//         }
-//     );
-
-//     // There is no whitelist process; failed
-//     let msg = HandleMsg::TokenCreationHook {
-//         oracle_feeder: HumanAddr::from("feeder0000"),
-//     };
-//     let env = mock_env("asset0000", &[]);
-//     let res = handle(&mut deps, env.clone(), msg.clone());
-//     match res {
-//         Err(StdError::GenericErr { msg, .. }) => {
-//             assert_eq!(msg, "No whitelist process in progress")
-//         }
-//         _ => panic!("DO NOT ENTER HERE"),
-//     }
-// }
-
-// #[test]
-// fn test_terraswap_creation_hook() {
-//     let mut deps = mock_dependencies(20, &[]);
-//     deps.querier
-//         .with_terraswap_pairs(&[(&"uusdasset0000".to_string(), &HumanAddr::from("LP0000"))]);
-
-//     let msg = InitMsg {
-//         base_denom: BASE_DENOM.to_string(),
-//         token_code_id: TOKEN_CODE_ID,
-//         distribution_schedule: vec![],
-//     };
-
-//     let env = mock_env("addr0000", &[]);
-//     let _res = init(&mut deps, env.clone(), msg).unwrap();
-
-//     let msg = HandleMsg::PostInitialize {
-//         owner: HumanAddr::from("owner0000"),
-//         nebula_token: HumanAddr::from("nebula0000"),
-//         mint_contract: HumanAddr::from("mint0000"),
-//         staking_contract: HumanAddr::from("staking0000"),
-//         commission_collector: HumanAddr::from("collector0000"),
-//         oracle_contract: HumanAddr::from("oracle0000"),
-//         terraswap_factory: HumanAddr::from("terraswapfactory"),
-//     };
-//     let _res = handle(&mut deps, env, msg).unwrap();
-
-//     let msg = HandleMsg::Whitelist {
-//         name: "apple derivative".to_string(),
-//         symbol: "mAAPL".to_string(),
-//         oracle_feeder: HumanAddr::from("feeder0000"),
-//         params: Params {
-//             auction_discount: Decimal::percent(5),
-//             min_collateral_ratio: Decimal::percent(150),
-//             weight: Some(100u32),
-//             mint_period: None,
-//             min_collateral_ratio_after_migration: None,
-//         },
-//     };
-//     let env = mock_env("owner0000", &[]);
-//     let _res = handle(&mut deps, env, msg).unwrap();
-
-//     let msg = HandleMsg::TokenCreationHook {
-//         oracle_feeder: HumanAddr::from("feeder0000"),
-//     };
-//     let env = mock_env("asset0000", &[]);
-//     let _res = handle(&mut deps, env, msg).unwrap();
-
-//     let msg = HandleMsg::TerraswapCreationHook {
-//         asset_token: HumanAddr::from("asset0000"),
-//     };
-//     let env = mock_env("terraswapfactory", &[]);
-//     let res = handle(&mut deps, env, msg).unwrap();
-//     assert_eq!(
-//         res.messages,
-//         vec![CosmosMsg::Wasm(WasmMsg::Execute {
-//             contract_addr: HumanAddr::from("staking0000"),
-//             send: vec![],
-//             msg: to_binary(&StakingHandleMsg::RegisterAsset {
-//                 asset_token: HumanAddr::from("asset0000"),
-//                 staking_token: HumanAddr::from("LP0000"),
-//             })
-//             .unwrap(),
-//         })]
-//     );
-// }
+    let msg = HandleMsg::TerraswapCreationHook {
+        asset_token: HumanAddr::from("asset0000"),
+    };
+    
+    let env = mock_env("terraswapfactory", &[]);
+    let res = handle(&mut deps, env, msg).unwrap();
+    
+    //TODO
+    assert_eq!(
+        res.messages,
+        vec![CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: HumanAddr::from("staking0000"),
+            send: vec![],
+            msg: to_binary(&StakingHandleMsg::RegisterAsset {
+                asset_token: HumanAddr::from("asset0000"),
+                staking_token: HumanAddr::from("LP0000"),
+            })
+            .unwrap(),
+        })]
+    );
+}
 
 // #[test]
 // fn test_distribute() {

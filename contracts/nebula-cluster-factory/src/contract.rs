@@ -254,7 +254,7 @@ pub fn create_cluster<S: Storage, A: Api, Q: Querier>(
     }
 
     if read_params(&deps.storage).is_ok() {
-        return Err(StdError::generic_err("A cluster creation process is in progress"));
+        return Err(StdError::generic_err("A cluster registration process is in progress"));
     }
 
     store_params(&mut deps.storage, &params)?;
@@ -314,7 +314,6 @@ pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
 
     let cluster = env.message.sender;
     record_cluster(&mut deps.storage, &cluster)?;
-
     Ok(HandleResponse {
         messages: vec![
             // tell penalty contract to set owner to cluster
@@ -364,7 +363,6 @@ pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
                     target: None,
                 })?,
             }),
-            // Set penalty contract owner to cluster contract
         ],
         log: vec![log("cluster_addr", cluster.as_str())],
         data: None,
