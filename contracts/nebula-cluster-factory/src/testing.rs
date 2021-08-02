@@ -1,186 +1,188 @@
-// use crate::contract::{handle, init, query};
-// use crate::mock_querier::mock_dependencies;
+use crate::contract::{handle, init, query};
+use crate::mock_querier::mock_dependencies;
 
-// use crate::state::{read_params, read_total_weight, read_weight, store_total_weight, store_weight};
-// use cosmwasm_std::testing::{mock_env, MOCK_CONTRACT_ADDR};
-// use cosmwasm_std::Api;
-// use cosmwasm_std::{
-//     from_binary, log, to_binary, CosmosMsg, Decimal, Env, HumanAddr, StdError, Uint128, WasmMsg,
-// };
-// use cw20::{Cw20HandleMsg, MinterResponse};
+use crate::state::{read_params, read_total_weight, read_weight, store_total_weight, store_weight};
+use cosmwasm_std::testing::{mock_env, MOCK_CONTRACT_ADDR};
+use cosmwasm_std::Api;
+use cosmwasm_std::{
+    from_binary, log, to_binary, CosmosMsg, Decimal, Env, HumanAddr, StdError, Uint128, WasmMsg,
+};
+use cw20::{Cw20HandleMsg, MinterResponse};
 
-// use nebula_protocol::cluster_factory::{
-//     ConfigResponse, DistributionInfoResponse, HandleMsg, InitMsg, Params, QueryMsg,
-// };
-// use nebula_protocol::mint::HandleMsg as MintHandleMsg;
-// use nebula_protocol::oracle::HandleMsg as OracleHandleMsg;
-// use nebula_protocol::staking::Cw20HookMsg as StakingCw20HookMsg;
-// use nebula_protocol::staking::HandleMsg as StakingHandleMsg;
-// use terraswap::asset::AssetInfo;
-// use terraswap::factory::HandleMsg as TerraswapFactoryHandleMsg;
-// use terraswap::hook::InitHook;
-// use terraswap::token::InitMsg as TokenInitMsg;
+use nebula_protocol::cluster_factory::{
+    ConfigResponse, DistributionInfoResponse, HandleMsg, InitMsg, Params, QueryMsg,
+};
+use nebula_protocol::oracle::HandleMsg as OracleHandleMsg;
+use nebula_protocol::staking::Cw20HookMsg as StakingCw20HookMsg;
+use nebula_protocol::staking::HandleMsg as StakingHandleMsg;
+use terraswap::asset::AssetInfo;
+use terraswap::factory::HandleMsg as TerraswapFactoryHandleMsg;
+use terraswap::hook::InitHook;
+use terraswap::token::InitMsg as TokenInitMsg;
 
-// fn mock_env_time(signer: &HumanAddr, time: u64) -> Env {
-//     let mut env = mock_env(signer, &[]);
-//     env.block.time = time;
-//     env
-// }
+fn mock_env_time(signer: &HumanAddr, time: u64) -> Env {
+    let mut env = mock_env(signer, &[]);
+    env.block.time = time;
+    env
+}
 
-// static TOKEN_CODE_ID: u64 = 10u64;
-// static BASE_DENOM: &str = "uusd";
+static TOKEN_CODE_ID: u64 = 8u64;
+static CLUSTER_CODE_ID: u64 = 1u64;
+static BASE_DENOM: &str = "uusd";
+static PROTOCOL_FEE_RATE: &str = "0.01";
 
-// #[test]
-// fn proper_initialization() {
-//     let mut deps = mock_dependencies(20, &[]);
+#[test]
+fn proper_initialization() {
+    let mut deps = mock_dependencies(20, &[]);
 
-//     let msg = InitMsg {
-//         base_denom: BASE_DENOM.to_string(),
-//         token_code_id: TOKEN_CODE_ID,
-//         distribution_schedule: vec![],
-//     };
+    let msg = InitMsg {
+        base_denom: BASE_DENOM.to_string(),
+        token_code_id: TOKEN_CODE_ID,
+        cluster_code_id: CLUSTER_CODE_ID,
+        protocol_fee_rate: PROTOCOL_FEE_RATE.to_string(),
+        distribution_schedule: vec![],
+    };
 
-//     let env = mock_env("addr0000", &[]);
-//     let _res = init(&mut deps, env.clone(), msg).unwrap();
+    let env = mock_env("addr0000", &[]);
+    let _res = init(&mut deps, env.clone(), msg).unwrap();
 
-//     let msg = HandleMsg::PostInitialize {
-//         owner: HumanAddr::from("owner0000"),
-//         nebula_token: HumanAddr::from("nebula0000"),
-//         mint_contract: HumanAddr::from("mint0000"),
-//         staking_contract: HumanAddr::from("staking0000"),
-//         commission_collector: HumanAddr::from("collector0000"),
-//         oracle_contract: HumanAddr::from("oracle0000"),
-//         terraswap_factory: HumanAddr::from("terraswapfactory"),
-//     };
-//     let _res = handle(&mut deps, env.clone(), msg).unwrap();
+    let msg = HandleMsg::PostInitialize {
+        owner: HumanAddr::from("owner0000"),
+        terraswap_factory: HumanAddr::from("terraswapfactory"),
+        nebula_token: HumanAddr::from("nebula0000"),
+        staking_contract: HumanAddr::from("staking0000"),
+        commission_collector: HumanAddr::from("collector0000"),
+    };
+    let _res = handle(&mut deps, env.clone(), msg).unwrap();
 
-//     // cannot update mirror token after initialization
-//     let msg = HandleMsg::PostInitialize {
-//         owner: HumanAddr::from("owner0000"),
-//         nebula_token: HumanAddr::from("nebula0000"),
-//         mint_contract: HumanAddr::from("mint0000"),
-//         staking_contract: HumanAddr::from("staking0000"),
-//         commission_collector: HumanAddr::from("collector0000"),
-//         oracle_contract: HumanAddr::from("oracle0000"),
-//         terraswap_factory: HumanAddr::from("terraswapfactory"),
-//     };
-//     let _res = handle(&mut deps, env, msg).unwrap_err();
+    // cannot update mirror token after initialization
+    let msg = HandleMsg::PostInitialize {
+        owner: HumanAddr::from("owner0000"),
+        terraswap_factory: HumanAddr::from("terraswapfactory"),
+        nebula_token: HumanAddr::from("nebula0000"),
+        staking_contract: HumanAddr::from("staking0000"),
+        commission_collector: HumanAddr::from("collector0000"),
+    };
+    let _res = handle(&mut deps, env, msg).unwrap_err();
 
-//     // it worked, let's query the state
-//     let res = query(&deps, QueryMsg::Config {}).unwrap();
-//     let config: ConfigResponse = from_binary(&res).unwrap();
-//     assert_eq!(
-//         config,
-//         ConfigResponse {
-//             owner: HumanAddr::from("owner0000"),
-//             nebula_token: HumanAddr::from("nebula0000"),
-//             mint_contract: HumanAddr::from("mint0000"),
-//             staking_contract: HumanAddr::from("staking0000"),
-//             commission_collector: HumanAddr::from("collector0000"),
-//             oracle_contract: HumanAddr::from("oracle0000"),
-//             terraswap_factory: HumanAddr::from("terraswapfactory"),
-//             base_denom: BASE_DENOM.to_string(),
-//             token_code_id: TOKEN_CODE_ID,
-//             genesis_time: 1_571_797_419,
-//             distribution_schedule: vec![],
-//         }
-//     );
-// }
+    // it worked, let's query the state
+    let res = query(&deps, QueryMsg::Config {}).unwrap();
+    let config: ConfigResponse = from_binary(&res).unwrap();
+    assert_eq!(
+        config,
+        ConfigResponse {
+            owner: HumanAddr::from("owner0000"),
+            nebula_token: HumanAddr::from("nebula0000"),
+            staking_contract: HumanAddr::from("staking0000"),
+            commission_collector: HumanAddr::from("collector0000"),
+            protocol_fee_rate: PROTOCOL_FEE_RATE.to_string(),
+            terraswap_factory: HumanAddr::from("terraswapfactory"),
+            base_denom: BASE_DENOM.to_string(),
+            token_code_id: TOKEN_CODE_ID,
+            cluster_code_id: CLUSTER_CODE_ID,
+            genesis_time: 1_571_797_419,
+            distribution_schedule: vec![],
+        }
+    );
+}
 
-// #[test]
-// fn test_update_config() {
-//     let mut deps = mock_dependencies(20, &[]);
+#[test]
+fn test_update_config() {
+    let mut deps = mock_dependencies(20, &[]);
 
-//     let msg = InitMsg {
-//         base_denom: BASE_DENOM.to_string(),
-//         token_code_id: TOKEN_CODE_ID,
-//         distribution_schedule: vec![],
-//     };
+    let msg = InitMsg {
+        base_denom: BASE_DENOM.to_string(),
+        token_code_id: TOKEN_CODE_ID,
+        cluster_code_id: CLUSTER_CODE_ID,
+        protocol_fee_rate: PROTOCOL_FEE_RATE.to_string(),
+        distribution_schedule: vec![],
+    };
 
-//     let env = mock_env("addr0000", &[]);
-//     let _res = init(&mut deps, env.clone(), msg).unwrap();
+    let env = mock_env("addr0000", &[]);
+    let _res = init(&mut deps, env.clone(), msg).unwrap();
 
-//     let msg = HandleMsg::PostInitialize {
-//         owner: HumanAddr::from("owner0000"),
-//         nebula_token: HumanAddr::from("nebula0000"),
-//         mint_contract: HumanAddr::from("mint0000"),
-//         staking_contract: HumanAddr::from("staking0000"),
-//         commission_collector: HumanAddr::from("collector0000"),
-//         oracle_contract: HumanAddr::from("oracle0000"),
-//         terraswap_factory: HumanAddr::from("terraswapfactory"),
-//     };
-//     let _res = handle(&mut deps, env.clone(), msg).unwrap();
+    let msg = HandleMsg::PostInitialize {
+        owner: HumanAddr::from("owner0000"),
+        nebula_token: HumanAddr::from("nebula0000"),
+        staking_contract: HumanAddr::from("staking0000"),
+        commission_collector: HumanAddr::from("collector0000"),
+        terraswap_factory: HumanAddr::from("terraswapfactory"),
+    };
+    let _res = handle(&mut deps, env.clone(), msg).unwrap();
 
-//     // upate owner
-//     let msg = HandleMsg::UpdateConfig {
-//         owner: Some(HumanAddr::from("owner0001")),
-//         distribution_schedule: None,
-//         token_code_id: None,
-//     };
+    // upate owner
+    let msg = HandleMsg::UpdateConfig {
+        owner: Some(HumanAddr::from("owner0001")),
+        distribution_schedule: None,
+        token_code_id: None,
+        cluster_code_id: None,
+    };
 
-//     let env = mock_env("owner0000", &[]);
-//     let _res = handle(&mut deps, env, msg).unwrap();
-//     let res = query(&deps, QueryMsg::Config {}).unwrap();
-//     let config: ConfigResponse = from_binary(&res).unwrap();
-//     assert_eq!(
-//         config,
-//         ConfigResponse {
-//             owner: HumanAddr::from("owner0001"),
-//             nebula_token: HumanAddr::from("nebula0000"),
-//             mint_contract: HumanAddr::from("mint0000"),
-//             staking_contract: HumanAddr::from("staking0000"),
-//             commission_collector: HumanAddr::from("collector0000"),
-//             oracle_contract: HumanAddr::from("oracle0000"),
-//             terraswap_factory: HumanAddr::from("terraswapfactory"),
-//             base_denom: BASE_DENOM.to_string(),
-//             token_code_id: TOKEN_CODE_ID,
-//             genesis_time: 1_571_797_419,
-//             distribution_schedule: vec![],
-//         }
-//     );
+    let env = mock_env("owner0000", &[]);
+    let _res = handle(&mut deps, env, msg).unwrap();
+    let res = query(&deps, QueryMsg::Config {}).unwrap();
+    let config: ConfigResponse = from_binary(&res).unwrap();
+    assert_eq!(
+        config,
+        ConfigResponse {
+            owner: HumanAddr::from("owner0001"),
+            nebula_token: HumanAddr::from("nebula0000"),
+            staking_contract: HumanAddr::from("staking0000"),
+            commission_collector: HumanAddr::from("collector0000"),
+            protocol_fee_rate: PROTOCOL_FEE_RATE.to_string(),
+            terraswap_factory: HumanAddr::from("terraswapfactory"),
+            base_denom: BASE_DENOM.to_string(),
+            token_code_id: TOKEN_CODE_ID,
+            cluster_code_id: CLUSTER_CODE_ID,
+            genesis_time: 1_571_797_419,
+            distribution_schedule: vec![],
+        }
+    );
 
-//     // update rest part
-//     let msg = HandleMsg::UpdateConfig {
-//         owner: None,
-//         distribution_schedule: Some(vec![(1, 2, Uint128::from(123u128))]),
-//         token_code_id: Some(TOKEN_CODE_ID + 1),
-//     };
+    // update rest part
+    let msg = HandleMsg::UpdateConfig {
+        owner: None,
+        distribution_schedule: Some(vec![(1, 2, Uint128::from(123u128))]),
+        token_code_id: Some(TOKEN_CODE_ID + 1),
+        cluster_code_id: Some(CLUSTER_CODE_ID + 1),
+    };
 
-//     let env = mock_env("owner0001", &[]);
-//     let _res = handle(&mut deps, env, msg).unwrap();
-//     let res = query(&deps, QueryMsg::Config {}).unwrap();
-//     let config: ConfigResponse = from_binary(&res).unwrap();
-//     assert_eq!(
-//         config,
-//         ConfigResponse {
-//             owner: HumanAddr::from("owner0001"),
-//             nebula_token: HumanAddr::from("nebula0000"),
-//             mint_contract: HumanAddr::from("mint0000"),
-//             staking_contract: HumanAddr::from("staking0000"),
-//             commission_collector: HumanAddr::from("collector0000"),
-//             oracle_contract: HumanAddr::from("oracle0000"),
-//             terraswap_factory: HumanAddr::from("terraswapfactory"),
-//             base_denom: BASE_DENOM.to_string(),
-//             token_code_id: TOKEN_CODE_ID + 1,
-//             genesis_time: 1_571_797_419,
-//             distribution_schedule: vec![(1, 2, Uint128::from(123u128))],
-//         }
-//     );
+    let env = mock_env("owner0001", &[]);
+    let _res = handle(&mut deps, env, msg).unwrap();
+    let res = query(&deps, QueryMsg::Config {}).unwrap();
+    let config: ConfigResponse = from_binary(&res).unwrap();
+    assert_eq!(
+        config,
+        ConfigResponse {
+            owner: HumanAddr::from("owner0001"),
+            nebula_token: HumanAddr::from("nebula0000"),
+            staking_contract: HumanAddr::from("staking0000"),
+            commission_collector: HumanAddr::from("collector0000"),
+            protocol_fee_rate: PROTOCOL_FEE_RATE.to_string(),
+            terraswap_factory: HumanAddr::from("terraswapfactory"),
+            base_denom: BASE_DENOM.to_string(),
+            token_code_id: TOKEN_CODE_ID + 1,
+            cluster_code_id: CLUSTER_CODE_ID + 1,
+            genesis_time: 1_571_797_419,
+            distribution_schedule: vec![(1, 2, Uint128::from(123u128))],
+        }
+    );
 
-//     // failed unauthoirzed
-//     let msg = HandleMsg::UpdateConfig {
-//         owner: None,
-//         distribution_schedule: None,
-//         token_code_id: Some(TOKEN_CODE_ID + 1),
-//     };
+    // failed unauthoirzed
+    let msg = HandleMsg::UpdateConfig {
+        owner: None,
+        distribution_schedule: None,
+        token_code_id: Some(TOKEN_CODE_ID + 1),
+        cluster_code_id: Some(CLUSTER_CODE_ID + 1)
+    };
 
-//     let env = mock_env("owner0000", &[]);
-//     let res = handle(&mut deps, env, msg).unwrap_err();
-//     match res {
-//         StdError::Unauthorized { .. } => {}
-//         _ => panic!("DO NOT ENTER HERE"),
-//     }
-// }
+    let env = mock_env("owner0000", &[]);
+    let res = handle(&mut deps, env, msg).unwrap_err();
+    match res {
+        StdError::Unauthorized { .. } => {}
+        _ => panic!("DO NOT ENTER HERE"),
+    }
+}
 
 // #[test]
 // fn test_update_weight() {
