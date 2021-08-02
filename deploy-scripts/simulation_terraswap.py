@@ -4,7 +4,6 @@ os.environ["USE_TEQUILA"] = "1"
 os.environ["MNEMONIC"] = 'museum resist wealth require renew punch jeans smooth old color neutral cactus baby retreat guitar web average piano excess next strike drive game romance'
 
 from contract_helpers import Contract
-from base import terra
 from sim_utils import *
 import asyncio
 from api import Asset
