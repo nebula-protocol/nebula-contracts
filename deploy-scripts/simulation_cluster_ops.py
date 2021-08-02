@@ -185,6 +185,16 @@ class ClusterSimulatorWithPenalty:
         self.update_ema(block_height, np.dot(self.base_inv, self.prices))
         return mint_amt
 
+    def execute_redeem(self, amts=None, cluster_tokens = None, block_height=None):
+        if block_height is None:
+            block_height = self.last_block
+        redeem_cost, returned_amts = self.simulate_redeem(amts=amts, cluster_tokens=cluster_tokens, block_height=block_height)
+        # Burn
+        self.supply -= redeem_cost
+        self.base_inv -= amts
+        self.update_ema(block_height, np.dot(self.base_inv, self.prices))
+        return redeem_cost, returned_amts
+
     def reset_to_cluster_state(self):
         self.base_inv = np.array([float(i) for i in self.cluster_state['inv']])
         self.supply = float(self.cluster_state['outstanding_balance_tokens'])
