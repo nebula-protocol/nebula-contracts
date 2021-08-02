@@ -15,7 +15,7 @@ class ClusterSimulatorWithPenalty:
         self.cluster_contract = cluster_contract
         self.collector_fee = collector_fee
         
-    async def set_initial_state(self):
+    async def reset_initial_state(self):
         cluster_state = await cluster.query.cluster_state(cluster_contract_address=self.cluster_contract)
         self.cluster_state = cluster_state
 
@@ -206,7 +206,7 @@ class ClusterSimulatorWithPenalty:
 
 async def main():
     simulator = ClusterSimulatorWithPenalty(cluster)
-    await simulator.set_initial_state()
+    await simulator.reset_initial_state()
     print(simulator.cluster_state)
     print(simulator.simulate_mint([10, 10, 10]))
     print(np.dot(simulator.prices, [10, 10, 10]))
