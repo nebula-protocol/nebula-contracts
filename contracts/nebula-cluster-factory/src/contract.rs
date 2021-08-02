@@ -534,7 +534,6 @@ pub fn distribute<S: Storage, A: Api, Q: Querier>(
 
     // store last distributed
     store_last_distributed(&mut deps.storage, env.block.time)?;
-    println!("{} {}", rewards[0].1, rewards[1].1);
     // mint token to self and try send minted tokens to staking contract
     Ok(HandleResponse {
         messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
