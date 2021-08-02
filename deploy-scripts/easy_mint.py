@@ -13,9 +13,6 @@ from api import Asset
 import sys
 import numpy as np
 
-cluster_contract = Contract(sys.argv[1])
-uusd_amount = int(sys.argv[2])
-
 class EasyMintOptimizer:
     def __init__(self, cluster_contract) -> None:
         self.cluster_contract = cluster_contract
@@ -91,6 +88,9 @@ class EasyMintOptimizer:
 
 
 async def main():
+    cluster_contract = Contract(sys.argv[1])
+    uusd_amount = int(sys.argv[2])
+    
     easy_minter = EasyMintOptimizer(cluster_contract)
     await easy_minter.reset_initial_state()
     cluster_simulator = easy_minter.cluster_simulator

@@ -318,8 +318,8 @@ class Ecosystem:
         pprint.pprint(cluster_list)
 
         assert (
-            cluster_state["cluster_contract_address"]
-            == cluster_list["contract_addrs"][0]
+            cluster_state["cluster_contract_address"] 
+            == cluster_list["contract_infos"][0][0]
         )
 
     async def create_and_execute_poll(
