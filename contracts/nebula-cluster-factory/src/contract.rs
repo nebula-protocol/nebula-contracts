@@ -271,7 +271,6 @@ pub fn create_cluster<S: Storage, A: Api, Q: Querier>(
                 pricing_oracle: params.pricing_oracle.clone(),
                 composition_oracle: params.composition_oracle.clone(),
                 penalty: params.penalty,
-                factory: env.contract.address.clone(),
                 cluster_token: None,
                 target: params.target,
                 // TODO: Write separate init hook for cluster

@@ -6,11 +6,8 @@ use terraswap::hook::InitHook;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
-    /// Cluster's permissioned owner
+    /// Cluster's permissioned owner (factory)
     pub owner: HumanAddr,
-
-    /// Factory address
-    pub factory: HumanAddr,
 
     /// Cluster name (title)
     pub name: String,
