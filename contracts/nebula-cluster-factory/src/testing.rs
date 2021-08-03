@@ -1,7 +1,9 @@
 use crate::contract::{handle, init, query};
 use crate::mock_querier::mock_dependencies;
 
-use crate::state::{cluster_exists, read_params, read_total_weight, read_weight, store_total_weight, store_weight};
+use crate::state::{
+    cluster_exists, read_params, read_total_weight, read_weight, store_total_weight, store_weight,
+};
 use cosmwasm_std::testing::{mock_env, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::Api;
 use cosmwasm_std::{
@@ -15,8 +17,8 @@ use nebula_protocol::cluster_factory::{
 
 use nebula_protocol::cluster::{HandleMsg as ClusterHandleMsg, InitMsg as ClusterInitMsg};
 use nebula_protocol::oracle::HandleMsg as OracleHandleMsg;
-use nebula_protocol::staking::{Cw20HookMsg as StakingCw20HookMsg, HandleMsg as StakingHandleMsg};
 use nebula_protocol::penalty::HandleMsg as PenaltyHandleMsg;
+use nebula_protocol::staking::{Cw20HookMsg as StakingCw20HookMsg, HandleMsg as StakingHandleMsg};
 use terraswap::asset::{Asset, AssetInfo};
 use terraswap::factory::HandleMsg as TerraswapFactoryHandleMsg;
 use terraswap::hook::InitHook;
@@ -67,7 +69,7 @@ pub fn get_input_params() -> Params {
                 },
                 amount: Uint128(20),
             },
-        ]
+        ],
     }
 }
 
@@ -313,7 +315,7 @@ fn test_create_cluster() {
 
     let input_params: Params = get_input_params();
     let msg = HandleMsg::CreateCluster {
-        params: input_params.clone()
+        params: input_params.clone(),
     };
     let env = mock_env("owner0000", &[]);
     let res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
@@ -346,8 +348,7 @@ fn test_create_cluster() {
                 target: input_params.target.clone(),
                 init_hook: Some(InitHook {
                     contract_addr: HumanAddr::from(MOCK_CONTRACT_ADDR),
-                    msg: to_binary(&HandleMsg::TokenCreationHook {})
-                    .unwrap(),
+                    msg: to_binary(&HandleMsg::TokenCreationHook {}).unwrap(),
                 }),
             })
             .unwrap(),
@@ -355,14 +356,13 @@ fn test_create_cluster() {
     );
 
     let params: Params = read_params(&deps.storage).unwrap();
-    assert_eq!(
-        params,
-        input_params
-    );
+    assert_eq!(params, input_params);
 
     let res = handle(&mut deps, env.clone(), msg.clone()).unwrap_err();
     match res {
-        StdError::GenericErr { msg, .. } => assert_eq!(msg, "A cluster registration process is in progress"),
+        StdError::GenericErr { msg, .. } => {
+            assert_eq!(msg, "A cluster registration process is in progress")
+        }
         _ => panic!("DO NOT ENTER HERE"),
     }
 
@@ -412,13 +412,13 @@ fn test_token_creation_hook() {
 
     let input_params: Params = get_input_params();
     let msg = HandleMsg::CreateCluster {
-        params: input_params.clone()
+        params: input_params.clone(),
     };
     let env = mock_env("owner0000", &[]);
     let _res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
 
     let msg = HandleMsg::TokenCreationHook {};
-    
+
     let env = mock_env("asset0000", &[]);
     let res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
     assert_eq!(
@@ -474,16 +474,10 @@ fn test_token_creation_hook() {
             }),
         ]
     );
-    
-    assert_eq!(
-        res.log,
-        vec![log("cluster_addr", "asset0000")]
-    );
 
-    assert_eq!(
-        cluster_exists(&deps.storage, &h("asset0000")),
-        Ok(true)
-    )
+    assert_eq!(res.log, vec![log("cluster_addr", "asset0000")]);
+
+    assert_eq!(cluster_exists(&deps.storage, &h("asset0000")), Ok(true))
 }
 
 #[test]
@@ -526,7 +520,7 @@ fn test_set_cluster_token_hook() {
 
     let input_params: Params = get_input_params();
     let msg = HandleMsg::CreateCluster {
-        params: input_params.clone()
+        params: input_params.clone(),
     };
     let env = mock_env("owner0000", &[]);
     let _res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
@@ -538,50 +532,52 @@ fn test_set_cluster_token_hook() {
     let msg = HandleMsg::SetClusterTokenHook {
         cluster: h("asset0000"),
     };
-    
+
     let env = mock_env("cluster_token0000", &[]);
     let res = handle(&mut deps, env, msg).unwrap();
-    
+
     assert_eq!(
         res.messages,
-        vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: h("asset0000"),
-            send: vec![],
-            msg: to_binary(&ClusterHandleMsg::UpdateConfig {
-                owner: None,
-                name: None,
-                description: None,
-                cluster_token: Some(h("cluster_token0000")),
-                pricing_oracle: None,
-                composition_oracle: None,
-                penalty: None,
-                target: None,
+        vec![
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: h("asset0000"),
+                send: vec![],
+                msg: to_binary(&ClusterHandleMsg::UpdateConfig {
+                    owner: None,
+                    name: None,
+                    description: None,
+                    cluster_token: Some(h("cluster_token0000")),
+                    pricing_oracle: None,
+                    composition_oracle: None,
+                    penalty: None,
+                    target: None,
+                })
+                .unwrap(),
+            }),
+            // set up terraswap pair
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: h("terraswapfactory"),
+                send: vec![],
+                msg: to_binary(&TerraswapFactoryHandleMsg::CreatePair {
+                    asset_infos: [
+                        AssetInfo::NativeToken {
+                            denom: BASE_DENOM.to_string(),
+                        },
+                        AssetInfo::Token {
+                            contract_addr: h("cluster_token0000"),
+                        },
+                    ],
+                    init_hook: Some(InitHook {
+                        msg: to_binary(&HandleMsg::TerraswapCreationHook {
+                            asset_token: h("cluster_token0000"),
+                        })
+                        .unwrap(),
+                        contract_addr: h(MOCK_CONTRACT_ADDR),
+                    }),
+                })
+                .unwrap(),
             })
-            .unwrap(),
-        }),
-        // set up terraswap pair
-        CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: h("terraswapfactory"),
-            send: vec![],
-            msg: to_binary(&TerraswapFactoryHandleMsg::CreatePair {
-                asset_infos: [
-                    AssetInfo::NativeToken {
-                        denom: BASE_DENOM.to_string(),
-                    },
-                    AssetInfo::Token {
-                        contract_addr: h("cluster_token0000"),
-                    },
-                ],
-                init_hook: Some(InitHook {
-                    msg: to_binary(&HandleMsg::TerraswapCreationHook {
-                        asset_token: h("cluster_token0000"),
-                    })
-                    .unwrap(),
-                    contract_addr: h(MOCK_CONTRACT_ADDR),
-                }),
-            })
-            .unwrap(),
-        })]
+        ]
     );
 
     assert_eq!(
@@ -603,7 +599,7 @@ fn test_set_cluster_token_hook() {
         }
     );
 
-    // After execution of these hook, params is removed so we check that 
+    // After execution of these hook, params is removed so we check that
     // there is no cluster registration process; failed
     let msg = HandleMsg::SetClusterTokenHook {
         cluster: h("asset0000"),
@@ -659,7 +655,7 @@ fn test_set_cluster_token_hook_without_weight() {
     let mut input_params: Params = get_input_params();
     input_params.weight = None;
     let msg = HandleMsg::CreateCluster {
-        params: input_params.clone()
+        params: input_params.clone(),
     };
     let env = mock_env("owner0000", &[]);
     let _res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
@@ -671,50 +667,52 @@ fn test_set_cluster_token_hook_without_weight() {
     let msg = HandleMsg::SetClusterTokenHook {
         cluster: h("asset0000"),
     };
-    
+
     let env = mock_env("cluster_token0000", &[]);
     let res = handle(&mut deps, env, msg).unwrap();
-    
+
     assert_eq!(
         res.messages,
-        vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: h("asset0000"),
-            send: vec![],
-            msg: to_binary(&ClusterHandleMsg::UpdateConfig {
-                owner: None,
-                name: None,
-                description: None,
-                cluster_token: Some(h("cluster_token0000")),
-                pricing_oracle: None,
-                composition_oracle: None,
-                penalty: None,
-                target: None,
+        vec![
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: h("asset0000"),
+                send: vec![],
+                msg: to_binary(&ClusterHandleMsg::UpdateConfig {
+                    owner: None,
+                    name: None,
+                    description: None,
+                    cluster_token: Some(h("cluster_token0000")),
+                    pricing_oracle: None,
+                    composition_oracle: None,
+                    penalty: None,
+                    target: None,
+                })
+                .unwrap(),
+            }),
+            // set up terraswap pair
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: h("terraswapfactory"),
+                send: vec![],
+                msg: to_binary(&TerraswapFactoryHandleMsg::CreatePair {
+                    asset_infos: [
+                        AssetInfo::NativeToken {
+                            denom: BASE_DENOM.to_string(),
+                        },
+                        AssetInfo::Token {
+                            contract_addr: h("cluster_token0000"),
+                        },
+                    ],
+                    init_hook: Some(InitHook {
+                        msg: to_binary(&HandleMsg::TerraswapCreationHook {
+                            asset_token: h("cluster_token0000"),
+                        })
+                        .unwrap(),
+                        contract_addr: h(MOCK_CONTRACT_ADDR),
+                    }),
+                })
+                .unwrap(),
             })
-            .unwrap(),
-        }),
-        // set up terraswap pair
-        CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: h("terraswapfactory"),
-            send: vec![],
-            msg: to_binary(&TerraswapFactoryHandleMsg::CreatePair {
-                asset_infos: [
-                    AssetInfo::NativeToken {
-                        denom: BASE_DENOM.to_string(),
-                    },
-                    AssetInfo::Token {
-                        contract_addr: h("cluster_token0000"),
-                    },
-                ],
-                init_hook: Some(InitHook {
-                    msg: to_binary(&HandleMsg::TerraswapCreationHook {
-                        asset_token: h("cluster_token0000"),
-                    })
-                    .unwrap(),
-                    contract_addr: h(MOCK_CONTRACT_ADDR),
-                }),
-            })
-            .unwrap(),
-        })]
+        ]
     );
 
     assert_eq!(
@@ -736,7 +734,7 @@ fn test_set_cluster_token_hook_without_weight() {
         }
     );
 
-    // After execution of these hook, params is removed so we check that 
+    // After execution of these hook, params is removed so we check that
     // there is no cluster registration process; failed
     let msg = HandleMsg::SetClusterTokenHook {
         cluster: h("asset0000"),
@@ -781,7 +779,7 @@ fn test_terraswap_creation_hook() {
     let msg = HandleMsg::TerraswapCreationHook {
         asset_token: HumanAddr::from("asset0000"),
     };
-    
+
     let env = mock_env("terraswapfactory1", &[]);
     let res = handle(&mut deps, env, msg).unwrap_err();
 
@@ -792,7 +790,7 @@ fn test_terraswap_creation_hook() {
 
     let input_params: Params = get_input_params();
     let msg = HandleMsg::CreateCluster {
-        params: input_params.clone()
+        params: input_params.clone(),
     };
     let env = mock_env("owner0000", &[]);
     let _res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
@@ -804,17 +802,17 @@ fn test_terraswap_creation_hook() {
     let msg = HandleMsg::SetClusterTokenHook {
         cluster: h("asset0000"),
     };
-    
+
     let env = mock_env("cluster_token0000", &[]);
     let res = handle(&mut deps, env, msg).unwrap();
 
     let msg = HandleMsg::TerraswapCreationHook {
         asset_token: HumanAddr::from("asset0000"),
     };
-    
+
     let env = mock_env("terraswapfactory", &[]);
     let res = handle(&mut deps, env, msg).unwrap();
-    
+
     assert_eq!(
         res.messages,
         vec![CosmosMsg::Wasm(WasmMsg::Execute {
@@ -845,7 +843,7 @@ fn test_distribute() {
         distribution_schedule: vec![
             (1800, 3600, Uint128::from(3600u128)),
             (3600, 3600 + 3600, Uint128::from(7200u128)),
-        ]
+        ],
     };
 
     let env = mock_env("addr0000", &[]);
@@ -863,7 +861,7 @@ fn test_distribute() {
     // create first cluter with weight 30
     let input_params: Params = get_input_params();
     let msg = HandleMsg::CreateCluster {
-        params: input_params.clone()
+        params: input_params.clone(),
     };
     let env = mock_env("owner0000", &[]);
     let _res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
@@ -875,14 +873,14 @@ fn test_distribute() {
     let msg = HandleMsg::SetClusterTokenHook {
         cluster: h("asset0000"),
     };
-    
+
     let env = mock_env("cluster_token0000", &[]);
     let _res = handle(&mut deps, env, msg).unwrap();
 
     let msg = HandleMsg::TerraswapCreationHook {
         asset_token: HumanAddr::from("asset0000"),
     };
-    
+
     let env = mock_env("terraswapfactory", &[]);
     let _res = handle(&mut deps, env, msg).unwrap();
 
@@ -893,7 +891,7 @@ fn test_distribute() {
     input_params.symbol = "TEST2".to_string();
 
     let msg = HandleMsg::CreateCluster {
-        params: input_params.clone()
+        params: input_params.clone(),
     };
     let env = mock_env("owner0000", &[]);
     let _res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
@@ -905,14 +903,14 @@ fn test_distribute() {
     let msg = HandleMsg::SetClusterTokenHook {
         cluster: h("asset0001"),
     };
-    
+
     let env = mock_env("cluster_token0001", &[]);
     let _res = handle(&mut deps, env, msg).unwrap();
 
     let msg = HandleMsg::TerraswapCreationHook {
         asset_token: HumanAddr::from("asset0001"),
     };
-    
+
     let env = mock_env("terraswapfactory", &[]);
     let _res = handle(&mut deps, env, msg).unwrap();
 
@@ -935,23 +933,23 @@ fn test_distribute() {
         res.log,
         vec![
             log("action", "distribute"),
-            log("distribution_amount", "7199"),
+            log("distribution_amount", "7200"),
         ]
     );
 
     assert_eq!(
         res.messages,
-        vec![
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: h("nebula0000"),
-                msg: to_binary(&Cw20HandleMsg::Send {
-                    contract: h("staking0000"),
-                    amount: Uint128(7199u128),
-                    msg: Some(to_binary(&StakingCw20HookMsg::DepositReward { 
+        vec![CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: h("nebula0000"),
+            msg: to_binary(&Cw20HandleMsg::Send {
+                contract: h("staking0000"),
+                amount: Uint128(7200u128),
+                msg: Some(
+                    to_binary(&StakingCw20HookMsg::DepositReward {
                         rewards: vec![
-                        (HumanAddr::from("cluster_token0000"), Uint128(5538)),
-                        (HumanAddr::from("cluster_token0001"), Uint128(1661)),
-                        ], 
+                            (HumanAddr::from("cluster_token0000"), Uint128(5538)),
+                            (HumanAddr::from("cluster_token0001"), Uint128(1661)),
+                        ],
                     })
                     .unwrap()
                 ),
@@ -976,7 +974,7 @@ fn test_distribute() {
 }
 
 // #[test]
-// fn test_revocation() {
+// fn test_decommission_cluster() {
 //     let mut deps = mock_dependencies(20, &[]);
 //     deps.querier
 //         .with_terraswap_pairs(&[(&"uusdasset0000".to_string(), &HumanAddr::from("LP0000"))]);
@@ -984,7 +982,12 @@ fn test_distribute() {
 //     let msg = InitMsg {
 //         base_denom: BASE_DENOM.to_string(),
 //         token_code_id: TOKEN_CODE_ID,
-//         distribution_schedule: vec![],
+//         cluster_code_id: CLUSTER_CODE_ID,
+//         protocol_fee_rate: PROTOCOL_FEE_RATE.to_string(),
+//         distribution_schedule: vec![
+//             (1800, 3600, Uint128::from(3600u128)),
+//             (3600, 3600 + 3600, Uint128::from(7200u128)),
+//         ],
 //     };
 
 //     let env = mock_env("addr0000", &[]);
@@ -993,48 +996,45 @@ fn test_distribute() {
 //     let msg = HandleMsg::PostInitialize {
 //         owner: HumanAddr::from("owner0000"),
 //         nebula_token: HumanAddr::from("nebula0000"),
-//         mint_contract: HumanAddr::from("mint0000"),
 //         staking_contract: HumanAddr::from("staking0000"),
 //         commission_collector: HumanAddr::from("collector0000"),
-//         oracle_contract: HumanAddr::from("oracle0000"),
 //         terraswap_factory: HumanAddr::from("terraswapfactory"),
 //     };
 //     let _res = handle(&mut deps, env, msg).unwrap();
 
-//     // whitelist first item with weight 1.5
-//     let msg = HandleMsg::Whitelist {
-//         name: "apple derivative".to_string(),
-//         symbol: "mAAPL".to_string(),
-//         oracle_feeder: HumanAddr::from("feeder0000"),
-//         params: Params {
-//             auction_discount: Decimal::percent(5),
-//             min_collateral_ratio: Decimal::percent(150),
-//             weight: Some(100u32),
-//             mint_period: None,
-//             min_collateral_ratio_after_migration: None,
-//         },
+//     // Create a test cluster
+//     let input_params: Params = get_input_params();
+//     let msg = HandleMsg::CreateCluster {
+//         params: input_params.clone(),
 //     };
 //     let env = mock_env("owner0000", &[]);
+//     let _res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
+
+//     let msg = HandleMsg::TokenCreationHook {};
+//     let env = mock_env("asset0000", &[]);
 //     let _res = handle(&mut deps, env, msg).unwrap();
 
-//     let msg = HandleMsg::TokenCreationHook {
-//         oracle_feeder: HumanAddr::from("feeder0000"),
+//     let msg = HandleMsg::SetClusterTokenHook {
+//         cluster: h("asset0000"),
 //     };
-//     let env = mock_env("asset0000", &[]);
+
+//     let env = mock_env("cluster_token0000", &[]);
 //     let _res = handle(&mut deps, env, msg).unwrap();
 
 //     let msg = HandleMsg::TerraswapCreationHook {
 //         asset_token: HumanAddr::from("asset0000"),
 //     };
+
 //     let env = mock_env("terraswapfactory", &[]);
 //     let _res = handle(&mut deps, env, msg).unwrap();
+
 //     // register queriers
 //     deps.querier.with_oracle_feeders(&[(
 //         &HumanAddr::from("asset0000"),
 //         &HumanAddr::from("feeder0000"),
 //     )]);
 
-//     // unauthorized revoke attempt
+//     // unauthorized decomission attempt
 //     let msg = HandleMsg::RevokeAsset {
 //         asset_token: HumanAddr::from("asset0000"),
 //         end_price: Decimal::from_ratio(2u128, 1u128),

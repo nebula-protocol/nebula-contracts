@@ -10,6 +10,8 @@ use crate::state::{
     store_last_distributed, store_params, store_total_weight, store_weight, Config,
 };
 
+use cluster_math::FPDecimal;
+
 use nebula_protocol::cluster_factory::{
     ClusterExistsResponse, ClusterListResponse, ConfigResponse, DistributionInfoResponse,
     HandleMsg, InitMsg, Params, QueryMsg,
@@ -254,7 +256,9 @@ pub fn create_cluster<S: Storage, A: Api, Q: Querier>(
     }
 
     if read_params(&deps.storage).is_ok() {
-        return Err(StdError::generic_err("A cluster registration process is in progress"));
+        return Err(StdError::generic_err(
+            "A cluster registration process is in progress",
+        ));
     }
 
     store_params(&mut deps.storage, &params)?;
@@ -535,12 +539,13 @@ pub fn distribute<S: Storage, A: Api, Q: Querier>(
     // store last distributed
     store_last_distributed(&mut deps.storage, env.block.time)?;
     // mint token to self and try send minted tokens to staking contract
+
     Ok(HandleResponse {
         messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: nebula_token,
             msg: to_binary(&Cw20HandleMsg::Send {
                 contract: staking_contract,
-                amount: distribution_amount,
+                amount: Uint128(u128::from(distribution_amount)),
                 msg: Some(to_binary(&StakingCw20HookMsg::DepositReward { rewards })?),
             })?,
             send: vec![],
@@ -556,24 +561,25 @@ pub fn distribute<S: Storage, A: Api, Q: Querier>(
 pub fn _compute_rewards<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     target_distribution_amount: Uint128,
-) -> StdResult<(Vec<(HumanAddr, Uint128)>, Uint128)> {
+) -> StdResult<(Vec<(HumanAddr, Uint128)>, FPDecimal)> {
     let total_weight: u32 = read_total_weight(&deps.storage)?;
-    let mut distribution_amount: Uint128 = Uint128::zero();
+    let mut distribution_amount: FPDecimal = FPDecimal::zero();
     let weights: Vec<(HumanAddr, u32)> = read_all_weight(&deps.storage)?;
     let rewards: Vec<(HumanAddr, Uint128)> = weights
         .iter()
         .map(|w| {
-            let amount =
-                target_distribution_amount * Decimal::from_ratio(w.1 as u128, total_weight as u128);
-
-            if amount.is_zero() {
+            let mut amount =
+                FPDecimal::from(target_distribution_amount.u128()) * FPDecimal::from(w.1 as u128);
+            if amount == FPDecimal::zero() {
                 return Err(StdError::generic_err("cannot distribute zero amount"));
             }
-            distribution_amount += amount;
-            Ok((w.0.clone(), amount))
+            distribution_amount = distribution_amount + amount;
+            amount = amount / FPDecimal::from(total_weight as u128);
+            Ok((w.0.clone(), Uint128(u128::from(amount))))
         })
         .filter(|m| m.is_ok())
         .collect::<StdResult<Vec<(HumanAddr, Uint128)>>>()?;
+    distribution_amount = distribution_amount / FPDecimal::from(total_weight as u128);
     Ok((rewards, distribution_amount))
 }
 
