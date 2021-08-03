@@ -94,6 +94,8 @@ pub enum HandleMsg {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     Config {},
+    PenaltyPeriod {},
+    GetRewardPool {},
 }
 
 // We define a custom struct for each query response
@@ -104,6 +106,7 @@ pub struct ConfigResponse {
     pub nebula_token: HumanAddr,
     pub base_denom: String,
     pub owner: HumanAddr,
+    pub custody: HumanAddr
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
