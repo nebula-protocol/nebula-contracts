@@ -804,18 +804,16 @@ fn mint() {
     let env = mock_env(h(addr), &[]);
     let res = handle(&mut deps, env, mint_msg).unwrap();
 
-    assert_eq!(5, res.log.len());
-
-    for log in res.log.iter() {
-        match log.key.as_str() {
-            "action" => assert_eq!("mint", log.value),
-            "sender" => assert_eq!(addr, log.value),
-            "mint_to_sender" => assert_eq!("98", log.value),
-            "penalty" => assert_eq!("1234", log.value),
-            "fee_amt" => assert_eq!("1", log.value),
-            &_ => panic!("Invalid value found in log"),
-        }
-    }
+    assert_eq!(
+        res.log,
+        vec![
+            log("action", "mint"),
+            log("sender", "addr0000"),
+            log("mint_to_sender", "98"),
+            log("penalty", "1234"),
+            log("fee_amt", "1"),
+        ]
+    );
 
     assert_eq!(7, res.messages.len());
 }
@@ -839,30 +837,28 @@ fn burn() {
             ("mNFLX", Decimal::from_str("540.82").unwrap()),
         ]);
 
-    let addr = "addr0000";
-
     let msg = HandleMsg::Burn {
         max_tokens: Uint128(20_000_000),
         asset_amounts: None,
     };
-    let env = mock_env(h(addr), &[]);
+    let env = mock_env(h("addr0000"), &[]);
     let res = handle(&mut deps, env, msg).unwrap();
 
     assert_eq!(8, res.log.len());
 
-    for log in res.log.iter() {
-        match log.key.as_str() {
-            "action" => assert_eq!("receive:burn", log.value),
-            "sender" => assert_eq!(addr, log.value),
-            "burn_amount" => assert_eq!("1234", log.value),
-            "token_cost" => assert_eq!("1247", log.value),
-            "kept_as_fee" => assert_eq!("13", log.value),
-            "asset_amounts" => assert_eq!("[]", log.value),
-            "redeem_totals" => assert_eq!("[99, 98, 97, 96]", log.value),
-            "penalty" => assert_eq!("1234", log.value),
-            &_ => panic!("Invalid value found in log"),
-        }
-    }
+    assert_eq!(
+        res.log,
+        vec![
+            log("action", "receive:burn"),
+            log("sender", "addr0000"),
+            log("burn_amount", "1234"),
+            log("token_cost", "1247"),
+            log("kept_as_fee", "13"),
+            log("asset_amounts", "[]"),
+            log("redeem_totals", "[99, 98, 97, 96]"),
+            log("penalty", "1234")
+        ]
+    );
 
     assert_eq!(7, res.messages.len());
 }
@@ -907,17 +903,53 @@ fn update_target() {
     let env = mock_env(consts::owner(), &[]);
     let res = handle(&mut deps, env, msg).unwrap();
 
-    assert_eq!(5, res.log.len());
+    assert_eq!(
+        res.log,
+        vec![
+            log("action", "reset_target"),
+            log("prev_assets", "[mAAPL, mGOOG, mMSFT, mNFLX]"),
+            log("prev_targets", "[20, 20, 20, 20]"),
+            log("updated_assets", "[mAAPL, mGOOG, mMSFT, mGME, mNFLX]"),
+            log("updated_targets", "[10, 5, 35, 50, 0]"),
+        ]
+    );
 
-    for log in res.log.iter() {
-        match log.key.as_str() {
-            "action" => assert_eq!("reset_target", log.value),
-            "prev_assets" => assert_eq!("[mAAPL, mGOOG, mMSFT, mNFLX]", log.value),
-            "prev_targets" => assert_eq!("[20, 20, 20, 20]", log.value),
-            "updated_assets" => assert_eq!("[mAAPL, mGOOG, mMSFT, mGME, mNFLX]", log.value),
-            "updated_targets" => assert_eq!("[10, 5, 35, 50, 0]", log.value),
-            &_ => panic!("Invalid value found in log"),
-        }
+    assert_eq!(res.messages, vec![]);
+}
+
+#[test]
+fn decommission_cluster() {
+    let (mut deps, _init_res) = mock_init();
+    mock_querier_setup(&mut deps);
+
+    deps.querier
+        .set_token_supply(consts::cluster_token(), 100_000_000)
+        .set_token_balance(consts::cluster_token(), "addr0000", 20_000_000);
+
+    let config = read_config(&deps.storage).unwrap();
+    assert_eq!(config.active, true);
+
+    let msg = HandleMsg::Decommission {};
+
+    let env = mock_env("owner0001", &[]);
+    let res = handle(&mut deps, env, msg.clone()).unwrap_err();
+
+    match res {
+        StdError::Unauthorized { .. } => {}
+        _ => panic!("DO NOT ENTER HERE"),
     }
-    assert_eq!(0, res.messages.len());
+
+    let env = mock_env(consts::owner(), &[]);
+
+    let res = handle(&mut deps, env, msg).unwrap();
+
+    assert_eq!(
+        res.log,
+        vec![log("action", "decommission_asset")]
+    );
+    
+    let config = read_config(&deps.storage).unwrap();
+    assert_eq!(config.active, false);
+    
+    assert_eq!(res.messages, vec![]);
 }
