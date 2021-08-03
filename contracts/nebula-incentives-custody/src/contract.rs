@@ -1,4 +1,5 @@
 use crate::state::{read_neb, read_owner, set_neb, set_owner};
+use crate::querier::load_token_balance;
 use cosmwasm_std::{
     log, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HumanAddr, InitResponse,
     Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
@@ -72,8 +73,14 @@ pub fn request_neb<S: Storage, A: Api, Q: Querier>(
 }
 
 pub fn query<S: Storage, A: Api, Q: Querier>(
-    _deps: &Extern<S, A, Q>,
-    _msg: QueryMsg,
+    deps: &Extern<S, A, Q>,
+    msg: QueryMsg,
 ) -> StdResult<Binary> {
-    Ok(Binary::from(vec![0u8]))
+    match msg {
+        QueryMsg::Balance { custody } => {
+            let nebula_token = read_neb(&deps.storage)?;
+            let balance = load_token_balance(&deps, &nebula_token, &custody)?;
+            Ok(to_binary(&to_binary(&balance).unwrap())?)
+        }
+    }
 }
