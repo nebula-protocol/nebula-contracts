@@ -16,6 +16,8 @@ use cosmwasm_std::{
 };
 use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
 
+use cluster_math::FPDecimal;
+
 use nebula_protocol::common::OrderBy;
 use nebula_protocol::gov::{
     ConfigResponse, Cw20HookMsg, ExecuteMsg, HandleMsg, InitMsg, MigrateMsg, PollResponse,
@@ -62,7 +64,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     };
 
     let voting_power = TotalVotingPower {
-        voting_power: vec![Uint128::zero(); M as usize],
+        voting_power: vec![FPDecimal::zero(); M as usize],
         last_upd: env.block.time / SECONDS_PER_WEEK,
     };
 
@@ -633,7 +635,9 @@ pub fn cast_vote<S: Storage, A: Api, Q: Querier>(
     let current_week = (env.block.time / SECONDS_PER_WEEK) % M;
     a_poll.max_voting_power = max(
         a_poll.max_voting_power,
-        total_voting_power.voting_power[current_week as usize],
+        Uint128::from(u128::from(
+            total_voting_power.voting_power[current_week as usize],
+        )),
     );
 
     let vote_info = VoterInfo {
@@ -704,7 +708,9 @@ pub fn snapshot_poll<S: Storage, A: Api, Q: Querier>(
     let current_week = (env.block.time / SECONDS_PER_WEEK) % M;
     a_poll.max_voting_power = max(
         a_poll.max_voting_power,
-        total_voting_power.voting_power[current_week as usize],
+        Uint128::from(u128::from(
+            total_voting_power.voting_power[current_week as usize],
+        )),
     );
 
     a_poll.staked_amount = Some(a_poll.max_voting_power);

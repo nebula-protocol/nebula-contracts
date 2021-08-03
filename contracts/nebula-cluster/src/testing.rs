@@ -943,13 +943,10 @@ fn decommission_cluster() {
 
     let res = handle(&mut deps, env, msg).unwrap();
 
-    assert_eq!(
-        res.log,
-        vec![log("action", "decommission_asset")]
-    );
-    
+    assert_eq!(res.log, vec![log("action", "decommission_asset")]);
+
     let config = read_config(&deps.storage).unwrap();
     assert_eq!(config.active, false);
-    
+
     assert_eq!(res.messages, vec![]);
 }

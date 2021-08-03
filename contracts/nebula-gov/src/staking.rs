@@ -6,6 +6,8 @@ use crate::state::{
     TotalVotingPower,
 };
 
+use cluster_math::FPDecimal;
+
 use cosmwasm_std::{
     log, to_binary, Api, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr, Querier,
     StdError, StdResult, Storage, Uint128, WasmMsg,
@@ -29,18 +31,21 @@ pub fn adjust_total_voting_power(
     // surely this is fine
     while total_voting_power.last_upd != current_week {
         total_voting_power.voting_power[(total_voting_power.last_upd % M) as usize] =
-            Uint128::zero();
+            FPDecimal::zero();
         total_voting_power.last_upd += 1;
     }
 
     for i in current_week..current_week + duration {
-        let total = Uint128(((current_week + duration - i) as u128) * amount / (M as u128));
+        let mut total =
+            FPDecimal::from((current_week + duration - i) as u128) * FPDecimal::from(amount);
+        total = total / FPDecimal::from(M as u128);
+        let mut voting_power = total_voting_power.voting_power[(i % M) as usize];
         if add {
-            total_voting_power.voting_power[(i % M) as usize] += total;
+            voting_power = voting_power + FPDecimal::from(total);
         } else {
-            total_voting_power.voting_power[(i % M) as usize] =
-                (total_voting_power.voting_power[(i % M) as usize] - total)?;
+            voting_power = voting_power - FPDecimal::from(total);
         }
+        total_voting_power.voting_power[(i % M) as usize] = voting_power;
     }
 
     Ok(())

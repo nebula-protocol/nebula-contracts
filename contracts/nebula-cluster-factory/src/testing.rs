@@ -5,9 +5,8 @@ use crate::state::{
     cluster_exists, read_params, read_total_weight, read_weight, store_total_weight, store_weight,
 };
 use cosmwasm_std::testing::{mock_env, MOCK_CONTRACT_ADDR};
-use cosmwasm_std::Api;
 use cosmwasm_std::{
-    from_binary, log, to_binary, CosmosMsg, Decimal, Env, HumanAddr, StdError, Uint128, WasmMsg,
+    from_binary, log, to_binary, CosmosMsg, Env, HumanAddr, StdError, Uint128, WasmMsg,
 };
 use cw20::{Cw20HandleMsg, MinterResponse};
 
@@ -803,7 +802,7 @@ fn test_terraswap_creation_hook() {
     };
 
     let env = mock_env("cluster_token0000", &[]);
-    let res = handle(&mut deps, env, msg).unwrap();
+    let _res = handle(&mut deps, env, msg).unwrap();
 
     let msg = HandleMsg::TerraswapCreationHook {
         asset_token: HumanAddr::from("asset0000"),
