@@ -4,7 +4,7 @@ pub mod ext_query;
 pub mod state;
 
 #[cfg(test)]
-pub mod test_helper;
+pub mod testing;
 
 mod util;
 

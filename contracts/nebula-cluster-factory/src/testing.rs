@@ -1043,7 +1043,6 @@ fn test_decommission_cluster() {
     let env = mock_env("owner0000", &[]);
     let res = handle(&mut deps, env, msg.clone()).unwrap();
 
-
     assert_eq!(
         res.messages,
         vec![CosmosMsg::Wasm(WasmMsg::Execute {
@@ -1086,6 +1085,5 @@ fn test_decommission_cluster() {
         _ => panic!("DO NOT ENTER HERE"),
     }
 
-    
     assert_eq!(read_total_weight(&deps.storage).unwrap(), 0u32);
 }
