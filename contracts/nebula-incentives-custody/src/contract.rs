@@ -1,5 +1,5 @@
-use crate::state::{read_neb, read_owner, set_neb, set_owner};
 use crate::querier::load_token_balance;
+use crate::state::{read_neb, read_owner, set_neb, set_owner};
 use cosmwasm_std::{
     log, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HumanAddr, InitResponse,
     Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
@@ -44,7 +44,11 @@ pub fn update_owner<S: Storage, A: Api, Q: Querier>(
 
     Ok(HandleResponse {
         messages: vec![],
-        log: vec![log("action", "update_owner")],
+        log: vec![
+            log("action", "update_owner"),
+            log("old_owner", old_owner),
+            log("new_owner", owner),
+        ],
         data: None,
     })
 }
@@ -62,12 +66,17 @@ pub fn request_neb<S: Storage, A: Api, Q: Querier>(
         messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: read_neb(&deps.storage)?,
             msg: to_binary(&Cw20HandleMsg::Transfer {
-                recipient: env.message.sender,
+                recipient: env.message.sender.clone(),
                 amount,
             })?,
             send: vec![],
         })],
-        log: vec![],
+        log: vec![
+            log("action", "request_neb"),
+            log("from", env.contract.address),
+            log("to", env.message.sender),
+            log("amount", amount),
+        ],
         data: None,
     })
 }
