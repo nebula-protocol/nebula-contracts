@@ -585,10 +585,15 @@ pub fn _compute_rewards<S: Storage, A: Api, Q: Querier>(
 
 pub fn decommission_cluster<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    _env: Env,
+    env: Env,
     cluster_contract: HumanAddr,
     cluster_token: HumanAddr,
 ) -> HandleResult {
+    let config: Config = read_config(&deps.storage)?;
+    if config.owner != env.message.sender {
+        return Err(StdError::unauthorized());
+    }
+
     let weight = read_weight(&deps.storage, &cluster_token.clone())?;
     remove_weight(&mut deps.storage, &cluster_token.clone());
     decrease_total_weight(&mut deps.storage, weight)?;
