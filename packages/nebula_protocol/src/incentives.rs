@@ -110,6 +110,11 @@ pub struct ConfigResponse {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct PenaltyPeriodResponse {
+    pub n: u64,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Cw20HookMsg {
     /// Deposit rewards to be distributed among stakers and voters

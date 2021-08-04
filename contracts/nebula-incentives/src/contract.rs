@@ -12,9 +12,7 @@ use crate::rebalancers::{
 use crate::rewards::{deposit_reward, increment_n, withdraw_reward};
 use crate::state::{Config, read_config, read_current_n, store_config, store_current_n};
 use cw20::Cw20ReceiveMsg;
-use nebula_protocol::incentives::{
-    ConfigResponse, Cw20HookMsg, HandleMsg, InitMsg, MigrateMsg, QueryMsg,
-};
+use nebula_protocol::incentives::{ConfigResponse, Cw20HookMsg, HandleMsg, InitMsg, MigrateMsg, PenaltyPeriodResponse, QueryMsg};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -224,6 +222,17 @@ pub fn query_config<S: Storage, A: Api, Q: Querier>(
         nebula_token: state.nebula_token,
         base_denom: state.base_denom,
         owner: state.owner,
+    };
+
+    Ok(resp)
+}
+
+pub fn query_penalty_period<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+) -> StdResult<PenaltyPeriodResponse> {
+    let n = read_current_n(&deps.storage)?;
+    let resp = PenaltyPeriodResponse {
+        n
     };
 
     Ok(resp)

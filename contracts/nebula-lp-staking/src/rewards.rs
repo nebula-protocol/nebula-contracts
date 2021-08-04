@@ -107,7 +107,6 @@ fn _withdraw_reward<S: Storage>(
 
         // Withdraw reward to pending reward
         before_share_change(&pool_info, &mut reward_info)?;
-
         amount += reward_info.pending_reward;
         reward_info.pending_reward = Uint128::zero();
 

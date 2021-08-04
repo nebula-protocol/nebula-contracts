@@ -1,9 +1,10 @@
-use crate::contract::{handle, init, query_config};
+use crate::contract::{handle, init, query_config, query_penalty_period};
 use crate::mock_querier::{WasmMockQuerier, mock_dependencies};
+use crate::state::record_contribution;
 use cosmwasm_std::testing::{MOCK_CONTRACT_ADDR, MockApi, MockStorage, mock_env};
 use cosmwasm_std::{Coin, CosmosMsg, Decimal, Env, Extern, HumanAddr, StdError, Uint128, WasmMsg, from_binary, log, to_binary};
 use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
-use nebula_protocol::incentives::{ConfigResponse, Cw20HookMsg, HandleMsg, InitMsg, PoolType};
+use nebula_protocol::incentives::{ConfigResponse, Cw20HookMsg, HandleMsg, InitMsg, PenaltyPeriodResponse, PoolType};
 use nebula_protocol::gov::Cw20HookMsg::DepositReward;
 use terraswap::asset::{Asset, AssetInfo};
 use terraswap::pair::{Cw20HookMsg as TerraswapCw20HookMsg, HandleMsg as TerraswapHandleMsg};
@@ -116,8 +117,8 @@ fn test_deposit_reward() {
         msg: Some(
             to_binary(&Cw20HookMsg::DepositReward {
                 rewards: vec![
-                    (PoolType::REBALANCER, HumanAddr::from("asset"), rewards_amount),
-                    (PoolType::ARBITRAGER, HumanAddr::from("asset"), rewards_amount)],
+                    (PoolType::REBALANCER, HumanAddr::from("cluster"), rewards_amount),
+                    (PoolType::ARBITRAGER, HumanAddr::from("cluster"), rewards_amount)],
             })
             .unwrap(),
         ),
@@ -126,11 +127,15 @@ fn test_deposit_reward() {
     let res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
 
     assert_eq!(
-        res.log,
-        vec![
-            log("action", "deposit_reward"),
-            log("amount", total_rewards_amount),
-        ]
+        res.messages,
+        vec![CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: HumanAddr::from("nebula_token"),
+            msg: to_binary(&Cw20HandleMsg::Transfer {
+                recipient: HumanAddr::from("custody"),
+                amount: total_rewards_amount,
+            }).unwrap(),
+            send: vec![],
+        })]
     );
 }
 
@@ -149,6 +154,107 @@ fn test_penalty_period() {
             log("action", "new_penalty_period"),
             log("previous_n", 0),
             log("current_n", 1)
+        ]
+    );
+
+    let penalty_period: PenaltyPeriodResponse = query_penalty_period(&deps).unwrap();
+    assert_eq!(
+        penalty_period,
+        PenaltyPeriodResponse {
+            n: 1
+        }
+    );
+}
+
+#[test]
+fn test_withdraw_reward() {
+    let mut deps = mock_dependencies(20, &[]);
+
+    mock_init(&mut deps);
+
+    // First, deposit rewards for both pools
+    let rewards_amount = Uint128(1000);
+    let total_rewards_amount = Uint128(2000);
+
+    // Send Nebula token to this contract
+    let msg = HandleMsg::Receive(Cw20ReceiveMsg {
+        sender: HumanAddr::from(TEST_CREATOR),
+        amount: total_rewards_amount,
+        msg: Some(
+            to_binary(&Cw20HookMsg::DepositReward {
+                rewards: vec![
+                    (PoolType::REBALANCER, HumanAddr::from("cluster"), rewards_amount),
+                    (PoolType::ARBITRAGER, HumanAddr::from("cluster"), rewards_amount)],
+            })
+            .unwrap(),
+        ),
+    });
+    let env = mock_env(HumanAddr::from("nebula_token"), &[]);
+    let res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
+
+    // Manually record contribution to pools; one pool has other contribution from another address, make sure ratio is correct
+    record_contribution(
+        &mut deps, 
+        &HumanAddr::from("contributor0000"), 
+        PoolType::REBALANCER, 
+        &HumanAddr::from("cluster"),
+    Uint128(25)
+    ).unwrap();
+
+    record_contribution(
+        &mut deps, 
+        &HumanAddr::from("contributor0000"), 
+        PoolType::ARBITRAGER, 
+        &HumanAddr::from("cluster"),
+    Uint128(25)
+    ).unwrap();
+
+    record_contribution(
+        &mut deps, 
+        &HumanAddr::from("contributor0001"), 
+        PoolType::ARBITRAGER, 
+        &HumanAddr::from("cluster"),
+    Uint128(25)
+    ).unwrap();
+
+    // Test without advancing penalty period (should give 0)
+
+    let msg = HandleMsg::Withdraw {};
+    let env = mock_env("contributor0000", &[]);
+    let res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
+    assert_eq!(
+        res.log, 
+        vec![
+            log("action", "withdraw"),
+            log("amount", 0),
+        ]
+    );
+
+    // Advance penalty period
+
+    let msg = HandleMsg::NewPenaltyPeriod {};
+    let env = mock_env("owner0000", &[]);
+    let _res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
+
+    let msg = HandleMsg::Withdraw {};
+    let env = mock_env("contributor0000", &[]);
+    let res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
+    assert_eq!(
+        res.log, 
+        vec![
+            log("action", "withdraw"),
+            log("amount", 1500),
+        ]
+    );
+
+    let msg = HandleMsg::Withdraw {};
+    let env = mock_env("contributor0001", &[]);
+    let res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
+    assert_eq!(
+        res.log, 
+        vec![
+            log("action", "withdraw"),
+            log("amount", 500),
         ]
     );
 }
