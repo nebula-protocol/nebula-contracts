@@ -6,7 +6,10 @@ use cosmwasm_std::{
 use crate::rebalancers::{assert_cluster_exists, get_cluster_state};
 use crate::state::{read_config, record_contribution, Config};
 
-use nebula_protocol::incentives::{ExtQueryMsg, HandleMsg, PoolResponse, PoolType};
+use nebula_protocol::incentives::{HandleMsg, PoolType};
+
+use terraswap::pair::QueryMsg as TerraswapQueryMsg;
+use terraswap::pair::PoolResponse as TerraswapPoolResponse;
 
 use cw20::Cw20HandleMsg;
 use nebula_protocol::cluster::{ClusterStateResponse, QueryMsg as ClusterQueryMsg};
@@ -127,7 +130,7 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
             cluster_contract,
             pool_before: deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
                 contract_addr: pair_info.contract_addr,
-                msg: to_binary(&ExtQueryMsg::Pool {})?,
+                msg: to_binary(&TerraswapQueryMsg::Pool {})?,
             }))?,
         })?,
         send: vec![],
@@ -201,7 +204,7 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
             cluster_contract: cluster_contract.clone(),
             pool_before: deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
                 contract_addr: pair_info.contract_addr,
-                msg: to_binary(&ExtQueryMsg::Pool {})?,
+                msg: to_binary(&TerraswapQueryMsg::Pool {})?,
             }))?,
         })?,
         send: vec![],
@@ -249,15 +252,15 @@ pub fn record_terraswap_impact<S: Storage, A: Api, Q: Querier>(
     arbitrager: HumanAddr,
     terraswap_pair: HumanAddr,
     cluster_contract: HumanAddr,
-    pool_before: PoolResponse,
+    pool_before: TerraswapPoolResponse,
 ) -> StdResult<HandleResponse> {
     if env.message.sender != env.contract.address {
         return Err(StdError::unauthorized());
     }
 
-    let pool_now: PoolResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+    let pool_now: TerraswapPoolResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: terraswap_pair,
-        msg: to_binary(&ExtQueryMsg::Pool {})?,
+        msg: to_binary(&TerraswapQueryMsg::Pool {})?,
     }))?;
 
     let contract_state: ClusterStateResponse =

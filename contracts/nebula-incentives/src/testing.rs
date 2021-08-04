@@ -2,15 +2,12 @@ use crate::contract::{handle, init, query_config, query_penalty_period};
 use crate::mock_querier::{mock_dependencies, WasmMockQuerier};
 use crate::state::record_contribution;
 use cosmwasm_std::testing::{mock_env, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
-use cosmwasm_std::{
-    coins, from_binary, log, to_binary, BankMsg, Coin, CosmosMsg, Decimal, Env, Extern, HumanAddr,
-    StdError, Uint128, WasmMsg,
-};
+use cosmwasm_std::{BankMsg, Coin, CosmosMsg, Decimal, Env, Extern, HumanAddr, Querier, QueryRequest, StdError, Uint128, WasmMsg, WasmQuery, coins, from_binary, log, to_binary};
 use cw20::{Cw20HandleMsg, Cw20ReceiveMsg};
-use nebula_protocol::gov::Cw20HookMsg::DepositReward;
-use nebula_protocol::incentives::{
-    ConfigResponse, Cw20HookMsg, HandleMsg, InitMsg, PenaltyPeriodResponse, PoolType,
-};
+use terraswap::pair::PoolResponse as TerraswapPoolResponse;
+
+
+use nebula_protocol::incentives::{ConfigResponse, Cw20HookMsg, HandleMsg, InitMsg, PenaltyPeriodResponse, PoolType};
 use terraswap::asset::{Asset, AssetInfo};
 use terraswap::pair::{Cw20HookMsg as TerraswapCw20HookMsg, HandleMsg as TerraswapHandleMsg};
 
@@ -271,7 +268,7 @@ fn test_withdraw_reward() {
     );
 }
 
-// TODO: Integration for mint / redeem
+/// Integration tests for all mint / redeem operations
 
 #[test]
 fn test_incentives_mint() {
@@ -451,6 +448,225 @@ fn test_incentives_redeem() {
 }
 
 #[test]
+fn test_incentives_arb_cluster_mint() {
+    let mut deps = mock_dependencies(20, &[]);
+
+    mock_init(&mut deps);
+
+    deps.querier.with_terraswap_pairs(&[
+        (&"uusdcluster_token".to_string(), &HumanAddr::from("uusd_cluster_pair")),
+    ]);
+
+    let asset_amounts = vec![
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: HumanAddr::from("asset0000"),
+            },
+            amount: Uint128(100),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: HumanAddr::from("asset0001"),
+            },
+            amount: Uint128(100),
+        },
+        Asset {
+            info: AssetInfo::NativeToken {
+                denom: "native_asset0000".to_string(),
+            },
+            amount: Uint128(100),
+        },
+    ];
+
+    let msg = HandleMsg::ArbClusterMint {
+        cluster_contract: HumanAddr::from("cluster"),
+        assets: asset_amounts.clone(),
+    };
+    
+    let env = mock_env("owner0000", &coins(100, &"native_asset0000".to_string()));
+    let res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
+
+    assert_eq!(
+        res.messages,
+        vec![
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: HumanAddr::from("asset0000"),
+                msg: to_binary(&Cw20HandleMsg::TransferFrom {
+                    owner: env.message.sender.clone(),
+                    recipient: env.contract.address.clone(),
+                    amount: Uint128(100),
+                })
+                .unwrap(),
+                send: vec![],
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: HumanAddr::from("asset0001"),
+                msg: to_binary(&Cw20HandleMsg::TransferFrom {
+                    owner: env.message.sender.clone(),
+                    recipient: env.contract.address.clone(),
+                    amount: Uint128(100),
+                })
+                .unwrap(),
+                send: vec![],
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: env.contract.address.clone(),
+                msg: to_binary(&HandleMsg::_InternalRewardedMint {
+                    rebalancer: env.message.sender.clone(),
+                    cluster_contract: HumanAddr::from("cluster"),
+                    asset_amounts: asset_amounts,
+                    min_tokens: None,
+                })
+                .unwrap(),
+                send: vec![],
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: env.contract.address.clone(),
+                msg: to_binary(&HandleMsg::_SwapAll {
+                    terraswap_pair: HumanAddr::from("uusd_cluster_pair"),
+                    cluster_token: HumanAddr::from("cluster_token"),
+                    to_ust: true,
+                }).unwrap(),
+                send: vec![],
+            }),
+
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: env.contract.address.clone(),
+                msg: to_binary(&HandleMsg::_RecordTerraswapImpact {
+                    arbitrager: env.message.sender.clone(),
+                    terraswap_pair: HumanAddr::from("uusd_cluster_pair"),
+                    cluster_contract: HumanAddr::from("cluster"),
+                    pool_before: TerraswapPoolResponse { 
+                        assets: [
+                            Asset {
+                                info: AssetInfo::Token {
+                                    contract_addr: HumanAddr::from("cluster_token"),
+                                },
+                                amount: Uint128(100),
+                            },
+                            Asset {
+                                info: AssetInfo::NativeToken {
+                                    denom: "uusd".to_string(),
+                                },
+                                amount: Uint128(100),
+                            },
+                        ], 
+                        total_share: Uint128(10000),
+                    },
+                }).unwrap(),
+                send: vec![],
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: env.contract.address,
+                msg: to_binary(&HandleMsg::_SendAll {
+                    asset_infos: vec![AssetInfo::NativeToken {
+                        denom: "uusd".to_string(),
+                    }],
+                    send_to: env.message.sender,
+                })
+                .unwrap(),
+                send: vec![],
+            })
+        ]
+    );
+}
+
+#[test]
+fn test_incentives_arb_cluster_redeem() {
+    let mut deps = mock_dependencies(20, &[]);
+
+    mock_init(&mut deps);
+
+    deps.querier.with_terraswap_pairs(&[
+        (&"uusdcluster_token".to_string(), &HumanAddr::from("uusd_cluster_pair")),
+    ]);
+
+    let msg = HandleMsg::ArbClusterRedeem {
+        cluster_contract: HumanAddr::from("cluster"),
+        asset: Asset {
+            info: AssetInfo::NativeToken {
+                denom: "uusd".to_string(),
+            },
+            amount: Uint128(100),
+        },
+    };
+    
+    let env = mock_env("owner0000", &coins(100, &"uusd".to_string()));
+    let res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
+
+    assert_eq!(
+        res.messages,
+        vec![
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: env.contract.address.clone(),
+                msg: to_binary(&HandleMsg::_SwapAll {
+                    terraswap_pair: HumanAddr::from("uusd_cluster_pair"),
+                    cluster_token: HumanAddr::from("cluster_token"),
+                    to_ust: false,
+                }).unwrap(),
+                send: vec![],
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: env.contract.address.clone(),
+                msg: to_binary(&HandleMsg::_RecordTerraswapImpact {
+                    arbitrager: env.message.sender.clone(),
+                    terraswap_pair: HumanAddr::from("uusd_cluster_pair"),
+                    cluster_contract: HumanAddr::from("cluster"),
+                    pool_before: TerraswapPoolResponse { 
+                        assets: [
+                            Asset {
+                                info: AssetInfo::Token {
+                                    contract_addr: HumanAddr::from("cluster_token"),
+                                },
+                                amount: Uint128(100),
+                            },
+                            Asset {
+                                info: AssetInfo::NativeToken {
+                                    denom: "uusd".to_string(),
+                                },
+                                amount: Uint128(100),
+                            },
+                        ], 
+                        total_share: Uint128(10000),
+                    },
+                }).unwrap(),
+                send: vec![],
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: env.contract.address.clone(),
+                msg: to_binary(&HandleMsg::_InternalRewardedRedeem {
+                    rebalancer: env.message.sender.clone(),
+                    cluster_contract: HumanAddr::from("cluster"),
+                    cluster_token: HumanAddr::from("cluster_token"),
+                    max_tokens: None,
+                    asset_amounts: None,
+                }).unwrap(),
+                send: vec![],
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: env.contract.address,
+                msg: to_binary(&HandleMsg::_SendAll {
+                    asset_infos: vec![
+                        AssetInfo::Token {
+                                contract_addr: HumanAddr::from("asset0000"),
+                        },
+                        AssetInfo::Token {
+                            contract_addr: HumanAddr::from("asset0001"),
+                        },
+                        AssetInfo::NativeToken {
+                            denom: "native_asset0000".to_string(),
+                        },
+                    ],
+                    send_to: env.message.sender,
+                }).unwrap(),
+                send: vec![],
+            }),
+        ]
+    );
+}
+
+
+#[test]
 fn test_send_all() {
     let mut deps = mock_dependencies(20, &[]);
 
@@ -610,4 +826,3 @@ fn test_swap_all() {
 
 // TODO: Specific tests for internal function (SendAll, SwapAll, InternalRewarded*, RecordRewards)
 
-// TODO: Integration for arbcluster / mint

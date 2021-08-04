@@ -15,6 +15,7 @@ use std::collections::HashMap;
 
 use terra_cosmwasm::{TaxCapResponse, TaxRateResponse, TerraQuery, TerraQueryWrapper, TerraRoute};
 use terraswap::asset::{Asset, AssetInfo, PairInfo};
+use terraswap::pair::PoolResponse as TerraswapPoolResponse;
 
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies
 /// this uses our CustomQuerier.
@@ -169,6 +170,7 @@ pub enum QueryMsg {
     Pair { asset_infos: [AssetInfo; 2] },
     ClusterState { cluster_contract_address: HumanAddr },
     ClusterExists {},
+    Pool {},
 }
 
 impl WasmMockQuerier {
@@ -255,19 +257,19 @@ impl WasmMockQuerier {
                         target: vec![
                             Asset {
                                 info: AssetInfo::Token {
-                                    contract_addr: HumanAddr::from("asset0"),
+                                    contract_addr: HumanAddr::from("asset0000"),
                                 },
                                 amount: Uint128(100),
                             },
                             Asset {
                                 info: AssetInfo::Token {
-                                    contract_addr: HumanAddr::from("asset1"),
+                                    contract_addr: HumanAddr::from("asset0001"),
                                 },
                                 amount: Uint128(100),
                             },
                             Asset {
                                 info: AssetInfo::NativeToken {
-                                    denom: "native_asset0".to_string(),
+                                    denom: "native_asset0000".to_string(),
                                 },
                                 amount: Uint128(100),
                             },
@@ -279,6 +281,26 @@ impl WasmMockQuerier {
                 }
                 QueryMsg::ClusterExists {} => {
                     Ok(to_binary(&ClusterExistsResponse { exists: true }))
+                }
+                QueryMsg::Pool {  } => {
+                    Ok(to_binary(&TerraswapPoolResponse { 
+                        assets: [
+                            Asset {
+                                info: AssetInfo::Token {
+                                    contract_addr: HumanAddr::from("cluster_token"),
+                                },
+                                amount: Uint128(100),
+                            },
+                            Asset {
+                                info: AssetInfo::NativeToken {
+                                    denom: "uusd".to_string(),
+                                },
+                                amount: Uint128(100),
+                            },
+                        ], 
+                        total_share: Uint128(10000),
+                    }))
+
                 }
             },
             QueryRequest::Wasm(WasmQuery::Raw { contract_addr, key }) => {
