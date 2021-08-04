@@ -10,9 +10,11 @@ use crate::rebalancers::{
     internal_rewarded_mint, internal_rewarded_redeem, mint, record_rebalancer_rewards, redeem,
 };
 use crate::rewards::{deposit_reward, increment_n, withdraw_reward};
-use crate::state::{Config, read_config, read_current_n, store_config, store_current_n};
+use crate::state::{read_config, read_current_n, store_config, store_current_n, Config};
 use cw20::Cw20ReceiveMsg;
-use nebula_protocol::incentives::{ConfigResponse, Cw20HookMsg, HandleMsg, InitMsg, MigrateMsg, PenaltyPeriodResponse, QueryMsg};
+use nebula_protocol::incentives::{
+    ConfigResponse, Cw20HookMsg, HandleMsg, InitMsg, MigrateMsg, PenaltyPeriodResponse, QueryMsg,
+};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -194,7 +196,7 @@ pub fn new_penalty_period<S: Storage, A: Api, Q: Querier>(
         log: vec![
             log("action", "new_penalty_period"),
             log("previous_n", n),
-            log("current_n", new_n)
+            log("current_n", new_n),
         ],
         data: None,
     })
@@ -206,8 +208,8 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_binary(&query_config(deps)?),
-        QueryMsg::PenaltyPeriod {  } => todo!(),
-        QueryMsg::GetRewardPool {  } => todo!(),
+        QueryMsg::PenaltyPeriod {} => todo!(),
+        QueryMsg::GetRewardPool {} => todo!(),
     }
 }
 
@@ -231,9 +233,7 @@ pub fn query_penalty_period<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
 ) -> StdResult<PenaltyPeriodResponse> {
     let n = read_current_n(&deps.storage)?;
-    let resp = PenaltyPeriodResponse {
-        n
-    };
+    let resp = PenaltyPeriodResponse { n };
 
     Ok(resp)
 }
