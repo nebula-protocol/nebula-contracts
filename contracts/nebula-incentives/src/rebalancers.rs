@@ -89,7 +89,7 @@ pub fn record_rebalancer_rewards<S: Storage, A: Api, Q: Querier>(
         record_contribution(
             deps,
             &rebalancer,
-            PoolType::REBALANCER,
+            PoolType::REBALANCE,
             &cluster_contract,
             contribution,
         )?;
@@ -254,11 +254,6 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
     assert_cluster_exists(deps, &cluster_contract)?;
 
     let cluster_state = get_cluster_state(deps, &cluster_contract)?;
-    if !cluster_state.active {
-        return Err(StdError::generic_err(
-            "Cannot call mint on a decommissioned cluster",
-        ));
-    }
 
     let cluster_token = cluster_state.cluster_token;
 

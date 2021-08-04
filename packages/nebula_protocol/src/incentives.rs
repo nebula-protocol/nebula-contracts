@@ -106,7 +106,7 @@ pub struct ConfigResponse {
     pub nebula_token: HumanAddr,
     pub base_denom: String,
     pub owner: HumanAddr,
-    pub custody: HumanAddr
+    pub custody: HumanAddr,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -149,8 +149,8 @@ pub struct PoolResponse {
 pub struct PoolType;
 
 impl PoolType {
-    pub const REBALANCER: u16 = 0;
-    pub const ARBITRAGER: u16 = 1;
+    pub const REBALANCE: u16 = 0;
+    pub const ARBITRAGE: u16 = 1;
 
     pub const ALL_TYPES: [&'static u16; 2] = [&0u16, &1u16];
 }

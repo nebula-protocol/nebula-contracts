@@ -71,13 +71,6 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
 
     let cluster_state = get_cluster_state(deps, &cluster_contract)?;
 
-    // Might be redundant but here to be safe
-    if !cluster_state.active {
-        return Err(StdError::generic_err(
-            "Cannot call ArbClusterMint on a decommissioned cluster",
-        ));
-    }
-
     let cluster_token = cluster_state.cluster_token;
 
     let pair_info = get_pair_info(deps, &cluster_token)?;
@@ -167,13 +160,6 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
     assert_cluster_exists(deps, &cluster_contract)?;
 
     let cluster_state = get_cluster_state(deps, &cluster_contract)?;
-
-    // Might be redundant but here to be safe
-    if !cluster_state.active {
-        return Err(StdError::generic_err(
-            "Cannot call ArbClusterRedeem on a decommissioned cluster",
-        ));
-    }
 
     let mut messages = vec![];
     let contract = env.contract.address.clone();
@@ -333,7 +319,7 @@ pub fn record_terraswap_impact<S: Storage, A: Api, Q: Querier>(
         record_contribution(
             deps,
             &arbitrager,
-            PoolType::ARBITRAGER,
+            PoolType::ARBITRAGE,
             &cluster_contract,
             Uint128(imbalanced_fixed.into()),
         )?;

@@ -117,12 +117,12 @@ fn test_deposit_reward() {
             to_binary(&Cw20HookMsg::DepositReward {
                 rewards: vec![
                     (
-                        PoolType::REBALANCER,
+                        PoolType::REBALANCE,
                         HumanAddr::from("cluster"),
                         rewards_amount,
                     ),
                     (
-                        PoolType::ARBITRAGER,
+                        PoolType::ARBITRAGE,
                         HumanAddr::from("cluster"),
                         rewards_amount,
                     ),
@@ -188,12 +188,12 @@ fn test_withdraw_reward() {
             to_binary(&Cw20HookMsg::DepositReward {
                 rewards: vec![
                     (
-                        PoolType::REBALANCER,
+                        PoolType::REBALANCE,
                         HumanAddr::from("cluster"),
                         rewards_amount,
                     ),
                     (
-                        PoolType::ARBITRAGER,
+                        PoolType::ARBITRAGE,
                         HumanAddr::from("cluster"),
                         rewards_amount,
                     ),
@@ -209,7 +209,7 @@ fn test_withdraw_reward() {
     record_contribution(
         &mut deps,
         &HumanAddr::from("contributor0000"),
-        PoolType::REBALANCER,
+        PoolType::REBALANCE,
         &HumanAddr::from("cluster"),
         Uint128(25),
     )
@@ -218,7 +218,7 @@ fn test_withdraw_reward() {
     record_contribution(
         &mut deps,
         &HumanAddr::from("contributor0000"),
-        PoolType::ARBITRAGER,
+        PoolType::ARBITRAGE,
         &HumanAddr::from("cluster"),
         Uint128(25),
     )
@@ -227,7 +227,7 @@ fn test_withdraw_reward() {
     record_contribution(
         &mut deps,
         &HumanAddr::from("contributor0001"),
-        PoolType::ARBITRAGER,
+        PoolType::ARBITRAGE,
         &HumanAddr::from("cluster"),
         Uint128(25),
     )
