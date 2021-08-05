@@ -125,6 +125,9 @@ class Ecosystem:
             commission_collector=self.collector,
         )
 
+        factory_config = await self.factory.query.config()
+        print("GODDAM", factory_config)
+
         self.neb_pair = Contract(
             (
                 await self.terraswap_factory.create_pair(
