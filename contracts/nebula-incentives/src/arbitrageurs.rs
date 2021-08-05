@@ -125,7 +125,7 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.clone(),
         msg: to_binary(&HandleMsg::_RecordTerraswapImpact {
-            arbitrager: env.message.sender.clone(),
+            arbitrageur: env.message.sender.clone(),
             terraswap_pair: pair_info.contract_addr.clone(),
             cluster_contract,
             pool_before: deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
@@ -199,7 +199,7 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.clone(),
         msg: to_binary(&HandleMsg::_RecordTerraswapImpact {
-            arbitrager: env.message.sender.clone(),
+            arbitrageur: env.message.sender.clone(),
             terraswap_pair: pair_info.contract_addr.clone(),
             cluster_contract: cluster_contract.clone(),
             pool_before: deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
@@ -249,7 +249,7 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
 pub fn record_terraswap_impact<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    arbitrager: HumanAddr,
+    arbitrageur: HumanAddr,
     terraswap_pair: HumanAddr,
     cluster_contract: HumanAddr,
     pool_before: TerraswapPoolResponse,
@@ -321,7 +321,7 @@ pub fn record_terraswap_impact<S: Storage, A: Api, Q: Querier>(
         let imbalanced_fixed = Uint128(imbalance_fixed.into());
         record_contribution(
             deps,
-            &arbitrager,
+            &arbitrageur,
             PoolType::ARBITRAGE,
             &cluster_contract,
             Uint128(imbalanced_fixed.into()),
@@ -331,6 +331,7 @@ pub fn record_terraswap_impact<S: Storage, A: Api, Q: Querier>(
     Ok(HandleResponse {
         messages: vec![],
         log: vec![
+            log("action", "record_terraswap_arbitrageur_rewards"),
             log("fair_value", fair_value),
             log("arbitrage_imbalance_fixed", imbalance_fixed),
             log("arbitrage_imbalance_sign", imbalance_fixed.sign),

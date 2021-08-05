@@ -83,14 +83,14 @@ pub fn read_from_pool_bucket<S: Storage>(
 // amount of nebula each person is owed
 pub fn store_pending_rewards<S: Storage>(
     storage: &mut S,
-    owner: &HumanAddr,
+    contributor: &HumanAddr,
     amt: Uint128,
 ) -> StdResult<()> {
-    Bucket::new(PREFIX_PENDING_REWARDS, storage).save(owner.as_str().as_bytes(), &amt)
+    Bucket::new(PREFIX_PENDING_REWARDS, storage).save(contributor.as_str().as_bytes(), &amt)
 }
 
-pub fn read_pending_rewards<S: Storage>(storage: &S, owner: &HumanAddr) -> Uint128 {
-    match ReadonlyBucket::new(PREFIX_PENDING_REWARDS, storage).load(owner.as_str().as_bytes()) {
+pub fn read_pending_rewards<S: Storage>(storage: &S, contributor: &HumanAddr) -> Uint128 {
+    match ReadonlyBucket::new(PREFIX_PENDING_REWARDS, storage).load(contributor.as_str().as_bytes()) {
         Ok(pending_reward) => pending_reward,
         Err(_) => Uint128::zero(),
     }
@@ -109,13 +109,13 @@ pub struct PoolContribution {
 /// returns a bucket with all contributions from this owner (query it by owner)
 pub fn contributions_store<'a, S: Storage>(
     storage: &'a mut S,
-    owner: &HumanAddr,
+    contributor: &HumanAddr,
     pool_type: u16,
 ) -> Bucket<'a, S, PoolContribution> {
     Bucket::multilevel(
         &[
             PREFIX_REWARD,
-            &owner.as_str().as_bytes(),
+            &contributor.as_str().as_bytes(),
             &pool_type.to_be_bytes(),
         ],
         storage,
@@ -126,13 +126,13 @@ pub fn contributions_store<'a, S: Storage>(
 /// (read-only version for queries)
 pub fn contributions_read<'a, S: ReadonlyStorage>(
     storage: &'a S,
-    owner: &HumanAddr,
+    contributor: &HumanAddr,
     pool_type: u16,
 ) -> ReadonlyBucket<'a, S, PoolContribution> {
     ReadonlyBucket::multilevel(
         &[
             PREFIX_REWARD,
-            &owner.as_str().as_bytes(),
+            &contributor.as_str().as_bytes(),
             &pool_type.to_be_bytes(),
         ],
         storage,
@@ -159,11 +159,11 @@ pub fn read_from_contribution_bucket<S: Storage>(
 // the contribution must be from before the current n
 pub fn contributions_to_pending_rewards<S: Storage>(
     storage: &mut S,
-    owner_address: &HumanAddr,
+    contributor_address: &HumanAddr,
     pool_type: u16,
     cluster_address: &HumanAddr,
 ) -> StdResult<()> {
-    let contribution_bucket = contributions_read(storage, &owner_address, pool_type);
+    let contribution_bucket = contributions_read(storage, &contributor_address, pool_type);
     let mut contribution = read_from_contribution_bucket(&contribution_bucket, &cluster_address);
 
     let n = read_current_n(storage)?;
@@ -172,17 +172,17 @@ pub fn contributions_to_pending_rewards<S: Storage>(
         let pool_info = read_from_pool_bucket(&pool_bucket, &cluster_address);
 
         // using integers here .. do we care if the remaining fractions of nebula stay in this contract?
-        let new_pending_reward = read_pending_rewards(storage, &owner_address)
+        let new_pending_reward = read_pending_rewards(storage, &contributor_address)
             + Uint128(
                 pool_info.reward_total.u128() * contribution.value_contributed.u128()
                     / pool_info.value_total.u128(),
             );
-        store_pending_rewards(storage, &owner_address, new_pending_reward)?;
+        store_pending_rewards(storage, &contributor_address, new_pending_reward)?;
 
         contribution.value_contributed = Uint128::zero();
     }
     contribution.n = n;
-    contributions_store(storage, &owner_address, pool_type)
+    contributions_store(storage, &contributor_address, pool_type)
         .save(&cluster_address.as_str().as_bytes(), &contribution)?;
     Ok(())
 }

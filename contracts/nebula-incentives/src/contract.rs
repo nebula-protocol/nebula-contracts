@@ -57,14 +57,14 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             send_to,
         } => send_all(deps, env, &asset_infos, send_to),
         HandleMsg::_RecordTerraswapImpact {
-            arbitrager,
+            arbitrageur,
             terraswap_pair,
             cluster_contract,
             pool_before,
         } => record_terraswap_impact(
             deps,
             env,
-            arbitrager,
+            arbitrageur,
             terraswap_pair,
             cluster_contract,
             pool_before,

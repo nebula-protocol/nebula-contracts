@@ -249,9 +249,9 @@ impl WasmMockQuerier {
                     cluster_contract_address,
                 } => {
                     let response = ClusterStateResponse {
-                        outstanding_balance_tokens: Uint128(1000000),
+                        outstanding_balance_tokens: Uint128(1000),
                         prices: vec!["11.85".to_string(), "3.31".to_string()],
-                        inv: vec![Uint128(100), Uint128(100)],
+                        inv: vec![Uint128(110), Uint128(100), Uint128(95)],
                         penalty: HumanAddr::from("penalty"),
                         cluster_token: HumanAddr::from("cluster_token"),
                         target: vec![

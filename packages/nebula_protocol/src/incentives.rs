@@ -40,7 +40,7 @@ pub enum HandleMsg {
     },
 
     _RecordTerraswapImpact {
-        arbitrager: HumanAddr,
+        arbitrageur: HumanAddr,
         terraswap_pair: HumanAddr,
         cluster_contract: HumanAddr,
         pool_before: TerraswapPoolResponse,

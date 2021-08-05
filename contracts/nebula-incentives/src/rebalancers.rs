@@ -118,7 +118,6 @@ pub fn internal_rewarded_mint<S: Storage, A: Api, Q: Querier>(
     }
 
     let original_imbalance = cluster_imbalance(deps, &cluster_contract)?;
-
     let mut send = vec![];
     let mut mint_asset_amounts = vec![];
     let mut messages = vec![];
@@ -172,7 +171,6 @@ pub fn internal_rewarded_mint<S: Storage, A: Api, Q: Querier>(
         })?,
         send: vec![],
     }));
-
     Ok(HandleResponse {
         messages,
         log: vec![log("action", "internal_rewarded_mint")],
