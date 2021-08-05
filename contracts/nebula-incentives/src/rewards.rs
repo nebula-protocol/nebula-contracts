@@ -112,8 +112,8 @@ pub fn withdraw_reward<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-pub fn increment_n<S: Storage>(storage: &mut S) -> StdResult<()> {
+pub fn increment_n<S: Storage>(storage: &mut S) -> StdResult<u64> {
     let current_n = read_current_n(storage)?;
     store_current_n(storage, current_n + 1)?;
-    Ok(())
+    Ok(current_n + 1)
 }

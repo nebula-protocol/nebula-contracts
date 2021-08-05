@@ -493,6 +493,12 @@ pub fn receive_burn<S: Storage, A: Api, Q: Querier>(
     let cfg = read_config(&deps.storage)?;
 
     // If cluster is not active, must do pro rata redeem
+    if !cfg.active && asset_amounts.is_some() {
+        return Err(StdError::generic_err(
+            "Cannot call non pro-rata redeem on a decommissioned cluster",
+        ));
+    }
+    
     let asset_amounts = if !cfg.active { None } else { asset_amounts };
 
     let cluster_token = cfg

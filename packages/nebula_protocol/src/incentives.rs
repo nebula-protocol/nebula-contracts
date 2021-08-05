@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use cosmwasm_std::{HumanAddr, Uint128};
 use cw20::Cw20ReceiveMsg;
 use terraswap::asset::{Asset, AssetInfo};
+use terraswap::pair::PoolResponse as TerraswapPoolResponse;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
@@ -39,10 +40,10 @@ pub enum HandleMsg {
     },
 
     _RecordTerraswapImpact {
-        arbitrager: HumanAddr,
+        arbitrageur: HumanAddr,
         terraswap_pair: HumanAddr,
         cluster_contract: HumanAddr,
-        pool_before: PoolResponse,
+        pool_before: TerraswapPoolResponse,
     },
 
     /// USER-CALLABLE
@@ -94,6 +95,8 @@ pub enum HandleMsg {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     Config {},
+    PenaltyPeriod {},
+    GetRewardPool {},
 }
 
 // We define a custom struct for each query response
@@ -104,6 +107,12 @@ pub struct ConfigResponse {
     pub nebula_token: HumanAddr,
     pub base_denom: String,
     pub owner: HumanAddr,
+    pub custody: HumanAddr,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct PenaltyPeriodResponse {
+    pub n: u64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -121,28 +130,15 @@ pub struct MigrateMsg {}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum ExtQueryMsg {
-    Pool {},
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
 pub enum ExtHandleMsg {
     RequestNeb { amount: Uint128 },
-}
-
-// We define a custom struct for each query response
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct PoolResponse {
-    pub assets: [Asset; 2],
-    pub total_share: Uint128,
 }
 
 pub struct PoolType;
 
 impl PoolType {
-    pub const REBALANCER: u16 = 0;
-    pub const ARBITRAGER: u16 = 1;
+    pub const REBALANCE: u16 = 0;
+    pub const ARBITRAGE: u16 = 1;
 
     pub const ALL_TYPES: [&'static u16; 2] = [&0u16, &1u16];
 }

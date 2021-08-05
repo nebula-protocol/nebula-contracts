@@ -6,7 +6,10 @@ use cosmwasm_std::{
 use crate::rebalancers::{assert_cluster_exists, get_cluster_state};
 use crate::state::{read_config, record_contribution, Config};
 
-use nebula_protocol::incentives::{ExtQueryMsg, HandleMsg, PoolResponse, PoolType};
+use nebula_protocol::incentives::{HandleMsg, PoolType};
+
+use terraswap::pair::QueryMsg as TerraswapQueryMsg;
+use terraswap::pair::PoolResponse as TerraswapPoolResponse;
 
 use cw20::Cw20HandleMsg;
 use nebula_protocol::cluster::{ClusterStateResponse, QueryMsg as ClusterQueryMsg};
@@ -71,13 +74,6 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
 
     let cluster_state = get_cluster_state(deps, &cluster_contract)?;
 
-    // Might be redundant but here to be safe
-    if !cluster_state.active {
-        return Err(StdError::generic_err(
-            "Cannot call ArbClusterMint on a decommissioned cluster",
-        ));
-    }
-
     let cluster_token = cluster_state.cluster_token;
 
     let pair_info = get_pair_info(deps, &cluster_token)?;
@@ -129,12 +125,12 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.clone(),
         msg: to_binary(&HandleMsg::_RecordTerraswapImpact {
-            arbitrager: env.message.sender.clone(),
+            arbitrageur: env.message.sender.clone(),
             terraswap_pair: pair_info.contract_addr.clone(),
             cluster_contract,
             pool_before: deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
                 contract_addr: pair_info.contract_addr,
-                msg: to_binary(&ExtQueryMsg::Pool {})?,
+                msg: to_binary(&TerraswapQueryMsg::Pool {})?,
             }))?,
         })?,
         send: vec![],
@@ -167,13 +163,6 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
     assert_cluster_exists(deps, &cluster_contract)?;
 
     let cluster_state = get_cluster_state(deps, &cluster_contract)?;
-
-    // Might be redundant but here to be safe
-    if !cluster_state.active {
-        return Err(StdError::generic_err(
-            "Cannot call ArbClusterRedeem on a decommissioned cluster",
-        ));
-    }
 
     let mut messages = vec![];
     let contract = env.contract.address.clone();
@@ -210,12 +199,12 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.clone(),
         msg: to_binary(&HandleMsg::_RecordTerraswapImpact {
-            arbitrager: env.message.sender.clone(),
+            arbitrageur: env.message.sender.clone(),
             terraswap_pair: pair_info.contract_addr.clone(),
             cluster_contract: cluster_contract.clone(),
             pool_before: deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
                 contract_addr: pair_info.contract_addr,
-                msg: to_binary(&ExtQueryMsg::Pool {})?,
+                msg: to_binary(&TerraswapQueryMsg::Pool {})?,
             }))?,
         })?,
         send: vec![],
@@ -260,18 +249,18 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
 pub fn record_terraswap_impact<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     env: Env,
-    arbitrager: HumanAddr,
+    arbitrageur: HumanAddr,
     terraswap_pair: HumanAddr,
     cluster_contract: HumanAddr,
-    pool_before: PoolResponse,
+    pool_before: TerraswapPoolResponse,
 ) -> StdResult<HandleResponse> {
     if env.message.sender != env.contract.address {
         return Err(StdError::unauthorized());
     }
 
-    let pool_now: PoolResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+    let pool_now: TerraswapPoolResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: terraswap_pair,
-        msg: to_binary(&ExtQueryMsg::Pool {})?,
+        msg: to_binary(&TerraswapQueryMsg::Pool {})?,
     }))?;
 
     let contract_state: ClusterStateResponse =
@@ -333,8 +322,8 @@ pub fn record_terraswap_impact<S: Storage, A: Api, Q: Querier>(
         let imbalanced_fixed = Uint128(imbalance_fixed.into());
         record_contribution(
             deps,
-            &arbitrager,
-            PoolType::ARBITRAGER,
+            &arbitrageur,
+            PoolType::ARBITRAGE,
             &cluster_contract,
             Uint128(imbalanced_fixed.into()),
         )?;
@@ -343,6 +332,7 @@ pub fn record_terraswap_impact<S: Storage, A: Api, Q: Querier>(
     Ok(HandleResponse {
         messages: vec![],
         log: vec![
+            log("action", "record_terraswap_arbitrageur_rewards"),
             log("fair_value", fair_value),
             log("arbitrage_imbalance_fixed", imbalance_fixed),
             log("arbitrage_imbalance_sign", imbalance_fixed.sign),

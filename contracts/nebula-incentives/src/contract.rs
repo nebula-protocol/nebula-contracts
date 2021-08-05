@@ -10,10 +10,10 @@ use crate::rebalancers::{
     internal_rewarded_mint, internal_rewarded_redeem, mint, record_rebalancer_rewards, redeem,
 };
 use crate::rewards::{deposit_reward, increment_n, withdraw_reward};
-use crate::state::{read_config, store_config, store_current_n, Config};
+use crate::state::{read_config, read_current_n, store_config, store_current_n, Config};
 use cw20::Cw20ReceiveMsg;
 use nebula_protocol::incentives::{
-    ConfigResponse, Cw20HookMsg, HandleMsg, InitMsg, MigrateMsg, QueryMsg,
+    ConfigResponse, Cw20HookMsg, HandleMsg, InitMsg, MigrateMsg, PenaltyPeriodResponse, QueryMsg,
 };
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
@@ -57,14 +57,14 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             send_to,
         } => send_all(deps, env, &asset_infos, send_to),
         HandleMsg::_RecordTerraswapImpact {
-            arbitrager,
+            arbitrageur,
             terraswap_pair,
             cluster_contract,
             pool_before,
         } => record_terraswap_impact(
             deps,
             env,
-            arbitrager,
+            arbitrageur,
             terraswap_pair,
             cluster_contract,
             pool_before,
@@ -187,10 +187,17 @@ pub fn new_penalty_period<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::unauthorized());
     }
 
-    increment_n(&mut deps.storage)?;
+    let n = read_current_n(&mut deps.storage)?;
+
+    let new_n = increment_n(&mut deps.storage)?;
+
     Ok(HandleResponse {
         messages: vec![],
-        log: vec![log("action", "new_penalty_period")],
+        log: vec![
+            log("action", "new_penalty_period"),
+            log("previous_n", n),
+            log("current_n", new_n),
+        ],
         data: None,
     })
 }
@@ -201,6 +208,8 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_binary(&query_config(deps)?),
+        QueryMsg::PenaltyPeriod {} => todo!(),
+        QueryMsg::GetRewardPool {} => todo!(),
     }
 }
 
@@ -210,11 +219,21 @@ pub fn query_config<S: Storage, A: Api, Q: Querier>(
     let state = read_config(&deps.storage)?;
     let resp = ConfigResponse {
         factory: state.factory,
+        custody: state.custody,
         terraswap_factory: state.terraswap_factory,
         nebula_token: state.nebula_token,
         base_denom: state.base_denom,
         owner: state.owner,
     };
+
+    Ok(resp)
+}
+
+pub fn query_penalty_period<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+) -> StdResult<PenaltyPeriodResponse> {
+    let n = read_current_n(&deps.storage)?;
+    let resp = PenaltyPeriodResponse { n };
 
     Ok(resp)
 }
