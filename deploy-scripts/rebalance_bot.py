@@ -237,16 +237,12 @@ async def testing():
     print(result)
 
     assert(len(pair_contracts) == len(result.logs))
-    print('logs be like', result.logs[0])
+    print('logs', result.logs[0])
     res_logs = result.logs[1]
 
     for log in result.logs:
         ret_val = int(log.events_by_type['from_contract']['return_amount'][0])
         print(ret_val)
-    
-    import pdb; pdb.set_trace()
-    
-    print('goddamn bro')
 
 if __name__ == "__main__":
     # asyncio.get_event_loop().run_until_complete(testing())
