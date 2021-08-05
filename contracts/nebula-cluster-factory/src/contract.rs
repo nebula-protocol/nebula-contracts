@@ -10,9 +10,11 @@ use crate::state::{
     store_last_distributed, store_params, store_total_weight, store_weight, Config,
 };
 
+use cluster_math::FPDecimal;
+
 use nebula_protocol::cluster_factory::{
-    ClusterExistsResponse, ClusterListResponse, ConfigResponse, HandleMsg, InitMsg, Params,
-    QueryMsg,
+    ClusterExistsResponse, ClusterListResponse, ConfigResponse, DistributionInfoResponse,
+    HandleMsg, InitMsg, Params, QueryMsg,
 };
 
 use nebula_protocol::cluster::{HandleMsg as ClusterHandleMsg, InitMsg as ClusterInitMsg};
@@ -254,7 +256,9 @@ pub fn create_cluster<S: Storage, A: Api, Q: Querier>(
     }
 
     if read_params(&deps.storage).is_ok() {
-        return Err(StdError::generic_err("A whitelist process is in progress"));
+        return Err(StdError::generic_err(
+            "A cluster registration process is in progress",
+        ));
     }
 
     store_params(&mut deps.storage, &params)?;
@@ -273,7 +277,6 @@ pub fn create_cluster<S: Storage, A: Api, Q: Querier>(
                 penalty: params.penalty,
                 cluster_token: None,
                 target: params.target,
-                // TODO: Write separate init hook for cluster
                 init_hook: Some(InitHook {
                     contract_addr: env.contract.address,
                     msg: to_binary(&HandleMsg::TokenCreationHook {})?,
@@ -315,7 +318,6 @@ pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
 
     let cluster = env.message.sender;
     record_cluster(&mut deps.storage, &cluster)?;
-
     Ok(HandleResponse {
         messages: vec![
             // tell penalty contract to set owner to cluster
@@ -365,7 +367,6 @@ pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
                     target: None,
                 })?,
             }),
-            // Set penalty contract owner to cluster contract
         ],
         log: vec![log("cluster_addr", cluster.as_str())],
         data: None,
@@ -537,14 +538,14 @@ pub fn distribute<S: Storage, A: Api, Q: Querier>(
 
     // store last distributed
     store_last_distributed(&mut deps.storage, env.block.time)?;
-
     // mint token to self and try send minted tokens to staking contract
+
     Ok(HandleResponse {
         messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: nebula_token,
             msg: to_binary(&Cw20HandleMsg::Send {
                 contract: staking_contract,
-                amount: distribution_amount,
+                amount: Uint128(u128::from(distribution_amount)),
                 msg: Some(to_binary(&StakingCw20HookMsg::DepositReward { rewards })?),
             })?,
             send: vec![],
@@ -560,33 +561,39 @@ pub fn distribute<S: Storage, A: Api, Q: Querier>(
 pub fn _compute_rewards<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     target_distribution_amount: Uint128,
-) -> StdResult<(Vec<(HumanAddr, Uint128)>, Uint128)> {
+) -> StdResult<(Vec<(HumanAddr, Uint128)>, FPDecimal)> {
     let total_weight: u32 = read_total_weight(&deps.storage)?;
-    let mut distribution_amount: Uint128 = Uint128::zero();
+    let mut distribution_amount: FPDecimal = FPDecimal::zero();
     let weights: Vec<(HumanAddr, u32)> = read_all_weight(&deps.storage)?;
     let rewards: Vec<(HumanAddr, Uint128)> = weights
         .iter()
         .map(|w| {
-            let amount =
-                target_distribution_amount * Decimal::from_ratio(w.1 as u128, total_weight as u128);
-
-            if amount.is_zero() {
+            let mut amount =
+                FPDecimal::from(target_distribution_amount.u128()) * FPDecimal::from(w.1 as u128);
+            if amount == FPDecimal::zero() {
                 return Err(StdError::generic_err("cannot distribute zero amount"));
             }
-            distribution_amount += amount;
-            Ok((w.0.clone(), amount))
+            distribution_amount = distribution_amount + amount;
+            amount = amount / FPDecimal::from(total_weight as u128);
+            Ok((w.0.clone(), Uint128(u128::from(amount))))
         })
         .filter(|m| m.is_ok())
         .collect::<StdResult<Vec<(HumanAddr, Uint128)>>>()?;
+    distribution_amount = distribution_amount / FPDecimal::from(total_weight as u128);
     Ok((rewards, distribution_amount))
 }
 
 pub fn decommission_cluster<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
-    _env: Env,
+    env: Env,
     cluster_contract: HumanAddr,
     cluster_token: HumanAddr,
 ) -> HandleResult {
+    let config: Config = read_config(&deps.storage)?;
+    if config.owner != env.message.sender {
+        return Err(StdError::unauthorized());
+    }
+
     let weight = read_weight(&deps.storage, &cluster_token.clone())?;
     remove_weight(&mut deps.storage, &cluster_token.clone());
     decrease_total_weight(&mut deps.storage, weight)?;
@@ -618,6 +625,7 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
             to_binary(&query_cluster_exists(deps, contract_addr)?)
         }
         QueryMsg::ClusterList {} => to_binary(&query_clusters(deps)?),
+        QueryMsg::DistributionInfo {} => to_binary(&query_distribution_info(deps)?),
     }
 }
 
@@ -637,6 +645,22 @@ pub fn query_config<S: Storage, A: Api, Q: Querier>(
         base_denom: state.base_denom,
         genesis_time: state.genesis_time,
         distribution_schedule: state.distribution_schedule,
+    };
+
+    Ok(resp)
+}
+
+pub fn query_distribution_info<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+) -> StdResult<DistributionInfoResponse> {
+    let weights: Vec<(HumanAddr, u32)> = read_all_weight(&deps.storage)?;
+    let last_distributed = read_last_distributed(&deps.storage)?;
+    let resp = DistributionInfoResponse {
+        last_distributed,
+        weights: weights
+            .iter()
+            .map(|w| Ok((w.0.clone(), w.1)))
+            .collect::<StdResult<Vec<(HumanAddr, u32)>>>()?,
     };
 
     Ok(resp)

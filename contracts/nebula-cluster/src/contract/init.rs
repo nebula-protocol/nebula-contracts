@@ -7,7 +7,7 @@ use cosmwasm_std::{
     log, Api, CosmosMsg, Env, Extern, InitResponse, Querier, StdError, StdResult, Storage, WasmMsg,
 };
 use nebula_protocol::cluster::{ClusterConfig, InitMsg};
-use terraswap::asset::{Asset, AssetInfo};
+use terraswap::asset::AssetInfo;
 
 pub fn validate_targets<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
@@ -82,51 +82,5 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
             log,
             messages: vec![],
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use nebula_protocol::cluster::{QueryMsg, TargetResponse};
-    use terraswap::asset::{Asset, AssetInfo};
-
-    use crate::{q, test_helper::*};
-
-    #[test]
-    fn proper_initialization() {
-        let (deps, init_res) = mock_init();
-        assert_eq!(0, init_res.messages.len());
-
-        // make sure target was saved
-        let value = q!(&deps, TargetResponse, QueryMsg::Target {});
-        assert_eq!(
-            vec![
-                Asset {
-                    info: AssetInfo::Token {
-                        contract_addr: h("mAAPL"),
-                    },
-                    amount: Uint128(20)
-                },
-                Asset {
-                    info: AssetInfo::Token {
-                        contract_addr: h("mGOOG"),
-                    },
-                    amount: Uint128(20)
-                },
-                Asset {
-                    info: AssetInfo::Token {
-                        contract_addr: h("mMSFT"),
-                    },
-                    amount: Uint128(20)
-                },
-                Asset {
-                    info: AssetInfo::Token {
-                        contract_addr: h("mNFLX"),
-                    },
-                    amount: Uint128(20)
-                },
-            ],
-            value.target
-        );
     }
 }

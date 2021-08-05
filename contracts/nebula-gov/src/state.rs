@@ -6,6 +6,8 @@ use cosmwasm_storage::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use cluster_math::FPDecimal;
+
 use nebula_protocol::common::OrderBy;
 use nebula_protocol::gov::{PollStatus, VoterInfo};
 
@@ -79,7 +81,7 @@ pub struct ExecuteData {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TotalVotingPower {
-    pub voting_power: Vec<Uint128>,
+    pub voting_power: Vec<FPDecimal>,
     pub last_upd: u64,
 }
 

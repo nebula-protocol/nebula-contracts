@@ -66,48 +66,9 @@ pub struct OracleQuerier {
     feeders: HashMap<HumanAddr, HumanAddr>,
 }
 
-impl OracleQuerier {
-    pub fn new(feeders: &[(&HumanAddr, &HumanAddr)]) -> Self {
-        OracleQuerier {
-            feeders: address_pair_to_map(feeders),
-        }
-    }
-}
-
-pub(crate) fn address_pair_to_map(
-    address_pair: &[(&HumanAddr, &HumanAddr)],
-) -> HashMap<HumanAddr, HumanAddr> {
-    let mut address_pair_map: HashMap<HumanAddr, HumanAddr> = HashMap::new();
-    for (addr1, addr2) in address_pair.iter() {
-        address_pair_map.insert(HumanAddr::from(addr1), HumanAddr::from(addr2));
-    }
-    address_pair_map
-}
-
 #[derive(Clone, Default)]
 pub struct MintQuerier {
     configs: HashMap<HumanAddr, (Decimal, Decimal, Option<Decimal>)>,
-}
-
-impl MintQuerier {
-    pub fn new(configs: &[(&HumanAddr, &(Decimal, Decimal, Option<Decimal>))]) -> Self {
-        MintQuerier {
-            configs: configs_to_map(configs),
-        }
-    }
-}
-
-pub(crate) fn configs_to_map(
-    configs: &[(&HumanAddr, &(Decimal, Decimal, Option<Decimal>))],
-) -> HashMap<HumanAddr, (Decimal, Decimal, Option<Decimal>)> {
-    let mut configs_map: HashMap<HumanAddr, (Decimal, Decimal, Option<Decimal>)> = HashMap::new();
-    for (contract_addr, touple) in configs.iter() {
-        configs_map.insert(
-            HumanAddr::from(contract_addr),
-            (touple.0, touple.1, touple.2),
-        );
-    }
-    configs_map
 }
 
 impl Querier for WasmMockQuerier {
@@ -247,16 +208,5 @@ impl WasmMockQuerier {
     // configure the terraswap pair
     pub fn with_terraswap_pairs(&mut self, pairs: &[(&String, &HumanAddr)]) {
         self.terraswap_factory_querier = TerraswapFactoryQuerier::new(pairs);
-    }
-
-    pub fn with_oracle_feeders(&mut self, feeders: &[(&HumanAddr, &HumanAddr)]) {
-        self.oracle_querier = OracleQuerier::new(feeders);
-    }
-
-    pub fn with_mint_configs(
-        &mut self,
-        configs: &[(&HumanAddr, &(Decimal, Decimal, Option<Decimal>))],
-    ) {
-        self.mint_querier = MintQuerier::new(configs);
     }
 }

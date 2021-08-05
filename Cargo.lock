@@ -608,6 +608,7 @@ dependencies = [
 name = "nebula-cluster-factory"
 version = "1.0.0"
 dependencies = [
+ "cluster-math",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
@@ -664,6 +665,7 @@ dependencies = [
 name = "nebula-gov"
 version = "1.0.0"
 dependencies = [
+ "cluster-math",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",

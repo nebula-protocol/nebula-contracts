@@ -1,3 +1,4 @@
+use super::*;
 pub use crate::contract::*;
 pub use crate::ext_query::*;
 pub use crate::state::*;
@@ -7,15 +8,16 @@ pub use cosmwasm_std::*;
 pub use cw20::BalanceResponse as Cw20BalanceResponse;
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use nebula_protocol::{
-    cluster::{HandleMsg as ClusterHandleMsg, InitMsg, QueryMsg as ClusterQueryMsg},
-    cluster_factory::{ConfigResponse as FactoryConfigResponse, QueryMsg as FactoryQueryMsg},
+    cluster::{HandleMsg, InitMsg, QueryMsg as ClusterQueryMsg, TargetResponse},
+    cluster_factory::ConfigResponse as FactoryConfigResponse,
     oracle::{PriceResponse, QueryMsg as OracleQueryMsg},
-    penalty::{MintResponse, PenaltyParams, QueryMsg as PenaltyQueryMsg, RedeemResponse},
+    penalty::{MintResponse, QueryMsg as PenaltyQueryMsg, RedeemResponse},
 };
+use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 pub use std::str::FromStr;
 use terra_cosmwasm::*;
-use terraswap::asset::AssetInfo;
+use terraswap::asset::{Asset, AssetInfo};
 
 /// Convenience function for creating inline HumanAddr
 pub fn h(s: &str) -> HumanAddr {
@@ -700,4 +702,251 @@ pub fn mock_querier_setup_stage_native(deps: &mut Extern<MockStorage, MockApi, W
         ("wBTC", Decimal::from_str("1.0").unwrap()),
         ("uluna", Decimal::from_str("1.0").unwrap()),
     ]);
+}
+
+#[test]
+fn proper_initialization() {
+    let (deps, init_res) = mock_init();
+    assert_eq!(0, init_res.messages.len());
+
+    // make sure target was saved
+    let value = q!(&deps, TargetResponse, ClusterQueryMsg::Target {});
+    assert_eq!(
+        vec![
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mAAPL"),
+                },
+                amount: Uint128(20)
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mGOOG"),
+                },
+                amount: Uint128(20)
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mMSFT"),
+                },
+                amount: Uint128(20)
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mNFLX"),
+                },
+                amount: Uint128(20)
+            },
+        ],
+        value.target
+    );
+}
+
+#[test]
+fn mint() {
+    let (mut deps, _) = mock_init();
+    mock_querier_setup(&mut deps);
+    // Asset :: UST Price :: Balance (µ)     (+ proposed   ) :: %
+    // ---
+    // mAAPL ::  135.18   ::  7_290_053_159  (+ 125_000_000) :: 0.20367359382 -> 0.20391741720
+    // mGOOG :: 1780.03   ::    319_710_128                  :: 0.11761841035 -> 0.11577407690
+    // mMSFT ::  222.42   :: 14_219_281_228  (+ 149_000_000) :: 0.65364669475 -> 0.65013907200
+    // mNFLX ::  540.82   ::    224_212_221  (+  50_090_272) :: 0.02506130106 -> 0.03016943389
+
+    // The set token balance should include the amount we would also like to stage
+    deps.querier
+        .set_token_balance("mAAPL", MOCK_CONTRACT_ADDR, 7_290_053_159)
+        .set_token_balance("mGOOG", MOCK_CONTRACT_ADDR, 319_710_128)
+        .set_token_balance("mMSFT", MOCK_CONTRACT_ADDR, 14_219_281_228)
+        .set_token_balance("mNFLX", MOCK_CONTRACT_ADDR, 224_212_221)
+        .set_oracle_prices(vec![
+            ("mAAPL", Decimal::from_str("135.18").unwrap()),
+            ("mGOOG", Decimal::from_str("1780.03").unwrap()),
+            ("mMSFT", Decimal::from_str("222.42").unwrap()),
+            ("mNFLX", Decimal::from_str("540.82").unwrap()),
+        ]);
+
+    let asset_amounts = vec![
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mAAPL"),
+            },
+            amount: Uint128(125_000_000),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mGOOG"),
+            },
+            amount: Uint128::zero(),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mMSFT"),
+            },
+            amount: Uint128(149_000_000),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mNFLX"),
+            },
+            amount: Uint128(50_090_272),
+        },
+    ];
+
+    deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
+
+    let mint_msg = HandleMsg::Mint {
+        asset_amounts: asset_amounts.clone(),
+        min_tokens: None,
+    };
+
+    let addr = "addr0000";
+    let env = mock_env(h(addr), &[]);
+    let res = handle(&mut deps, env, mint_msg).unwrap();
+
+    assert_eq!(
+        res.log,
+        vec![
+            log("action", "mint"),
+            log("sender", "addr0000"),
+            log("mint_to_sender", "98"),
+            log("penalty", "1234"),
+            log("fee_amt", "1"),
+        ]
+    );
+
+    assert_eq!(7, res.messages.len());
+}
+
+#[test]
+fn burn() {
+    let (mut deps, _init_res) = mock_init();
+    mock_querier_setup(&mut deps);
+
+    deps.querier
+        .set_token_supply(consts::cluster_token(), 100_000_000)
+        .set_token_balance(consts::cluster_token(), "addr0000", 20_000_000)
+        .set_token_balance("mAAPL", MOCK_CONTRACT_ADDR, 7_290_053_159)
+        .set_token_balance("mGOOG", MOCK_CONTRACT_ADDR, 319_710_128)
+        .set_token_balance("mMSFT", MOCK_CONTRACT_ADDR, 14_219_281_228)
+        .set_token_balance("mNFLX", MOCK_CONTRACT_ADDR, 224_212_221)
+        .set_oracle_prices(vec![
+            ("mAAPL", Decimal::from_str("135.18").unwrap()),
+            ("mGOOG", Decimal::from_str("1780.03").unwrap()),
+            ("mMSFT", Decimal::from_str("222.42").unwrap()),
+            ("mNFLX", Decimal::from_str("540.82").unwrap()),
+        ]);
+
+    let msg = HandleMsg::Burn {
+        max_tokens: Uint128(20_000_000),
+        asset_amounts: None,
+    };
+    let env = mock_env(h("addr0000"), &[]);
+    let res = handle(&mut deps, env, msg).unwrap();
+
+    assert_eq!(8, res.log.len());
+
+    assert_eq!(
+        res.log,
+        vec![
+            log("action", "receive:burn"),
+            log("sender", "addr0000"),
+            log("burn_amount", "1234"),
+            log("token_cost", "1247"),
+            log("kept_as_fee", "13"),
+            log("asset_amounts", "[]"),
+            log("redeem_totals", "[99, 98, 97, 96]"),
+            log("penalty", "1234")
+        ]
+    );
+
+    assert_eq!(7, res.messages.len());
+}
+
+#[test]
+fn update_target() {
+    let (mut deps, _init_res) = mock_init();
+    mock_querier_setup(&mut deps);
+
+    deps.querier
+        .set_token_supply(consts::cluster_token(), 100_000_000)
+        .set_token_balance(consts::cluster_token(), "addr0000", 20_000_000);
+
+    let new_target: Vec<Asset> = vec![
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mAAPL"),
+            },
+            amount: Uint128(10),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mGOOG"),
+            },
+            amount: Uint128(5),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mMSFT"),
+            },
+            amount: Uint128(35),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mGME"),
+            },
+            amount: Uint128(50),
+        },
+    ];
+    let msg = HandleMsg::UpdateTarget { target: new_target };
+
+    let env = mock_env(consts::owner(), &[]);
+    let res = handle(&mut deps, env, msg).unwrap();
+
+    assert_eq!(
+        res.log,
+        vec![
+            log("action", "reset_target"),
+            log("prev_assets", "[mAAPL, mGOOG, mMSFT, mNFLX]"),
+            log("prev_targets", "[20, 20, 20, 20]"),
+            log("updated_assets", "[mAAPL, mGOOG, mMSFT, mGME, mNFLX]"),
+            log("updated_targets", "[10, 5, 35, 50, 0]"),
+        ]
+    );
+
+    assert_eq!(res.messages, vec![]);
+}
+
+#[test]
+fn decommission_cluster() {
+    let (mut deps, _init_res) = mock_init();
+    mock_querier_setup(&mut deps);
+
+    deps.querier
+        .set_token_supply(consts::cluster_token(), 100_000_000)
+        .set_token_balance(consts::cluster_token(), "addr0000", 20_000_000);
+
+    let config = read_config(&deps.storage).unwrap();
+    assert_eq!(config.active, true);
+
+    let msg = HandleMsg::Decommission {};
+
+    let env = mock_env("owner0001", &[]);
+    let res = handle(&mut deps, env, msg.clone()).unwrap_err();
+
+    match res {
+        StdError::Unauthorized { .. } => {}
+        _ => panic!("DO NOT ENTER HERE"),
+    }
+
+    let env = mock_env(consts::owner(), &[]);
+
+    let res = handle(&mut deps, env, msg).unwrap();
+
+    assert_eq!(res.log, vec![log("action", "decommission_asset")]);
+
+    let config = read_config(&deps.storage).unwrap();
+    assert_eq!(config.active, false);
+
+    assert_eq!(res.messages, vec![]);
 }

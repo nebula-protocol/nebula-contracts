@@ -6,6 +6,8 @@ use crate::state::{
     TotalVotingPower,
 };
 
+use cluster_math::FPDecimal;
+
 use cosmwasm_std::{
     log, to_binary, Api, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr, Querier,
     StdError, StdResult, Storage, Uint128, WasmMsg,
@@ -29,18 +31,21 @@ pub fn adjust_total_voting_power(
     // surely this is fine
     while total_voting_power.last_upd != current_week {
         total_voting_power.voting_power[(total_voting_power.last_upd % M) as usize] =
-            Uint128::zero();
+            FPDecimal::zero();
         total_voting_power.last_upd += 1;
     }
 
     for i in current_week..current_week + duration {
-        let total = Uint128(((current_week + duration - i) as u128) * amount / (M as u128));
+        let mut total =
+            FPDecimal::from((current_week + duration - i) as u128) * FPDecimal::from(amount);
+        total = total / FPDecimal::from(M as u128);
+        let mut voting_power = total_voting_power.voting_power[(i % M) as usize];
         if add {
-            total_voting_power.voting_power[(i % M) as usize] += total;
+            voting_power = voting_power + FPDecimal::from(total);
         } else {
-            total_voting_power.voting_power[(i % M) as usize] =
-                (total_voting_power.voting_power[(i % M) as usize] - total)?;
+            voting_power = voting_power - FPDecimal::from(total);
         }
+        total_voting_power.voting_power[(i % M) as usize] = voting_power;
     }
 
     Ok(())
@@ -195,36 +200,35 @@ pub fn withdraw_voting_tokens<S: Storage, A: Api, Q: Querier>(
 fn compute_locked_balance<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
     token_manager: &mut TokenManager,
-    voter: &[u8]
+    voter: &[u8],
 ) -> StdResult<u128> {
     // filter out not in-progress polls and get max locked
     let mut lock_entries_to_remove: Vec<u64> = vec![];
 
     let max_locked = token_manager
-    .locked_balance
-    .iter()
-    .filter(|(poll_id, _)| {
-        let poll: Poll = poll_read(&deps.storage)
-            .load(&poll_id.to_be_bytes())
-            .unwrap();
+        .locked_balance
+        .iter()
+        .filter(|(poll_id, _)| {
+            let poll: Poll = poll_read(&deps.storage)
+                .load(&poll_id.to_be_bytes())
+                .unwrap();
 
-        // cleanup not needed information, voting info in polls with no rewards
-        if poll.status != PollStatus::InProgress && poll.voters_reward.is_zero()
-        {
-            poll_voter_store(&mut deps.storage, *poll_id).remove(voter);
-            lock_entries_to_remove.push(*poll_id);
-        }
+            // cleanup not needed information, voting info in polls with no rewards
+            if poll.status != PollStatus::InProgress && poll.voters_reward.is_zero() {
+                poll_voter_store(&mut deps.storage, *poll_id).remove(voter);
+                lock_entries_to_remove.push(*poll_id);
+            }
 
-        poll.status == PollStatus::InProgress
-    })
-    .map(|(_, v)| v.balance.u128())
-    .max()
-    .unwrap_or_default();
+            poll.status == PollStatus::InProgress
+        })
+        .map(|(_, v)| v.balance.u128())
+        .max()
+        .unwrap_or_default();
 
     // cleanup, check if there was any voter info removed
     token_manager
-    .locked_balance
-    .retain(|(poll_id, _)| !lock_entries_to_remove.contains(poll_id));
+        .locked_balance
+        .retain(|(poll_id, _)| !lock_entries_to_remove.contains(poll_id));
 
     Ok(max_locked)
 }
@@ -305,8 +309,8 @@ pub fn withdraw_voting_rewards<S: Storage, A: Api, Q: Querier>(
 
     // cleanup, remove from locked_balance the polls from which we withdrew the rewards
     token_manager
-    .locked_balance
-    .retain(|(poll_id, _)| !w_polls.contains(poll_id));
+        .locked_balance
+        .retain(|(poll_id, _)| !w_polls.contains(poll_id));
     bank_store(&mut deps.storage).save(key, &token_manager)?;
 
     state_store(&mut deps.storage).update(|mut state| {
