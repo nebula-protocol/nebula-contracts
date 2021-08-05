@@ -21,7 +21,7 @@ async def initial_mint(cluster_state):
 
     # How to scale up amounts for minting
     max_len = len(max(amounts, key=lambda a: len(a)))
-    mult = max(8 - max_len, 0)
+    mult = max(12 - max_len, 0)
 
     cluster = Contract(cluster_state['cluster_contract_address'])
     
@@ -73,7 +73,6 @@ async def initial_mint(cluster_state):
     )
 
     # await cluster.mint(asset_amounts=mint_assets, min_tokens=min_tokens, _send=send)
-    import pdb; pdb.set_trace()
     await chain(*msgs)
 
 def cost_per_cluster_token(cluster_state):
@@ -88,6 +87,9 @@ async def mint_and_provide(cluster):
     cluster_state = await cluster.query.cluster_state(cluster_contract_address=cluster, stale_threshold="0")
     cluster_info = await cluster.query.cluster_info()
     print(cluster_info)
+
+    if cluster_info['name'] != 'Top 5 30-Day Momentum':
+        return
     print(cluster_state)
     
     if cluster_state['outstanding_balance_tokens'] == '0':
@@ -105,10 +107,10 @@ async def mint_and_provide(cluster):
 
     msgs = []
 
-    provide_uusd = 500000000 # Provide $500 liquidity
+    provide_uusd = 500000000000 # Provide $500 liquidity
 
     if cluster_info['name'] != 'The Next Doge':
-        provide_uusd = 50000000 
+        provide_uusd = 500000000000 
 
     cost_per_ct = cost_per_cluster_token(cluster_state)
     provide_cluster_token = int(provide_uusd / cost_per_ct)
