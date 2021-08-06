@@ -10,11 +10,9 @@ use crate::rebalancers::{
     internal_rewarded_mint, internal_rewarded_redeem, mint, record_rebalancer_rewards, redeem,
 };
 use crate::rewards::{deposit_reward, increment_n, withdraw_reward};
-use crate::state::{read_config, read_current_n, store_config, store_current_n, Config};
+use crate::state::{Config, contributions_read, pool_info_read, read_config, read_current_n, read_from_contribution_bucket, read_from_pool_bucket, read_pending_rewards, store_config, store_current_n};
 use cw20::Cw20ReceiveMsg;
-use nebula_protocol::incentives::{
-    ConfigResponse, Cw20HookMsg, HandleMsg, InitMsg, MigrateMsg, PenaltyPeriodResponse, QueryMsg,
-};
+use nebula_protocol::incentives::{ConfigResponse, ContributorPendingRewardsResponse, CurrentContributorInfoResponse, Cw20HookMsg, HandleMsg, IncentivesPoolInfoResponse, InitMsg, MigrateMsg, PenaltyPeriodResponse, PoolType, QueryMsg};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -208,8 +206,23 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_binary(&query_config(deps)?),
-        QueryMsg::PenaltyPeriod {} => todo!(),
-        QueryMsg::GetRewardPool {} => todo!(),
+        QueryMsg::PenaltyPeriod {} => to_binary(&query_penalty_period(deps)?),
+        QueryMsg::PoolInfo {
+            pool_type,
+            cluster_address,
+            n,
+        } => to_binary(&query_pool_info(deps, pool_type, cluster_address, n)?),
+        QueryMsg::CurrentContributorInfo {
+            pool_type,
+            contributor_address,
+            cluster_address,
+        } => to_binary(&query_contributor_info(
+            deps,
+            pool_type,
+            contributor_address,
+            cluster_address,
+        )?),
+        QueryMsg::ContributorPendingRewards { contributor_address } => to_binary(&query_contributor_pending_rewards(deps, contributor_address)?),
     }
 }
 
@@ -234,7 +247,51 @@ pub fn query_penalty_period<S: Storage, A: Api, Q: Querier>(
 ) -> StdResult<PenaltyPeriodResponse> {
     let n = read_current_n(&deps.storage)?;
     let resp = PenaltyPeriodResponse { n };
+    Ok(resp)
+}
 
+pub fn query_pool_info<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    pool_type: u16,
+    cluster_address: HumanAddr,
+    n: Option<u64>,
+) -> StdResult<IncentivesPoolInfoResponse> {
+    let n = match n {
+        Some(_) => n.unwrap(),
+        None => read_current_n(&deps.storage)?,
+    };
+    let pool_bucket = pool_info_read(&deps.storage, pool_type, n);
+    let pool_info = read_from_pool_bucket(&pool_bucket, &cluster_address);
+    let resp = IncentivesPoolInfoResponse {
+        value_total: pool_info.value_total,
+        reward_total: pool_info.reward_total,
+    };
+    Ok(resp)
+}
+
+pub fn query_contributor_info<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    pool_type: u16,
+    contributor_address: HumanAddr,
+    cluster_address: HumanAddr,
+) -> StdResult<CurrentContributorInfoResponse> {
+    let contribution_bucket = contributions_read(&deps.storage, &contributor_address, pool_type);
+    let contributions = read_from_contribution_bucket(&contribution_bucket, &cluster_address);
+    let resp = CurrentContributorInfoResponse {
+        n: read_current_n(&deps.storage)?,
+        value_contributed: contributions.value_contributed,
+    };
+    Ok(resp)
+}
+
+pub fn query_contributor_pending_rewards<S: Storage, A: Api, Q: Querier>(
+    deps: &Extern<S, A, Q>,
+    contributor_address: HumanAddr,
+) -> StdResult<ContributorPendingRewardsResponse> {
+    let pending_rewards = read_pending_rewards(&deps.storage, &contributor_address);
+    let resp = ContributorPendingRewardsResponse {
+        pending_rewards
+    };
     Ok(resp)
 }
 
