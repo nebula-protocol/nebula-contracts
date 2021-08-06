@@ -339,6 +339,7 @@ fn test_create_cluster() {
                 name: input_params.name.clone(),
                 description: input_params.description.clone(),
                 owner: h(MOCK_CONTRACT_ADDR),
+                factory: h(MOCK_CONTRACT_ADDR),
                 pricing_oracle: input_params.pricing_oracle.clone(),
                 composition_oracle: input_params.composition_oracle.clone(),
                 penalty: input_params.penalty.clone(),
@@ -931,7 +932,7 @@ fn test_distribute() {
         res.log,
         vec![
             log("action", "distribute"),
-            log("distribution_amount", "7200"),
+            log("distribution_amount", "7199"),
         ]
     );
 
@@ -941,7 +942,7 @@ fn test_distribute() {
             contract_addr: h("nebula0000"),
             msg: to_binary(&Cw20HandleMsg::Send {
                 contract: h("staking0000"),
-                amount: Uint128(7200u128),
+                amount: Uint128(7199u128),
                 msg: Some(
                     to_binary(&StakingCw20HookMsg::DepositReward {
                         rewards: vec![

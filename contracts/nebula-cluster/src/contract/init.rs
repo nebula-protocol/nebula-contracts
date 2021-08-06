@@ -39,6 +39,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         description: msg.description.clone(),
         owner: msg.owner.clone(),
         cluster_token: msg.cluster_token,
+        factory: msg.factory,
         pricing_oracle: msg.pricing_oracle.clone(),
         composition_oracle: msg.composition_oracle.clone(),
         penalty: msg.penalty.clone(),

@@ -223,7 +223,7 @@ pub fn decommission<S: Storage, A: Api, Q: Querier>(
         return Err(error::cluster_token_not_set());
     }
     // check permission for factory
-    if env.message.sender != cfg.owner {
+    if env.message.sender != cfg.factory {
         return Err(StdError::unauthorized());
     }
 
@@ -368,7 +368,7 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
         let mint_total = mint_response.mint_tokens;
 
         let (collector_address, fee_rate) =
-            query_collector_contract_address(&deps.querier, &cfg.owner)?;
+            query_collector_contract_address(&deps.querier, &cfg.factory)?;
         let fee_rate = FPDecimal::from_str(&*fee_rate)?;
 
         // mint_to_sender = mint_total * (1 - fee_rate)
@@ -539,7 +539,7 @@ pub fn receive_burn<S: Storage, A: Api, Q: Querier>(
     };
 
     let (collector_address, fee_rate) =
-        query_collector_contract_address(&deps.querier, &cfg.owner)?;
+        query_collector_contract_address(&deps.querier, &cfg.factory)?;
 
     let fee_rate: FPDecimal = FPDecimal::from_str(&fee_rate)?;
     let keep_rate: FPDecimal = FPDecimal::one() - fee_rate;
