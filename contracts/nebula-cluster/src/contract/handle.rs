@@ -16,7 +16,7 @@ use crate::util::vec_to_string;
 
 use cluster_math::FPDecimal;
 use nebula_protocol::cluster::HandleMsg;
-use nebula_protocol::penalty::{HandleMsg as PenaltyHandleMsg, QueryMsg as PenaltyQueryMsg};
+use nebula_protocol::penalty::{HandleMsg as PenaltyHandleMsg};
 
 use std::str::FromStr;
 use terraswap::asset::{Asset, AssetInfo};
@@ -624,7 +624,7 @@ pub fn receive_burn<S: Storage, A: Api, Q: Querier>(
     // it can make stateful updates...
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: cfg.penalty.clone(),
-        msg: to_binary(&PenaltyQueryMsg::Redeem {
+        msg: to_binary(&PenaltyHandleMsg::Redeem {
             block_height: env.block.height,
             cluster_token_supply,
             inventory: inv,

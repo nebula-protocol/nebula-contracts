@@ -13,6 +13,7 @@ use nebula_protocol::{
     oracle::{PriceResponse, QueryMsg as OracleQueryMsg},
     penalty::{MintResponse, QueryMsg as PenaltyQueryMsg, RedeemResponse},
 };
+use nebula_protocol::penalty::{HandleMsg as PenaltyHandleMsg};
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 pub use std::str::FromStr;
@@ -808,7 +809,7 @@ fn mint() {
 
     let addr = "addr0000";
     let env = mock_env(h(addr), &[]);
-    let res = handle(&mut deps, env, mint_msg).unwrap();
+    let res = handle(&mut deps, env.clone(), mint_msg).unwrap();
 
     assert_eq!(
         res.log,
@@ -819,6 +820,95 @@ fn mint() {
             log("penalty", "1234"),
             log("fee_amt", "1"),
         ]
+    );
+
+    assert_eq!(
+        res.messages,
+        vec![
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: HumanAddr::from("mAAPL"),
+                msg: to_binary(&Cw20HandleMsg::TransferFrom {
+                    owner: HumanAddr::from("addr0000"),
+                    recipient: HumanAddr::from(MOCK_CONTRACT_ADDR),
+                    amount: Uint128(125_000_000),
+                }).unwrap(),
+                send: vec![],
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: HumanAddr::from("mGOOG"),
+                msg: to_binary(&Cw20HandleMsg::TransferFrom {
+                    owner: HumanAddr::from("addr0000"),
+                    recipient: HumanAddr::from(MOCK_CONTRACT_ADDR),
+                    amount: Uint128::zero(),
+                }).unwrap(),
+                send: vec![],
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: HumanAddr::from("mMSFT"),
+                msg: to_binary(&Cw20HandleMsg::TransferFrom {
+                    owner: HumanAddr::from("addr0000"),
+                    recipient: HumanAddr::from(MOCK_CONTRACT_ADDR),
+                    amount: Uint128(149_000_000),
+                }).unwrap(),
+                send: vec![],
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: HumanAddr::from("mNFLX"),
+                msg: to_binary(&Cw20HandleMsg::TransferFrom {
+                    owner: HumanAddr::from("addr0000"),
+                    recipient: HumanAddr::from(MOCK_CONTRACT_ADDR),
+                    amount: Uint128(50_090_272),
+                }).unwrap(),
+                send: vec![],
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: consts::penalty(),
+                msg: to_binary(&PenaltyHandleMsg::Mint {
+                    block_height: env.block.height,
+                    cluster_token_supply: Uint128(1_000_000_000),
+                    inventory: vec![
+                        Uint128(7_290_053_159u128), Uint128(319_710_128u128),
+                        Uint128(14_219_281_228u128), Uint128(224_212_221u128)
+                    ],
+                    mint_asset_amounts: vec![
+                        Uint128(125_000_000),
+                        Uint128::zero(),
+                        Uint128(149_000_000),
+                        Uint128(50_090_272),
+                    ],
+                    asset_prices: vec![
+                        "135.18".to_string(),
+                        "1780.03".to_string(),
+                        "222.42".to_string(),
+                        "540.82".to_string()
+                    ],
+                    target_weights: vec![
+                        Uint128(20u128),
+                        Uint128(20u128),
+                        Uint128(20u128),
+                        Uint128(20u128)
+                    ],
+                }).unwrap(),
+                send: vec![],
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: consts::cluster_token(),
+                msg: to_binary(&Cw20HandleMsg::Mint {
+                    amount: Uint128(1u128),
+                    recipient: h("collector"),
+                }).unwrap(),
+                send: vec![],
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: consts::cluster_token(),
+                msg: to_binary(&Cw20HandleMsg::Mint {
+                    amount: Uint128(98),
+                    recipient: HumanAddr::from("addr0000"),
+                }).unwrap(),
+                send: vec![],
+            })
+        ]
+        
     );
 
     assert_eq!(7, res.messages.len());
@@ -947,7 +1037,6 @@ fn burn() {
                 .unwrap(),
                 send: vec![],
             }),
-
         ]
     );
     assert_eq!(7, res.messages.len());
