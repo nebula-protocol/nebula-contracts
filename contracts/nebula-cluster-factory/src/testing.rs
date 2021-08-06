@@ -339,6 +339,7 @@ fn test_create_cluster() {
                 name: input_params.name.clone(),
                 description: input_params.description.clone(),
                 owner: h(MOCK_CONTRACT_ADDR),
+                factory: h(MOCK_CONTRACT_ADDR),
                 pricing_oracle: input_params.pricing_oracle.clone(),
                 composition_oracle: input_params.composition_oracle.clone(),
                 penalty: input_params.penalty.clone(),

@@ -580,6 +580,7 @@ pub fn mock_init() -> (Extern<MockStorage, MockApi, WasmMockQuerier>, InitRespon
         pricing_oracle: consts::pricing_oracle(),
         composition_oracle: consts::composition_oracle(),
         penalty: consts::penalty(),
+        factory: consts::factory(),
         init_hook: None,
     };
 
@@ -599,6 +600,7 @@ pub fn mock_init_native_stage() -> (Extern<MockStorage, MockApi, WasmMockQuerier
         pricing_oracle: consts::pricing_oracle(),
         composition_oracle: consts::composition_oracle(),
         penalty: consts::penalty(),
+        factory: consts::factory(),
         init_hook: None,
     };
 
@@ -939,7 +941,7 @@ fn decommission_cluster() {
         _ => panic!("DO NOT ENTER HERE"),
     }
 
-    let env = mock_env(consts::owner(), &[]);
+    let env = mock_env(consts::factory(), &[]);
 
     let res = handle(&mut deps, env, msg).unwrap();
 

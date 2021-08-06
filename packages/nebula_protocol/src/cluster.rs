@@ -6,8 +6,11 @@ use terraswap::hook::InitHook;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InitMsg {
-    /// Cluster's permissioned owner (factory)
+    /// Cluster's permissioned owner
     pub owner: HumanAddr,
+
+    /// Factory address
+    pub factory: HumanAddr,
 
     /// Cluster name (title)
     pub name: String,
@@ -121,6 +124,7 @@ pub struct ClusterConfig {
     pub description: String,
     pub owner: HumanAddr,
     pub cluster_token: Option<HumanAddr>,
+    pub factory: HumanAddr,
     pub pricing_oracle: HumanAddr,
     pub composition_oracle: HumanAddr,
     pub penalty: HumanAddr,
