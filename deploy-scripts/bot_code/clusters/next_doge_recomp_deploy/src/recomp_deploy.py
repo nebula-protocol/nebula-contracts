@@ -2,6 +2,8 @@ import os
 import asyncio
 import requests
 import json
+import pickle
+import backoff
 from datetime import timedelta, datetime
 
 os.environ["MNEMONIC"] = mnemonic = 'parent hospital arrest brush exact giraffe glimpse exist grain curtain always depend session wash twin insane rural brain ahead destroy sudden claim story funny'
@@ -17,11 +19,12 @@ SECONDS_PER_DAY = 24 * 60 * 60
 """
 For underlying tokens in a cluster, we define them as “activated“ and “deactivated” according to a binary activation function. 
 Consider an activation function such that when the H = 4-hour price percentage for a token exceeds T = 30%, we mark it “activated”. 
-This activation lasts for a period of D = 3 days and after that the token reverts to a “deactivated” state. Let’s say an “activated” 
-token can be allocated a maximum of X = 20% of current UST reserves. Now, if one more “activated“ tokens exist, weights of the 
-cluster are first calculated proportional to the market cap of each “activated” token, and then a function f(w) = max(w, X) is 
-applied to each weight in the cluster. If there's any remaining weight percentage, it's allocated to UST. 
-However, if no “activated” tokens exist, we assign a 100% weight to UST and wait for an activation event occurrence.
+This activation lasts for a period of D = 3 days and after that the token reverts to a “deactivated” state. An activated function
+can be retriggered even while a token is activated to extend the activation period further. Let’s say an “activated” token can be allocated 
+a maximum of X = 20% of current UST reserves. Now, if one more “activated“ tokens exist, weights of the cluster are first calculated 
+proportional to the market cap of each “activated” token, and then a function f(w) = min(w, X) is applied to each weight in the cluster. 
+If there's any remaining weight percentage, it's allocated to UST. However, if no “activated” tokens exist, we assign a 100% weight to 
+UST and wait for an activation event occurrence.
 """
 class NextDogeRecomposer:
     def __init__(self, cluster_contract):
@@ -37,6 +40,8 @@ class NextDogeRecomposer:
             'terra1p0rp8he7jfnevha3k5anhd0als7azjmfhxrvjv',
         ]
 
+        self.activation_file = "activation.info"
+
         self.H = 8
         self.T = 0.3
         self.X = 0.1
@@ -46,6 +51,22 @@ class NextDogeRecomposer:
         self.activated_assets = {}
         self.deactivated_assets = set()
         self.vs_currency = "usd"
+
+    def save_activation_information(self):
+        info = [
+            self.activated_assets,
+            self.deactivated_assets
+        ]
+        out = open(self.activation_file, "wb")
+        pickle.dump(info, out)
+        out.close()
+    
+    def read_activation_information(self):
+        if os.path.isfile(self.activation_file):
+            out = open(self.activation_file, "rb")
+            info = pickle.load(out)
+            out.close()
+            self.activated_assets, self.deactivated_assets = info
 
     def activate_asset(self, asset, cur_timestamp):
         if asset in self.deactivated_assets:
@@ -65,6 +86,10 @@ class NextDogeRecomposer:
                 self.deactivate_asset(asset)
                 
     # Example: get_price_change("terra-luna", "usd", 1557270594, 1557288000)
+    @backoff.on_exception(backoff.expo, 
+        requests.exceptions.RequestException, 
+        requests.exceptions.ConnectionError,
+        requests.exceptions.Timeout)
     def get_price_change(self, asset_id, time_from, time_to):
         api_url = "https://api.coingecko.com/api/v3/coins/{id}/market_chart/range".format(
             id=asset_id
@@ -83,6 +108,10 @@ class NextDogeRecomposer:
         price_change = 100 * (end_price - start_price)/start_price
         return price_change
     
+    @backoff.on_exception(backoff.expo, 
+        requests.exceptions.RequestException, 
+        requests.exceptions.ConnectionError,
+        requests.exceptions.Timeout)
     def get_activated_mcaps(self):
         api_url = "https://api.coingecko.com/api/v3/simple/price"
         activated_assets = list(self.activated_assets)
@@ -101,6 +130,7 @@ class NextDogeRecomposer:
         return activated_asset_to_mcap
     
     async def weighting(self):
+        self.read_activation_information()
         curr_timestamp = datetime.now().timestamp()
         self.try_deactivate_expired(curr_timestamp)
 
@@ -146,7 +176,8 @@ class NextDogeRecomposer:
             native = (a == 'uluna') or (a == 'uusd')
             if t > 0:
                 target.append(Asset.asset(a, str(t), native=native))
-
+        
+        self.save_activation_information()
         return target
         
     
