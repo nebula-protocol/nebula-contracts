@@ -856,7 +856,7 @@ fn test_distribute() {
     };
     let _res = handle(&mut deps, env, msg).unwrap();
 
-    // create first cluter with weight 30
+    // create first cluter with weight 100
     let input_params: Params = get_input_params();
     let msg = HandleMsg::CreateCluster {
         params: input_params.clone(),
