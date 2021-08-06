@@ -498,7 +498,7 @@ pub fn receive_burn<S: Storage, A: Api, Q: Querier>(
             "Cannot call non pro-rata redeem on a decommissioned cluster",
         ));
     }
-    
+
     let asset_amounts = if !cfg.active { None } else { asset_amounts };
 
     let cluster_token = cfg

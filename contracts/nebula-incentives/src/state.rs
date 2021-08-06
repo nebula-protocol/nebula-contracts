@@ -90,7 +90,8 @@ pub fn store_pending_rewards<S: Storage>(
 }
 
 pub fn read_pending_rewards<S: Storage>(storage: &S, contributor: &HumanAddr) -> Uint128 {
-    match ReadonlyBucket::new(PREFIX_PENDING_REWARDS, storage).load(contributor.as_str().as_bytes()) {
+    match ReadonlyBucket::new(PREFIX_PENDING_REWARDS, storage).load(contributor.as_str().as_bytes())
+    {
         Ok(pending_reward) => pending_reward,
         Err(_) => Uint128::zero(),
     }
