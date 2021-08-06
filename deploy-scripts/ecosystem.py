@@ -117,17 +117,13 @@ class Ecosystem:
         )
 
         await self.factory.post_initialize(
-            owner=self.gov if self.require_gov else deployer.key.acc_address,
+            owner=deployer.key.acc_address,
             nebula_token=self.neb_token,
-            oracle_contract=self.neb_token,  # ??? provide arbitrary contract for now
             terraswap_factory=self.terraswap_factory,
             staking_contract=self.staking,
             commission_collector=self.collector,
         )
-
-        factory_config = await self.factory.query.config()
-        print("GODDAM", factory_config)
-
+        
         self.neb_pair = Contract(
             (
                 await self.terraswap_factory.create_pair(
@@ -140,6 +136,13 @@ class Ecosystem:
             .logs[0]
             .events_by_type["from_contract"]["pair_contract_addr"][0]
         )
+
+        
+        await self.factory.terraswap_creation_hook(asset_token=self.neb_token)
+
+        if self.require_gov:
+            # Update factory owner as gov
+            await self.factory.update_config(owner=self.gov)
 
         # provide some liquidity so conversion works
         await self.neb_token.increase_allowance(amount="1000", spender=self.neb_pair)
