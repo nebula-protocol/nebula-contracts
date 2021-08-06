@@ -546,7 +546,7 @@ pub fn distribute<S: Storage, A: Api, Q: Querier>(
             contract_addr: nebula_token,
             msg: to_binary(&Cw20HandleMsg::Send {
                 contract: staking_contract,
-                amount: Uint128(u128::from(distribution_amount)),
+                amount: distribution_amount,
                 msg: Some(to_binary(&StakingCw20HookMsg::DepositReward { rewards })?),
             })?,
             send: vec![],
@@ -562,7 +562,7 @@ pub fn distribute<S: Storage, A: Api, Q: Querier>(
 pub fn _compute_rewards<S: Storage, A: Api, Q: Querier>(
     deps: &Extern<S, A, Q>,
     target_distribution_amount: Uint128,
-) -> StdResult<(Vec<(HumanAddr, Uint128)>, FPDecimal)> {
+) -> StdResult<(Vec<(HumanAddr, Uint128)>, Uint128)> {
     let total_weight: u32 = read_total_weight(&deps.storage)?;
     let mut distribution_amount: FPDecimal = FPDecimal::zero();
     let weights: Vec<(HumanAddr, u32)> = read_all_weight(&deps.storage)?;
@@ -574,14 +574,13 @@ pub fn _compute_rewards<S: Storage, A: Api, Q: Querier>(
             if amount == FPDecimal::zero() {
                 return Err(StdError::generic_err("cannot distribute zero amount"));
             }
-            distribution_amount = distribution_amount + amount;
             amount = amount / FPDecimal::from(total_weight as u128);
+            distribution_amount = distribution_amount + amount;
             Ok((w.0.clone(), Uint128(u128::from(amount))))
         })
         .filter(|m| m.is_ok())
         .collect::<StdResult<Vec<(HumanAddr, Uint128)>>>()?;
-    distribution_amount = distribution_amount / FPDecimal::from(total_weight as u128);
-    Ok((rewards, distribution_amount))
+    Ok((rewards, Uint128(u128::from(distribution_amount))))
 }
 
 pub fn decommission_cluster<S: Storage, A: Api, Q: Querier>(

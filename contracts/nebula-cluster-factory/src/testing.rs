@@ -932,7 +932,7 @@ fn test_distribute() {
         res.log,
         vec![
             log("action", "distribute"),
-            log("distribution_amount", "7200"),
+            log("distribution_amount", "7199"),
         ]
     );
 
@@ -942,7 +942,7 @@ fn test_distribute() {
             contract_addr: h("nebula0000"),
             msg: to_binary(&Cw20HandleMsg::Send {
                 contract: h("staking0000"),
-                amount: Uint128(7200u128),
+                amount: Uint128(7199u128),
                 msg: Some(
                     to_binary(&StakingCw20HookMsg::DepositReward {
                         rewards: vec![
