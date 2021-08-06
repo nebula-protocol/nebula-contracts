@@ -271,24 +271,24 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
         ));
     }
 
+    let cfg = read_config(&deps.storage)?;
+
+    if !cfg.active {
+        return Err(StdError::generic_err(
+            "Cannot call mint on a decommissioned cluster",
+        ));
+    }
+
     let cluster_state = query_cluster_state(
         &deps,
         &env.contract.address,
         env.block.time - FRESH_TIMESPAN,
     )?;
 
-    if !cluster_state.active {
-        return Err(StdError::generic_err(
-            "Cannot call mint on a decommissioned cluster",
-        ));
-    }
-
     let prices = cluster_state.prices;
     let cluster_token_supply = cluster_state.outstanding_balance_tokens;
     let mut inv = cluster_state.inv;
     let target = cluster_state.target;
-
-    let cfg = read_config(&deps.storage)?;
 
     let asset_infos = target.iter().map(|x| x.info.clone()).collect::<Vec<_>>();
 

@@ -567,6 +567,35 @@ pub mod consts {
             log: vec![log("penalty", 1234)],
         }
     }
+
+    pub fn asset_amounts() -> Vec<Asset> {
+        vec![
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mAAPL"),
+                },
+                amount: Uint128(125_000_000),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mGOOG"),
+                },
+                amount: Uint128::zero(),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mMSFT"),
+                },
+                amount: Uint128(149_000_000),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mNFLX"),
+                },
+                amount: Uint128(50_090_272),
+            },
+        ]
+    }
 }
 
 pub fn mock_init() -> (Extern<MockStorage, MockApi, WasmMockQuerier>, InitResponse) {
@@ -768,32 +797,7 @@ fn mint() {
             ("mNFLX", Decimal::from_str("540.82").unwrap()),
         ]);
 
-    let asset_amounts = vec![
-        Asset {
-            info: AssetInfo::Token {
-                contract_addr: h("mAAPL"),
-            },
-            amount: Uint128(125_000_000),
-        },
-        Asset {
-            info: AssetInfo::Token {
-                contract_addr: h("mGOOG"),
-            },
-            amount: Uint128::zero(),
-        },
-        Asset {
-            info: AssetInfo::Token {
-                contract_addr: h("mMSFT"),
-            },
-            amount: Uint128(149_000_000),
-        },
-        Asset {
-            info: AssetInfo::Token {
-                contract_addr: h("mNFLX"),
-            },
-            amount: Uint128(50_090_272),
-        },
-    ];
+    let asset_amounts = consts::asset_amounts();
 
     deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
 
@@ -943,7 +947,7 @@ fn decommission_cluster() {
 
     let env = mock_env(consts::factory(), &[]);
 
-    let res = handle(&mut deps, env, msg).unwrap();
+    let res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
 
     assert_eq!(res.log, vec![log("action", "decommission_asset")]);
 
@@ -951,4 +955,59 @@ fn decommission_cluster() {
     assert_eq!(config.active, false);
 
     assert_eq!(res.messages, vec![]);
+
+    let res = handle(&mut deps, env.clone(), msg).unwrap_err();
+
+    match res {
+        StdError::GenericErr { msg, .. } => {
+            assert_eq!(msg, "Cannot decommission an already decommissioned cluster")
+        }
+        _ => panic!("DO NOT ENTER HERE"),
+    }
+
+    let asset_amounts = consts::asset_amounts();
+    deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
+
+    let msg = HandleMsg::Mint {
+        asset_amounts: asset_amounts.clone(),
+        min_tokens: None,
+    };
+
+    let res = handle(&mut deps, env.clone(), msg).unwrap_err();
+    match res {
+        StdError::GenericErr { msg, .. } => {
+            assert_eq!(msg, "Cannot call mint on a decommissioned cluster")
+        }
+        _ => panic!("DO NOT ENTER HERE"),
+    }
+
+    let msg = HandleMsg::Burn {
+        max_tokens: Uint128(20_000_000),
+        asset_amounts: Some(asset_amounts),
+    };
+
+    let res = handle(&mut deps, env.clone(), msg).unwrap_err();
+    match res {
+        StdError::GenericErr { msg, .. } => {
+            assert_eq!(msg, "Cannot call non pro-rata redeem on a decommissioned cluster")
+        }
+        _ => panic!("DO NOT ENTER HERE"),
+    }
+
+    let msg = HandleMsg::Burn {
+        max_tokens: Uint128(20_000_000),
+        asset_amounts: None,
+    };
+
+    let res = handle(&mut deps, env.clone(), msg).unwrap();
+    assert_eq!(res.log, vec![
+        log("action", "receive:burn"),
+        log("sender", "factory"),
+        log("burn_amount", "1234"),
+        log("token_cost", "1247"),
+        log("kept_as_fee", "13"),
+        log("asset_amounts", "[]"),
+        log("redeem_totals", "[99, 98, 97, 96]"),
+        log("penalty", "1234")
+    ]);
 }
