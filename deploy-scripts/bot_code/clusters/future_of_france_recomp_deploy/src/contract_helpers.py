@@ -17,7 +17,6 @@ from api import Asset
 import shelve
 import os
 
-
 shelf = shelve.open(f"{os.path.dirname(__file__)}/cache.dat")
 
 
@@ -39,6 +38,7 @@ async def store_contract(contract_name):
     parent_dir = os.path.dirname(os.path.dirname(__file__))
     contract_bytes = read_file_as_b64(f"{parent_dir}/artifacts/{contract_name}.wasm")
     store_code = MsgStoreCode(deployer.key.acc_address, contract_bytes)
+
     result = await sign_and_broadcast(store_code)
     code_id = get_code_id(result)
     print(f"Code id for {contract_name} is {code_id}")

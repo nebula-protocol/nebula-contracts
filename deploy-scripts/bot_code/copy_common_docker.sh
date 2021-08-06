@@ -6,6 +6,11 @@ for folder in `ls ../clusters`
 do 
     for file in *.py
     do
-        cp -v "$file" "clusters/${folder}/src/${file}"
+       cp "$file" "../clusters/${folder}/src/${file}"
+    done
+
+    for artifact in `ls artifacts`
+    do
+        cp "artifacts/$artifact" "../clusters/${folder}/artifacts/${artifact}"
     done
 done

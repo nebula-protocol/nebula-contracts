@@ -9,7 +9,7 @@ class Asset:
 
     @staticmethod
     def asset_info(param):
-        if param == "uluna" or param == 'uusd':
+        if param == "uluna":
             return Asset.native_asset_info(param)
         return Asset.cw20_asset_info(param)
 
