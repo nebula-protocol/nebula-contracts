@@ -96,7 +96,19 @@ pub enum HandleMsg {
 pub enum QueryMsg {
     Config {},
     PenaltyPeriod {},
-    GetRewardPool {},
+    PoolInfo {
+        pool_type: u16,
+        cluster_address: HumanAddr,
+        n: Option<u64>,
+    },
+    CurrentContributorInfo {
+        pool_type: u16,
+        contributor_address: HumanAddr,
+        cluster_address: HumanAddr,
+    },
+    ContributorPendingRewards {
+        contributor_address: HumanAddr,
+    },
 }
 
 // We define a custom struct for each query response
@@ -113,6 +125,23 @@ pub struct ConfigResponse {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct PenaltyPeriodResponse {
     pub n: u64,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct IncentivesPoolInfoResponse {
+    pub value_total: Uint128,
+    pub reward_total: Uint128,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct CurrentContributorInfoResponse {
+    pub n: u64,
+    pub value_contributed: Uint128,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct ContributorPendingRewardsResponse {
+    pub pending_rewards: Uint128,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -134,6 +163,7 @@ pub enum ExtHandleMsg {
     RequestNeb { amount: Uint128 },
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct PoolType;
 
 impl PoolType {

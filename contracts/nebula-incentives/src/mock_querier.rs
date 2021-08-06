@@ -282,26 +282,23 @@ impl WasmMockQuerier {
                 QueryMsg::ClusterExists {} => {
                     Ok(to_binary(&ClusterExistsResponse { exists: true }))
                 }
-                QueryMsg::Pool {  } => {
-                    Ok(to_binary(&TerraswapPoolResponse { 
-                        assets: [
-                            Asset {
-                                info: AssetInfo::Token {
-                                    contract_addr: HumanAddr::from("cluster_token"),
-                                },
-                                amount: Uint128(100),
+                QueryMsg::Pool {} => Ok(to_binary(&TerraswapPoolResponse {
+                    assets: [
+                        Asset {
+                            info: AssetInfo::Token {
+                                contract_addr: HumanAddr::from("cluster_token"),
                             },
-                            Asset {
-                                info: AssetInfo::NativeToken {
-                                    denom: "uusd".to_string(),
-                                },
-                                amount: Uint128(100),
+                            amount: Uint128(100),
+                        },
+                        Asset {
+                            info: AssetInfo::NativeToken {
+                                denom: "uusd".to_string(),
                             },
-                        ], 
-                        total_share: Uint128(10000),
-                    }))
-
-                }
+                            amount: Uint128(100),
+                        },
+                    ],
+                    total_share: Uint128(10000),
+                })),
             },
             QueryRequest::Wasm(WasmQuery::Raw { contract_addr, key }) => {
                 let key: &[u8] = key.as_slice();

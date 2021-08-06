@@ -8,8 +8,8 @@ use crate::state::{read_config, record_contribution, Config};
 
 use nebula_protocol::incentives::{HandleMsg, PoolType};
 
-use terraswap::pair::QueryMsg as TerraswapQueryMsg;
 use terraswap::pair::PoolResponse as TerraswapPoolResponse;
+use terraswap::pair::QueryMsg as TerraswapQueryMsg;
 
 use cw20::Cw20HandleMsg;
 use nebula_protocol::cluster::{ClusterStateResponse, QueryMsg as ClusterQueryMsg};
@@ -258,10 +258,11 @@ pub fn record_terraswap_impact<S: Storage, A: Api, Q: Querier>(
         return Err(StdError::unauthorized());
     }
 
-    let pool_now: TerraswapPoolResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: terraswap_pair,
-        msg: to_binary(&TerraswapQueryMsg::Pool {})?,
-    }))?;
+    let pool_now: TerraswapPoolResponse =
+        deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+            contract_addr: terraswap_pair,
+            msg: to_binary(&TerraswapQueryMsg::Pool {})?,
+        }))?;
 
     let contract_state: ClusterStateResponse =
         deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
