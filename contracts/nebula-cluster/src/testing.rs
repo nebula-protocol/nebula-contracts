@@ -6,7 +6,7 @@ pub use cluster_math::*;
 pub use cosmwasm_std::testing::{mock_env, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 pub use cosmwasm_std::*;
 pub use cw20::BalanceResponse as Cw20BalanceResponse;
-use cw20::{Cw20QueryMsg, TokenInfoResponse};
+use cw20::{Cw20HandleMsg, Cw20QueryMsg, TokenInfoResponse};
 use nebula_protocol::{
     cluster::{HandleMsg, InitMsg, QueryMsg as ClusterQueryMsg, TargetResponse},
     cluster_factory::ConfigResponse as FactoryConfigResponse,
@@ -848,9 +848,7 @@ fn burn() {
         asset_amounts: None,
     };
     let env = mock_env(h("addr0000"), &[]);
-    let res = handle(&mut deps, env, msg).unwrap();
-
-    assert_eq!(8, res.log.len());
+    let res = handle(&mut deps, env.clone(), msg).unwrap();
 
     assert_eq!(
         res.log,
@@ -866,6 +864,92 @@ fn burn() {
         ]
     );
 
+    assert_eq!(res.messages, 
+        vec![
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: h("mAAPL"),
+                msg: to_binary(&Cw20HandleMsg::Transfer {
+                    recipient: h("addr0000"), 
+                    amount: Uint128(99u128)
+                })
+                .unwrap(),
+                send: vec![],
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: h("mGOOG"),
+                msg: to_binary(&Cw20HandleMsg::Transfer {
+                    recipient: h("addr0000"), 
+                    amount: Uint128(98u128)   
+                })
+                .unwrap(),
+                send: vec![],
+            }),CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: h("mMSFT"),
+                msg: to_binary(&Cw20HandleMsg::Transfer {
+                    recipient: h("addr0000"), 
+                    amount: Uint128(97u128)
+                })
+                .unwrap(),
+                send: vec![],
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: h("mNFLX"),
+                msg: to_binary(&Cw20HandleMsg::Transfer {
+                    recipient: h("addr0000"), 
+                    amount: Uint128(96u128) 
+                })
+                .unwrap(),
+                send: vec![],
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: consts::cluster_token(),
+                msg: to_binary(&Cw20HandleMsg::TransferFrom {
+                    owner: h("addr0000"),
+                    amount: Uint128(13u128),
+                    recipient: h("collector"),
+                })
+                .unwrap(),
+                send: vec![],
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: consts::cluster_token(),
+                msg: to_binary(&Cw20HandleMsg::BurnFrom {
+                    owner: h("addr0000"),
+                    amount: Uint128(1234u128),
+                })
+                .unwrap(),
+                send: vec![],
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: consts::penalty(),
+                msg: to_binary(&PenaltyQueryMsg::Redeem {
+                    block_height: env.block.height,
+                    cluster_token_supply: Uint128(100_000_000u128),
+                    inventory: vec![
+                        Uint128(7_290_053_159u128), Uint128(319_710_128u128),
+                        Uint128(14_219_281_228u128), Uint128(224_212_221u128)
+                    ],
+                    max_tokens: Uint128(20_000_000u128),
+                    redeem_asset_amounts: vec![],
+                    asset_prices: vec![
+                        "135.18".to_string(),
+                        "1780.03".to_string(),
+                        "222.42".to_string(),
+                        "540.82".to_string()
+                    ],
+                    target_weights: vec![
+                        Uint128(20u128),
+                        Uint128(20u128),
+                        Uint128(20u128),
+                        Uint128(20u128)
+                    ],
+                })
+                .unwrap(),
+                send: vec![],
+            }),
+
+        ]
+    );
     assert_eq!(7, res.messages.len());
 }
 
