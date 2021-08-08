@@ -139,6 +139,23 @@ class Ecosystem:
             commission_collector=self.collector,
         )
 
+        print("Create Terraswap pair for NEB-UST")
+        self.neb_pair = Contract(
+            (
+                await self.terraswap_factory.create_pair(
+                    asset_infos=[
+                        Asset.cw20_asset_info(self.neb_token),
+                        Asset.native_asset_info("uusd"),
+                    ]
+                )
+            )
+            .logs[0]
+            .events_by_type["from_contract"]["pair_contract_addr"][0]
+        )
+
+        print("Set NEB-UST weight in factory")
+        await self.factory.terraswap_creation_hook(asset_token=self.neb_token)
+
         print("Try to initialize all clusters")
         self.dummy_oracle = await Contract.create(code_ids["nebula_dummy_oracle"])
 
@@ -159,20 +176,6 @@ class Ecosystem:
 
         cluster_list = await self.factory.query.cluster_list()
         print("Cluster list", cluster_list)
-
-        print("Create Terraswap pair for NEB-UST")
-        self.neb_pair = Contract(
-            (
-                await self.terraswap_factory.create_pair(
-                    asset_infos=[
-                        Asset.cw20_asset_info(self.neb_token),
-                        Asset.native_asset_info("uusd"),
-                    ]
-                )
-            )
-            .logs[0]
-            .events_by_type["from_contract"]["pair_contract_addr"][0]
-        )
 
         print("Initializing community contract")
         self.community = await Contract.create(
