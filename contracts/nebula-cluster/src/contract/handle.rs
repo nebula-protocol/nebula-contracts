@@ -292,6 +292,19 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
 
     let asset_infos = target.iter().map(|x| x.info.clone()).collect::<Vec<_>>();
 
+    let native_coin_denoms = asset_infos
+        .iter()
+        .filter(|asset| asset.is_native_token())
+        .map(|asset| match asset {
+            AssetInfo::NativeToken { denom } => {
+                Ok(denom.clone())
+            }
+            _ => {
+                Err(StdError::generic_err("Already filtered. Cannot contain non-native denoms."))
+            }
+        }.unwrap())
+        .collect::<Vec<_>>();
+
     let target_weights = target.iter().map(|x| x.amount.clone()).collect::<Vec<_>>();
 
     let cluster_token = cfg
@@ -304,8 +317,8 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
     let mut messages = vec![];
 
     // Return an error if assets not in target are sent to the mint function
-    for asset in asset_amounts.iter() {
-        if !asset_infos.contains(&asset.info) {
+    for coin in env.message.sent_funds.iter() {
+        if !native_coin_denoms.contains(&coin.denom) {
             return Err(StdError::generic_err(
                 "Unsupported assets were sent to the mint function",
             ));
