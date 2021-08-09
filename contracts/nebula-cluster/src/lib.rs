@@ -6,6 +6,9 @@ pub mod state;
 #[cfg(test)]
 pub mod testing;
 
+#[cfg(test)]
+pub mod mock_querier;
+
 mod util;
 
 #[cfg(target_arch = "wasm32")]
