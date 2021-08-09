@@ -105,6 +105,7 @@ impl WasmMockQuerier {
                     },
                     _ => match from_binary(&msg) {
                         Ok(Cw20QueryMsg::Balance { address }) => {
+                            println!("we make heredfdfd? {}", contract_addr);
                             let token_data = match self.token_querier.tokens.get(contract_addr) {
                                 Some(v) => v,
                                 None => {
@@ -117,6 +118,9 @@ impl WasmMockQuerier {
                                     })
                                 }
                             };
+
+                            println!("we make here? {}", contract_addr);
+
                             let balance = match token_data.balances.get(&address) {
                                 Some(v) => v,
                                 None => {
@@ -592,6 +596,8 @@ pub mod consts {
 
 pub fn mock_init() -> (Extern<MockStorage, MockApi, WasmMockQuerier>, InitResponse) {
     let mut deps = mock_dependencies(20, &[]);
+    mock_querier_setup(&mut deps);
+
     let msg = InitMsg {
         name: consts::name().to_string(),
         description: consts::description().to_string(),

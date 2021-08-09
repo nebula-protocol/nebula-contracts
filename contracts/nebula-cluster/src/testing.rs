@@ -36,6 +36,43 @@ macro_rules! q {
 fn proper_initialization() {
     let (deps, init_res) = mock_init();
     assert_eq!(0, init_res.messages.len());
+    
+    // make sure target was saved
+    let value = q!(&deps, TargetResponse, ClusterQueryMsg::Target {});
+    assert_eq!(
+        vec![
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mAAPL"),
+                },
+                amount: Uint128(20)
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mGOOG"),
+                },
+                amount: Uint128(20)
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mMSFT"),
+                },
+                amount: Uint128(20)
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mNFLX"),
+                },
+                amount: Uint128(20)
+            },
+        ],
+        value.target
+    );
+}
+
+#[test]
+fn fail_initialization() {
+    let (deps, init_res) = mock_init();
 
     // make sure target was saved
     let value = q!(&deps, TargetResponse, ClusterQueryMsg::Target {});
@@ -73,7 +110,6 @@ fn proper_initialization() {
 #[test]
 fn mint() {
     let (mut deps, _) = mock_init();
-    mock_querier_setup(&mut deps);
     // Asset :: UST Price :: Balance (µ)     (+ proposed   ) :: %
     // ---
     // mAAPL ::  135.18   ::  7_290_053_159  (+ 125_000_000) :: 0.20367359382 -> 0.20391741720
@@ -213,7 +249,6 @@ fn mint() {
 #[test]
 fn burn() {
     let (mut deps, _init_res) = mock_init();
-    mock_querier_setup(&mut deps);
 
     deps.querier
         .set_token_supply(consts::cluster_token(), 100_000_000)

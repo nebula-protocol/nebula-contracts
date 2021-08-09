@@ -16,8 +16,11 @@ pub fn validate_targets<S: Storage, A: Api, Q: Querier>(
     query: Option<bool>,
 ) -> StdResult<bool> {
     for i in 0..target_assets.len() - 1 {
-        let to_query = query.unwrap_or(true);
+        println!("what the fuck {}", target_assets[i]);
+        let to_query = if query.is_some() { query.unwrap() } else { false };
+
         if to_query {
+            println!("we querying");
             query_asset_balance(&deps.querier, &env.contract.address, &target_assets[i])?;
         }
         for j in i + 1..target_assets.len() {
@@ -52,7 +55,9 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.info.clone())
         .collect::<Vec<_>>();
 
-    if validate_targets(&deps, &env, asset_infos.clone(), Some(false)).is_err() {
+    println!("fuck {:?}", asset_infos);
+
+    if validate_targets(&deps, &env, asset_infos.clone(), Some(true)).is_err() {
         return Err(StdError::generic_err(
             "Cluster must contain valid assets and cannot contain duplicate assets",
         ));
