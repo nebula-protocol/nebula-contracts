@@ -7,13 +7,13 @@ pub use cosmwasm_std::testing::{mock_env, MockApi, MockQuerier, MockStorage, MOC
 pub use cosmwasm_std::*;
 pub use cw20::BalanceResponse as Cw20BalanceResponse;
 use cw20::{Cw20HandleMsg, Cw20QueryMsg, TokenInfoResponse};
+use nebula_protocol::penalty::HandleMsg as PenaltyHandleMsg;
 use nebula_protocol::{
     cluster::{HandleMsg, InitMsg, QueryMsg as ClusterQueryMsg, TargetResponse},
     cluster_factory::ConfigResponse as FactoryConfigResponse,
     oracle::{PriceResponse, QueryMsg as OracleQueryMsg},
     penalty::{MintResponse, QueryMsg as PenaltyQueryMsg, RedeemResponse},
 };
-use nebula_protocol::penalty::{HandleMsg as PenaltyHandleMsg};
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 pub use std::str::FromStr;

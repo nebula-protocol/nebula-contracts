@@ -16,7 +16,7 @@ use crate::util::vec_to_string;
 
 use cluster_math::FPDecimal;
 use nebula_protocol::cluster::HandleMsg;
-use nebula_protocol::penalty::{HandleMsg as PenaltyHandleMsg};
+use nebula_protocol::penalty::HandleMsg as PenaltyHandleMsg;
 
 use std::str::FromStr;
 use terraswap::asset::{Asset, AssetInfo};
@@ -295,14 +295,15 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
     let native_coin_denoms = asset_infos
         .iter()
         .filter(|asset| asset.is_native_token())
-        .map(|asset| match asset {
-            AssetInfo::NativeToken { denom } => {
-                Ok(denom.clone())
+        .map(|asset| {
+            match asset {
+                AssetInfo::NativeToken { denom } => Ok(denom.clone()),
+                _ => Err(StdError::generic_err(
+                    "Already filtered. Cannot contain non-native denoms.",
+                )),
             }
-            _ => {
-                Err(StdError::generic_err("Already filtered. Cannot contain non-native denoms."))
-            }
-        }.unwrap())
+            .unwrap()
+        })
         .collect::<Vec<_>>();
 
     let target_weights = target.iter().map(|x| x.amount.clone()).collect::<Vec<_>>();

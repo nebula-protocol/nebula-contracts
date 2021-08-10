@@ -1,5 +1,6 @@
 pub use crate::contract::*;
 pub use crate::ext_query::*;
+pub use crate::mock_querier;
 use crate::mock_querier::consts;
 use crate::mock_querier::mock_dependencies;
 use crate::mock_querier::mock_init;
@@ -10,20 +11,19 @@ pub use cluster_math::*;
 pub use cosmwasm_std::testing::{mock_env, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 pub use cosmwasm_std::*;
 pub use cw20::BalanceResponse as Cw20BalanceResponse;
-use cw20::{Cw20HandleMsg};
+use cw20::Cw20HandleMsg;
+use nebula_protocol::penalty::HandleMsg as PenaltyHandleMsg;
 use nebula_protocol::{
     cluster::{HandleMsg, InitMsg, QueryMsg as ClusterQueryMsg, TargetResponse},
     cluster_factory::ConfigResponse as FactoryConfigResponse,
     oracle::{PriceResponse, QueryMsg as OracleQueryMsg},
     penalty::{MintResponse, QueryMsg as PenaltyQueryMsg, RedeemResponse},
 };
-use nebula_protocol::penalty::{HandleMsg as PenaltyHandleMsg};
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 pub use std::str::FromStr;
 use terra_cosmwasm::*;
 use terraswap::asset::{Asset, AssetInfo};
-pub use crate::mock_querier;
 
 #[macro_export]
 macro_rules! q {
@@ -38,7 +38,7 @@ macro_rules! q {
 fn proper_initialization() {
     let (deps, init_res) = mock_init();
     assert_eq!(0, init_res.messages.len());
-    
+
     // make sure target was saved
     let value = q!(&deps, TargetResponse, ClusterQueryMsg::Target {});
     assert_eq!(
@@ -93,7 +93,10 @@ fn fail_initialization() {
     let res = init(&mut deps, env.clone(), msg);
 
     match res {
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Cluster must contain valid assets and cannot contain duplicate assets"),
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(
+            msg,
+            "Cluster must contain valid assets and cannot contain duplicate assets"
+        ),
         Err(e) => panic!("Unexpected error: {:?}", e),
         _ => panic!("Must return error"),
     }
@@ -155,7 +158,8 @@ fn mint() {
                     owner: HumanAddr::from("addr0000"),
                     recipient: HumanAddr::from(MOCK_CONTRACT_ADDR),
                     amount: Uint128(125_000_000),
-                }).unwrap(),
+                })
+                .unwrap(),
                 send: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
@@ -164,7 +168,8 @@ fn mint() {
                     owner: HumanAddr::from("addr0000"),
                     recipient: HumanAddr::from(MOCK_CONTRACT_ADDR),
                     amount: Uint128::zero(),
-                }).unwrap(),
+                })
+                .unwrap(),
                 send: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
@@ -173,7 +178,8 @@ fn mint() {
                     owner: HumanAddr::from("addr0000"),
                     recipient: HumanAddr::from(MOCK_CONTRACT_ADDR),
                     amount: Uint128(149_000_000),
-                }).unwrap(),
+                })
+                .unwrap(),
                 send: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
@@ -182,7 +188,8 @@ fn mint() {
                     owner: HumanAddr::from("addr0000"),
                     recipient: HumanAddr::from(MOCK_CONTRACT_ADDR),
                     amount: Uint128(50_090_272),
-                }).unwrap(),
+                })
+                .unwrap(),
                 send: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
@@ -191,8 +198,10 @@ fn mint() {
                     block_height: env.block.height,
                     cluster_token_supply: Uint128(1_000_000_000),
                     inventory: vec![
-                        Uint128(7_290_053_159u128), Uint128(319_710_128u128),
-                        Uint128(14_219_281_228u128), Uint128(224_212_221u128)
+                        Uint128(7_290_053_159u128),
+                        Uint128(319_710_128u128),
+                        Uint128(14_219_281_228u128),
+                        Uint128(224_212_221u128)
                     ],
                     mint_asset_amounts: vec![
                         Uint128(125_000_000),
@@ -212,7 +221,8 @@ fn mint() {
                         Uint128(20u128),
                         Uint128(20u128)
                     ],
-                }).unwrap(),
+                })
+                .unwrap(),
                 send: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
@@ -220,7 +230,8 @@ fn mint() {
                 msg: to_binary(&Cw20HandleMsg::Mint {
                     amount: Uint128(1u128),
                     recipient: h("collector"),
-                }).unwrap(),
+                })
+                .unwrap(),
                 send: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
@@ -228,11 +239,11 @@ fn mint() {
                 msg: to_binary(&Cw20HandleMsg::Mint {
                     amount: Uint128(98),
                     recipient: HumanAddr::from("addr0000"),
-                }).unwrap(),
+                })
+                .unwrap(),
                 send: vec![],
             })
         ]
-        
     );
 
     assert_eq!(7, res.messages.len());
@@ -310,7 +321,10 @@ fn fail_mint_target_zero() {
     let res = handle(&mut deps, env.clone(), mint_msg);
 
     match res {
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Cannot mint with non-zero asset amount when target weight is zero for asset mNFLX"),
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(
+            msg,
+            "Cannot mint with non-zero asset amount when target weight is zero for asset mNFLX"
+        ),
         Err(e) => panic!("Unexpected error: {:?}", e),
         _ => panic!("Must return error"),
     }
@@ -376,7 +390,9 @@ fn fail_mint_unsupported_coin() {
     let res = handle(&mut deps, env.clone(), mint_msg);
 
     match res {
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Unsupported assets were sent to the mint function"),
+        Err(StdError::GenericErr { msg, .. }) => {
+            assert_eq!(msg, "Unsupported assets were sent to the mint function")
+        }
         Err(e) => panic!("Unexpected error: {:?}", e),
         _ => panic!("Must return error"),
     }
@@ -398,13 +414,7 @@ fn test_initial_mint_with_fails() {
         ])
         .set_token(
             consts::cluster_token(),
-            token_data::<Vec<(&str, u128)>, &str>(
-                "Cluster Token",
-                "CLUSTER",
-                6,
-                0,
-                vec![],
-            ),
+            token_data::<Vec<(&str, u128)>, &str>("Cluster Token", "CLUSTER", 6, 0, vec![]),
         );
 
     // Test initial mint without min_tokens field
@@ -492,7 +502,10 @@ fn test_initial_mint_with_fails() {
     let res = handle(&mut deps, env.clone(), mint_msg);
 
     match res {
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Initial cluster assets must be a nonzero multiple of target weights at index 1"),
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(
+            msg,
+            "Initial cluster assets must be a nonzero multiple of target weights at index 1"
+        ),
         Err(e) => panic!("Unexpected error: {:?}", e),
         _ => panic!("Must return error"),
     }
@@ -537,7 +550,10 @@ fn test_initial_mint_with_fails() {
     let res = handle(&mut deps, env.clone(), mint_msg);
 
     match res {
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Initial cluster assets must be a nonzero multiple of target weights at index 3"),
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(
+            msg,
+            "Initial cluster assets must be a nonzero multiple of target weights at index 3"
+        ),
         Err(e) => panic!("Unexpected error: {:?}", e),
         _ => panic!("Must return error"),
     }
@@ -582,7 +598,10 @@ fn test_initial_mint_with_fails() {
     let res = handle(&mut deps, env.clone(), mint_msg);
 
     match res {
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Initial cluster assets must be a multiple of target weights at index 3"),
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(
+            msg,
+            "Initial cluster assets must be a multiple of target weights at index 3"
+        ),
         Err(e) => panic!("Unexpected error: {:?}", e),
         _ => panic!("Must return error"),
     }
@@ -667,12 +686,13 @@ fn burn() {
         ]
     );
 
-    assert_eq!(res.messages, 
+    assert_eq!(
+        res.messages,
         vec![
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: h("mAAPL"),
                 msg: to_binary(&Cw20HandleMsg::Transfer {
-                    recipient: h("addr0000"), 
+                    recipient: h("addr0000"),
                     amount: Uint128(99u128)
                 })
                 .unwrap(),
@@ -681,15 +701,16 @@ fn burn() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: h("mGOOG"),
                 msg: to_binary(&Cw20HandleMsg::Transfer {
-                    recipient: h("addr0000"), 
-                    amount: Uint128(98u128)   
+                    recipient: h("addr0000"),
+                    amount: Uint128(98u128)
                 })
                 .unwrap(),
                 send: vec![],
-            }),CosmosMsg::Wasm(WasmMsg::Execute {
+            }),
+            CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: h("mMSFT"),
                 msg: to_binary(&Cw20HandleMsg::Transfer {
-                    recipient: h("addr0000"), 
+                    recipient: h("addr0000"),
                     amount: Uint128(97u128)
                 })
                 .unwrap(),
@@ -698,8 +719,8 @@ fn burn() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: h("mNFLX"),
                 msg: to_binary(&Cw20HandleMsg::Transfer {
-                    recipient: h("addr0000"), 
-                    amount: Uint128(96u128) 
+                    recipient: h("addr0000"),
+                    amount: Uint128(96u128)
                 })
                 .unwrap(),
                 send: vec![],
@@ -729,8 +750,10 @@ fn burn() {
                     block_height: env.block.height,
                     cluster_token_supply: Uint128(100_000_000u128),
                     inventory: vec![
-                        Uint128(7_290_053_159u128), Uint128(319_710_128u128),
-                        Uint128(14_219_281_228u128), Uint128(224_212_221u128)
+                        Uint128(7_290_053_159u128),
+                        Uint128(319_710_128u128),
+                        Uint128(14_219_281_228u128),
+                        Uint128(224_212_221u128)
                     ],
                     max_tokens: Uint128(20_000_000u128),
                     redeem_asset_amounts: vec![],
@@ -875,7 +898,10 @@ fn decommission_cluster() {
     let res = handle(&mut deps, env.clone(), msg).unwrap_err();
     match res {
         StdError::GenericErr { msg, .. } => {
-            assert_eq!(msg, "Cannot call non pro-rata redeem on a decommissioned cluster")
+            assert_eq!(
+                msg,
+                "Cannot call non pro-rata redeem on a decommissioned cluster"
+            )
         }
         _ => panic!("DO NOT ENTER HERE"),
     }
@@ -886,14 +912,17 @@ fn decommission_cluster() {
     };
 
     let res = handle(&mut deps, env.clone(), msg).unwrap();
-    assert_eq!(res.log, vec![
-        log("action", "receive:burn"),
-        log("sender", "factory"),
-        log("burn_amount", "1234"),
-        log("token_cost", "1247"),
-        log("kept_as_fee", "13"),
-        log("asset_amounts", "[]"),
-        log("redeem_totals", "[99, 98, 97, 96]"),
-        log("penalty", "1234")
-    ]);
+    assert_eq!(
+        res.log,
+        vec![
+            log("action", "receive:burn"),
+            log("sender", "factory"),
+            log("burn_amount", "1234"),
+            log("token_cost", "1247"),
+            log("kept_as_fee", "13"),
+            log("asset_amounts", "[]"),
+            log("redeem_totals", "[99, 98, 97, 96]"),
+            log("penalty", "1234")
+        ]
+    );
 }

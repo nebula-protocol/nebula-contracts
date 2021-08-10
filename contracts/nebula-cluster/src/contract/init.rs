@@ -16,7 +16,11 @@ pub fn validate_targets<S: Storage, A: Api, Q: Querier>(
     query: Option<bool>,
 ) -> StdResult<bool> {
     for i in 0..target_assets.len() - 1 {
-        let to_query = if query.is_some() { query.unwrap() } else { false };
+        let to_query = if query.is_some() {
+            query.unwrap()
+        } else {
+            false
+        };
 
         if to_query {
             query_asset_balance(&deps.querier, &env.contract.address, &target_assets[i])?;
