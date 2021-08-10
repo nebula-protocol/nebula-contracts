@@ -1,8 +1,10 @@
 pub use crate::contract::*;
 pub use crate::ext_query::*;
 use crate::mock_querier::consts;
+use crate::mock_querier::mock_dependencies;
 use crate::mock_querier::mock_init;
 use crate::mock_querier::mock_querier_setup;
+use crate::mock_querier::token_data;
 pub use crate::state::*;
 pub use cluster_math::*;
 pub use cosmwasm_std::testing::{mock_env, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
@@ -72,39 +74,29 @@ fn proper_initialization() {
 
 #[test]
 fn fail_initialization() {
-    let (deps, init_res) = mock_init();
+    let mut deps = mock_dependencies(20, &[]);
 
-    // make sure target was saved
-    let value = q!(&deps, TargetResponse, ClusterQueryMsg::Target {});
-    assert_eq!(
-        vec![
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: h("mAAPL"),
-                },
-                amount: Uint128(20)
-            },
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: h("mGOOG"),
-                },
-                amount: Uint128(20)
-            },
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: h("mMSFT"),
-                },
-                amount: Uint128(20)
-            },
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: h("mNFLX"),
-                },
-                amount: Uint128(20)
-            },
-        ],
-        value.target
-    );
+    let msg = InitMsg {
+        name: consts::name().to_string(),
+        description: consts::description().to_string(),
+        owner: consts::owner(),
+        cluster_token: Some(consts::cluster_token()),
+        target: consts::target_assets(),
+        pricing_oracle: consts::pricing_oracle(),
+        composition_oracle: consts::composition_oracle(),
+        penalty: consts::penalty(),
+        factory: consts::factory(),
+        init_hook: None,
+    };
+
+    let env = mock_env(consts::pricing_oracle().as_str(), &[]);
+    let res = init(&mut deps, env.clone(), msg);
+
+    match res {
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Cluster must contain valid assets and cannot contain duplicate assets"),
+        Err(e) => panic!("Unexpected error: {:?}", e),
+        _ => panic!("Must return error"),
+    }
 }
 
 #[test]
@@ -244,6 +236,396 @@ fn mint() {
     );
 
     assert_eq!(7, res.messages.len());
+}
+
+#[test]
+fn fail_mint_target_zero() {
+    let mut deps = mock_dependencies(20, &[]);
+    mock_querier_setup(&mut deps);
+
+    let msg = InitMsg {
+        name: consts::name().to_string(),
+        description: consts::description().to_string(),
+        owner: consts::owner(),
+        cluster_token: Some(consts::cluster_token()),
+        target: vec![
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mAAPL"),
+                },
+                amount: Uint128(20),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mGOOG"),
+                },
+                amount: Uint128(20),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mMSFT"),
+                },
+                amount: Uint128(20),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: h("mNFLX"),
+                },
+                amount: Uint128(0),
+            },
+        ],
+        pricing_oracle: consts::pricing_oracle(),
+        composition_oracle: consts::composition_oracle(),
+        penalty: consts::penalty(),
+        factory: consts::factory(),
+        init_hook: None,
+    };
+
+    let env = mock_env(consts::pricing_oracle().as_str(), &[]);
+    let _res = init(&mut deps, env.clone(), msg).unwrap();
+
+    deps.querier
+        .set_token_balance("mAAPL", MOCK_CONTRACT_ADDR, 7_290_053_159)
+        .set_token_balance("mGOOG", MOCK_CONTRACT_ADDR, 319_710_128)
+        .set_token_balance("mMSFT", MOCK_CONTRACT_ADDR, 14_219_281_228)
+        .set_token_balance("mNFLX", MOCK_CONTRACT_ADDR, 224_212_221)
+        .set_oracle_prices(vec![
+            ("mAAPL", Decimal::from_str("135.18").unwrap()),
+            ("mGOOG", Decimal::from_str("1780.03").unwrap()),
+            ("mMSFT", Decimal::from_str("222.42").unwrap()),
+            ("mNFLX", Decimal::from_str("540.82").unwrap()),
+        ]);
+
+    let asset_amounts = consts::asset_amounts();
+
+    deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
+
+    let mint_msg = HandleMsg::Mint {
+        asset_amounts: asset_amounts.clone(),
+        min_tokens: None,
+    };
+
+    let addr = "addr0000";
+    let env = mock_env(h(addr), &[]);
+    let res = handle(&mut deps, env.clone(), mint_msg);
+
+    match res {
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Cannot mint with non-zero asset amount when target weight is zero for asset mNFLX"),
+        Err(e) => panic!("Unexpected error: {:?}", e),
+        _ => panic!("Must return error"),
+    }
+}
+
+#[test]
+fn fail_mint_unsupported_coin() {
+    let (mut deps, _) = mock_init();
+    deps.querier
+        .set_token_balance("mAAPL", MOCK_CONTRACT_ADDR, 7_290_053_159)
+        .set_token_balance("mGOOG", MOCK_CONTRACT_ADDR, 319_710_128)
+        .set_token_balance("mMSFT", MOCK_CONTRACT_ADDR, 14_219_281_228)
+        .set_token_balance("mNFLX", MOCK_CONTRACT_ADDR, 224_212_221)
+        .set_oracle_prices(vec![
+            ("mAAPL", Decimal::from_str("135.18").unwrap()),
+            ("mGOOG", Decimal::from_str("1780.03").unwrap()),
+            ("mMSFT", Decimal::from_str("222.42").unwrap()),
+            ("mNFLX", Decimal::from_str("540.82").unwrap()),
+        ]);
+
+    let asset_amounts = vec![
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mAAPL"),
+            },
+            amount: Uint128(125_000_000),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mGOOG"),
+            },
+            amount: Uint128::zero(),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mMSFT"),
+            },
+            amount: Uint128(149_000_000),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mNFLX"),
+            },
+            amount: Uint128(50_090_272),
+        },
+        Asset {
+            info: AssetInfo::NativeToken {
+                denom: "UST".to_string(),
+            },
+            amount: Uint128(50_090_272),
+        },
+    ];
+
+    deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
+
+    let mint_msg = HandleMsg::Mint {
+        asset_amounts: asset_amounts.clone(),
+        min_tokens: None,
+    };
+
+    let addr = "addr0000";
+    let env = mock_env(h(addr), &coins(50_090_272, &"UST".to_string()));
+    let res = handle(&mut deps, env.clone(), mint_msg);
+
+    match res {
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Unsupported assets were sent to the mint function"),
+        Err(e) => panic!("Unexpected error: {:?}", e),
+        _ => panic!("Must return error"),
+    }
+}
+
+#[test]
+fn test_initial_mint_with_fails() {
+    let (mut deps, _) = mock_init();
+    deps.querier
+        .set_token_balance("mAAPL", MOCK_CONTRACT_ADDR, 7_290_053_159)
+        .set_token_balance("mGOOG", MOCK_CONTRACT_ADDR, 319_710_128)
+        .set_token_balance("mMSFT", MOCK_CONTRACT_ADDR, 14_219_281_228)
+        .set_token_balance("mNFLX", MOCK_CONTRACT_ADDR, 224_212_221)
+        .set_oracle_prices(vec![
+            ("mAAPL", Decimal::from_str("135.18").unwrap()),
+            ("mGOOG", Decimal::from_str("1780.03").unwrap()),
+            ("mMSFT", Decimal::from_str("222.42").unwrap()),
+            ("mNFLX", Decimal::from_str("540.82").unwrap()),
+        ])
+        .set_token(
+            consts::cluster_token(),
+            token_data::<Vec<(&str, u128)>, &str>(
+                "Cluster Token",
+                "CLUSTER",
+                6,
+                0,
+                vec![],
+            ),
+        );
+
+    // Test initial mint without min_tokens field
+    let asset_amounts = vec![
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mAAPL"),
+            },
+            amount: Uint128(125_000_000),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mGOOG"),
+            },
+            amount: Uint128::zero(),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mMSFT"),
+            },
+            amount: Uint128(149_000_000),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mNFLX"),
+            },
+            amount: Uint128(50_090_272),
+        },
+    ];
+
+    deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
+
+    let mint_msg = HandleMsg::Mint {
+        asset_amounts: asset_amounts.clone(),
+        min_tokens: None,
+    };
+
+    let addr = "addr0000";
+    let env = mock_env(h(addr), &[]);
+    let res = handle(&mut deps, env.clone(), mint_msg);
+
+    match res {
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Cluster is uninitialized. To initialize it with your mint cluster, provide min_tokens as the amount of cluster tokens you want to start with."),
+        Err(e) => panic!("Unexpected error: {:?}", e),
+        _ => panic!("Must return error"),
+    }
+
+    // Test with zero asset amount (will prompt divide by 0 panic if not caught)
+    let asset_amounts = vec![
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mAAPL"),
+            },
+            amount: Uint128(125_000_000),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mGOOG"),
+            },
+            amount: Uint128::zero(),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mMSFT"),
+            },
+            amount: Uint128(149_000_000),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mNFLX"),
+            },
+            amount: Uint128(50_090_272),
+        },
+    ];
+
+    deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
+
+    let mint_msg = HandleMsg::Mint {
+        asset_amounts: asset_amounts.clone(),
+        min_tokens: Some(Uint128(1_000_000)),
+    };
+
+    let addr = "addr0000";
+    let env = mock_env(h(addr), &[]);
+    let res = handle(&mut deps, env.clone(), mint_msg);
+
+    match res {
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Initial cluster assets must be a nonzero multiple of target weights at index 1"),
+        Err(e) => panic!("Unexpected error: {:?}", e),
+        _ => panic!("Must return error"),
+    }
+
+    // Test with incorrect ratio asset amount
+    let asset_amounts = vec![
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mAAPL"),
+            },
+            amount: Uint128(125_000_000),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mGOOG"),
+            },
+            amount: Uint128(125_000_000),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mMSFT"),
+            },
+            amount: Uint128(125_000_000),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mNFLX"),
+            },
+            amount: Uint128(50_090_272),
+        },
+    ];
+
+    deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
+
+    let mint_msg = HandleMsg::Mint {
+        asset_amounts: asset_amounts.clone(),
+        min_tokens: Some(Uint128(1_000_000)),
+    };
+
+    let addr = "addr0000";
+    let env = mock_env(h(addr), &[]);
+    let res = handle(&mut deps, env.clone(), mint_msg);
+
+    match res {
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Initial cluster assets must be a nonzero multiple of target weights at index 3"),
+        Err(e) => panic!("Unexpected error: {:?}", e),
+        _ => panic!("Must return error"),
+    }
+
+    // Test with incorrect ratio asset amount again
+    let asset_amounts = vec![
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mAAPL"),
+            },
+            amount: Uint128(125_000_000),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mGOOG"),
+            },
+            amount: Uint128(125_000_000),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mMSFT"),
+            },
+            amount: Uint128(125_000_000),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mNFLX"),
+            },
+            amount: Uint128(50_090_200),
+        },
+    ];
+
+    deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
+
+    let mint_msg = HandleMsg::Mint {
+        asset_amounts: asset_amounts.clone(),
+        min_tokens: Some(Uint128(1_000_000)),
+    };
+
+    let addr = "addr0000";
+    let env = mock_env(h(addr), &[]);
+    let res = handle(&mut deps, env.clone(), mint_msg);
+
+    match res {
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Initial cluster assets must be a multiple of target weights at index 3"),
+        Err(e) => panic!("Unexpected error: {:?}", e),
+        _ => panic!("Must return error"),
+    }
+
+    // Succeeds as a normal mint
+    let asset_amounts = vec![
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mAAPL"),
+            },
+            amount: Uint128(125_000_000),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mGOOG"),
+            },
+            amount: Uint128(125_000_000),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mMSFT"),
+            },
+            amount: Uint128(125_000_000),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mNFLX"),
+            },
+            amount: Uint128(125_000_000),
+        },
+    ];
+
+    deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
+
+    let mint_msg = HandleMsg::Mint {
+        asset_amounts: asset_amounts.clone(),
+        min_tokens: Some(Uint128(1_000_000)),
+    };
+
+    let addr = "addr0000";
+    let env = mock_env(h(addr), &[]);
+    let res = handle(&mut deps, env.clone(), mint_msg).unwrap();
+    assert_eq!(5, res.messages.len());
 }
 
 #[test]

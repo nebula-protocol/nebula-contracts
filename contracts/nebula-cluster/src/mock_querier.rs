@@ -105,7 +105,6 @@ impl WasmMockQuerier {
                     },
                     _ => match from_binary(&msg) {
                         Ok(Cw20QueryMsg::Balance { address }) => {
-                            println!("we make heredfdfd? {}", contract_addr);
                             let token_data = match self.token_querier.tokens.get(contract_addr) {
                                 Some(v) => v,
                                 None => {
@@ -118,8 +117,6 @@ impl WasmMockQuerier {
                                     })
                                 }
                             };
-
-                            println!("we make here? {}", contract_addr);
 
                             let balance = match token_data.balances.get(&address) {
                                 Some(v) => v,
@@ -462,7 +459,7 @@ pub mod consts {
     pub fn composition_oracle() -> HumanAddr {
         h("composition_oracle")
     }
-    pub fn target_assets_stage() -> Vec<Asset> {
+    pub fn target_assets() -> Vec<Asset> {
         vec![
             Asset {
                 info: AssetInfo::Token {
@@ -603,7 +600,7 @@ pub fn mock_init() -> (Extern<MockStorage, MockApi, WasmMockQuerier>, InitRespon
         description: consts::description().to_string(),
         owner: consts::owner(),
         cluster_token: Some(consts::cluster_token()),
-        target: consts::target_assets_stage(),
+        target: consts::target_assets(),
         pricing_oracle: consts::pricing_oracle(),
         composition_oracle: consts::composition_oracle(),
         penalty: consts::penalty(),

@@ -428,14 +428,13 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
         if let Some(proposed_mint_total) = min_tokens {
             let mut val = 0;
             for i in 0..c.len() {
-                if c[i].u128() % target_weights[i].u128() != 0 {
+                if (c[i].u128() % target_weights[i].u128() != 0) || c[i] == Uint128::zero() {
                     return Err(StdError::generic_err(format!(
-                        "Initial cluster assets must be a multiple of target weights at index {}",
+                        "Initial cluster assets must be a nonzero multiple of target weights at index {}",
                         i
                     )));
                 }
-
-                let div = target_weights[i].u128() / c[i].u128();
+                let div = c[i].u128() / target_weights[i].u128();
                 if val == 0 {
                     val = div;
                 }
