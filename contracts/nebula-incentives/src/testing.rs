@@ -490,6 +490,7 @@ fn test_incentives_arb_cluster_mint() {
     let msg = HandleMsg::ArbClusterMint {
         cluster_contract: HumanAddr::from("cluster"),
         assets: asset_amounts.clone(),
+        min_ust: None,
     };
 
     let env = mock_env("owner0000", &coins(100, &"native_asset0000".to_string()));
@@ -535,6 +536,7 @@ fn test_incentives_arb_cluster_mint() {
                     terraswap_pair: HumanAddr::from("uusd_cluster_pair"),
                     cluster_token: HumanAddr::from("cluster_token"),
                     to_ust: true,
+                    min_return: Uint128::zero()
                 })
                 .unwrap(),
                 send: vec![],
@@ -600,6 +602,7 @@ fn test_incentives_arb_cluster_redeem() {
             },
             amount: Uint128(100),
         },
+        min_cluster: None,
     };
 
     let env = mock_env("owner0000", &coins(100, &"uusd".to_string()));
@@ -619,6 +622,7 @@ fn test_incentives_arb_cluster_redeem() {
             },
             amount: Uint128(100),
         },
+        min_cluster: None,
     };
 
     let env = mock_env("owner0000", &coins(100, &"uusd".to_string()));
@@ -633,6 +637,7 @@ fn test_incentives_arb_cluster_redeem() {
                     terraswap_pair: HumanAddr::from("uusd_cluster_pair"),
                     cluster_token: HumanAddr::from("cluster_token"),
                     to_ust: false,
+                    min_return: Uint128::zero()
                 })
                 .unwrap(),
                 send: vec![],
@@ -799,6 +804,7 @@ fn test_swap_all() {
         terraswap_pair: HumanAddr::from("terraswap_pair"),
         cluster_token: HumanAddr::from("cluster_token"),
         to_ust: true,
+        min_return: Uint128::zero(),
     };
 
     let env = mock_env(MOCK_CONTRACT_ADDR, &vec![]);
@@ -813,8 +819,8 @@ fn test_swap_all() {
                 amount: Uint128(1000),
                 msg: Some(
                     to_binary(&TerraswapCw20HookMsg::Swap {
-                        max_spread: None,
-                        belief_price: None,
+                        max_spread: Some(Decimal::zero()),
+                        belief_price: Some(Decimal::zero()),
                         to: None,
                     })
                     .unwrap()
@@ -830,6 +836,7 @@ fn test_swap_all() {
         terraswap_pair: HumanAddr::from("terraswap_pair"),
         cluster_token: HumanAddr::from("cluster_token"),
         to_ust: false,
+        min_return: Uint128::zero(),
     };
 
     let env = mock_env(MOCK_CONTRACT_ADDR, &vec![]);
@@ -846,8 +853,8 @@ fn test_swap_all() {
                         denom: "uusd".to_string()
                     }
                 },
-                max_spread: None,
-                belief_price: None,
+                max_spread: Some(Decimal::zero()),
+                belief_price: Some(Decimal::zero()),
                 to: None,
             })
             .unwrap(),

@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    log, to_binary, Api, Coin, CosmosMsg, Env, Extern, HandleResponse, HumanAddr, Querier,
+    log, to_binary, Api, Coin, CosmosMsg, Decimal, Env, Extern, HandleResponse, HumanAddr, Querier,
     QueryRequest, StdError, StdResult, Storage, Uint128, WasmMsg, WasmQuery,
 };
 
@@ -64,6 +64,7 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
     env: Env,
     cluster_contract: HumanAddr,
     assets: &[Asset],
+    min_ust: Option<Uint128>,
 ) -> StdResult<HandleResponse> {
     assert_cluster_exists(deps, &cluster_contract)?;
 
@@ -117,6 +118,7 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
             terraswap_pair: pair_info.contract_addr.clone(),
             cluster_token,
             to_ust: true,
+            min_return: min_ust.unwrap_or(Uint128::zero()),
         })?,
         send: vec![],
     }));
@@ -159,6 +161,7 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
     env: Env,
     cluster_contract: HumanAddr,
     asset: Asset,
+    min_cluster: Option<Uint128>,
 ) -> StdResult<HandleResponse> {
     assert_cluster_exists(deps, &cluster_contract)?;
 
@@ -191,6 +194,7 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
             terraswap_pair: pair_info.contract_addr.clone(),
             cluster_token: cluster_token.clone(),
             to_ust: false,
+            min_return: min_cluster.unwrap_or(Uint128::zero()),
         })?,
         send: vec![],
     }));
@@ -352,6 +356,7 @@ pub fn swap_all<S: Storage, A: Api, Q: Querier>(
     terraswap_pair: HumanAddr,
     cluster_token: HumanAddr,
     to_ust: bool,
+    min_return: Uint128,
 ) -> StdResult<HandleResponse> {
     if env.message.sender != env.contract.address {
         return Err(StdError::unauthorized());
@@ -364,14 +369,20 @@ pub fn swap_all<S: Storage, A: Api, Q: Querier>(
 
     if to_ust {
         let amount = query_token_balance(&deps, &cluster_token, &env.contract.address)?;
+        let belief_price = if min_return == Uint128::zero() {
+            Decimal::zero()
+        } else {
+            Decimal::from_ratio(amount, min_return)
+        };
+
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: cluster_token,
             msg: to_binary(&Cw20HandleMsg::Send {
                 contract: terraswap_pair.clone(),
                 amount,
                 msg: Some(to_binary(&TerraswapCw20HookMsg::Swap {
-                    max_spread: None,
-                    belief_price: None,
+                    max_spread: Some(Decimal::zero()),
+                    belief_price: Some(belief_price),
                     to: None,
                 })?),
             })?,
@@ -381,6 +392,12 @@ pub fn swap_all<S: Storage, A: Api, Q: Querier>(
         logs.push(log("addr", terraswap_pair.to_string()));
     } else {
         let amount = query_balance(&deps, &env.contract.address, config.base_denom.to_string())?;
+        let belief_price = if min_return == Uint128::zero() {
+            Decimal::zero()
+        } else {
+            Decimal::from_ratio(amount, min_return)
+        };
+
         let swap_asset = Asset {
             info: AssetInfo::NativeToken {
                 denom: config.base_denom.clone(),
@@ -397,8 +414,8 @@ pub fn swap_all<S: Storage, A: Api, Q: Querier>(
                     amount,
                     ..swap_asset
                 },
-                max_spread: None,
-                belief_price: None,
+                max_spread: Some(Decimal::zero()),
+                belief_price: Some(belief_price),
                 to: None,
             })?,
             send: vec![Coin {

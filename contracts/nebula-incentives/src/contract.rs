@@ -10,9 +10,16 @@ use crate::rebalancers::{
     internal_rewarded_mint, internal_rewarded_redeem, mint, record_rebalancer_rewards, redeem,
 };
 use crate::rewards::{deposit_reward, increment_n, withdraw_reward};
-use crate::state::{Config, contributions_read, pool_info_read, read_config, read_current_n, read_from_contribution_bucket, read_from_pool_bucket, read_pending_rewards, store_config, store_current_n};
+use crate::state::{
+    contributions_read, pool_info_read, read_config, read_current_n, read_from_contribution_bucket,
+    read_from_pool_bucket, read_pending_rewards, store_config, store_current_n, Config,
+};
 use cw20::Cw20ReceiveMsg;
-use nebula_protocol::incentives::{ConfigResponse, ContributorPendingRewardsResponse, CurrentContributorInfoResponse, Cw20HookMsg, HandleMsg, IncentivesPoolInfoResponse, InitMsg, MigrateMsg, PenaltyPeriodResponse, PoolType, QueryMsg};
+use nebula_protocol::incentives::{
+    ConfigResponse, ContributorPendingRewardsResponse, CurrentContributorInfoResponse, Cw20HookMsg,
+    HandleMsg, IncentivesPoolInfoResponse, InitMsg, MigrateMsg, PenaltyPeriodResponse, PoolType,
+    QueryMsg,
+};
 
 pub fn init<S: Storage, A: Api, Q: Querier>(
     deps: &mut Extern<S, A, Q>,
@@ -49,7 +56,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             terraswap_pair,
             cluster_token,
             to_ust,
-        } => swap_all(deps, env, terraswap_pair, cluster_token, to_ust),
+            min_return,
+        } => swap_all(deps, env, terraswap_pair, cluster_token, to_ust, min_return),
         HandleMsg::_SendAll {
             asset_infos,
             send_to,
@@ -103,11 +111,13 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
         HandleMsg::ArbClusterMint {
             cluster_contract,
             assets,
-        } => arb_cluster_mint(deps, env, cluster_contract, &assets),
+            min_ust,
+        } => arb_cluster_mint(deps, env, cluster_contract, &assets, min_ust),
         HandleMsg::ArbClusterRedeem {
             cluster_contract,
             asset,
-        } => arb_cluster_redeem(deps, env, cluster_contract, asset),
+            min_cluster,
+        } => arb_cluster_redeem(deps, env, cluster_contract, asset, min_cluster),
         HandleMsg::Mint {
             cluster_contract,
             asset_amounts,
@@ -222,7 +232,12 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
             contributor_address,
             cluster_address,
         )?),
-        QueryMsg::ContributorPendingRewards { contributor_address } => to_binary(&query_contributor_pending_rewards(deps, contributor_address)?),
+        QueryMsg::ContributorPendingRewards {
+            contributor_address,
+        } => to_binary(&query_contributor_pending_rewards(
+            deps,
+            contributor_address,
+        )?),
     }
 }
 
@@ -289,9 +304,7 @@ pub fn query_contributor_pending_rewards<S: Storage, A: Api, Q: Querier>(
     contributor_address: HumanAddr,
 ) -> StdResult<ContributorPendingRewardsResponse> {
     let pending_rewards = read_pending_rewards(&deps.storage, &contributor_address);
-    let resp = ContributorPendingRewardsResponse {
-        pending_rewards
-    };
+    let resp = ContributorPendingRewardsResponse { pending_rewards };
     Ok(resp)
 }
 
