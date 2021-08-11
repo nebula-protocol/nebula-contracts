@@ -36,6 +36,7 @@ pub enum HandleMsg {
     _SwapAll {
         terraswap_pair: HumanAddr,
         cluster_token: HumanAddr,
+        min_return: Uint128,
         to_ust: bool,
     },
 
@@ -50,11 +51,13 @@ pub enum HandleMsg {
     ArbClusterMint {
         cluster_contract: HumanAddr,
         assets: Vec<Asset>,
+        min_ust: Option<Uint128>,
     },
 
     ArbClusterRedeem {
         cluster_contract: HumanAddr,
         asset: Asset,
+        min_cluster: Option<Uint128>,
     },
 
     Mint {
