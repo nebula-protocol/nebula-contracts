@@ -104,6 +104,6 @@ async def run_retarget_periodically(cluster_contract, interval):
         )
 
 if __name__ == "__main__":
-    cluster_contract = Contract("terra1fx9m968gn53cu92qf8ye9s4v0nznllkg9w79vp") #TODO: Update
+    cluster_contract = Contract("terra1fx9m968gn53cu92qf8ye9s4v0nznllkg9w79vp")
     interval = SECONDS_PER_DAY
     asyncio.get_event_loop().run_until_complete(run_retarget_periodically(cluster_contract, interval))

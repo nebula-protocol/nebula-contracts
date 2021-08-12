@@ -591,7 +591,6 @@ pub fn receive_redeem(
                 amount: amt.clone(),
             };
 
-            // TODO: Check if sender field is correct here (recipient should be sender.clone())
             asset.into_msg(&deps.querier, Addr::unchecked(sender.clone()))
         })
         .collect::<StdResult<Vec<CosmosMsg>>>()?;

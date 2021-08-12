@@ -22,7 +22,7 @@ async def mirror_history_query(address, tick, from_stamp, to_stamp):
 
     url = 'https://graph.mirror.finance/graphql'
 
-    # # TODO: CHANGE FROM TESTNET
+    # For testnet
     # url = 'https://tequila-graph.mirror.finance/graphql'
     r = requests.post(url, json={'query': query})
     try:

@@ -157,7 +157,6 @@ class Ecosystem:
         self.dummy_oracle = await Contract.create(code_ids["nebula_dummy_oracle"])
 
         # First initialize clusters here without governance
-        # TODO: Check with Mirror team to see what they do for initial genesis mAsset creation
 
         pprint.pprint(self.__dict__)
 
@@ -197,7 +196,6 @@ class Ecosystem:
         )
 
         # Nebula incentives, terraswap arb
-        # TODO: rename to nebula-incentives-terraswap-arb (?)
         print("Initializing incentives contract")
         self.incentives = await Contract.create(
             code_ids["nebula_incentives"],
@@ -226,7 +224,6 @@ class Ecosystem:
             "reward_cutoff": "0.02",
         }
 
-        # TODO: Call recomp deploy here somehow
         recomposer_func = CT_SYM_TO_RECOMPOSER[ct_symbol]
         if ct_symbol == 'TER':
             assets, asset_token_supply = await get_terra_ecosystem_info()

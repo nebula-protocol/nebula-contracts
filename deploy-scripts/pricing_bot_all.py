@@ -125,7 +125,6 @@ async def pricing_bot():
     contract_addrs, symbols, query_info = get_query_info()
             
     while True:
-        # TODO: FIX THIS
         price_data = await get_prices(query_info)
         set_prices_data = []
 
