@@ -22,7 +22,7 @@ async def mirror_history_query(address, tick, from_stamp, to_stamp):
 
     url = 'https://graph.mirror.finance/graphql'
 
-    # For testnet
+    # From testnet
     # url = 'https://tequila-graph.mirror.finance/graphql'
     r = requests.post(url, json={'query': query})
     try:
@@ -81,6 +81,7 @@ CONTRACT_TOKEN_TO_SYM_BOMBAY = {
   'terra1yvplcammukw0d5583jw4payn0veqtgfumqvjk0': 'mVIXY',
 }
 
+# Symbol to mAsset address on Columbus
 SYM_TO_MASSET_COL = {
     'MIR': 'terra15gwkyepfc6xgca5t5zefzwy42uts8l2m4g40k6',
     'mAAPL': 'terra1vxtwu4ehgzz77mnfwrntyrmgl64qjs75mpwqaz',
@@ -154,4 +155,4 @@ async def mirror_history_query_test(address, tick, from_stamp, to_stamp):
     
 
 async def get_all_mirror_assets_test():
-    return [k for k, v in CONTRACT_TOKEN_TO_SYM_TEQ.items() if (v[0] == 'm' or v == 'MIR')]
+   return [k for k, v in CONTRACT_TOKEN_TO_SYM_TEQ.items() if (v[0] == 'm' or v == 'MIR')]
