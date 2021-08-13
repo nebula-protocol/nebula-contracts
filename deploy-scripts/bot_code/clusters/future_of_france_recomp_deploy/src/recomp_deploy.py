@@ -12,6 +12,8 @@ from contract_helpers import Contract, ClusterContract, terra
 ONE_MILLION = 1000000.0
 SECONDS_PER_DAY = 24 * 60 * 60
 
+from pricing import get_query_info, get_prices
+
 """
 Recomposes according to Total Value Locked (TVL) in the provided assets. 
 WARN: Do not use with Mirrored Assets.
@@ -67,12 +69,14 @@ class FutureOfFranceRecomposer:
         target_weights = [tvls[slug]/denom for slug in self.slugs]
         asset_tokens = [self.assets_to_address[an] for an in self.asset_names]
         print(self.asset_names, target_weights)
-        target_weights = [int(100 * target_weight) for target_weight in target_weights]
-
+        _, _, query_info = await get_query_info(asset_tokens)
+        prices = await get_prices(query_info)
         target = []
-        for a, t in zip(asset_tokens, target_weights):
+        for a, t, p in zip(asset_tokens, target_weights, prices):
             native = (a == 'uluna')
-            target.append(Asset.asset(a, str(t), native=native))
+            print(t)
+            tw = str(int(100000000 * t / float(p)))
+            target.append(Asset.asset(a, tw, native=native))
         return target
         
     

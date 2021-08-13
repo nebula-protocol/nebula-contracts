@@ -127,7 +127,7 @@ async def mirror_history_query_test(address, tick, from_stamp, to_stamp):
     query {{
         asset(token: {0}) {{
             prices {{
-                history(interval: {1}, from: {2}, to: {3}) {{
+                oracleHistory(interval: {1}, from: {2}, to: {3}) {{
                     timestamp
                     price
                 }}

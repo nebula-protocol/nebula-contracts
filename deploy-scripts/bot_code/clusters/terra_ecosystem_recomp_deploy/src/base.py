@@ -41,6 +41,7 @@ terra = AsyncLCDClient(
 )
 
 deployer = terra.wallet(key)
+print(deployer.key.acc_address)
 
 sequence = asyncio.get_event_loop().run_until_complete(deployer.sequence())
 

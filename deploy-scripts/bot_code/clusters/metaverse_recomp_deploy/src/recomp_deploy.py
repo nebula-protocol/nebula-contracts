@@ -12,6 +12,8 @@ os.environ["USE_TEQUILA"] = "1"
 from api import Asset
 from contract_helpers import Contract, ClusterContract, terra
 
+from pricing import get_query_info, get_prices
+
 ONE_MILLION = 1000000.0
 SECONDS_PER_DAY = 24 * 60 * 60
 
@@ -171,13 +173,14 @@ class MetaverseRecomposer:
         else:
             target_weights = self.default_weights
 
-        target_weights = [int(10000 * target_weight) for target_weight in target_weights]
-
+        _, _, query_info = await get_query_info(self.asset_infos)
+        prices = await get_prices(query_info)
         target = []
-        for a, t in zip(self.asset_infos, target_weights):
-            native = (a == 'uluna') or (a == 'uusd')
-            if t > 0:
-                target.append(Asset.asset(a, str(t), native=native))
+        for a, t, p in zip(self.asset_infos, target_weights, prices):
+            native = (a == 'uluna')
+            print(t)
+            tw = str(int(100000000 * t / float(p)))
+            target.append(Asset.asset(a, tw, native=native))
         
         self.save_activation_information()
         return target

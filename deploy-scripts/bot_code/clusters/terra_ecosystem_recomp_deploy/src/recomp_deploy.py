@@ -11,6 +11,8 @@ os.environ["USE_TEQUILA"] = "1"
 from api import Asset
 from contract_helpers import Contract, ClusterContract, terra
 
+from pricing import get_query_info, get_prices
+
 ONE_MILLION = 1000000.0
 SECONDS_PER_DAY = 24 * 60 * 60
 
@@ -50,15 +52,15 @@ class TerraFullDilutedMcapRecomposer:
         print("Total FDM of all assets: {}M".format(denom/ONE_MILLION))
         target_weights = [asset_to_fdm[asset]/denom for asset in asset_to_fdm]
         print(self.asset_tokens, target_weights)
-        target_weights = [int(10000 * target_weight) for target_weight in target_weights]
-
-        print(self.asset_tokens, target_weights)
-
-
+        _, _, query_info = await get_query_info(self.asset_tokens)
+        prices = await get_prices(query_info)
         target = []
-        for a, t in zip(self.asset_tokens, target_weights):
+        for a, t, p in zip(self.asset_tokens, target_weights, prices):
             native = (a == 'uluna')
-            target.append(Asset.asset(a, str(t), native=native))
+            print(t)
+            tw = str(int(10000000 * t / float(p)))
+            target.append(Asset.asset(a, tw, native=native))
+
         return target
         
     
@@ -112,7 +114,7 @@ async def get_terra_ecosystem_info():
 async def run_retarget_periodically(cluster_contract, interval):
     start_time = time.time()
 
-    assets, asset_token_supply = get_terra_ecosystem_info()
+    assets, asset_token_supply = await get_terra_ecosystem_info()
     
     retarget_bot = TerraFullDilutedMcapRecomposer(cluster_contract, assets, asset_token_supply)
 

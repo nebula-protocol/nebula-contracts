@@ -1,10 +1,10 @@
 from constants import DEPLOY_ENVIRONMENT_STATUS_W_GOV, CONTRACT_TOKEN_TO_SYM_TEQ, CT_SYM_TO_NAME, CT_SYM_TO_RECOMP_ORACLE, CT_SYM_TO_RECOMPOSER, get_terra_ecosystem_info
 import os
-# os.environ["USE_TEQUILA"] = "1"
-# os.environ["MNEMONIC"] = 'museum resist wealth require renew punch jeans smooth old color neutral cactus baby retreat guitar web average piano excess next strike drive game romance'
+os.environ["USE_TEQUILA"] = "1"
+os.environ["MNEMONIC"] = 'museum resist wealth require renew punch jeans smooth old color neutral cactus baby retreat guitar web average piano excess next strike drive game romance'
 
 from contract_helpers import ClusterContract, Contract, store_contracts, deployer
-from pricing_bot_all import get_query_info, set_prices
+from bot_code.common_docker_files.pricing import get_query_info, set_prices
 from api import Asset
 import pprint
 import asyncio

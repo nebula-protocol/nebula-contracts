@@ -7,7 +7,7 @@ async def mirror_history_query(address, tick, from_stamp, to_stamp):
     query {{
         asset(token: {0}) {{
             prices {{
-                history(interval: {1}, from: {2}, to: {3}) {{
+                oracleHistory(interval: {1}, from: {2}, to: {3}) {{
                     timestamp
                     price
                 }}
@@ -29,7 +29,7 @@ async def mirror_history_query(address, tick, from_stamp, to_stamp):
         r.raise_for_status()
         asset = json.loads(r.text)['data']['asset']
 
-        prices = asset['prices']['history']
+        prices = asset['prices']['oracleHistory']
         symbol = asset['symbol']
         mcap = asset['statistic']['marketCap']
         latest_timestamp = max([p['timestamp'] for p in prices])
@@ -112,6 +112,58 @@ SYM_TO_MASSET_COL = {
     'mVIXY': 'terra19cmt6vzvhnnnfsmccaaxzy2uaj06zjktu6yzjx'
 }
 
+SYM_TO_COINGECKO_ID = { 
+    'ANC': 'anchor-protocol',
+    'uluna': 'terra-luna',
+    'uusd': 'terrausd',
+    'MIR': 'mirror-protocol', # can use graphql for this one
+    'UST': 'terrausd',
+    'AAVE': 'aave',
+    'COMP': 'compound-governance-token',
+    'MKR': 'maker',
+    'CREAM': 'cream-2',
+    'DOGE': 'dogecoin',
+    'ERCTWENTY': 'erc20',
+    'CUMMIES': 'cumrocket',
+    'MEME': 'degenerator'
+}
+
+SYM_TO_CONTRACT_TOKEN_TEQ = {
+    'MIR': "terra1gkjll5uwqlwa8mrmtvzv435732tffpjql494fd",
+    'mAAPL': "terra1pwd9etdemugqdt92t5d3g98069z0axpz9plnsk",
+    'mABNB': "terra1jm4j6k0e2dpug7z0glc87lwvyqh40z74f40n52",
+    'mAMC': "terra1wa87zjty4y983yyt604hdnyr8rm9mwz7let8uz",
+    'mAMZN': "terra18mjauk9ug8y29q678c2qlee6rkd9aunrpe9q97",
+    'mBABA': "terra1uvzz9fchferxpg64pdshnrc49zkxjcj66uppq8",
+    'mBTC': "terra13uya9kcnan6aevfgqxxngfpclqegvht6tfan5p",
+    'mCOIN': "terra16e3xu8ly6a622tjykfuwuv80czexece8rz0gs5",
+    'mETH': "terra1rxyctpwzqvldalafvry787thslne6asjlwqjhn",
+    'mFB': "terra1xl2tf5sjzz9phm4veh5ty5jzqrjykkqw33yt63",
+    'mGLXY': "terra17sm265sez3qle769ef4hscx540wem5hvxztpxg",
+    'mGME': "terra19y6tdnps3dsd7qc230tk3jplwl9jm27mpcx9af",
+    'mGOOGL': "terra1504y0r6pqjn3yep6njukehpqtxn0xdnruye524",
+    'mGS': "terra199yfqa5092v2udw0k0h9rau9dzel0jkf5kk3km",
+    'mIAU': "terra1n7pd3ssr9sqacwx5hekxsmdy86lwlm0fsdvnwe",
+    'mMSFT': "terra18aztjeacdfc5s30ms0558cy8lygvam3s4v69jg",
+    'mNFLX': "terra1smu8dc2xpa9rfj525n3a3ttgwnacnjgr59smu7",
+    'mQQQ': "terra1r20nvsd08yujq29uukva8fek6g32p848kzlkfc",
+    'mSLV': "terra1re6mcpu4hgzs5wc77gffsluqauanhpa8g7nmjc",
+    'mSPY': "terra1j3l2ul7s8fkaadwdan67hejt7k5nylmxfkwg0w",
+    'mTSLA': "terra1k44gg67rnc6av8sn0602876w8we5lu3jp30yec",
+    'mTWTR': "terra1897xd8jqjkfpr5496ur8n896gd8fud3shq3t4q",
+    'mUSO': "terra1c3nyehgvukzrt5k9lxzzw64d68el6cejyxjqde",
+    'mVIXY': "terra12kt7yf3r7k92dmch97u6cu2fggsewaj3kp0yq9",
+    'AAVE': 'terra1rw388r5ptypzzeyqr2swc44drju3zu2j5qlaw2',
+    'ANC': 'terra16z5t7cr0ueg47tuqmwlp6ymgm2w43dyv4xnt4g',
+    'COMP': 'terra1hmuuk7230na78mgp67kf4f0qenyw9xhfjzhaay',
+    'CREAM': 'terra1dvx9np7ajmky66kz8r4dvze9e6gwsxwz5h6x4d',
+    'CUMMIES': 'terra1kf9qa5f3uu7nq3flg2dva8c9d9lh8h5cyuextt',
+    'DOGE': 'terra1wpa2978x6n9c6xdvfzk4uhkzvphmq5fhdnvrym',
+    'ERCTWENTY': 'terra1p0rp8he7jfnevha3k5anhd0als7azjmfhxrvjv',
+    'MEME': 'terra1u08z2c9r3s3avrn9l0r3m30xhcmssunvv5d0rx',
+    'MKR': 'terra13rkv7zdg4huwe0z9c0k8t7gc3hxhy58c3zghec'
+ }
+
 async def mirror_history_query_test(address, tick, from_stamp, to_stamp):
     """
     Takes in test address linked to a symbol and return price history of symbol on Col-4
@@ -127,7 +179,7 @@ async def mirror_history_query_test(address, tick, from_stamp, to_stamp):
     query {{
         asset(token: {0}) {{
             prices {{
-                history(interval: {1}, from: {2}, to: {3}) {{
+                oracleHistory(interval: {1}, from: {2}, to: {3}) {{
                     timestamp
                     price
                 }}
@@ -147,7 +199,7 @@ async def mirror_history_query_test(address, tick, from_stamp, to_stamp):
         r.raise_for_status()
         asset = json.loads(r.text)['data']['asset']
 
-        prices = asset['prices']['history']
+        prices = asset['prices']['oracleHistory']
         symbol = asset['symbol']
         mcap = asset['statistic']['marketCap']
         latest_timestamp = max([p['timestamp'] for p in prices])

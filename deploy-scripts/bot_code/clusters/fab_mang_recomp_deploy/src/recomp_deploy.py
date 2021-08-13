@@ -1,9 +1,10 @@
 import os
 import asyncio
 import yfinance as yf
+from pricing import get_query_info, get_prices
+from graphql_querier import SYM_TO_CONTRACT_TOKEN_TEQ
 
 os.environ["MNEMONIC"] = mnemonic = 'soda buffalo melt legal zebra claw taxi peace fashion service drastic special coach state rare harsh business bulb tissue illness juice steel screen chef'
-
 os.environ["USE_TEQUILA"] = "1"
 
 from api import Asset
@@ -19,8 +20,11 @@ class FABMANGRecomposer:
     def __init__(self, cluster_contract):
         self.cluster_contract = cluster_contract
         self.asset_names = ["FB", "AAPL", "BABA", "MSFT", "AMZN", "NFLX", "GOOGL"]
+        mAssets = ['m' + name for name in self.asset_names]
+        self.target_assets = [SYM_TO_CONTRACT_TOKEN_TEQ[mAsset] for mAsset in mAssets]
 
     async def weighting(self):
+        _, _, query_info = await get_query_info(self.target_assets)
         trailing_pe_ratios_inverse = [
             1.0 / yf.Ticker(asset_name).info['trailingPE'] 
             for asset_name in self.asset_names
@@ -32,18 +36,17 @@ class FABMANGRecomposer:
 
         mAssets = ['m' + name for name in self.asset_names]
         target_assets = [SYM_TO_CONTRACT_TOKEN_BOMBAY[mAsset] for mAsset in mAssets]
+        prices = await get_prices(query_info)
 
         print('Target assets', self.asset_names)
         print('Target weights', target_weights)
-        target_weights = [int(10000 * target_weight) for target_weight in target_weights]
-
-        # mAssets = ['m' + name for name in self.asset_names]
-        # target_assets = [SYM_TO_CONTRACT_TOKEN_TEQ[mAsset] for mAsset in mAssets]
 
         target = []
-        for a, t in zip(target_assets, target_weights):
+        for a, t, p in zip(self.target_assets, target_weights, prices):
             native = (a == 'uluna')
-            target.append(Asset.asset(a, str(t), native=native))
+            print(t)
+            tw = str(int(100000000 * t / float(p)))
+            target.append(Asset.asset(a, tw, native=native))
 
         return target
     
