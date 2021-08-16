@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    log, to_binary, Api, CosmosMsg, Decimal, Env, Extern, HandleResponse, HandleResult, HumanAddr,
-    Order, Querier, StdResult, Storage, Uint128, WasmMsg,
+    to_binary, CosmosMsg, Decimal, Deps, DepsMut, Env, HumanAddr, Order, StdResult, Uint128,
+    WasmMsg,
 };
 
 use crate::state::{
@@ -9,16 +9,16 @@ use crate::state::{
 };
 use nebula_protocol::staking::{RewardInfoResponse, RewardInfoResponseItem};
 
-use cw20::Cw20HandleMsg;
+use cw20::Cw20ExecuteMsg;
 
 // deposit_reward must be from reward token contract
-pub fn deposit_reward<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn deposit_reward(
+    deps: DepsMut,
     rewards: Vec<(HumanAddr, Uint128)>,
     rewards_amount: Uint128,
-) -> HandleResult {
+) -> StdResult<Response> {
     for (asset_token, amount) in rewards.iter() {
-        let mut pool_info: PoolInfo = read_pool_info(&deps.storage, &asset_token)?;
+        let mut pool_info: PoolInfo = read_pool_info(deps.storage, &asset_token)?;
         let mut reward_amount = *amount;
 
         if pool_info.total_bond_amount.is_zero() {
@@ -31,48 +31,42 @@ pub fn deposit_reward<S: Storage, A: Api, Q: Querier>(
             pool_info.pending_reward = Uint128::zero();
         }
 
-        store_pool_info(&mut deps.storage, &asset_token, &pool_info)?;
+        store_pool_info(deps.storage, &asset_token, &pool_info)?;
     }
 
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![
-            log("action", "deposit_reward"),
-            log("rewards_amount", rewards_amount.to_string()),
-        ],
-        data: None,
-    })
+    Ok(Response::new().add_attributes(vec![
+        attr("action", "deposit_reward"),
+        attr("rewards_amount", rewards_amount.to_string()),
+    ]))
 }
 
 // withdraw all rewards or single reward depending on asset_token
-pub fn withdraw_reward<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn withdraw_reward(
+    deps: DepsMut,
     env: Env,
     asset_token: Option<HumanAddr>,
-) -> HandleResult {
+) -> StdResult<Response> {
     let staker_addr = env.message.sender;
-    let reward_amount = _withdraw_reward(&mut deps.storage, &staker_addr, &asset_token)?;
+    let reward_amount = _withdraw_reward(deps.storage, &staker_addr, &asset_token)?;
 
-    let config: Config = read_config(&deps.storage)?;
-    Ok(HandleResponse {
-        messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+    let config: Config = read_config(deps.storage)?;
+    Ok(Response::new()
+        .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: config.nebula_token,
-            msg: to_binary(&Cw20HandleMsg::Transfer {
+            msg: to_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: staker_addr,
                 amount: reward_amount,
             })?,
-            send: vec![],
-        })],
-        log: vec![
-            log("action", "withdraw"),
-            log("amount", reward_amount.to_string()),
-        ],
-        data: None,
-    })
+            funds: vec![],
+        })])
+        .add_attributes(vec![
+            attr("action", "withdraw"),
+            attr("amount", reward_amount.to_string()),
+        ]))
 }
 
-fn _withdraw_reward<S: Storage>(
-    storage: &mut S,
+fn _withdraw_reward(
+    storage: &mut dyn Storage,
     staker_addr: &HumanAddr,
     asset_token: &Option<HumanAddr>,
 ) -> StdResult<Uint128> {
@@ -133,13 +127,13 @@ pub fn before_share_change(pool_info: &PoolInfo, reward_info: &mut RewardInfo) -
     Ok(())
 }
 
-pub fn query_reward_info<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+pub fn query_reward_info(
+    deps: Deps,
     staker_addr: HumanAddr,
     asset_token: Option<HumanAddr>,
 ) -> StdResult<RewardInfoResponse> {
     let reward_infos: Vec<RewardInfoResponseItem> =
-        _read_reward_infos(&deps.storage, &staker_addr, &asset_token)?;
+        _read_reward_infos(deps.storage, &staker_addr, &asset_token)?;
 
     Ok(RewardInfoResponse {
         staker_addr,
@@ -147,8 +141,8 @@ pub fn query_reward_info<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-fn _read_reward_infos<S: Storage>(
-    storage: &S,
+fn _read_reward_infos(
+    storage: &dyn Storage,
     staker_addr: &HumanAddr,
     asset_token: &Option<HumanAddr>,
 ) -> StdResult<Vec<RewardInfoResponseItem>> {

@@ -1,56 +1,49 @@
 use cosmwasm_std::{
-    to_binary, Api, Binary, Decimal, Env, Extern, HandleResponse, InitResponse, Querier, StdResult,
-    Storage,
+    entry_point, to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
 };
 
-use crate::msg::{HandleMsg, InitMsg, PriceResponse, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, PriceResponse, QueryMsg};
 use crate::state::{read_last_update_time, read_price, set_price, store_last_update_time};
 
-pub fn init<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn instantiate(
+    _deps: DepsMut,
     _env: Env,
-    _msg: InitMsg,
-) -> StdResult<InitResponse> {
-    Ok(InitResponse::default())
+    _info: MessageInfo,
+    _msg: InstantiateMsg,
+) -> StdResult<Response> {
+    Ok(Response::default())
 }
 
-pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    msg: HandleMsg,
-) -> StdResult<HandleResponse> {
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
-        HandleMsg::SetPrices { prices } => try_set_prices(deps, env, &prices),
+        ExecuteMsg::SetPrices { prices } => try_set_prices(deps, env, &prices),
     }
 }
 
-pub fn try_set_prices<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn try_set_prices(
+    deps: DepsMut,
     env: Env,
     prices: &Vec<(String, Decimal)>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     for (asset, price) in prices.iter() {
-        set_price(&mut deps.storage, asset, price)?;
+        set_price(deps.storage, asset, price)?;
     }
-    store_last_update_time(&mut deps.storage, &env.block.time)?;
-    Ok(HandleResponse::default())
+    store_last_update_time(deps.storage, &(env.block.time.nanos() / 1_000_000_000))?;
+    Ok(Response::default())
 }
 
-pub fn query<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    msg: QueryMsg,
-) -> StdResult<Binary> {
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Price { base_asset, .. } => to_binary(&query_price(deps, base_asset)?),
     }
 }
 
-fn query_price<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    asset: String,
-) -> StdResult<PriceResponse> {
-    let rate = read_price(&deps.storage, &asset)?;
-    let last_update = read_last_update_time(&deps.storage)?;
+fn query_price(deps: Deps, asset: String) -> StdResult<PriceResponse> {
+    let rate = read_price(deps.storage, &asset)?;
+    let last_update = read_last_update_time(deps.storage)?;
 
     Ok(PriceResponse {
         rate,

@@ -6,7 +6,7 @@ use cw20::Cw20ReceiveMsg;
 use terraswap::asset::Asset;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InitMsg {
+pub struct InstantiateMsg {
     pub owner: HumanAddr,
     pub nebula_token: HumanAddr,
     pub terraswap_factory: HumanAddr,
@@ -14,7 +14,7 @@ pub struct InitMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum HandleMsg {
+pub enum ExecuteMsg {
     Receive(Cw20ReceiveMsg),
 
     ////////////////////////

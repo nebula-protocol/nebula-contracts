@@ -4,13 +4,13 @@ use crate::{
     util::vec_to_string,
 };
 use cosmwasm_std::{
-    log, Api, CosmosMsg, Env, Extern, InitResponse, Querier, StdError, StdResult, Storage, WasmMsg,
+    entry_point, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, WasmMsg,
 };
-use nebula_protocol::cluster::{ClusterConfig, InitMsg};
+use nebula_protocol::cluster::{ClusterConfig, InstantiateMsg};
 use terraswap::asset::AssetInfo;
 
-pub fn validate_targets<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+pub fn validate_targets(
+    deps: Deps,
     env: &Env,
     target_assets: Vec<AssetInfo>,
     query: Option<bool>,
@@ -29,11 +29,13 @@ pub fn validate_targets<S: Storage, A: Api, Q: Querier>(
     return Ok(true);
 }
 
-pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn instantiate(
+    deps: DepsMut,
     env: Env,
-    msg: InitMsg,
-) -> StdResult<InitResponse> {
+    info: MessageInfo,
+    msg: InstantiateMsg,
+) -> StdResult<Response> {
     let cfg = ClusterConfig {
         name: msg.name.clone(),
         description: msg.description.clone(),
@@ -60,28 +62,24 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 
     let asset_data = msg.target.clone();
 
-    save_config(&mut deps.storage, &cfg)?;
-    save_target_asset_data(&mut deps.storage, &asset_data)?;
+    save_config(deps.storage, &cfg)?;
+    save_target_asset_data(deps.storage, &asset_data)?;
 
     let log = vec![
-        log("name", msg.name),
-        log("owner", msg.owner),
-        log("assets", vec_to_string(&asset_infos)),
+        attr("name", msg.name),
+        attr("owner", msg.owner),
+        attr("assets", vec_to_string(&asset_infos)),
     ];
 
     if let Some(hook) = msg.init_hook {
-        Ok(InitResponse {
-            log,
-            messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+        Ok(Response::new()
+            .add_attributes(log)
+            .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: hook.contract_addr,
                 msg: hook.msg,
-                send: vec![],
-            })],
-        })
+                funds: vec![],
+            })]))
     } else {
-        Ok(InitResponse {
-            log,
-            messages: vec![],
-        })
+        Ok(Response::new().add_attributes(log))
     }
 }

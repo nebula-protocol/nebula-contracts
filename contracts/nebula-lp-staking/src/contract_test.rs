@@ -1,31 +1,31 @@
 #[cfg(test)]
 mod tests {
 
-    use crate::contract::{handle, init, query};
-    use cosmwasm_std::testing::{mock_dependencies, mock_env};
-    use cosmwasm_std::{from_binary, log, Decimal, HumanAddr, StdError, Uint128};
+    use crate::contract::{execute, init, query};
+    use cosmwasm_std::testing::{mock_dependencies, mock_info};
+    use cosmwasm_std::{from_binary, Decimal, HumanAddr, StdError, Uint128};
 
     use nebula_protocol::staking::{
-        ConfigResponse, HandleMsg, InitMsg, PoolInfoResponse, QueryMsg,
+        ConfigResponse, ExecuteMsg, InstantiateMsg, PoolInfoResponse, QueryMsg,
     };
 
     #[test]
     fn proper_initialization() {
         let mut deps = mock_dependencies(20, &[]);
 
-        let msg = InitMsg {
+        let msg = InstantiateMsg {
             owner: HumanAddr::from("owner"),
             nebula_token: HumanAddr::from("reward"),
             terraswap_factory: HumanAddr::from("terraswap-factory"),
         };
 
-        let env = mock_env("addr", &[]);
+        let env = mock_info("addr", &[]);
 
         // we can just call .unwrap() to assert this was a success
-        let _res = init(&mut deps, env, msg).unwrap();
+        let _res = instantiate(deps.as_mut(), env, msg).unwrap();
 
         // it worked, let's query the state
-        let res = query(&deps, QueryMsg::Config {}).unwrap();
+        let res = query(deps.as_ref(), QueryMsg::Config {}).unwrap();
         let config: ConfigResponse = from_binary(&res).unwrap();
         assert_eq!(
             ConfigResponse {
@@ -40,26 +40,26 @@ mod tests {
     fn update_config() {
         let mut deps = mock_dependencies(20, &[]);
 
-        let msg = InitMsg {
+        let msg = InstantiateMsg {
             owner: HumanAddr::from("owner"),
             nebula_token: HumanAddr::from("reward"),
             terraswap_factory: HumanAddr::from("terraswap-factory"),
         };
 
-        let env = mock_env("addr", &[]);
-        let _res = init(&mut deps, env.clone(), msg).unwrap();
+        let env = mock_info("addr", &[]);
+        let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
         // update owner
-        let env = mock_env("owner", &[]);
-        let msg = HandleMsg::UpdateConfig {
+        let env = mock_info("owner", &[]);
+        let msg = ExecuteMsg::UpdateConfig {
             owner: Some(HumanAddr("owner2".to_string())),
         };
 
-        let res = handle(&mut deps, env, msg).unwrap();
+        let res = execute(deps.as_mut(), env, msg).unwrap();
         assert_eq!(0, res.messages.len());
 
         // it worked, let's query the state
-        let res = query(&deps, QueryMsg::Config {}).unwrap();
+        let res = query(deps.as_ref(), QueryMsg::Config {}).unwrap();
         let config: ConfigResponse = from_binary(&res).unwrap();
         assert_eq!(
             ConfigResponse {
@@ -70,10 +70,10 @@ mod tests {
         );
 
         // unauthorized err
-        let env = mock_env("owner", &[]);
-        let msg = HandleMsg::UpdateConfig { owner: None };
+        let env = mock_info("owner", &[]);
+        let msg = ExecuteMsg::UpdateConfig { owner: None };
 
-        let res = handle(&mut deps, env, msg);
+        let res = execute(deps.as_mut(), env, msg);
         match res {
             Err(StdError::Unauthorized { .. }) => {}
             _ => panic!("Must return unauthorized error"),
@@ -84,39 +84,42 @@ mod tests {
     fn test_register() {
         let mut deps = mock_dependencies(20, &[]);
 
-        let msg = InitMsg {
+        let msg = InstantiateMsg {
             owner: HumanAddr::from("owner"),
             nebula_token: HumanAddr::from("reward"),
             terraswap_factory: HumanAddr::from("terraswap-factory"),
         };
 
-        let env = mock_env("addr", &[]);
+        let env = mock_info("addr", &[]);
 
         // we can just call .unwrap() to assert this was a success
-        let _res = init(&mut deps, env, msg).unwrap();
+        let _res = instantiate(deps.as_mut(), env, msg).unwrap();
 
-        let msg = HandleMsg::RegisterAsset {
+        let msg = ExecuteMsg::RegisterAsset {
             asset_token: HumanAddr::from("asset"),
             staking_token: HumanAddr::from("staking"),
         };
 
         // failed with unauthorized error
-        let env = mock_env("addr", &[]);
-        let res = handle(&mut deps, env, msg.clone()).unwrap_err();
+        let env = mock_info("addr", &[]);
+        let res = execute(deps.as_mut(), env, msg.clone()).unwrap_err();
         match res {
             StdError::Unauthorized { .. } => {}
             _ => panic!("DO NOT ENTER HERE"),
         }
 
-        let env = mock_env("owner", &[]);
-        let res = handle(&mut deps, env, msg).unwrap();
+        let env = mock_info("owner", &[]);
+        let res = execute(deps.as_mut(), env, msg).unwrap();
         assert_eq!(
-            res.log,
-            vec![log("action", "register_asset"), log("asset_token", "asset"),]
+            res.attributes,
+            vec![
+                attr("action", "register_asset"),
+                attr("asset_token", "asset"),
+            ]
         );
 
         let res = query(
-            &deps,
+            deps.as_ref(),
             QueryMsg::PoolInfo {
                 asset_token: HumanAddr::from("asset"),
             },

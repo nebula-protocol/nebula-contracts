@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    log, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr,
-    InitResponse, InitResult, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
+    entry_point, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, HumanAddr, MessageInfo,
+    Response, StdError, StdResult, Uint128, WasmMsg,
 };
 
 use crate::state::{
@@ -8,21 +8,23 @@ use crate::state::{
     store_latest_stage, store_merkle_root, Config,
 };
 use nebula_protocol::airdrop::{
-    ConfigResponse, HandleMsg, InitMsg, IsClaimedResponse, LatestStageResponse, MerkleRootResponse,
-    QueryMsg,
+    ConfigResponse, ExecuteMsg, InstantiateMsg, IsClaimedResponse, LatestStageResponse,
+    MerkleRootResponse, QueryMsg,
 };
 
-use cw20::Cw20HandleMsg;
+use cw20::Cw20ExecuteMsg;
 use sha3::Digest;
 use std::convert::TryInto;
 
-pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn instantiate(
+    deps: DepsMut,
     _env: Env,
-    msg: InitMsg,
-) -> InitResult {
+    info: MessageInfo,
+    msg: InstantiateMsg,
+) -> StdResult<Response> {
     store_config(
-        &mut deps.storage,
+        deps.storage,
         &Config {
             owner: msg.owner,
             nebula_token: msg.nebula_token,
@@ -30,22 +32,19 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
     )?;
 
     let stage: u8 = 0;
-    store_latest_stage(&mut deps.storage, stage)?;
+    store_latest_stage(deps.storage, stage)?;
 
-    Ok(InitResponse::default())
+    Ok(Response::default())
 }
 
-pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    msg: HandleMsg,
-) -> HandleResult {
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
-        HandleMsg::UpdateConfig { owner } => update_config(deps, env, owner),
-        HandleMsg::RegisterMerkleRoot { merkle_root } => {
+        ExecuteMsg::UpdateConfig { owner } => update_config(deps, env, owner),
+        ExecuteMsg::RegisterMerkleRoot { merkle_root } => {
             register_merkle_root(deps, env, merkle_root)
         }
-        HandleMsg::Claim {
+        ExecuteMsg::Claim {
             stage,
             amount,
             proof,
@@ -53,12 +52,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-pub fn update_config<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    owner: Option<HumanAddr>,
-) -> StdResult<HandleResponse> {
-    let mut config: Config = read_config(&deps.storage)?;
+pub fn update_config(deps: DepsMut, env: Env, owner: Option<HumanAddr>) -> StdResult<Response> {
+    let mut config: Config = read_config(deps.storage)?;
     if env.message.sender != config.owner {
         return Err(StdError::unauthorized());
     }
@@ -67,10 +62,10 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
         config.owner = owner;
     }
 
-    store_config(&mut deps.storage, &config)?;
-    Ok(HandleResponse {
+    store_config(deps.storage, &config)?;
+    Ok(Response::new {
         messages: vec![],
-        log: vec![log("action", "update_config")],
+        attributes: vec![attr("action", "update_config")],
         data: None,
     })
 }
@@ -83,47 +78,39 @@ fn validate_merkle_root(merkle_root: String) -> StdResult<()> {
     }
 }
 
-pub fn register_merkle_root<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    merkle_root: String,
-) -> StdResult<HandleResponse> {
-    let config: Config = read_config(&deps.storage)?;
+pub fn register_merkle_root(deps: DepsMut, env: Env, merkle_root: String) -> StdResult<Response> {
+    let config: Config = read_config(deps.storage)?;
     if env.message.sender != config.owner {
         return Err(StdError::unauthorized());
     }
 
     validate_merkle_root(merkle_root.clone())?;
 
-    let latest_stage: u8 = read_latest_stage(&deps.storage)?;
+    let latest_stage: u8 = read_latest_stage(deps.storage)?;
     let stage = latest_stage + 1;
 
-    store_merkle_root(&mut deps.storage, stage, merkle_root.to_string())?;
-    store_latest_stage(&mut deps.storage, stage)?;
+    store_merkle_root(deps.storage, stage, merkle_root.to_string())?;
+    store_latest_stage(deps.storage, stage)?;
 
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![
-            log("action", "register_merkle_root"),
-            log("stage", stage),
-            log("merkle_root", merkle_root),
-        ],
-        data: None,
-    })
+    Ok(Response::new().add_attributes(vec![
+        attr("action", "register_merkle_root"),
+        attr("stage", stage.to_string()),
+        attr("merkle_root", merkle_root),
+    ]))
 }
 
-pub fn claim<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn claim(
+    deps: DepsMut,
     env: Env,
     stage: u8,
     amount: Uint128,
     proof: Vec<String>,
-) -> StdResult<HandleResponse> {
-    let config: Config = read_config(&deps.storage)?;
-    let merkle_root: String = read_merkle_root(&deps.storage, stage)?;
+) -> StdResult<Response> {
+    let config: Config = read_config(deps.storage)?;
+    let merkle_root: String = read_merkle_root(deps.storage, stage)?;
 
     // If user claimed target stage, return err
-    if read_claimed(&deps.storage, &env.message.sender, stage)? {
+    if read_claimed(deps.storage, &env.message.sender, stage)? {
         return Err(StdError::generic_err("Already claimed"));
     }
 
@@ -157,25 +144,23 @@ pub fn claim<S: Storage, A: Api, Q: Querier>(
     }
 
     // Update claim index to the current stage
-    store_claimed(&mut deps.storage, &env.message.sender, stage)?;
+    store_claimed(deps.storage, &env.message.sender, stage)?;
 
-    Ok(HandleResponse {
-        messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+    Ok(Response::new()
+        .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: config.nebula_token,
-            send: vec![],
-            msg: to_binary(&Cw20HandleMsg::Transfer {
+            funds: vec![],
+            msg: to_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: env.message.sender.clone(),
                 amount,
             })?,
-        })],
-        log: vec![
-            log("action", "claim"),
-            log("stage", stage),
-            log("address", env.message.sender),
-            log("amount", amount),
-        ],
-        data: None,
-    })
+        }))
+        .add_attributes(vec![
+            attr("action", "claim"),
+            attr("stage", stage.to_string()),
+            attr("address", env.message.sender),
+            attr("amount", amount.to_string()),
+        ]))
 }
 
 fn bytes_cmp(a: [u8; 32], b: [u8; 32]) -> std::cmp::Ordering {
@@ -195,10 +180,8 @@ fn bytes_cmp(a: [u8; 32], b: [u8; 32]) -> std::cmp::Ordering {
     std::cmp::Ordering::Equal
 }
 
-pub fn query<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    msg: QueryMsg,
-) -> StdResult<Binary> {
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_binary(&query_config(deps)?),
         QueryMsg::MerkleRoot { stage } => to_binary(&query_merkle_root(deps, stage)?),
@@ -209,10 +192,8 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-pub fn query_config<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-) -> StdResult<ConfigResponse> {
-    let state = read_config(&deps.storage)?;
+pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
+    let state = read_config(deps.storage)?;
     let resp = ConfigResponse {
         owner: state.owner,
         nebula_token: state.nebula_token,
@@ -221,32 +202,23 @@ pub fn query_config<S: Storage, A: Api, Q: Querier>(
     Ok(resp)
 }
 
-pub fn query_merkle_root<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    stage: u8,
-) -> StdResult<MerkleRootResponse> {
-    let merkle_root = read_merkle_root(&deps.storage, stage)?;
+pub fn query_merkle_root(deps: Deps, stage: u8) -> StdResult<MerkleRootResponse> {
+    let merkle_root = read_merkle_root(deps.storage, stage)?;
     let resp = MerkleRootResponse { stage, merkle_root };
 
     Ok(resp)
 }
 
-pub fn query_latest_stage<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-) -> StdResult<LatestStageResponse> {
-    let latest_stage = read_latest_stage(&deps.storage)?;
+pub fn query_latest_stage(deps: Deps) -> StdResult<LatestStageResponse> {
+    let latest_stage = read_latest_stage(deps.storage)?;
     let resp = LatestStageResponse { latest_stage };
 
     Ok(resp)
 }
 
-pub fn query_is_claimed<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    stage: u8,
-    address: HumanAddr,
-) -> StdResult<IsClaimedResponse> {
+pub fn query_is_claimed(deps: Deps, stage: u8, address: HumanAddr) -> StdResult<IsClaimedResponse> {
     let resp = IsClaimedResponse {
-        is_claimed: read_claimed(&deps.storage, &address, stage)?,
+        is_claimed: read_claimed(deps.storage, &address, stage)?,
     };
 
     Ok(resp)

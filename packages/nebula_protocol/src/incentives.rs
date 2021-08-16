@@ -7,7 +7,7 @@ use terraswap::asset::{Asset, AssetInfo};
 use terraswap::pair::PoolResponse as TerraswapPoolResponse;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InitMsg {
+pub struct InstantiateMsg {
     pub factory: HumanAddr,
     pub custody: HumanAddr,
     pub terraswap_factory: HumanAddr,
@@ -18,7 +18,7 @@ pub struct InitMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum HandleMsg {
+pub enum ExecuteMsg {
     /// OWNER-CALLABLE
     UpdateOwner {
         owner: HumanAddr,
@@ -162,7 +162,7 @@ pub struct MigrateMsg {}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum ExtHandleMsg {
+pub enum ExtExecuteMsg {
     RequestNeb { amount: Uint128 },
 }
 

@@ -1,13 +1,13 @@
 #[cfg(test)]
 mod tests {
-    use crate::contract::{handle, init, query};
-    use cosmwasm_std::testing::{mock_dependencies, mock_env};
+    use crate::contract::{execute, init, query};
+    use cosmwasm_std::testing::{mock_dependencies, mock_info};
     use cosmwasm_std::{
         from_binary, log, to_binary, CosmosMsg, HumanAddr, StdError, Uint128, WasmMsg,
     };
-    use cw20::Cw20HandleMsg;
+    use cw20::Cw20ExecuteMsg;
     use nebula_protocol::airdrop::{
-        ConfigResponse, HandleMsg, InitMsg, IsClaimedResponse, LatestStageResponse,
+        ConfigResponse, ExecuteMsg, InstantiateMsg, IsClaimedResponse, LatestStageResponse,
         MerkleRootResponse, QueryMsg,
     };
 
@@ -15,23 +15,23 @@ mod tests {
     fn proper_initialization() {
         let mut deps = mock_dependencies(20, &[]);
 
-        let msg = InitMsg {
+        let msg = InstantiateMsg {
             owner: HumanAddr("owner0000".to_string()),
             nebula_token: HumanAddr("nebula0000".to_string()),
         };
 
-        let env = mock_env("addr0000", &[]);
+        let env = mock_info("addr0000", &[]);
 
         // we can just call .unwrap() to assert this was a success
-        let _res = init(&mut deps, env, msg).unwrap();
+        let _res = instantiate(deps.as_mut(), env, msg).unwrap();
 
         // it worked, let's query the state
-        let res = query(&deps, QueryMsg::Config {}).unwrap();
+        let res = query(deps.as_ref(), QueryMsg::Config {}).unwrap();
         let config: ConfigResponse = from_binary(&res).unwrap();
         assert_eq!("owner0000", config.owner.as_str());
         assert_eq!("nebula0000", config.nebula_token.as_str());
 
-        let res = query(&deps, QueryMsg::LatestStage {}).unwrap();
+        let res = query(deps.as_ref(), QueryMsg::LatestStage {}).unwrap();
         let latest_stage: LatestStageResponse = from_binary(&res).unwrap();
         assert_eq!(0u8, latest_stage.latest_stage);
     }
@@ -40,33 +40,33 @@ mod tests {
     fn update_config() {
         let mut deps = mock_dependencies(20, &[]);
 
-        let msg = InitMsg {
+        let msg = InstantiateMsg {
             owner: HumanAddr::from("owner0000"),
             nebula_token: HumanAddr::from("nebula0000"),
         };
 
-        let env = mock_env("addr0000", &[]);
-        let _res = init(&mut deps, env.clone(), msg).unwrap();
+        let env = mock_info("addr0000", &[]);
+        let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
         // update owner
-        let env = mock_env("owner0000", &[]);
-        let msg = HandleMsg::UpdateConfig {
+        let env = mock_info("owner0000", &[]);
+        let msg = ExecuteMsg::UpdateConfig {
             owner: Some(HumanAddr("owner0001".to_string())),
         };
 
-        let res = handle(&mut deps, env, msg).unwrap();
+        let res = execute(deps.as_mut(), env, msg).unwrap();
         assert_eq!(0, res.messages.len());
 
         // it worked, let's query the state
-        let res = query(&deps, QueryMsg::Config {}).unwrap();
+        let res = query(deps.as_ref(), QueryMsg::Config {}).unwrap();
         let config: ConfigResponse = from_binary(&res).unwrap();
         assert_eq!("owner0001", config.owner.as_str());
 
         // Unauthorzied err
-        let env = mock_env("owner0000", &[]);
-        let msg = HandleMsg::UpdateConfig { owner: None };
+        let env = mock_info("owner0000", &[]);
+        let msg = ExecuteMsg::UpdateConfig { owner: None };
 
-        let res = handle(&mut deps, env, msg);
+        let res = execute(deps.as_mut(), env, msg);
         match res {
             Err(StdError::Unauthorized { .. }) => {}
             _ => panic!("Must return unauthorized error"),
@@ -77,51 +77,51 @@ mod tests {
     fn register_merkle_root() {
         let mut deps = mock_dependencies(20, &[]);
 
-        let msg = InitMsg {
+        let msg = InstantiateMsg {
             owner: HumanAddr::from("owner0000"),
             nebula_token: HumanAddr::from("nebula0000"),
         };
 
-        let env = mock_env("addr0000", &[]);
-        let _res = init(&mut deps, env.clone(), msg).unwrap();
+        let env = mock_info("addr0000", &[]);
+        let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
         //Try invalid merkle root
-        let env = mock_env("owner0000", &[]);
-        let msg = HandleMsg::RegisterMerkleRoot {
+        let env = mock_info("owner0000", &[]);
+        let msg = ExecuteMsg::RegisterMerkleRoot {
             merkle_root: "invalidroot".to_string(),
         };
 
-        let res = handle(&mut deps, env, msg);
+        let res = execute(deps.as_mut(), env, msg);
         match res {
             Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Invalid merkle root"),
             _ => panic!("DO NOT ENTER HERE"),
         }
 
-        let env = mock_env("owner0000", &[]);
+        let env = mock_info("owner0000", &[]);
         // register new merkle root
-        let msg = HandleMsg::RegisterMerkleRoot {
+        let msg = ExecuteMsg::RegisterMerkleRoot {
             merkle_root: "634de21cde1044f41d90373733b0f0fb1c1c71f9652b905cdf159e73c4cf0d37"
                 .to_string(),
         };
-        let res = handle(&mut deps, env, msg).unwrap();
+        let res = execute(deps.as_mut(), env, msg).unwrap();
         assert_eq!(
-            res.log,
+            res.attributes,
             vec![
-                log("action", "register_merkle_root"),
-                log("stage", "1"),
-                log(
+                attr("action", "register_merkle_root"),
+                attr("stage", "1"),
+                attr(
                     "merkle_root",
                     "634de21cde1044f41d90373733b0f0fb1c1c71f9652b905cdf159e73c4cf0d37"
                 )
             ]
         );
 
-        let res = query(&deps, QueryMsg::LatestStage {}).unwrap();
+        let res = query(deps.as_ref(), QueryMsg::LatestStage {}).unwrap();
         let latest_stage: LatestStageResponse = from_binary(&res).unwrap();
         assert_eq!(1u8, latest_stage.latest_stage);
 
         let res = query(
-            &deps,
+            deps.as_ref(),
             QueryMsg::MerkleRoot {
                 stage: latest_stage.latest_stage,
             },
@@ -138,30 +138,30 @@ mod tests {
     fn claim() {
         let mut deps = mock_dependencies(44, &[]);
 
-        let msg = InitMsg {
+        let msg = InstantiateMsg {
             owner: HumanAddr::from("owner0000"),
             nebula_token: HumanAddr::from("nebula0000"),
         };
 
-        let env = mock_env("addr0000", &[]);
-        let _res = init(&mut deps, env, msg).unwrap();
+        let env = mock_info("addr0000", &[]);
+        let _res = instantiate(deps.as_mut(), env, msg).unwrap();
 
         // Register merkle roots
-        let env = mock_env("owner0000", &[]);
-        let msg = HandleMsg::RegisterMerkleRoot {
+        let env = mock_info("owner0000", &[]);
+        let msg = ExecuteMsg::RegisterMerkleRoot {
             merkle_root: "85e33930e7a8f015316cb4a53a4c45d26a69f299fc4c83f17357e1fd62e8fd95"
                 .to_string(),
         };
-        let _res = handle(&mut deps, env, msg).unwrap();
+        let _res = execute(deps.as_mut(), env, msg).unwrap();
 
-        let env = mock_env("owner0000", &[]);
-        let msg = HandleMsg::RegisterMerkleRoot {
+        let env = mock_info("owner0000", &[]);
+        let msg = ExecuteMsg::RegisterMerkleRoot {
             merkle_root: "634de21cde1044f41d90373733b0f0fb1c1c71f9652b905cdf159e73c4cf0d37"
                 .to_string(),
         };
-        let _res = handle(&mut deps, env, msg).unwrap();
+        let _res = execute(deps.as_mut(), env, msg).unwrap();
 
-        let msg = HandleMsg::Claim {
+        let msg = ExecuteMsg::Claim {
             amount: Uint128::from(1000001u128),
             stage: 1u8,
             proof: vec![
@@ -172,17 +172,17 @@ mod tests {
             ],
         };
 
-        let env = mock_env(
+        let env = mock_info(
             "terra1qfqa2eu9wp272ha93lj4yhcenrc6ymng079nu8".to_string(),
             &[],
         );
-        let res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
+        let res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
         assert_eq!(
             res.messages,
             vec![CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: HumanAddr::from("nebula0000"),
-                send: vec![],
-                msg: to_binary(&Cw20HandleMsg::Transfer {
+                funds: vec![],
+                msg: to_binary(&Cw20ExecuteMsg::Transfer {
                     recipient: HumanAddr::from("terra1qfqa2eu9wp272ha93lj4yhcenrc6ymng079nu8"),
                     amount: Uint128::from(1000001u128),
                 })
@@ -191,12 +191,12 @@ mod tests {
         );
 
         assert_eq!(
-            res.log,
+            res.attributes,
             vec![
-                log("action", "claim"),
-                log("stage", "1"),
-                log("address", "terra1qfqa2eu9wp272ha93lj4yhcenrc6ymng079nu8"),
-                log("amount", "1000001")
+                attr("action", "claim"),
+                attr("stage", "1"),
+                attr("address", "terra1qfqa2eu9wp272ha93lj4yhcenrc6ymng079nu8"),
+                attr("amount", "1000001")
             ]
         );
 
@@ -204,7 +204,7 @@ mod tests {
             true,
             from_binary::<IsClaimedResponse>(
                 &query(
-                    &mut deps,
+                    deps.as_mut(),
                     QueryMsg::IsClaimed {
                         stage: 1,
                         address: HumanAddr::from("terra1qfqa2eu9wp272ha93lj4yhcenrc6ymng079nu8"),
@@ -216,14 +216,14 @@ mod tests {
             .is_claimed
         );
 
-        let res = handle(&mut deps, env.clone(), msg.clone());
+        let res = execute(deps.as_mut(), env.clone(), msg.clone());
         match res {
             Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Already claimed"),
             _ => panic!("DO NOT ENTER HERE"),
         }
 
         // Claim next airdrop
-        let msg = HandleMsg::Claim {
+        let msg = ExecuteMsg::Claim {
             amount: Uint128::from(2000001u128),
             stage: 2u8,
             proof: vec![
@@ -234,17 +234,17 @@ mod tests {
             ],
         };
 
-        let env = mock_env(
+        let env = mock_info(
             "terra1qfqa2eu9wp272ha93lj4yhcenrc6ymng079nu8".to_string(),
             &[],
         );
-        let res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
+        let res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
         assert_eq!(
             res.messages,
             vec![CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: HumanAddr::from("nebula0000"),
-                send: vec![],
-                msg: to_binary(&Cw20HandleMsg::Transfer {
+                funds: vec![],
+                msg: to_binary(&Cw20ExecuteMsg::Transfer {
                     recipient: HumanAddr::from("terra1qfqa2eu9wp272ha93lj4yhcenrc6ymng079nu8"),
                     amount: Uint128::from(2000001u128),
                 })
@@ -253,12 +253,12 @@ mod tests {
         );
 
         assert_eq!(
-            res.log,
+            res.attributes,
             vec![
-                log("action", "claim"),
-                log("stage", "2"),
-                log("address", "terra1qfqa2eu9wp272ha93lj4yhcenrc6ymng079nu8"),
-                log("amount", "2000001")
+                attr("action", "claim"),
+                attr("stage", "2"),
+                attr("address", "terra1qfqa2eu9wp272ha93lj4yhcenrc6ymng079nu8"),
+                attr("amount", "2000001")
             ]
         );
     }

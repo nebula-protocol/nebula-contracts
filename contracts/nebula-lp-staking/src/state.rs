@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{Decimal, HumanAddr, ReadonlyStorage, StdResult, Storage, Uint128};
+use cosmwasm_std::{Decimal, HumanAddr, StdResult, Uint128};
 use cosmwasm_storage::{singleton, singleton_read, Bucket, ReadonlyBucket};
 
 pub static KEY_CONFIG: &[u8] = b"config";
@@ -16,11 +16,11 @@ pub struct Config {
     pub terraswap_factory: HumanAddr,
 }
 
-pub fn store_config<S: Storage>(storage: &mut S, config: &Config) -> StdResult<()> {
+pub fn store_config(storage: &mut dyn Storage, config: &Config) -> StdResult<()> {
     singleton(storage, KEY_CONFIG).save(config)
 }
 
-pub fn read_config<S: Storage>(storage: &S) -> StdResult<Config> {
+pub fn read_config(storage: &dyn Storage) -> StdResult<Config> {
     singleton_read(storage, KEY_CONFIG).load()
 }
 
@@ -32,16 +32,16 @@ pub struct PoolInfo {
     pub reward_index: Decimal,
 }
 
-pub fn store_pool_info<S: Storage>(
-    storage: &mut S,
+pub fn store_pool_info(
+    storage: &mut dyn Storage,
     asset_token: &HumanAddr,
     pool_info: &PoolInfo,
 ) -> StdResult<()> {
-    Bucket::new(PREFIX_POOL_INFO, storage).save(asset_token.as_str().as_bytes(), pool_info)
+    Bucket::new(storage, PREFIX_POOL_INFO).save(asset_token.as_str().as_bytes(), pool_info)
 }
 
-pub fn read_pool_info<S: Storage>(storage: &S, asset_token: &HumanAddr) -> StdResult<PoolInfo> {
-    ReadonlyBucket::new(PREFIX_POOL_INFO, storage).load(asset_token.as_str().as_bytes())
+pub fn read_pool_info(storage: &dyn Storage, asset_token: &HumanAddr) -> StdResult<PoolInfo> {
+    ReadonlyBucket::new(storage, PREFIX_POOL_INFO).load(asset_token.as_str().as_bytes())
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -52,18 +52,15 @@ pub struct RewardInfo {
 }
 
 /// returns a bucket with all rewards owned by this owner (query it by owner)
-pub fn rewards_store<'a, S: Storage>(
-    storage: &'a mut S,
+pub fn rewards_store<'a, Storage: Storage>(
+    storage: &'a mut Storage,
     owner: &HumanAddr,
-) -> Bucket<'a, S, RewardInfo> {
-    Bucket::multilevel(&[PREFIX_REWARD, owner.as_str().as_bytes()], storage)
+) -> Bucket<'a, Storage, RewardInfo> {
+    Bucket::multilevel(storage, &[PREFIX_REWARD, owner.as_str().as_bytes()])
 }
 
 /// returns a bucket with all rewards owned by this owner (query it by owner)
 /// (read-only version for queries)
-pub fn rewards_read<'a, S: ReadonlyStorage>(
-    storage: &'a S,
-    owner: &HumanAddr,
-) -> ReadonlyBucket<'a, S, RewardInfo> {
-    ReadonlyBucket::multilevel(&[PREFIX_REWARD, owner.as_str().as_bytes()], storage)
+pub fn rewards_read<'a>(storage: &'a Storage, owner: &HumanAddr) -> ReadonlyBucket<'a, RewardInfo> {
+    ReadonlyBucket::multilevel(storage, &[PREFIX_REWARD, owner.as_str().as_bytes()])
 }

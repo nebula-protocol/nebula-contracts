@@ -5,7 +5,7 @@ use terraswap::asset::Asset;
 use terraswap::hook::InitHook;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InitMsg {
+pub struct InstantiateMsg {
     /// Cluster's permissioned owner
     pub owner: HumanAddr,
 
@@ -38,7 +38,7 @@ pub struct InitMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum HandleMsg {
+pub enum ExecuteMsg {
     /// OWNER-CALLABLE
     UpdateConfig {
         owner: Option<HumanAddr>,

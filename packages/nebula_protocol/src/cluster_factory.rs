@@ -6,7 +6,7 @@ use cosmwasm_std::{Binary, HumanAddr, Uint128};
 use terraswap::asset::Asset;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InitMsg {
+pub struct InstantiateMsg {
     pub token_code_id: u64,
     pub cluster_code_id: u64,
     pub base_denom: String,
@@ -16,7 +16,7 @@ pub struct InitMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum HandleMsg {
+pub enum ExecuteMsg {
     ///////////////////
     /// Owner Operations
     ///////////////////

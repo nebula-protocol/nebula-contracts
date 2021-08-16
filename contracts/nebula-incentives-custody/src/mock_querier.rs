@@ -1,6 +1,6 @@
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_binary, from_slice, to_binary, Coin, Empty, Extern, HumanAddr, Querier, QuerierResult,
+    from_binary, from_slice, to_binary, Coin, Deps, DepsMut, Empty, HumanAddr, QuerierResult,
     QueryRequest, SystemError, Uint128, WasmQuery,
 };
 use cw20::{BalanceResponse as Cw20BalanceResponse, Cw20QueryMsg, TokenInfoResponse};
@@ -11,12 +11,12 @@ use std::collections::HashMap;
 pub fn mock_dependencies(
     canonical_length: usize,
     contract_balance: &[Coin],
-) -> Extern<MockStorage, MockApi, WasmMockQuerier> {
+) -> Deps<MockStorage, MockApi, WasmMockQuerier> {
     let contract_addr = HumanAddr::from(MOCK_CONTRACT_ADDR);
     let custom_querier: WasmMockQuerier =
         WasmMockQuerier::new(MockQuerier::new(&[(&contract_addr, contract_balance)]));
 
-    Extern {
+    Deps {
         storage: MockStorage::default(),
         api: MockApi::new(canonical_length),
         querier: custom_querier,
@@ -25,7 +25,7 @@ pub fn mock_dependencies(
 
 pub struct WasmMockQuerier {
     base: MockQuerier<Empty>,
-    token_querier: TokenQuerier,
+    token_querier: Token,
 }
 
 #[derive(Clone, Default)]
@@ -69,12 +69,12 @@ impl Querier for WasmMockQuerier {
                 })
             }
         };
-        self.handle_query(&request)
+        self.execute_query(&request)
     }
 }
 
 impl WasmMockQuerier {
-    pub fn handle_query(&self, request: &QueryRequest<Empty>) -> QuerierResult {
+    pub fn execute_query(&self, request: &QueryRequest<Empty>) -> QuerierResult {
         match &request {
             QueryRequest::Wasm(WasmQuery::Smart { contract_addr, msg }) => {
                 match from_binary(&msg).unwrap() {
@@ -135,7 +135,7 @@ impl WasmMockQuerier {
                     _ => panic!("DO NOT ENTER HERE"),
                 }
             }
-            _ => self.base.handle_query(request),
+            _ => self.base.execute_query(request),
         }
     }
 }

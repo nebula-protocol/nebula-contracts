@@ -5,18 +5,18 @@ use cosmwasm_storage::{singleton, singleton_read};
 pub static PREFIX_OWNER: &[u8] = b"owner";
 pub static PREFIX_NEB: &[u8] = b"neb";
 
-pub fn read_owner<S: Storage>(storage: &S) -> StdResult<HumanAddr> {
+pub fn read_owner(storage: &dyn Storage) -> StdResult<HumanAddr> {
     singleton_read(storage, PREFIX_OWNER).load()
 }
 
-pub fn set_owner<S: Storage>(storage: &mut S, owner: &HumanAddr) -> StdResult<()> {
+pub fn set_owner(storage: &mut dyn Storage, owner: &HumanAddr) -> StdResult<()> {
     singleton(storage, PREFIX_OWNER).save(owner)
 }
 
-pub fn read_neb<S: Storage>(storage: &S) -> StdResult<HumanAddr> {
+pub fn read_neb(storage: &dyn Storage) -> StdResult<HumanAddr> {
     singleton_read(storage, PREFIX_NEB).load()
 }
 
-pub fn set_neb<S: Storage>(storage: &mut S, owner: &HumanAddr) -> StdResult<()> {
+pub fn set_neb(storage: &mut dyn Storage, owner: &HumanAddr) -> StdResult<()> {
     singleton(storage, PREFIX_NEB).save(owner)
 }

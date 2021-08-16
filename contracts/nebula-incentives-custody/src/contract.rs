@@ -1,93 +1,76 @@
 use crate::querier::load_token_balance;
 use crate::state::{read_neb, read_owner, set_neb, set_owner};
 use cosmwasm_std::{
-    log, to_binary, Api, Binary, CosmosMsg, Env, Extern, HandleResponse, HumanAddr, InitResponse,
-    Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
+    entry_point, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, HumanAddr, MessageInfo,
+    Response, StdError, StdResult, Uint128, WasmMsg,
 };
-use cw20::Cw20HandleMsg;
-use nebula_protocol::incentives_custody::{HandleMsg, InitMsg, QueryMsg};
+use cw20::Cw20ExecuteMsg;
+use nebula_protocol::incentives_custody::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
-pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn instantiate(
+    deps: DepsMut,
     _env: Env,
-    msg: InitMsg,
-) -> StdResult<InitResponse> {
-    set_owner(&mut deps.storage, &msg.owner)?;
-    set_neb(&mut deps.storage, &msg.neb_token)?;
-    Ok(InitResponse::default())
+    info: MessageInfo,
+    msg: InstantiateMsg,
+) -> StdResult<Response> {
+    set_owner(deps.storage, &msg.owner)?;
+    set_neb(deps.storage, &msg.neb_token)?;
+    Ok(Response::default())
 }
 
-pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    msg: HandleMsg,
-) -> StdResult<HandleResponse> {
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
-        HandleMsg::RequestNeb { amount } => request_neb(deps, env, amount),
-        HandleMsg::UpdateOwner { owner } => update_owner(deps, env, &owner),
+        ExecuteMsg::RequestNeb { amount } => request_neb(deps, env, amount),
+        ExecuteMsg::UpdateOwner { owner } => update_owner(deps, env, &owner),
     }
 }
 
-pub fn update_owner<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    owner: &HumanAddr,
-) -> StdResult<HandleResponse> {
-    let old_owner = read_owner(&deps.storage)?;
+pub fn update_owner(deps: DepsMut, env: Env, owner: &HumanAddr) -> StdResult<Response> {
+    let old_owner = read_owner(deps.storage)?;
 
     // check permission
     if env.message.sender != old_owner {
         return Err(StdError::unauthorized());
     }
 
-    set_owner(&mut deps.storage, &owner)?;
+    set_owner(deps.storage, &owner)?;
 
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![
-            log("action", "update_owner"),
-            log("old_owner", old_owner),
-            log("new_owner", owner),
-        ],
-        data: None,
-    })
+    Ok(Response::new().add_attributes(vec![
+        attr("action", "update_owner"),
+        attr("old_owner", old_owner),
+        attr("new_owner", owner),
+    ]))
 }
 
-pub fn request_neb<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    amount: Uint128,
-) -> StdResult<HandleResponse> {
-    if env.message.sender != read_owner(&deps.storage)? {
+pub fn request_neb(deps: DepsMut, env: Env, amount: Uint128) -> StdResult<Response> {
+    if env.message.sender != read_owner(deps.storage)? {
         return Err(StdError::unauthorized());
     }
 
-    Ok(HandleResponse {
-        messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: read_neb(&deps.storage)?,
-            msg: to_binary(&Cw20HandleMsg::Transfer {
+    Ok(Response::new()
+        .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: read_neb(deps.storage)?,
+            msg: to_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: env.message.sender.clone(),
                 amount,
             })?,
-            send: vec![],
-        })],
-        log: vec![
-            log("action", "request_neb"),
-            log("from", env.contract.address),
-            log("to", env.message.sender),
-            log("amount", amount),
-        ],
-        data: None,
-    })
+            funds: vec![],
+        })])
+        .add_attributes(vec![
+            attr("action", "request_neb"),
+            attr("from", env.contract.address),
+            attr("to", env.message.sender),
+            attr("amount", amount),
+        ]))
 }
 
-pub fn query<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    msg: QueryMsg,
-) -> StdResult<Binary> {
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Balance { custody } => {
-            let nebula_token = read_neb(&deps.storage)?;
+            let nebula_token = read_neb(deps.storage)?;
             let balance = load_token_balance(&deps, &nebula_token, &custody)?;
             Ok(to_binary(&to_binary(&balance).unwrap())?)
         }

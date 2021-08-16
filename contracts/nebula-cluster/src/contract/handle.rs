@@ -1,9 +1,9 @@
 use cosmwasm_std::{
-    log, to_binary, Api, CosmosMsg, Env, Extern, HandleResponse, HandleResult, HumanAddr, Querier,
-    StdError, StdResult, Storage, Uint128, WasmMsg,
+    entry_point, to_binary, CosmosMsg, Deps, DepsMut, Env, HumanAddr, MessageInfo, StdError,
+    StdResult, Uint128, WasmMsg,
 };
 
-use cw20::Cw20HandleMsg;
+use cw20::Cw20ExecuteMsg;
 
 use crate::contract::{query_cluster_state, validate_targets};
 use crate::error;
@@ -15,8 +15,8 @@ use crate::state::{read_target_asset_data, save_target_asset_data};
 use crate::util::vec_to_string;
 
 use cluster_math::FPDecimal;
-use nebula_protocol::cluster::HandleMsg;
-use nebula_protocol::penalty::{HandleMsg as PenaltyHandleMsg};
+use nebula_protocol::cluster::ExecuteMsg;
+use nebula_protocol::penalty::ExecuteMsg as PenaltyExecuteMsg;
 
 use std::str::FromStr;
 use terraswap::asset::{Asset, AssetInfo};
@@ -28,21 +28,18 @@ const FRESH_TIMESPAN: u64 = 30;
     Match the incoming message to the right category: receive, mint,
     reset_target, or  set cluster token
 */
-pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    msg: HandleMsg,
-) -> StdResult<HandleResponse> {
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
-        HandleMsg::Mint {
+        ExecuteMsg::Mint {
             asset_amounts,
             min_tokens,
         } => mint(deps, env, &asset_amounts, &min_tokens),
-        HandleMsg::Burn {
+        ExecuteMsg::Burn {
             max_tokens,
             asset_amounts,
         } => receive_burn(deps, env, max_tokens, asset_amounts),
-        HandleMsg::UpdateConfig {
+        ExecuteMsg::UpdateConfig {
             owner,
             name,
             description,
@@ -63,14 +60,14 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             penalty,
             target,
         ),
-        HandleMsg::UpdateTarget { target } => update_target(deps, env, &target),
-        HandleMsg::Decommission {} => decommission(deps, env),
+        ExecuteMsg::UpdateTarget { target } => update_target(deps, env, &target),
+        ExecuteMsg::Decommission {} => decommission(deps, env),
     }
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn update_config<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn update_config(
+    deps: DepsMut,
     env: Env,
     owner: Option<HumanAddr>,
     name: Option<String>,
@@ -80,9 +77,9 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
     composition_oracle: Option<HumanAddr>,
     penalty: Option<HumanAddr>,
     target: Option<Vec<Asset>>,
-) -> HandleResult {
+) -> StdResult<Response> {
     // First, update cluster config
-    config_store(&mut deps.storage).update(|mut config| {
+    config_store(deps.storage).update(|mut config| {
         if config.owner != env.message.sender {
             return Err(StdError::unauthorized());
         }
@@ -120,15 +117,11 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
     })?;
 
     match target {
-        None => HandleResponse::default(),
+        None => Response::default(),
         Some(target) => update_target(deps, env, &target)?,
     };
 
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![log("action", "update_config")],
-        data: None,
-    })
+    Ok(Response::new().add_attributes(vec![attr("action", "update_config")]))
 }
 
 /*
@@ -136,14 +129,10 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
     target weights and saves it. The ordering of the target weights is
     determined by the given assets.
 */
-pub fn update_target<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    target: &Vec<Asset>,
-) -> StdResult<HandleResponse> {
+pub fn update_target(deps: DepsMut, env: Env, target: &Vec<Asset>) -> StdResult<Response> {
     // allow removal / adding
 
-    let cfg = read_config(&deps.storage)?;
+    let cfg = read_config(deps.storage)?;
     if let None = cfg.cluster_token {
         return Err(error::cluster_token_not_set());
     }
@@ -173,7 +162,7 @@ pub fn update_target<S: Storage, A: Api, Q: Querier>(
 
     // Load previous assets & target
     let (prev_assets, prev_target): (Vec<AssetInfo>, Vec<Uint128>) =
-        read_target_asset_data(&deps.storage)?
+        read_target_asset_data(deps.storage)?
             .iter()
             .map(|x| (x.info.clone(), x.amount.clone()))
             .unzip();
@@ -194,31 +183,24 @@ pub fn update_target<S: Storage, A: Api, Q: Querier>(
         }
     }
 
-    save_target_asset_data(&mut deps.storage, &asset_data)?;
+    save_target_asset_data(deps.storage, &asset_data)?;
 
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![
-            log("action", "reset_target"),
-            log("prev_assets", vec_to_string(&prev_assets)),
-            log("prev_targets", vec_to_string(&prev_target)),
-            log("updated_assets", vec_to_string(&updated_asset_infos)),
-            log("updated_targets", vec_to_string(&updated_target_weights)),
-        ],
-        data: None,
-    })
+    Ok(Response::new().add_attributes(vec![
+        attr("action", "reset_target"),
+        attr("prev_assets", vec_to_string(&prev_assets)),
+        attr("prev_targets", vec_to_string(&prev_target)),
+        attr("updated_assets", vec_to_string(&updated_asset_infos)),
+        attr("updated_targets", vec_to_string(&updated_target_weights)),
+    ]))
 }
 
 /*
     Decommissions an active cluster, disabling mints, and only allowing
     pro-rata redeems
 */
-pub fn decommission<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-) -> StdResult<HandleResponse> {
+pub fn decommission(deps: DepsMut, env: Env) -> StdResult<Response> {
     // allow removal / adding
-    let cfg = read_config(&deps.storage)?;
+    let cfg = read_config(deps.storage)?;
     if let None = cfg.cluster_token {
         return Err(error::cluster_token_not_set());
     }
@@ -234,29 +216,25 @@ pub fn decommission<S: Storage, A: Api, Q: Querier>(
         ));
     }
 
-    config_store(&mut deps.storage).update(|mut config| {
+    config_store(deps.storage).update(|mut config| {
         config.active = false;
 
         Ok(config)
     })?;
 
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![log("action", "decommission_asset")],
-        data: None,
-    })
+    Ok(Response::new().add_attributes(vec![attr("action", "decommission_asset")]))
 }
 
 /*
     Mint cluster tokens from the asset amounts given.
     Throws error if there can only be less than 'min_tokens' minted from the assets.
 */
-pub fn mint<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn mint(
+    deps: DepsMut,
     env: Env,
     asset_amounts: &Vec<Asset>,
     min_tokens: &Option<Uint128>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     // duplication check for the given asset_amounts
     if validate_targets(
         &deps,
@@ -271,7 +249,7 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
         ));
     }
 
-    let cfg = read_config(&deps.storage)?;
+    let cfg = read_config(deps.storage)?;
 
     if !cfg.active {
         return Err(StdError::generic_err(
@@ -282,7 +260,7 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
     let cluster_state = query_cluster_state(
         &deps,
         &env.contract.address,
-        env.block.time - FRESH_TIMESPAN,
+        (env.block.time.nanos() / 1_000_000_000) - FRESH_TIMESPAN,
     )?;
 
     let prices = cluster_state.prices;
@@ -295,14 +273,15 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
     let native_coin_denoms = asset_infos
         .iter()
         .filter(|asset| asset.is_native_token())
-        .map(|asset| match asset {
-            AssetInfo::NativeToken { denom } => {
-                Ok(denom.clone())
+        .map(|asset| {
+            match asset {
+                AssetInfo::NativeToken { denom } => Ok(denom.clone()),
+                _ => Err(StdError::generic_err(
+                    "Already filtered. Cannot contain non-native denoms.",
+                )),
             }
-            _ => {
-                Err(StdError::generic_err("Already filtered. Cannot contain non-native denoms."))
-            }
-        }.unwrap())
+            .unwrap()
+        })
         .collect::<Vec<_>>();
 
     let target_weights = target.iter().map(|x| x.amount.clone()).collect::<Vec<_>>();
@@ -328,7 +307,7 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
     for (i, asset_info) in asset_infos.iter().enumerate() {
         for asset in asset_amounts.iter() {
             if asset.info.clone() == asset_info.clone() {
-                if target_weights[i] == Uint128(0) && asset.amount > Uint128(0) {
+                if target_weights[i] == Uint128::zero() && asset.amount > Uint128::zero() {
                     return Err(StdError::generic_err(
                         format!("Cannot mint with non-zero asset amount when target weight is zero for asset {}", asset.info.to_string()),
                     ));
@@ -340,12 +319,12 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
                 if let AssetInfo::Token { contract_addr, .. } = &asset.info {
                     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: contract_addr.clone(),
-                        msg: to_binary(&Cw20HandleMsg::TransferFrom {
+                        msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
                             owner: env.message.sender.clone(),
                             recipient: env.contract.address.clone(),
                             amount: asset.amount,
                         })?,
-                        send: vec![],
+                        funds: vec![],
                     }));
                 } else {
                     // validate that native token balance is correct
@@ -395,7 +374,7 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
         // it can make stateful updates...
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: cfg.penalty.clone(),
-            msg: to_binary(&PenaltyHandleMsg::Mint {
+            msg: to_binary(&PenaltyExecuteMsg::Mint {
                 block_height: env.block.height,
                 cluster_token_supply,
                 inventory: inv,
@@ -403,23 +382,23 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
                 asset_prices: prices,
                 target_weights: target_weights,
             })?,
-            send: vec![],
+            funds: vec![],
         }));
 
         // actually mint the tokens
         if !protocol_fee.is_zero() {
             messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: cluster_token.clone(),
-                msg: to_binary(&Cw20HandleMsg::Mint {
+                msg: to_binary(&Cw20ExecuteMsg::Mint {
                     amount: protocol_fee,
                     recipient: collector_address.clone(),
                 })?,
-                send: vec![],
+                funds: vec![],
             }));
         }
 
-        extra_logs = mint_response.log;
-        extra_logs.push(log("fee_amt", protocol_fee))
+        extra_logs = mint_response.attributes;
+        extra_logs.push(attr("fee_amt", protocol_fee))
     } else {
         // cluster has no cluster tokens -- cluster is empty and needs to be initialized
         // attempt to initialize it with min_tokens as the number of cluster tokens
@@ -466,26 +445,22 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: cluster_token.clone(),
-        msg: to_binary(&Cw20HandleMsg::Mint {
+        msg: to_binary(&Cw20ExecuteMsg::Mint {
             amount: mint_to_sender,
             recipient: env.message.sender.clone(),
         })?,
-        send: vec![],
+        funds: vec![],
     }));
 
     let mut logs = vec![
-        log("action", "mint"),
-        log("sender", &env.message.sender),
-        log("mint_to_sender", mint_to_sender),
+        attr("action", "mint"),
+        attr("sender", &env.message.sender),
+        attr("mint_to_sender", mint_to_sender),
     ];
     logs.extend(extra_logs);
 
     // mint and send number of tokens to user
-    Ok(HandleResponse {
-        messages,
-        log: logs,
-        data: None,
-    })
+    Ok(Response::new().add_messages(messages).add_attributes(logs))
 }
 
 /*
@@ -495,15 +470,15 @@ pub fn mint<S: Storage, A: Api, Q: Querier>(
     along with any rewards based on whether the assets are moved towards/away
     from the target.
 */
-pub fn receive_burn<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn receive_burn(
+    deps: DepsMut,
     env: Env,
     max_tokens: Uint128,
     asset_amounts: Option<Vec<Asset>>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     let sender = env.message.sender.clone();
 
-    let cfg = read_config(&deps.storage)?;
+    let cfg = read_config(deps.storage)?;
 
     // If cluster is not active, must do pro rata redeem
     if !cfg.active && asset_amounts.is_some() {
@@ -520,7 +495,7 @@ pub fn receive_burn<S: Storage, A: Api, Q: Querier>(
 
     // Use min as stale threshold if pro-rata redeem
     let stale_threshold = match asset_amounts {
-        Some(_) => env.block.time - FRESH_TIMESPAN,
+        Some(_) => (env.block.time.nanos() / 1_000_000_000) - FRESH_TIMESPAN,
         None => u64::MIN,
     };
 
@@ -537,7 +512,7 @@ pub fn receive_burn<S: Storage, A: Api, Q: Querier>(
 
     let asset_amounts: Vec<Uint128> = match &asset_amounts {
         Some(weights) => {
-            let mut vec: Vec<Uint128> = vec![Uint128(0); asset_infos.len()];
+            let mut vec: Vec<Uint128> = vec![Uint128::zero(); asset_infos.len()];
             for i in 0..asset_infos.len() {
                 for j in 0..weights.len() {
                     if weights[j].info == asset_infos[i] {
@@ -614,30 +589,30 @@ pub fn receive_burn<S: Storage, A: Api, Q: Querier>(
     if !fee_amt.is_zero() {
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: cluster_token.clone(),
-            msg: to_binary(&Cw20HandleMsg::TransferFrom {
+            msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
                 owner: sender.clone(),
                 amount: fee_amt,
                 recipient: collector_address.clone(),
             })?,
-            send: vec![],
+            funds: vec![],
         }));
     }
 
     // burn the rest from allowance
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: cluster_token.clone(),
-        msg: to_binary(&Cw20HandleMsg::BurnFrom {
+        msg: to_binary(&Cw20ExecuteMsg::BurnFrom {
             owner: sender.clone(),
             amount: (token_cost - fee_amt)?,
         })?,
-        send: vec![],
+        funds: vec![],
     }));
 
     // afterwards, notify the penalty contract that this update happened so
     // it can make stateful updates...
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: cfg.penalty.clone(),
-        msg: to_binary(&PenaltyHandleMsg::Redeem {
+        msg: to_binary(&PenaltyExecuteMsg::Redeem {
             block_height: env.block.height,
             cluster_token_supply,
             inventory: inv,
@@ -646,24 +621,22 @@ pub fn receive_burn<S: Storage, A: Api, Q: Querier>(
             asset_prices: prices,
             target_weights: target_weights,
         })?,
-        send: vec![],
+        funds: vec![],
     }));
 
-    Ok(HandleResponse {
-        messages,
-        log: vec![
+    Ok(Response::new().add_messages(messages).add_attributes(
+        vec![
             vec![
-                log("action", "receive:burn"),
-                log("sender", sender),
-                log("burn_amount", (token_cost - fee_amt)?),
-                log("token_cost", token_cost),
-                log("kept_as_fee", fee_amt),
-                log("asset_amounts", vec_to_string(&asset_amounts)),
-                log("redeem_totals", vec_to_string(&redeem_totals)),
+                attr("action", "receive:burn"),
+                attr("sender", sender),
+                attr("burn_amount", (token_cost - fee_amt)?),
+                attr("token_cost", token_cost),
+                attr("kept_as_fee", fee_amt),
+                attr("asset_amounts", vec_to_string(&asset_amounts)),
+                attr("redeem_totals", vec_to_string(&redeem_totals)),
             ],
-            redeem_response.log,
+            redeem_response.attributes,
         ]
         .concat(),
-        data: None,
-    })
+    ))
 }

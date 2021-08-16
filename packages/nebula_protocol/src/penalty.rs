@@ -1,17 +1,17 @@
 use cluster_math::FPDecimal;
-use cosmwasm_std::{HumanAddr, LogAttribute, Uint128};
+use cosmwasm_std::{Attribute, HumanAddr, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InitMsg {
+pub struct InstantiateMsg {
     pub owner: HumanAddr,
     pub penalty_params: PenaltyParams,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum HandleMsg {
+pub enum ExecuteMsg {
     /// OWNER-CALLABLE
     UpdateConfig {
         owner: Option<HumanAddr>,
@@ -68,7 +68,7 @@ pub enum QueryMsg {
 pub struct MintResponse {
     pub mint_tokens: Uint128,
     pub penalty: Uint128,
-    pub log: Vec<LogAttribute>,
+    pub attributes: Vec<Attribute>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]
@@ -76,7 +76,7 @@ pub struct RedeemResponse {
     pub redeem_assets: Vec<Uint128>,
     pub penalty: Uint128,
     pub token_cost: Uint128,
-    pub log: Vec<LogAttribute>,
+    pub attributes: Vec<Attribute>,
 }
 
 #[derive(Serialize, Deserialize)]

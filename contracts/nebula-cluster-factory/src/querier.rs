@@ -1,13 +1,13 @@
 use cosmwasm_std::{
-    from_binary, Api, Binary, CanonicalAddr, Decimal, Extern, HumanAddr, Querier, QueryRequest,
-    StdError, StdResult, Storage, WasmQuery,
+    from_binary, Binary, CanonicalAddr, Decimal, Deps, DepsMut, HumanAddr, QueryRequest, StdError,
+    StdResult, WasmQuery,
 };
 
 use cosmwasm_storage::to_length_prefixed;
 use serde::{Deserialize, Serialize};
 
-pub fn load_oracle_feeder<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+pub fn load_oracle_feeder(
+    deps: Deps,
     contract_addr: &HumanAddr,
     asset_token: &CanonicalAddr,
 ) -> StdResult<CanonicalAddr> {
@@ -45,8 +45,8 @@ pub struct MintAssetConfig {
     pub min_collateral_ratio_after_migration: Option<Decimal>,
 }
 
-pub fn load_mint_asset_config<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+pub fn load_mint_asset_config(
+    deps: Deps,
     contract_addr: &HumanAddr,
     asset_token: &CanonicalAddr,
 ) -> StdResult<(Decimal, Decimal, Option<Decimal>)> {

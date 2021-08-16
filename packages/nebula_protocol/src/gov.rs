@@ -7,7 +7,7 @@ use std::fmt;
 use crate::common::OrderBy;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InitMsg {
+pub struct InstantiateMsg {
     pub nebula_token: HumanAddr,
     pub quorum: Decimal,
     pub threshold: Decimal,
@@ -21,7 +21,7 @@ pub struct InitMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum HandleMsg {
+pub enum ExecuteMsg {
     Receive(Cw20ReceiveMsg),
     UpdateConfig {
         owner: Option<HumanAddr>,
@@ -72,7 +72,7 @@ pub enum Cw20HookMsg {
         title: String,
         description: String,
         link: Option<String>,
-        execute_msg: Option<ExecuteMsg>,
+        execute_msg: Option<PollExecuteMsg>,
     },
     /// Deposit rewards to be distributed among stakers and voters
     DepositReward {},
@@ -80,7 +80,7 @@ pub enum Cw20HookMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct ExecuteMsg {
+pub struct PollExecuteMsg {
     pub contract: HumanAddr,
     pub msg: Binary,
 }
@@ -147,7 +147,7 @@ pub struct PollResponse {
     pub description: String,
     pub link: Option<String>,
     pub deposit_amount: Uint128,
-    pub execute_data: Option<ExecuteMsg>,
+    pub execute_data: Option<PollExecuteMsg>,
     pub yes_votes: Uint128,     // balance
     pub no_votes: Uint128,      // balance
     pub abstain_votes: Uint128, // balance

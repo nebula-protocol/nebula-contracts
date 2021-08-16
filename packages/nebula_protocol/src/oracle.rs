@@ -2,7 +2,7 @@ use cosmwasm_std::{Decimal, HumanAddr};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InitMsg {
+pub struct InstantiateMsg {
     pub terraswap_factory: HumanAddr,
     pub base_denom: String,
 }
@@ -18,7 +18,7 @@ pub enum QueryMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum HandleMsg {}
+pub enum ExecuteMsg {}
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct PriceResponse {

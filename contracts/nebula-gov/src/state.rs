@@ -1,4 +1,4 @@
-use cosmwasm_std::{Binary, Decimal, HumanAddr, ReadonlyStorage, StdResult, Storage, Uint128};
+use cosmwasm_std::{Binary, Decimal, HumanAddr, StdResult, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -63,7 +63,7 @@ pub struct Poll {
     pub title: String,
     pub description: String,
     pub link: Option<String>,
-    pub execute_data: Option<ExecuteData>,
+    pub execute_data: Option<PollExecuteMsg>,
     pub deposit_amount: Uint128,
     /// Total balance at the end poll
     pub total_balance_at_end_poll: Option<Uint128>,
@@ -85,61 +85,60 @@ pub struct TotalVotingPower {
     pub last_upd: u64,
 }
 
-pub fn config_store<S: Storage>(storage: &mut S) -> Singleton<S, Config> {
+pub fn config_store(storage: &mut dyn Storage) -> Singleton<Storage, Config> {
     singleton(storage, KEY_CONFIG)
 }
 
-pub fn config_read<S: Storage>(storage: &S) -> ReadonlySingleton<S, Config> {
+pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<Storage, Config> {
     singleton_read(storage, KEY_CONFIG)
 }
 
-pub fn state_store<S: Storage>(storage: &mut S) -> Singleton<S, State> {
+pub fn state_store(storage: &mut dyn Storage) -> Singleton<Storage, State> {
     singleton(storage, KEY_STATE)
 }
 
-pub fn state_read<S: Storage>(storage: &S) -> ReadonlySingleton<S, State> {
+pub fn state_read(storage: &dyn Storage) -> ReadonlySingleton<Storage, State> {
     singleton_read(storage, KEY_STATE)
 }
 
-pub fn poll_store<S: Storage>(storage: &mut S) -> Bucket<S, Poll> {
+pub fn poll_store(storage: &mut dyn Storage) -> Bucket<Storage, Poll> {
     bucket(PREFIX_POLL, storage)
 }
 
-pub fn poll_read<S: ReadonlyStorage>(storage: &S) -> ReadonlyBucket<S, Poll> {
+pub fn poll_read(storage: &dyn Storage) -> ReadonlyBucket<Storage, Poll> {
     bucket_read(PREFIX_POLL, storage)
 }
 
-pub fn total_voting_power_store<S: Storage>(storage: &mut S) -> Singleton<S, TotalVotingPower> {
+pub fn total_voting_power_store(storage: &mut dyn Storage) -> Singleton<Storage, TotalVotingPower> {
     singleton(storage, KEY_TOTAL_VOTING_POWER)
 }
 
-pub fn total_voting_power_read<S: Storage>(storage: &S) -> ReadonlySingleton<S, TotalVotingPower> {
+pub fn total_voting_power_read(
+    storage: &dyn Storage,
+) -> ReadonlySingleton<Storage, TotalVotingPower> {
     singleton_read(storage, KEY_TOTAL_VOTING_POWER)
 }
 
-pub fn poll_indexer_store<'a, S: Storage>(
-    storage: &'a mut S,
+pub fn poll_indexer_store<'a>(
+    storage: &'a mut Storage,
     status: &PollStatus,
-) -> Bucket<'a, S, bool> {
+) -> Bucket<'a, Storage, bool> {
     Bucket::multilevel(
-        &[PREFIX_POLL_INDEXER, status.to_string().as_bytes()],
         storage,
+        &[PREFIX_POLL_INDEXER, status.to_string().as_bytes()],
     )
 }
 
-pub fn poll_voter_store<S: Storage>(storage: &mut S, poll_id: u64) -> Bucket<S, VoterInfo> {
-    Bucket::multilevel(&[PREFIX_POLL_VOTER, &poll_id.to_be_bytes()], storage)
+pub fn poll_voter_store(storage: &mut dyn Storage, poll_id: u64) -> Bucket<Storage, VoterInfo> {
+    Bucket::multilevel(storage, &[PREFIX_POLL_VOTER, &poll_id.to_be_bytes()])
 }
 
-pub fn poll_voter_read<S: ReadonlyStorage>(
-    storage: &S,
-    poll_id: u64,
-) -> ReadonlyBucket<S, VoterInfo> {
-    ReadonlyBucket::multilevel(&[PREFIX_POLL_VOTER, &poll_id.to_be_bytes()], storage)
+pub fn poll_voter_read(storage: &dyn Storage, poll_id: u64) -> ReadonlyBucket<Storage, VoterInfo> {
+    ReadonlyBucket::multilevel(storage, &[PREFIX_POLL_VOTER, &poll_id.to_be_bytes()])
 }
 
-pub fn read_poll_voters<'a, S: ReadonlyStorage>(
-    storage: &'a S,
+pub fn read_poll_voters<'a>(
+    storage: &'a Storage,
     poll_id: u64,
     start_after: Option<HumanAddr>,
     limit: Option<u32>,
@@ -151,8 +150,8 @@ pub fn read_poll_voters<'a, S: ReadonlyStorage>(
         _ => (None, calc_range_end_addr(start_after), OrderBy::Desc),
     };
 
-    let voters: ReadonlyBucket<'a, S, VoterInfo> =
-        ReadonlyBucket::multilevel(&[PREFIX_POLL_VOTER, &poll_id.to_be_bytes()], storage);
+    let voters: ReadonlyBucket<'a, VoterInfo> =
+        ReadonlyBucket::multilevel(storage, &[PREFIX_POLL_VOTER, &poll_id.to_be_bytes()]);
     voters
         .range(start.as_deref(), end.as_deref(), order_by.into())
         .take(limit)
@@ -168,8 +167,8 @@ pub fn read_poll_voters<'a, S: ReadonlyStorage>(
 
 const MAX_LIMIT: u32 = 30;
 const DEFAULT_LIMIT: u32 = 10;
-pub fn read_polls<'a, S: ReadonlyStorage>(
-    storage: &'a S,
+pub fn read_polls<'a>(
+    storage: &'a Storage,
     filter: Option<PollStatus>,
     start_after: Option<u64>,
     limit: Option<u32>,
@@ -188,9 +187,9 @@ pub fn read_polls<'a, S: ReadonlyStorage>(
     };
 
     if let Some(status) = filter {
-        let poll_indexer: ReadonlyBucket<'a, S, bool> = ReadonlyBucket::multilevel(
-            &[PREFIX_POLL_INDEXER, status.to_string().as_bytes()],
+        let poll_indexer: ReadonlyBucket<'a, bool> = ReadonlyBucket::multilevel(
             storage,
+            &[PREFIX_POLL_INDEXER, status.to_string().as_bytes()],
         );
         poll_indexer
             .range(start.as_deref(), end.as_deref(), order_by.into())
@@ -201,7 +200,7 @@ pub fn read_polls<'a, S: ReadonlyStorage>(
             })
             .collect()
     } else {
-        let polls: ReadonlyBucket<'a, S, Poll> = ReadonlyBucket::new(PREFIX_POLL, storage);
+        let polls: ReadonlyBucket<'a, Poll> = ReadonlyBucket::new(storage, PREFIX_POLL);
 
         polls
             .range(start.as_deref(), end.as_deref(), order_by.into())
@@ -214,16 +213,16 @@ pub fn read_polls<'a, S: ReadonlyStorage>(
     }
 }
 
-pub fn bank_store<S: Storage>(storage: &mut S) -> Bucket<S, TokenManager> {
+pub fn bank_store(storage: &mut dyn Storage) -> Bucket<Storage, TokenManager> {
     bucket(PREFIX_BANK, storage)
 }
 
-pub fn bank_read<S: Storage>(storage: &S) -> ReadonlyBucket<S, TokenManager> {
+pub fn bank_read(storage: &dyn Storage) -> ReadonlyBucket<Storage, TokenManager> {
     bucket_read(PREFIX_BANK, storage)
 }
 
-pub fn read_bank_stakers<'a, S: ReadonlyStorage>(
-    storage: &'a S,
+pub fn read_bank_stakers<'a>(
+    storage: &'a Storage,
     start_after: Option<HumanAddr>,
     limit: Option<u32>,
     order_by: Option<OrderBy>,
@@ -234,7 +233,7 @@ pub fn read_bank_stakers<'a, S: ReadonlyStorage>(
         _ => (None, calc_range_end_addr(start_after), OrderBy::Desc),
     };
 
-    let stakers: ReadonlyBucket<'a, S, TokenManager> = ReadonlyBucket::new(PREFIX_BANK, storage);
+    let stakers: ReadonlyBucket<'a, TokenManager> = ReadonlyBucket::new(storage, PREFIX_BANK);
     stakers
         .range(start.as_deref(), end.as_deref(), order_by.into())
         .take(limit)

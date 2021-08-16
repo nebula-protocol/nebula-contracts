@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_binary, from_slice, to_binary, Api, CanonicalAddr, Coin, Decimal, Extern, HumanAddr,
-    Querier, QuerierResult, QueryRequest, SystemError, Uint128, WasmQuery,
+    from_binary, from_slice, to_binary, CanonicalAddr, Coin, Decimal, Deps, DepsMut, HumanAddr,
+    QuerierResult, QueryRequest, SystemError, Uint128, WasmQuery,
 };
 use cosmwasm_storage::to_length_prefixed;
 
@@ -18,7 +18,7 @@ use terraswap::asset::{AssetInfo, PairInfo};
 pub fn mock_dependencies(
     canonical_length: usize,
     contract_balance: &[Coin],
-) -> Extern<MockStorage, MockApi, WasmMockQuerier> {
+) -> Deps<MockStorage, MockApi, WasmMockQuerier> {
     let contract_addr = HumanAddr::from(MOCK_CONTRACT_ADDR);
     let custom_querier: WasmMockQuerier = WasmMockQuerier::new(
         MockQuerier::new(&[(&contract_addr, contract_balance)]),
@@ -26,7 +26,7 @@ pub fn mock_dependencies(
         canonical_length,
     );
 
-    Extern {
+    Deps {
         storage: MockStorage::default(),
         api: MockApi::new(canonical_length),
         querier: custom_querier,
@@ -35,9 +35,9 @@ pub fn mock_dependencies(
 
 pub struct WasmMockQuerier {
     base: MockQuerier<TerraQueryWrapper>,
-    token_querier: TokenQuerier,
-    tax_querier: TaxQuerier,
-    terraswap_factory_querier: TerraswapFactoryQuerier,
+    token_querier: Token,
+    tax_querier: Tax,
+    terraswap_factory_querier: TerraswapFactory,
     canonical_length: usize,
 }
 
@@ -127,7 +127,7 @@ impl Querier for WasmMockQuerier {
                 })
             }
         };
-        self.handle_query(&request)
+        self.execute_query(&request)
     }
 }
 
@@ -138,7 +138,7 @@ pub enum QueryMsg {
 }
 
 impl WasmMockQuerier {
-    pub fn handle_query(&self, request: &QueryRequest<TerraQueryWrapper>) -> QuerierResult {
+    pub fn execute_query(&self, request: &QueryRequest<TerraQueryWrapper>) -> QuerierResult {
         match &request {
             QueryRequest::Custom(TerraQueryWrapper { route, query_data }) => {
                 if route == &TerraRoute::Treasury {
@@ -239,7 +239,7 @@ impl WasmMockQuerier {
                     panic!("DO NOT ENTER HERE")
                 }
             }
-            _ => self.base.handle_query(request),
+            _ => self.base.execute_query(request),
         }
     }
 }

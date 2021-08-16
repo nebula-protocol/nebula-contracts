@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    to_binary, Api, Binary, Extern, HumanAddr, Querier, StdError, StdResult, Storage, Uint128,
+    entry_point, to_binary, Binary, Deps, DepsMut, HumanAddr, StdError, StdResult, Uint128,
 };
 
 use crate::ext_query::{query_cw20_balance, query_cw20_token_supply, query_price};
@@ -15,10 +15,8 @@ pub fn h(s: &str) -> HumanAddr {
     HumanAddr(s.to_string())
 }
 
-pub fn query<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    msg: QueryMsg,
-) -> StdResult<Binary> {
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Target {} => to_binary(&query_target(deps)?),
         QueryMsg::Config {} => to_binary(&query_config(deps)?),
@@ -29,32 +27,28 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-fn query_config<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-) -> StdResult<ConfigResponse> {
-    let cfg = read_config(&deps.storage)?;
+fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
+    let cfg = read_config(deps.storage)?;
     Ok(ConfigResponse { config: cfg })
 }
 
-fn query_target<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-) -> StdResult<TargetResponse> {
-    let target_assets = read_target_asset_data(&deps.storage)?;
+fn query_target(deps: Deps) -> StdResult<TargetResponse> {
+    let target_assets = read_target_asset_data(deps.storage)?;
     Ok(TargetResponse {
         target: target_assets,
     })
 }
 
-pub fn query_cluster_state<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+pub fn query_cluster_state(
+    deps: Deps,
     cluster_contract_address: &HumanAddr,
     stale_threshold: u64,
 ) -> StdResult<ClusterStateResponse> {
-    let cfg = &read_config(&deps.storage)?;
+    let cfg = &read_config(deps.storage)?;
 
     let active = cfg.active;
 
-    let target_asset_data = read_target_asset_data(&deps.storage)?;
+    let target_asset_data = read_target_asset_data(deps.storage)?;
     let asset_infos = target_asset_data
         .iter()
         .map(|x| x.info.clone())
@@ -113,10 +107,8 @@ pub fn query_cluster_state<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-pub fn query_cluster_info<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-) -> StdResult<ClusterInfoResponse> {
-    let cfg = &read_config(&deps.storage)?;
+pub fn query_cluster_info(deps: Deps) -> StdResult<ClusterInfoResponse> {
+    let cfg = &read_config(deps.storage)?;
     let name = &cfg.name;
     let description = &cfg.description;
     Ok(ClusterInfoResponse {

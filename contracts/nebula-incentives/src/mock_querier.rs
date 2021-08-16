@@ -3,11 +3,11 @@ use nebula_protocol::cluster_factory::ClusterExistsResponse;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
+use cosmwasm_std::testing::{MockApi, MockQueier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    coin, from_binary, from_slice, to_binary, Api, BalanceResponse, BankQuery, Binary,
-    CanonicalAddr, Coin, Decimal, Extern, HumanAddr, Querier, QuerierResult, QueryRequest,
-    SystemError, Uint128, WasmQuery,
+    coin, from_binary, from_slice, to_binary, BalanceResponse, BankQuery, Binary, CanonicalAddr,
+    Coin, Decimal, Deps, DepsMut, HumanAddr, QuerierResult, QueryRequest, SystemError, Uint128,
+    WasmQuery,
 };
 use cosmwasm_storage::to_length_prefixed;
 
@@ -22,7 +22,7 @@ use terraswap::pair::PoolResponse as TerraswapPoolResponse;
 pub fn mock_dependencies(
     canonical_length: usize,
     contract_balance: &[Coin],
-) -> Extern<MockStorage, MockApi, WasmMockQuerier> {
+) -> Deps<MockStorage, MockApi, WasmMockQuerier> {
     let contract_addr = HumanAddr::from(MOCK_CONTRACT_ADDR);
     let custom_querier: WasmMockQuerier = WasmMockQuerier::new(
         MockQuerier::new(&[(&contract_addr, contract_balance)]),
@@ -30,7 +30,7 @@ pub fn mock_dependencies(
         canonical_length,
     );
 
-    Extern {
+    Deps {
         storage: MockStorage::default(),
         api: MockApi::new(canonical_length),
         querier: custom_querier,
@@ -39,10 +39,10 @@ pub fn mock_dependencies(
 
 pub struct WasmMockQuerier {
     base: MockQuerier<TerraQueryWrapper>,
-    token_querier: TokenQuerier,
-    balance_querier: BalanceQuerier,
-    tax_querier: TaxQuerier,
-    terraswap_factory_querier: TerraswapFactoryQuerier,
+    token_querier: Token,
+    balance_querier: Balance,
+    tax_querier: Tax,
+    terraswap_factory_querier: TerraswapFactory,
     canonical_length: usize,
 }
 
@@ -160,7 +160,7 @@ impl Querier for WasmMockQuerier {
                 })
             }
         };
-        self.handle_query(&request)
+        self.execute_query(&request)
     }
 }
 
@@ -174,7 +174,7 @@ pub enum QueryMsg {
 }
 
 impl WasmMockQuerier {
-    pub fn handle_query(&self, request: &QueryRequest<TerraQueryWrapper>) -> QuerierResult {
+    pub fn execute_query(&self, request: &QueryRequest<TerraQueryWrapper>) -> QuerierResult {
         match &request {
             QueryRequest::Custom(TerraQueryWrapper { route, query_data }) => {
                 if route == &TerraRoute::Treasury {
@@ -214,7 +214,7 @@ impl WasmMockQuerier {
                 };
                 let balance = match denom_data.get(&address) {
                     Some(v) => v,
-                    None => &Uint128(0),
+                    None => &Uint128::zero(),
                 };
                 Ok(to_binary(&BalanceResponse {
                     amount: coin(balance.u128(), denom),
@@ -249,9 +249,9 @@ impl WasmMockQuerier {
                     cluster_contract_address,
                 } => {
                     let response = ClusterStateResponse {
-                        outstanding_balance_tokens: Uint128(1000),
+                        outstanding_balance_tokens: Uint128::new(1000),
                         prices: vec!["11.85".to_string(), "3.31".to_string()],
-                        inv: vec![Uint128(110), Uint128(100), Uint128(95)],
+                        inv: vec![Uint128::new(110), Uint128::new(100), Uint128::new(95)],
                         penalty: HumanAddr::from("penalty"),
                         cluster_token: HumanAddr::from("cluster_token"),
                         target: vec![
@@ -259,19 +259,19 @@ impl WasmMockQuerier {
                                 info: AssetInfo::Token {
                                     contract_addr: HumanAddr::from("asset0000"),
                                 },
-                                amount: Uint128(100),
+                                amount: Uint128::new(100),
                             },
                             Asset {
                                 info: AssetInfo::Token {
                                     contract_addr: HumanAddr::from("asset0001"),
                                 },
-                                amount: Uint128(100),
+                                amount: Uint128::new(100),
                             },
                             Asset {
                                 info: AssetInfo::NativeToken {
                                     denom: "native_asset0000".to_string(),
                                 },
-                                amount: Uint128(100),
+                                amount: Uint128::new(100),
                             },
                         ],
                         cluster_contract_address: cluster_contract_address,
@@ -288,16 +288,16 @@ impl WasmMockQuerier {
                             info: AssetInfo::Token {
                                 contract_addr: HumanAddr::from("cluster_token"),
                             },
-                            amount: Uint128(100),
+                            amount: Uint128::new(100),
                         },
                         Asset {
                             info: AssetInfo::NativeToken {
                                 denom: "uusd".to_string(),
                             },
-                            amount: Uint128(100),
+                            amount: Uint128::new(100),
                         },
                     ],
-                    total_share: Uint128(10000),
+                    total_share: Uint128::new(10000),
                 })),
             },
             QueryRequest::Wasm(WasmQuery::Raw { contract_addr, key }) => {
@@ -348,7 +348,7 @@ impl WasmMockQuerier {
                     panic!("DO NOT ENTER HERE")
                 }
             }
-            _ => self.base.handle_query(request),
+            _ => self.base.execute_query(request),
         }
     }
 }

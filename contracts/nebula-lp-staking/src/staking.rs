@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    log, to_binary, Api, Coin, CosmosMsg, Decimal, Env, Extern, HandleResponse, HandleResult,
-    HumanAddr, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
+    to_binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, HumanAddr, StdError, StdResult,
+    Uint128, WasmMsg,
 };
 
 use crate::rewards::before_share_change;
@@ -8,70 +8,64 @@ use crate::state::{
     read_config, read_pool_info, rewards_read, rewards_store, store_pool_info, Config, PoolInfo,
     RewardInfo,
 };
-use nebula_protocol::staking::HandleMsg;
+use nebula_protocol::staking::ExecuteMsg;
 use terraswap::asset::{Asset, AssetInfo, PairInfo};
 
-use terraswap::pair::HandleMsg as PairHandleMsg;
+use terraswap::pair::ExecuteMsg as PairExecuteMsg;
 use terraswap::querier::{query_pair_info, query_token_balance};
 
-use cw20::Cw20HandleMsg;
+use cw20::Cw20ExecuteMsg;
 
-pub fn bond<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn bond(
+    deps: DepsMut,
     _env: Env,
     staker_addr: HumanAddr,
     asset_token: HumanAddr,
     amount: Uint128,
-) -> HandleResult {
-    _increase_bond_amount(&mut deps.storage, &staker_addr, &asset_token, amount)?;
+) -> StdResult<Response> {
+    _increase_bond_amount(deps.storage, &staker_addr, &asset_token, amount)?;
 
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![
-            log("action", "bond"),
-            log("staker_addr", staker_addr.as_str()),
-            log("asset_token", asset_token.as_str()),
-            log("amount", amount.to_string()),
-        ],
-        data: None,
-    })
+    Ok(Response::new().add_attributes(vec![
+        attr("action", "bond"),
+        attr("staker_addr", staker_addr.as_str()),
+        attr("asset_token", asset_token.as_str()),
+        attr("amount", amount.to_string()),
+    ]))
 }
 
-pub fn unbond<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn unbond(
+    deps: DepsMut,
     staker_addr: HumanAddr,
     asset_token: HumanAddr,
     amount: Uint128,
-) -> HandleResult {
+) -> StdResult<Response> {
     let staking_token: HumanAddr =
-        _decrease_bond_amount(&mut deps.storage, &staker_addr, &asset_token, amount)?;
+        _decrease_bond_amount(deps.storage, &staker_addr, &asset_token, amount)?;
 
-    Ok(HandleResponse {
-        messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+    Ok(Response::new()
+        .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: staking_token,
-            msg: to_binary(&Cw20HandleMsg::Transfer {
+            msg: to_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: staker_addr.clone(),
                 amount,
             })?,
-            send: vec![],
-        })],
-        log: vec![
-            log("action", "unbond"),
-            log("staker_addr", staker_addr.as_str()),
-            log("asset_token", asset_token.as_str()),
-            log("amount", amount.to_string()),
-        ],
-        data: None,
-    })
+            funds: vec![],
+        })])
+        .add_attributes(vec![
+            attr("action", "unbond"),
+            attr("staker_addr", staker_addr.as_str()),
+            attr("asset_token", asset_token.as_str()),
+            attr("amount", amount.to_string()),
+        ]))
 }
 
-pub fn auto_stake<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn auto_stake(
+    deps: DepsMut,
     env: Env,
     assets: [Asset; 2],
     slippage_tolerance: Option<Decimal>,
-) -> HandleResult {
-    let config: Config = read_config(&deps.storage)?;
+) -> StdResult<Response> {
+    let config: Config = read_config(deps.storage)?;
     let terraswap_factory: HumanAddr = config.terraswap_factory;
 
     let mut native_asset_op: Option<Asset> = None;
@@ -103,7 +97,7 @@ pub fn auto_stake<S: Storage, A: Api, Q: Querier>(
     let terraswap_pair: PairInfo = query_pair_info(deps, &terraswap_factory, &asset_infos)?;
 
     // assert the token and lp token match with pool info
-    let pool_info: PoolInfo = read_pool_info(&deps.storage, &token_addr)?;
+    let pool_info: PoolInfo = read_pool_info(deps.storage, &token_addr)?;
 
     if pool_info.staking_token != terraswap_pair.liquidity_token {
         return Err(StdError::generic_err("Invalid staking token"));
@@ -123,29 +117,29 @@ pub fn auto_stake<S: Storage, A: Api, Q: Querier>(
     // 2. Increase allowance of token for pair contract
     // 3. Provide liquidity
     // 4. Execute staking hook, will stake in the name of the sender
-    Ok(HandleResponse {
-        messages: vec![
+    Ok(Response::new()
+        .add_messages(vec![
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: token_addr.clone(),
-                msg: to_binary(&Cw20HandleMsg::TransferFrom {
+                msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
                     owner: env.message.sender.clone(),
                     recipient: env.contract.address.clone(),
                     amount: token_amount,
                 })?,
-                send: vec![],
+                funds: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: token_addr.clone(),
-                msg: to_binary(&Cw20HandleMsg::IncreaseAllowance {
+                msg: to_binary(&Cw20ExecuteMsg::IncreaseAllowance {
                     spender: terraswap_pair.contract_addr.clone(),
                     amount: token_amount,
                     expires: None,
                 })?,
-                send: vec![],
+                funds: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: terraswap_pair.contract_addr,
-                msg: to_binary(&PairHandleMsg::ProvideLiquidity {
+                msg: to_binary(&PairExecuteMsg::ProvideLiquidity {
                     assets: [
                         Asset {
                             amount: (native_asset.amount.clone() - tax_amount)?,
@@ -167,32 +161,30 @@ pub fn auto_stake<S: Storage, A: Api, Q: Querier>(
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address,
-                msg: to_binary(&HandleMsg::AutoStakeHook {
+                msg: to_binary(&ExecuteMsg::AutoStakeHook {
                     asset_token: token_addr.clone(),
                     staking_token: terraswap_pair.liquidity_token,
                     staker_addr: env.message.sender,
                     prev_staking_token_amount,
                 })?,
-                send: vec![],
+                funds: vec![],
             }),
-        ],
-        log: vec![
-            log("action", "auto_stake"),
-            log("asset_token", token_addr.to_string()),
-            log("tax_amount", tax_amount.to_string()),
-        ],
-        data: None,
-    })
+        ])
+        .add_attributes(vec![
+            attr("action", "auto_stake"),
+            attr("asset_token", token_addr.to_string()),
+            attr("tax_amount", tax_amount.to_string()),
+        ]))
 }
 
-pub fn auto_stake_hook<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn auto_stake_hook(
+    deps: DepsMut,
     env: Env,
     asset_token: HumanAddr,
     staking_token: HumanAddr,
     staker_addr: HumanAddr,
     prev_staking_token_amount: Uint128,
-) -> HandleResult {
+) -> StdResult<Response> {
     // only can be called by itself
     if env.message.sender != env.contract.address {
         return Err(StdError::unauthorized());
@@ -206,8 +198,8 @@ pub fn auto_stake_hook<S: Storage, A: Api, Q: Querier>(
     bond(deps, env, staker_addr, asset_token, amount_to_stake)
 }
 
-fn _increase_bond_amount<S: Storage>(
-    storage: &mut S,
+fn _increase_bond_amount(
+    storage: &mut dyn Storage,
     staker_addr: &HumanAddr,
     asset_token: &HumanAddr,
     amount: Uint128,
@@ -234,8 +226,8 @@ fn _increase_bond_amount<S: Storage>(
     Ok(())
 }
 
-fn _decrease_bond_amount<S: Storage>(
-    storage: &mut S,
+fn _decrease_bond_amount(
+    storage: &mut dyn Storage,
     staker_addr: &HumanAddr,
     asset_token: &HumanAddr,
     amount: Uint128,

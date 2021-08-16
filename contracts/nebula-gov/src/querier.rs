@@ -1,12 +1,11 @@
 use cosmwasm_std::{
-    to_binary, Api, Extern, HumanAddr, Querier, QueryRequest, StdResult, Storage, Uint128,
-    WasmQuery,
+    to_binary, Deps, DepsMut, HumanAddr, QueryRequest, StdResult, Uint128, WasmQuery,
 };
 
 use cw20::{BalanceResponse, Cw20QueryMsg};
 
-pub fn load_token_balance<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+pub fn load_token_balance(
+    deps: Deps,
     contract_addr: &HumanAddr,
     account_addr: &HumanAddr,
 ) -> StdResult<Uint128> {

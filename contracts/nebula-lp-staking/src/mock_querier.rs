@@ -1,7 +1,7 @@
-use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
+use cosmwasm_std::testing::{MockApi, MockQueier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_binary, from_slice, to_binary, Api, Coin, Decimal, Extern, HumanAddr, Querier,
-    QuerierResult, QueryRequest, SystemError, Uint128, WasmQuery,
+    from_binary, from_slice, to_binary, Coin, Decimal, Deps, DepsMut, HumanAddr, QuerierResult,
+    QueryRequest, SystemError, Uint128, WasmQuery,
 };
 use cosmwasm_storage::to_length_prefixed;
 use nebula_protocol::oracle::PriceResponse;
@@ -21,7 +21,7 @@ pub struct WasmMockQuerier {
 pub fn mock_dependencies_with_querier(
     canonical_length: usize,
     contract_balance: &[Coin],
-) -> Extern<MockStorage, MockApi, WasmMockQuerier> {
+) -> Deps<MockStorage, MockApi, WasmMockQuerier> {
     let contract_addr = HumanAddr::from(MOCK_CONTRACT_ADDR);
     let custom_querier: WasmMockQuerier = WasmMockQuerier::new(
         MockQuerier::new(&[(&contract_addr, contract_balance)]),
@@ -29,7 +29,7 @@ pub fn mock_dependencies_with_querier(
         canonical_length,
     );
 
-    Extern {
+    Deps {
         storage: MockStorage::default(),
         api: MockApi::new(canonical_length),
         querier: custom_querier,
@@ -48,7 +48,7 @@ impl Querier for WasmMockQuerier {
                 })
             }
         };
-        self.handle_query(&request)
+        self.execute_query(&request)
     }
 }
 
@@ -66,7 +66,7 @@ pub enum MockQueryMsg {
 }
 
 impl WasmMockQuerier {
-    pub fn handle_query(&self, request: &QueryRequest<TerraQueryWrapper>) -> QuerierResult {
+    pub fn execute_query(&self, request: &QueryRequest<TerraQueryWrapper>) -> QuerierResult {
         match &request {
             QueryRequest::Custom(TerraQueryWrapper { route, query_data }) => {
                 if route == &TerraRoute::Treasury {
@@ -119,7 +119,7 @@ impl WasmMockQuerier {
                     panic!("DO NOT ENTER HERE")
                 }
             }
-            _ => self.base.handle_query(request),
+            _ => self.base.execute_query(request),
         }
     }
 }
@@ -149,7 +149,7 @@ impl WasmMockQuerier {
             ],
             oracle_price: Decimal::zero(),
             token_balance: Uint128::zero(),
-            tax: (Decimal::percent(1), Uint128(1000000)),
+            tax: (Decimal::percent(1), Uint128::new(1000000)),
         }
     }
 

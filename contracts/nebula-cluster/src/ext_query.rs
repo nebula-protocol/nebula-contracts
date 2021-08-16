@@ -1,6 +1,5 @@
 use cosmwasm_std::{
-    to_binary, BalanceResponse, BankQuery, HumanAddr, Querier, QueryRequest, StdResult, Uint128,
-    WasmQuery,
+    to_binary, BalanceResponse, BankQuery, HumanAddr, QueryRequest, StdResult, Uint128, WasmQuery,
 };
 use cw20::Cw20QueryMsg;
 use cw20::{BalanceResponse as Cw20BalanceResponse, TokenInfoResponse as Cw20TokenInfoResponse};

@@ -18,14 +18,14 @@ pub struct PenaltyConfig {
     pub last_block: u64,
 }
 
-pub fn config_store<S: Storage>(storage: &mut S) -> Singleton<S, PenaltyConfig> {
+pub fn config_store(storage: &mut dyn Storage) -> Singleton<Storage, PenaltyConfig> {
     singleton(storage, CONFIG_KEY)
 }
 
-pub fn read_config<S: Storage>(storage: &S) -> StdResult<PenaltyConfig> {
+pub fn read_config(storage: &dyn Storage) -> StdResult<PenaltyConfig> {
     singleton_read(storage, CONFIG_KEY).load()
 }
 
-pub fn save_config<S: Storage>(storage: &mut S, config: &PenaltyConfig) -> StdResult<()> {
+pub fn save_config(storage: &mut dyn Storage, config: &PenaltyConfig) -> StdResult<()> {
     singleton(storage, CONFIG_KEY).save(config)
 }

@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    from_binary, log, to_binary, Api, Binary, Env, Extern, HandleResponse, HandleResult, HumanAddr,
-    InitResponse, MigrateResponse, MigrateResult, Querier, StdError, StdResult, Storage, Uint128,
+    entry_point, from_binary, to_binary, Binary, Deps, DepsMut, Env, HumanAddr, MessageInfo,
+    MigrateResult, Response, StdError, StdResult, Uint128,
 };
 
 use crate::arbitrageurs::{
@@ -17,17 +17,19 @@ use crate::state::{
 use cw20::Cw20ReceiveMsg;
 use nebula_protocol::incentives::{
     ConfigResponse, ContributorPendingRewardsResponse, CurrentContributorInfoResponse, Cw20HookMsg,
-    HandleMsg, IncentivesPoolInfoResponse, InitMsg, MigrateMsg, PenaltyPeriodResponse, PoolType,
-    QueryMsg,
+    ExecuteMsg, IncentivesPoolInfoResponse, InstantiateMsg, MigrateMsg, PenaltyPeriodResponse,
+    PoolType, QueryMsg,
 };
 
-pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn instantiate(
+    deps: DepsMut,
     _env: Env,
-    msg: InitMsg,
-) -> StdResult<InitResponse> {
+    info: MessageInfo,
+    msg: InstantiateMsg,
+) -> StdResult<Response> {
     store_config(
-        &mut deps.storage,
+        deps.storage,
         &Config {
             factory: msg.factory,
             custody: msg.custody,
@@ -38,31 +40,28 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         },
     )?;
 
-    store_current_n(&mut deps.storage, 0)?;
-    Ok(InitResponse::default())
+    store_current_n(deps.storage, 0)?;
+    Ok(Response::default())
 }
 
-pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    msg: HandleMsg,
-) -> StdResult<HandleResponse> {
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
-        HandleMsg::UpdateOwner { owner } => update_owner(deps, env, &owner),
-        HandleMsg::Receive(msg) => receive_cw20(deps, env, msg),
-        HandleMsg::Withdraw {} => withdraw_reward(deps, env),
-        HandleMsg::NewPenaltyPeriod {} => new_penalty_period(deps, env),
-        HandleMsg::_SwapAll {
+        ExecuteMsg::UpdateOwner { owner } => update_owner(deps, env, &owner),
+        ExecuteMsg::Receive(msg) => receive_cw20(deps, env, msg),
+        ExecuteMsg::Withdraw {} => withdraw_reward(deps, env),
+        ExecuteMsg::NewPenaltyPeriod {} => new_penalty_period(deps, env),
+        ExecuteMsg::_SwapAll {
             terraswap_pair,
             cluster_token,
             to_ust,
             min_return,
         } => swap_all(deps, env, terraswap_pair, cluster_token, to_ust, min_return),
-        HandleMsg::_SendAll {
+        ExecuteMsg::_SendAll {
             asset_infos,
             send_to,
         } => send_all(deps, env, &asset_infos, send_to),
-        HandleMsg::_RecordTerraswapImpact {
+        ExecuteMsg::_RecordTerraswapImpact {
             arbitrageur,
             terraswap_pair,
             cluster_contract,
@@ -75,12 +74,12 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             cluster_contract,
             pool_before,
         ),
-        HandleMsg::_RecordRebalancerRewards {
+        ExecuteMsg::_RecordRebalancerRewards {
             rebalancer,
             cluster_contract,
             original_imbalance,
         } => record_rebalancer_rewards(deps, env, rebalancer, cluster_contract, original_imbalance),
-        HandleMsg::_InternalRewardedMint {
+        ExecuteMsg::_InternalRewardedMint {
             rebalancer,
             cluster_contract,
             asset_amounts,
@@ -93,7 +92,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             &asset_amounts,
             min_tokens,
         ),
-        HandleMsg::_InternalRewardedRedeem {
+        ExecuteMsg::_InternalRewardedRedeem {
             rebalancer,
             cluster_contract,
             cluster_token,
@@ -108,22 +107,22 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             max_tokens,
             asset_amounts,
         ),
-        HandleMsg::ArbClusterMint {
+        ExecuteMsg::ArbClusterMint {
             cluster_contract,
             assets,
             min_ust,
         } => arb_cluster_mint(deps, env, cluster_contract, &assets, min_ust),
-        HandleMsg::ArbClusterRedeem {
+        ExecuteMsg::ArbClusterRedeem {
             cluster_contract,
             asset,
             min_cluster,
         } => arb_cluster_redeem(deps, env, cluster_contract, asset, min_cluster),
-        HandleMsg::Mint {
+        ExecuteMsg::Mint {
             cluster_contract,
             asset_amounts,
             min_tokens,
         } => mint(deps, env, cluster_contract, &asset_amounts, min_tokens),
-        HandleMsg::Redeem {
+        ExecuteMsg::Redeem {
             cluster_contract,
             max_tokens,
             asset_amounts,
@@ -131,12 +130,8 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-pub fn update_owner<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    owner: &HumanAddr,
-) -> StdResult<HandleResponse> {
-    let cfg = read_config(&deps.storage)?;
+pub fn update_owner(deps: DepsMut, env: Env, owner: &HumanAddr) -> StdResult<Response> {
+    let cfg = read_config(deps.storage)?;
 
     if env.message.sender != cfg.owner {
         return Err(StdError::unauthorized());
@@ -144,22 +139,14 @@ pub fn update_owner<S: Storage, A: Api, Q: Querier>(
 
     let mut new_cfg = cfg;
     new_cfg.owner = owner.clone();
-    store_config(&mut deps.storage, &new_cfg)?;
+    store_config(deps.storage, &new_cfg)?;
 
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![log("action", "update_owner")],
-        data: None,
-    })
+    Ok(Response::new().add_attributes(vec![attr("action", "update_owner")]))
 }
 
-pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    cw20_msg: Cw20ReceiveMsg,
-) -> HandleResult {
+pub fn receive_cw20(deps: DepsMut, env: Env, cw20_msg: Cw20ReceiveMsg) -> StdResult<Response> {
     if let Some(msg) = cw20_msg.msg {
-        let config: Config = read_config(&deps.storage)?;
+        let config: Config = read_config(deps.storage)?;
 
         match from_binary(&msg)? {
             Cw20HookMsg::DepositReward { rewards } => {
@@ -185,35 +172,26 @@ pub fn receive_cw20<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-pub fn new_penalty_period<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-) -> HandleResult {
-    let cfg = read_config(&deps.storage)?;
+pub fn new_penalty_period(deps: DepsMut, env: Env) -> StdResult<Response> {
+    let cfg = read_config(deps.storage)?;
 
     if env.message.sender != cfg.owner {
         return Err(StdError::unauthorized());
     }
 
-    let n = read_current_n(&mut deps.storage)?;
+    let n = read_current_n(deps.storage)?;
 
-    let new_n = increment_n(&mut deps.storage)?;
+    let new_n = increment_n(deps.storage)?;
 
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![
-            log("action", "new_penalty_period"),
-            log("previous_n", n),
-            log("current_n", new_n),
-        ],
-        data: None,
-    })
+    Ok(Response::new().add_attributes(vec![
+        attr("action", "new_penalty_period"),
+        attr("previous_n", n),
+        attr("current_n", new_n),
+    ]))
 }
 
-pub fn query<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    msg: QueryMsg,
-) -> StdResult<Binary> {
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_binary(&query_config(deps)?),
         QueryMsg::PenaltyPeriod {} => to_binary(&query_penalty_period(deps)?),
@@ -241,10 +219,8 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-pub fn query_config<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-) -> StdResult<ConfigResponse> {
-    let state = read_config(&deps.storage)?;
+pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
+    let state = read_config(deps.storage)?;
     let resp = ConfigResponse {
         factory: state.factory,
         custody: state.custody,
@@ -257,25 +233,23 @@ pub fn query_config<S: Storage, A: Api, Q: Querier>(
     Ok(resp)
 }
 
-pub fn query_penalty_period<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-) -> StdResult<PenaltyPeriodResponse> {
-    let n = read_current_n(&deps.storage)?;
+pub fn query_penalty_period(deps: Deps) -> StdResult<PenaltyPeriodResponse> {
+    let n = read_current_n(deps.storage)?;
     let resp = PenaltyPeriodResponse { n };
     Ok(resp)
 }
 
-pub fn query_pool_info<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+pub fn query_pool_info(
+    deps: Deps,
     pool_type: u16,
     cluster_address: HumanAddr,
     n: Option<u64>,
 ) -> StdResult<IncentivesPoolInfoResponse> {
     let n = match n {
         Some(_) => n.unwrap(),
-        None => read_current_n(&deps.storage)?,
+        None => read_current_n(deps.storage)?,
     };
-    let pool_bucket = pool_info_read(&deps.storage, pool_type, n);
+    let pool_bucket = pool_info_read(deps.storage, pool_type, n);
     let pool_info = read_from_pool_bucket(&pool_bucket, &cluster_address);
     let resp = IncentivesPoolInfoResponse {
         value_total: pool_info.value_total,
@@ -284,34 +258,31 @@ pub fn query_pool_info<S: Storage, A: Api, Q: Querier>(
     Ok(resp)
 }
 
-pub fn query_contributor_info<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+pub fn query_contributor_info(
+    deps: Deps,
     pool_type: u16,
     contributor_address: HumanAddr,
     cluster_address: HumanAddr,
 ) -> StdResult<CurrentContributorInfoResponse> {
-    let contribution_bucket = contributions_read(&deps.storage, &contributor_address, pool_type);
+    let contribution_bucket = contributions_read(deps.storage, &contributor_address, pool_type);
     let contributions = read_from_contribution_bucket(&contribution_bucket, &cluster_address);
     let resp = CurrentContributorInfoResponse {
-        n: read_current_n(&deps.storage)?,
+        n: read_current_n(deps.storage)?,
         value_contributed: contributions.value_contributed,
     };
     Ok(resp)
 }
 
-pub fn query_contributor_pending_rewards<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+pub fn query_contributor_pending_rewards(
+    deps: Deps,
     contributor_address: HumanAddr,
 ) -> StdResult<ContributorPendingRewardsResponse> {
-    let pending_rewards = read_pending_rewards(&deps.storage, &contributor_address);
+    let pending_rewards = read_pending_rewards(deps.storage, &contributor_address);
     let resp = ContributorPendingRewardsResponse { pending_rewards };
     Ok(resp)
 }
 
-pub fn migrate<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
-    _env: Env,
-    _msg: MigrateMsg,
-) -> MigrateResult {
-    Ok(MigrateResponse::default())
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    Ok(Response::default())
 }

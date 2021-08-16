@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_binary, from_slice, to_binary, Api, CanonicalAddr, Coin, Decimal, Empty, Extern,
-    HumanAddr, Querier, QuerierResult, QueryRequest, SystemError, WasmQuery,
+    from_binary, from_slice, to_binary, CanonicalAddr, Coin, Decimal, Deps, Empty, HumanAddr,
+    QuerierResult, QueryRequest, SystemError, WasmQuery,
 };
 use cosmwasm_storage::to_length_prefixed;
 
@@ -17,7 +17,7 @@ use terraswap::asset::{AssetInfo, PairInfo};
 pub fn mock_dependencies(
     canonical_length: usize,
     contract_balance: &[Coin],
-) -> Extern<MockStorage, MockApi, WasmMockQuerier> {
+) -> Deps<MockStorage, MockApi, WasmMockQuerier> {
     let contract_addr = HumanAddr::from(MOCK_CONTRACT_ADDR);
     let custom_querier: WasmMockQuerier = WasmMockQuerier::new(
         MockQuerier::new(&[(&contract_addr, contract_balance)]),
@@ -25,7 +25,7 @@ pub fn mock_dependencies(
         canonical_length,
     );
 
-    Extern {
+    Deps {
         storage: MockStorage::default(),
         api: MockApi::new(canonical_length),
         querier: custom_querier,
@@ -34,9 +34,9 @@ pub fn mock_dependencies(
 
 pub struct WasmMockQuerier {
     base: MockQuerier<Empty>,
-    terraswap_factory_querier: TerraswapFactoryQuerier,
-    oracle_querier: OracleQuerier,
-    mint_querier: MintQuerier,
+    terraswap_factory_querier: TerraswapFactory,
+    oracle_querier: Oracle,
+    mint_querier: Mint,
     canonical_length: usize,
 }
 
@@ -83,7 +83,7 @@ impl Querier for WasmMockQuerier {
                 })
             }
         };
-        self.handle_query(&request)
+        self.execute_query(&request)
     }
 }
 
@@ -94,7 +94,7 @@ pub enum QueryMsg {
 }
 
 impl WasmMockQuerier {
-    pub fn handle_query(&self, request: &QueryRequest<Empty>) -> QuerierResult {
+    pub fn execute_query(&self, request: &QueryRequest<Empty>) -> QuerierResult {
         match &request {
             QueryRequest::Wasm(WasmQuery::Smart {
                 contract_addr: _,
@@ -189,7 +189,7 @@ impl WasmMockQuerier {
                     panic!("DO NOT ENTER HERE")
                 }
             }
-            _ => self.base.handle_query(request),
+            _ => self.base.execute_query(request),
         }
     }
 }

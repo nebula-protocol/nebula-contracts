@@ -1,30 +1,27 @@
 use cosmwasm_std::{
-    log, to_binary, Api, Coin, CosmosMsg, Decimal, Env, Extern, HandleResponse, HumanAddr, Querier,
-    QueryRequest, StdError, StdResult, Storage, Uint128, WasmMsg, WasmQuery,
+    to_binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, HumanAddr, QueryRequest, StdError,
+    StdResult, Uint128, WasmMsg, WasmQuery,
 };
 
 use crate::rebalancers::{assert_cluster_exists, get_cluster_state};
 use crate::state::{read_config, record_contribution, Config};
 
-use nebula_protocol::incentives::{HandleMsg, PoolType};
+use nebula_protocol::incentives::{ExecuteMsg, PoolType};
 
 use terraswap::pair::PoolResponse as TerraswapPoolResponse;
 use terraswap::pair::QueryMsg as TerraswapQueryMsg;
 
-use cw20::Cw20HandleMsg;
+use cw20::Cw20ExecuteMsg;
 use nebula_protocol::cluster::{ClusterStateResponse, QueryMsg as ClusterQueryMsg};
 use terraswap::asset::{Asset, AssetInfo, PairInfo};
-use terraswap::pair::{Cw20HookMsg as TerraswapCw20HookMsg, HandleMsg as TerraswapHandleMsg};
+use terraswap::pair::{Cw20HookMsg as TerraswapCw20HookMsg, ExecuteMsg as TerraswapExecuteMsg};
 use terraswap::querier::{query_balance, query_pair_info, query_token_balance};
 
 use cluster_math::FPDecimal;
 use std::str::FromStr;
 
-pub fn get_pair_info<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    cluster_token: &HumanAddr,
-) -> StdResult<PairInfo> {
-    let config: Config = read_config(&deps.storage)?;
+pub fn get_pair_info(deps: Deps, cluster_token: &HumanAddr) -> StdResult<PairInfo> {
+    let config: Config = read_config(deps.storage)?;
     let terraswap_factory_raw = config.terraswap_factory;
     query_pair_info(
         &deps,
@@ -45,12 +42,12 @@ pub fn get_pair_info<S: Storage, A: Api, Q: Querier>(
 // 2. record difference
 // 3. redeem
 // 4. send_all
-// pub fn ust_to_asset_tokens<S: Storage, A: Api, Q: Querier>(
-//     deps: &mut Extern<S, A, Q>,
+// pub fn ust_to_asset_tokens(
+//     deps: DepsMut,
 //     env: Env,
 //     cluster_contract: &HumanAddr,
 //     assets: &Vec<Asset>,
-// ) -> StdResult<HandleResponse> {
+// ) -> StdResult<Response> {
 //
 // }
 // Assets -> UST
@@ -59,19 +56,19 @@ pub fn get_pair_info<S: Storage, A: Api, Q: Querier>(
 // 3. record difference
 // 4. send_all
 
-pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn arb_cluster_mint(
+    deps: DepsMut,
     env: Env,
     cluster_contract: HumanAddr,
     assets: &[Asset],
     min_ust: Option<Uint128>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     assert_cluster_exists(deps, &cluster_contract)?;
 
     let mut messages = vec![];
     let contract = env.contract.address.clone();
 
-    let cfg: Config = read_config(&deps.storage)?;
+    let cfg: Config = read_config(deps.storage)?;
 
     let cluster_state = get_cluster_state(deps, &cluster_contract)?;
 
@@ -89,12 +86,12 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
             AssetInfo::Token { contract_addr } => {
                 messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: contract_addr.clone(),
-                    msg: to_binary(&Cw20HandleMsg::TransferFrom {
+                    msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
                         owner: env.message.sender.clone(),
                         recipient: contract.clone(),
                         amount: asset.amount,
                     })?,
-                    send: vec![],
+                    funds: vec![],
                 }));
             }
         }
@@ -102,31 +99,31 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.clone(),
-        msg: to_binary(&HandleMsg::_InternalRewardedMint {
+        msg: to_binary(&ExecuteMsg::_InternalRewardedMint {
             rebalancer: env.message.sender.clone(),
             cluster_contract: cluster_contract.clone(),
             asset_amounts: assets.to_vec(),
             min_tokens: None,
         })?,
-        send: vec![],
+        funds: vec![],
     }));
 
     // swap all
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.clone(),
-        msg: to_binary(&HandleMsg::_SwapAll {
+        msg: to_binary(&ExecuteMsg::_SwapAll {
             terraswap_pair: pair_info.contract_addr.clone(),
             cluster_token,
             to_ust: true,
             min_return: min_ust.unwrap_or(Uint128::zero()),
         })?,
-        send: vec![],
+        funds: vec![],
     }));
 
     // record pool state difference
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.clone(),
-        msg: to_binary(&HandleMsg::_RecordTerraswapImpact {
+        msg: to_binary(&ExecuteMsg::_RecordTerraswapImpact {
             arbitrageur: env.message.sender.clone(),
             terraswap_pair: pair_info.contract_addr.clone(),
             cluster_contract,
@@ -135,34 +132,30 @@ pub fn arb_cluster_mint<S: Storage, A: Api, Q: Querier>(
                 msg: to_binary(&TerraswapQueryMsg::Pool {})?,
             }))?,
         })?,
-        send: vec![],
+        funds: vec![],
     }));
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract,
-        msg: to_binary(&HandleMsg::_SendAll {
+        msg: to_binary(&ExecuteMsg::_SendAll {
             asset_infos: vec![AssetInfo::NativeToken {
                 denom: cfg.base_denom,
             }],
             send_to: env.message.sender,
         })?,
-        send: vec![],
+        funds: vec![],
     }));
 
-    Ok(HandleResponse {
-        messages,
-        log: vec![],
-        data: None,
-    })
+    Ok(Response::new().add_messages(messages))
 }
 
-pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn arb_cluster_redeem(
+    deps: DepsMut,
     env: Env,
     cluster_contract: HumanAddr,
     asset: Asset,
     min_cluster: Option<Uint128>,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     assert_cluster_exists(deps, &cluster_contract)?;
 
     let cluster_state = get_cluster_state(deps, &cluster_contract)?;
@@ -170,7 +163,7 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
     let mut messages = vec![];
     let contract = env.contract.address.clone();
 
-    let cfg: Config = read_config(&deps.storage)?;
+    let cfg: Config = read_config(deps.storage)?;
 
     match asset.info {
         AssetInfo::Token { .. } => return Err(StdError::generic_err("not native token")),
@@ -190,19 +183,19 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
     // swap all
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.clone(),
-        msg: to_binary(&HandleMsg::_SwapAll {
+        msg: to_binary(&ExecuteMsg::_SwapAll {
             terraswap_pair: pair_info.contract_addr.clone(),
             cluster_token: cluster_token.clone(),
             to_ust: false,
             min_return: min_cluster.unwrap_or(Uint128::zero()),
         })?,
-        send: vec![],
+        funds: vec![],
     }));
 
     // record pool state difference
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.clone(),
-        msg: to_binary(&HandleMsg::_RecordTerraswapImpact {
+        msg: to_binary(&ExecuteMsg::_RecordTerraswapImpact {
             arbitrageur: env.message.sender.clone(),
             terraswap_pair: pair_info.contract_addr.clone(),
             cluster_contract: cluster_contract.clone(),
@@ -211,20 +204,20 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
                 msg: to_binary(&TerraswapQueryMsg::Pool {})?,
             }))?,
         })?,
-        send: vec![],
+        funds: vec![],
     }));
 
     // redeem cluster token
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.clone(),
-        msg: to_binary(&HandleMsg::_InternalRewardedRedeem {
+        msg: to_binary(&ExecuteMsg::_InternalRewardedRedeem {
             rebalancer: env.message.sender.clone(),
             cluster_contract,
             cluster_token: cluster_token.clone(),
             max_tokens: None,
             asset_amounts: None,
         })?,
-        send: vec![],
+        funds: vec![],
     }));
 
     let asset_infos = cluster_state
@@ -236,28 +229,24 @@ pub fn arb_cluster_redeem<S: Storage, A: Api, Q: Querier>(
     // send all
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract,
-        msg: to_binary(&HandleMsg::_SendAll {
+        msg: to_binary(&ExecuteMsg::_SendAll {
             asset_infos,
             send_to: env.message.sender,
         })?,
-        send: vec![],
+        funds: vec![],
     }));
 
-    Ok(HandleResponse {
-        messages,
-        log: vec![],
-        data: None,
-    })
+    Ok(Response::new().add_messages(messages))
 }
 
-pub fn record_terraswap_impact<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn record_terraswap_impact(
+    deps: DepsMut,
     env: Env,
     arbitrageur: HumanAddr,
     terraswap_pair: HumanAddr,
     cluster_contract: HumanAddr,
     pool_before: TerraswapPoolResponse,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     if env.message.sender != env.contract.address {
         return Err(StdError::unauthorized());
     }
@@ -324,48 +313,44 @@ pub fn record_terraswap_impact<S: Storage, A: Api, Q: Querier>(
     let imbalance_fixed = imb0 - imb1;
 
     if imbalance_fixed.sign == 1 {
-        let imbalanced_fixed = Uint128(imbalance_fixed.into());
+        let imbalanced_fixed = Uint128::new(imbalance_fixed.into());
         record_contribution(
             deps,
             &arbitrageur,
             PoolType::ARBITRAGE,
             &cluster_contract,
-            Uint128(imbalanced_fixed.into()),
+            Uint128::new(imbalanced_fixed.into()),
         )?;
     }
 
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![
-            log("action", "record_terraswap_arbitrageur_rewards"),
-            log("fair_value", fair_value),
-            log("arbitrage_imbalance_fixed", imbalance_fixed),
-            log("arbitrage_imbalance_sign", imbalance_fixed.sign),
-            log("imb0", imb0),
-            log("imb1", imb1),
-        ],
-        data: None,
-    })
+    Ok(Response::new().add_attributes(vec![
+        attr("action", "record_terraswap_arbitrageur_rewards"),
+        attr("fair_value", fair_value),
+        attr("arbitrage_imbalance_fixed", imbalance_fixed),
+        attr("arbitrage_imbalance_sign", imbalance_fixed.sign),
+        attr("imb0", imb0),
+        attr("imb1", imb1),
+    ]))
 }
 // either UST -> BSK or BSK -> UST, swap all inventory
 // we can do this because this contract never holds any inventory
 // between transactions
-pub fn swap_all<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn swap_all(
+    deps: DepsMut,
     env: Env,
     terraswap_pair: HumanAddr,
     cluster_token: HumanAddr,
     to_ust: bool,
     min_return: Uint128,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     if env.message.sender != env.contract.address {
         return Err(StdError::unauthorized());
     }
 
-    let config: Config = read_config(&deps.storage)?;
+    let config: Config = read_config(deps.storage)?;
     let mut messages = vec![];
 
-    let mut logs = vec![log("action", "swap_all"), log("to_usd", to_ust)];
+    let mut logs = vec![attr("action", "swap_all"), attr("to_usd", to_ust)];
 
     if to_ust {
         let amount = query_token_balance(&deps, &cluster_token, &env.contract.address)?;
@@ -377,7 +362,7 @@ pub fn swap_all<S: Storage, A: Api, Q: Querier>(
 
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: cluster_token,
-            msg: to_binary(&Cw20HandleMsg::Send {
+            msg: to_binary(&Cw20ExecuteMsg::Send {
                 contract: terraswap_pair.clone(),
                 amount,
                 msg: Some(to_binary(&TerraswapCw20HookMsg::Swap {
@@ -386,10 +371,10 @@ pub fn swap_all<S: Storage, A: Api, Q: Querier>(
                     to: None,
                 })?),
             })?,
-            send: vec![],
+            funds: vec![],
         }));
-        logs.push(log("amount", amount));
-        logs.push(log("addr", terraswap_pair.to_string()));
+        logs.push(attr("amount", amount));
+        logs.push(attr("addr", terraswap_pair.to_string()));
     } else {
         let amount = query_balance(&deps, &env.contract.address, config.base_denom.to_string())?;
         let belief_price = if min_return == Uint128::zero() {
@@ -409,7 +394,7 @@ pub fn swap_all<S: Storage, A: Api, Q: Querier>(
         let amount = (swap_asset.deduct_tax(&deps)?).amount;
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: terraswap_pair,
-            msg: to_binary(&TerraswapHandleMsg::Swap {
+            msg: to_binary(&TerraswapExecuteMsg::Swap {
                 offer_asset: Asset {
                     amount,
                     ..swap_asset
@@ -424,19 +409,15 @@ pub fn swap_all<S: Storage, A: Api, Q: Querier>(
             }],
         }));
     }
-    Ok(HandleResponse {
-        messages,
-        log: logs,
-        data: None,
-    })
+    Ok(Response::new().add_messages(messages).add_attributes(logs))
 }
 
-pub fn send_all<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn send_all(
+    deps: DepsMut,
     env: Env,
     asset_infos: &[AssetInfo],
     send_to: HumanAddr,
-) -> StdResult<HandleResponse> {
+) -> StdResult<Response> {
     if env.message.sender != env.contract.address {
         return Err(StdError::unauthorized());
     }
@@ -460,9 +441,7 @@ pub fn send_all<S: Storage, A: Api, Q: Querier>(
         }
     }
 
-    Ok(HandleResponse {
-        messages,
-        log: vec![log("action", "send_all")],
-        data: None,
-    })
+    Ok(Response::new()
+        .add_messages(messages)
+        .add_attributes(vec![attr("action", "send_all")]))
 }
