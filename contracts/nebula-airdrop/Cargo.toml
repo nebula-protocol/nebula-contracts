@@ -1,6 +1,7 @@
+cargo-features = ["resolver"]
 [package]
 name = "nebula-airdrop"
-version = "1.0.0"
+version = "2.0.0"
 authors = ["Nebula Protocol <engineering@neb.finance>"]
 edition = "2018"
 
@@ -39,7 +40,7 @@ sha3 = { version = "0.9.1", default-features = false }
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 hex = "0.4"
 snafu = { version = "0.6.3" }
-nebula-protocol = { version = "1.0.0", path = "../../packages/nebula_protocol" }
+nebula-protocol = { version = "2.0.0", path = "../../packages/nebula_protocol" }
 
 [dev-dependencies]
 cosmwasm-schema = { version = "0.16.0" }

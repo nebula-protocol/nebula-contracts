@@ -1,6 +1,6 @@
 [package]
 name = "nebula-cluster"
-version = "1.0.0"
+version = "2.0.0"
 authors = ["Nebula Protocol <engineering@neb.finance>"]
 edition = "2018"
 
@@ -40,9 +40,8 @@ snafu = { version = "0.6.3" }
 cw20 = { version = "0.8.0" } 
 base64 = "*"
 terraswap = "2.4.0"
-log = "*"
 cluster-math = { path = "../../libraries/cluster-math" }
-nebula-protocol = { version = "1.0.0", path = "../../packages/nebula_protocol" }
+nebula-protocol = { version = "2.0.0", path = "../../packages/nebula_protocol" }
 
 [dev-dependencies]
 # cosmwasm-vm = { version = "0.16.0", default-features = false }
