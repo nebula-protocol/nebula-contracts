@@ -2,7 +2,9 @@
 mod tests {
     use crate::contract::{execute, instantiate, query};
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{attr, from_binary, to_binary, CosmosMsg, StdError, Uint128, WasmMsg, SubMsg};
+    use cosmwasm_std::{
+        attr, from_binary, to_binary, CosmosMsg, StdError, SubMsg, Uint128, WasmMsg,
+    };
     use cw20::Cw20ExecuteMsg;
     use nebula_protocol::airdrop::{
         ConfigResponse, ExecuteMsg, InstantiateMsg, IsClaimedResponse, LatestStageResponse,
@@ -171,10 +173,7 @@ mod tests {
             ],
         };
 
-        let info = mock_info(
-            "terra1qfqa2eu9wp272ha93lj4yhcenrc6ymng079nu8",
-            &[],
-        );
+        let info = mock_info("terra1qfqa2eu9wp272ha93lj4yhcenrc6ymng079nu8", &[]);
         let res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
         assert_eq!(
             res.messages,
@@ -234,10 +233,7 @@ mod tests {
             ],
         };
 
-        let info = mock_info(
-            "terra1qfqa2eu9wp272ha93lj4yhcenrc6ymng079nu8",
-            &[],
-        );
+        let info = mock_info("terra1qfqa2eu9wp272ha93lj4yhcenrc6ymng079nu8", &[]);
         let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
         assert_eq!(
             res.messages,

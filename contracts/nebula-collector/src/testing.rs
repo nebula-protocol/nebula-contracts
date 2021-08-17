@@ -1,7 +1,7 @@
 use crate::contract::{execute, instantiate, query_config};
 use crate::mock_querier::mock_dependencies;
-use cosmwasm_std::testing::{mock_info, mock_env, MOCK_CONTRACT_ADDR};
-use cosmwasm_std::{to_binary, Coin, CosmosMsg, Decimal, Uint128, WasmMsg, SubMsg};
+use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
+use cosmwasm_std::{to_binary, Coin, CosmosMsg, Decimal, SubMsg, Uint128, WasmMsg};
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::collector::{ConfigResponse, ExecuteMsg, InstantiateMsg};
 use nebula_protocol::gov::Cw20HookMsg::DepositReward;
@@ -33,12 +33,10 @@ fn proper_initialization() {
 
 #[test]
 fn test_convert() {
-    let mut deps = mock_dependencies(
-        &[Coin {
-            denom: "uusd".to_string(),
-            amount: Uint128::new(100u128),
-        }],
-    );
+    let mut deps = mock_dependencies(&[Coin {
+        denom: "uusd".to_string(),
+        amount: Uint128::new(100u128),
+    }]);
     deps.querier.with_token_balances(&[(
         &"tokenAAPL".to_string(),
         &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(100u128))],
@@ -78,13 +76,12 @@ fn test_convert() {
             msg: to_binary(&Cw20ExecuteMsg::Send {
                 contract: "pairAAPL".to_string(),
                 amount: Uint128::new(100u128),
-                msg:
-                    to_binary(&TerraswapCw20HookMsg::Swap {
-                        max_spread: None,
-                        belief_price: None,
-                        to: None,
-                    })
-                    .unwrap()
+                msg: to_binary(&TerraswapCw20HookMsg::Swap {
+                    max_spread: None,
+                    belief_price: None,
+                    to: None,
+                })
+                .unwrap()
             })
             .unwrap(),
             funds: vec![],
@@ -149,7 +146,7 @@ fn test_distribute() {
     assert_eq!(
         res.messages,
         vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr:"nebula0000".to_string(),
+            contract_addr: "nebula0000".to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Send {
                 contract: "gov0000".to_string(),
                 amount: Uint128::new(100u128),
