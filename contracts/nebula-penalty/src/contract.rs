@@ -73,7 +73,7 @@ pub fn notional_penalty(
     // pumping e to "stretch" penalty_cutoff_hi and then using it to
     // duck the cluster imbalance too high issue
     let nav = dot(i0, p);
-    let e = min(get_ema(&deps, block_height, nav)?, nav);
+    let e = min(get_ema(deps, block_height, nav)?, nav);
 
     let PenaltyParams {
         penalty_amt_lo,
@@ -138,7 +138,7 @@ pub fn compute_mint(
 
     let i1 = add(&i0, &c);
 
-    let penalty = notional_penalty(&deps, block_height, &i0, &i1, &w, &p)?;
+    let penalty = notional_penalty(deps, block_height, &i0, &i1, &w, &p)?;
     let notional_value = dot(&c, &p) + penalty;
 
     let mint_subtotal = n * notional_value / dot(&i0, &p);
@@ -153,7 +153,7 @@ pub fn compute_mint(
             })
             .into(),
         ),
-        attributes: vec![attr("penalty", penalty)],
+        attributes: vec![attr("penalty", &format!("{}", penalty))],
     })
 }
 
@@ -192,7 +192,7 @@ pub fn compute_redeem(
     } else {
         let i1 = sub(&i0, &r);
 
-        let penalty = notional_penalty(&deps, block_height, &i0, &i1, &w, &p)?;
+        let penalty = notional_penalty(deps, block_height, &i0, &i1, &w, &p)?;
         let notional_value = dot(&r, &p) - penalty;
 
         let needed_tokens = n * notional_value / dot(&i0, &p);
@@ -216,7 +216,7 @@ pub fn compute_redeem(
                 .iter()
                 .map(|&x| Uint128::new(x.into()))
                 .collect::<Vec<Uint128>>(),
-            attributes: vec![attr("penalty", penalty)],
+            attributes: vec![attr("penalty", &format!("{}", penalty))],
         })
     };
 }
@@ -297,10 +297,10 @@ pub fn update_ema(
     net_asset_val: FPDecimal,
 ) -> StdResult<Response> {
     let mut cfg = read_config(deps.storage)?;
-    cfg.ema = get_ema(&deps, block_height, net_asset_val)?;
+    cfg.ema = get_ema(deps.as_ref(), block_height, net_asset_val)?;
     cfg.last_block = block_height;
     save_config(deps.storage, &cfg)?;
-    Ok(Response::new().add_attributes(vec![attr("new_ema", cfg.ema)]))
+    Ok(Response::new().add_attributes(vec![attr("new_ema", &format!("{}", cfg.ema.to_string()))]))
 }
 
 pub fn execute_mint(
@@ -339,7 +339,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 
     // check permission
     if env.message.sender != cfg.owner {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     match msg {

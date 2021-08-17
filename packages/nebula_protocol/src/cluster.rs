@@ -2,7 +2,6 @@ use cosmwasm_std::{HumanAddr, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use terraswap::asset::Asset;
-use terraswap::hook::InitHook;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -32,8 +31,6 @@ pub struct InstantiateMsg {
 
     /// Penalty function address
     pub penalty: HumanAddr,
-
-    pub init_hook: Option<InitHook>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

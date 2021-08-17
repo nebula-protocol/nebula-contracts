@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    attr, to_binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, HumanAddr, StdError, StdResult,
-    Uint128, WasmMsg,
+    attr, to_binary, Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, HumanAddr, Response,
+    StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 
 use crate::rewards::before_share_change;
@@ -44,9 +44,9 @@ pub fn unbond(
 
     Ok(Response::new()
         .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: staking_token,
+            contract_addr: staking_token.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: staker_addr.clone(),
+                recipient: staker_addr.clone().to_string(),
                 amount,
             })?,
             funds: vec![],
@@ -77,7 +77,7 @@ pub fn auto_stake(
                 native_asset_op = Some(asset.clone())
             }
             AssetInfo::Token { contract_addr } => {
-                token_info_op = Some((contract_addr, asset.amount))
+                token_info_op = Some((HumanAddr::from(contract_addr), asset.amount))
             }
         }
     }
@@ -94,24 +94,28 @@ pub fn auto_stake(
 
     // query pair info to obtain pair contract address
     let asset_infos: [AssetInfo; 2] = [assets[0].info.clone(), assets[1].info.clone()];
-    let terraswap_pair: PairInfo = query_pair_info(deps, &terraswap_factory, &asset_infos)?;
+    let terraswap_pair: PairInfo = query_pair_info(
+        deps.querier,
+        Addr::unchecked(terraswap_factory.to_string()),
+        &asset_infos,
+    )?;
 
     // assert the token and lp token match with pool info
     let pool_info: PoolInfo = read_pool_info(deps.storage, &token_addr)?;
 
-    if pool_info.staking_token != terraswap_pair.liquidity_token {
+    if pool_info.staking_token.to_string() != terraswap_pair.liquidity_token {
         return Err(StdError::generic_err("Invalid staking token"));
     }
 
     // get current lp token amount to later compute the recived amount
     let prev_staking_token_amount = query_token_balance(
-        &deps,
-        &terraswap_pair.liquidity_token,
-        &env.contract.address,
+        &deps.querier,
+        Addr::unchecked(terraswap_pair.liquidity_token),
+        env.contract.address,
     )?;
 
     // compute tax
-    let tax_amount: Uint128 = native_asset.compute_tax(deps)?;
+    let tax_amount: Uint128 = native_asset.compute_tax(&deps.querier)?;
 
     // 1. Transfer token asset to staking contract
     // 2. Increase allowance of token for pair contract
@@ -120,16 +124,16 @@ pub fn auto_stake(
     Ok(Response::new()
         .add_messages(vec![
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: token_addr.clone(),
+                contract_addr: token_addr.clone().to_string(),
                 msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
                     owner: env.message.sender.clone(),
-                    recipient: env.contract.address.clone(),
+                    recipient: env.contract.address.clone().to_string(),
                     amount: token_amount,
                 })?,
                 funds: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: token_addr.clone(),
+                contract_addr: token_addr.clone().to_string(),
                 msg: to_binary(&Cw20ExecuteMsg::IncreaseAllowance {
                     spender: terraswap_pair.contract_addr.clone(),
                     amount: token_amount,
@@ -142,28 +146,28 @@ pub fn auto_stake(
                 msg: to_binary(&PairExecuteMsg::ProvideLiquidity {
                     assets: [
                         Asset {
-                            amount: (native_asset.amount.clone() - tax_amount)?,
+                            amount: native_asset.amount.clone().checked_sub(tax_amount)?,
                             info: native_asset.info.clone(),
                         },
                         Asset {
                             amount: token_amount,
                             info: AssetInfo::Token {
-                                contract_addr: token_addr.clone(),
+                                contract_addr: token_addr.clone().to_string(),
                             },
                         },
                     ],
                     slippage_tolerance,
                 })?,
-                send: vec![Coin {
+                funds: vec![Coin {
                     denom: native_asset.info.to_string(),
-                    amount: (native_asset.amount - tax_amount)?,
+                    amount: native_asset.amount.checked_sub(tax_amount)?,
                 }],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: env.contract.address,
+                contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::AutoStakeHook {
                     asset_token: token_addr.clone(),
-                    staking_token: terraswap_pair.liquidity_token,
+                    staking_token: HumanAddr::from(terraswap_pair.liquidity_token),
                     staker_addr: env.message.sender,
                     prev_staking_token_amount,
                 })?,
@@ -187,13 +191,16 @@ pub fn auto_stake_hook(
 ) -> StdResult<Response> {
     // only can be called by itself
     if env.message.sender != env.contract.address {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     // stake all lp tokens received, compare with staking token amount before liquidity provision was executed
-    let current_staking_token_amount =
-        query_token_balance(&deps, &staking_token, &env.contract.address)?;
-    let amount_to_stake = (current_staking_token_amount - prev_staking_token_amount)?;
+    let current_staking_token_amount = query_token_balance(
+        &deps.querier,
+        Addr::unchecked(staking_token.to_string()),
+        env.contract.address,
+    )?;
+    let amount_to_stake = current_staking_token_amount.checked_sub(prev_staking_token_amount)?;
 
     bond(deps, env, staker_addr, asset_token, amount_to_stake)
 }
@@ -244,9 +251,9 @@ fn _decrease_bond_amount(
     before_share_change(&pool_info, &mut reward_info)?;
 
     // Decrease bond amount
-    pool_info.total_bond_amount = (pool_info.total_bond_amount - amount)?;
+    pool_info.total_bond_amount = pool_info.total_bond_amount.checked_sub(amount)?;
 
-    reward_info.bond_amount = (reward_info.bond_amount - amount)?;
+    reward_info.bond_amount = reward_info.bond_amount.checked_sub(amount)?;
 
     // Update rewards info
     if reward_info.pending_reward.is_zero() && reward_info.bond_amount.is_zero() {

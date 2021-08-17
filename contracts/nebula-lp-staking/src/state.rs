@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{Decimal, HumanAddr, StdResult, Uint128};
+use cosmwasm_std::{Decimal, HumanAddr, StdResult, Storage, Uint128};
 use cosmwasm_storage::{singleton, singleton_read, Bucket, ReadonlyBucket};
 
 pub static KEY_CONFIG: &[u8] = b"config";
@@ -52,10 +52,7 @@ pub struct RewardInfo {
 }
 
 /// returns a bucket with all rewards owned by this owner (query it by owner)
-pub fn rewards_store<'a, Storage: Storage>(
-    storage: &'a mut Storage,
-    owner: &HumanAddr,
-) -> Bucket<'a, Storage, RewardInfo> {
+pub fn rewards_store<'a>(storage: &'a mut Storage, owner: &HumanAddr) -> Bucket<'a, RewardInfo> {
     Bucket::multilevel(storage, &[PREFIX_REWARD, owner.as_str().as_bytes()])
 }
 

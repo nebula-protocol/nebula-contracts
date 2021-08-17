@@ -1,4 +1,4 @@
-use crate::contract::{execute, init, query};
+use crate::contract::{execute, instantiate, query};
 use crate::mock_querier::mock_dependencies;
 
 use crate::state::{
@@ -24,7 +24,6 @@ use nebula_protocol::staking::{
 };
 use terraswap::asset::{Asset, AssetInfo};
 use terraswap::factory::ExecuteMsg as TerraswapFactoryExecuteMsg;
-use terraswap::hook::InitHook;
 use terraswap::token::InstantiateMsg as TokenInstantiateMsg;
 
 fn mock_info_time(signer: &HumanAddr, time: u64) -> Env {
@@ -349,10 +348,10 @@ fn test_create_cluster() {
                 penalty: input_params.penalty.clone(),
                 cluster_token: None,
                 target: input_params.target.clone(),
-                init_hook: Some(InitHook {
-                    contract_addr: HumanAddr::from(MOCK_CONTRACT_ADDR),
-                    msg: to_binary(&ExecuteMsg::TokenCreationHook {}).unwrap(),
-                }),
+                // init_hook: Some(InitHook {
+                //     contract_addr: HumanAddr::from(MOCK_CONTRACT_ADDR),
+                //     msg: to_binary(&ExecuteMsg::TokenCreationHook {}).unwrap(),
+                // }),
             })
             .unwrap(),
         })]
@@ -450,13 +449,13 @@ fn test_token_creation_hook() {
                         cap: None,
                     }),
                     // Set Cluster Token
-                    init_hook: Some(InitHook {
-                        contract_addr: h(MOCK_CONTRACT_ADDR),
-                        msg: to_binary(&ExecuteMsg::SetClusterTokenHook {
-                            cluster: h("asset0000"),
-                        })
-                        .unwrap(),
-                    }),
+                    // init_hook: Some(InitHook {
+                    //     contract_addr: h(MOCK_CONTRACT_ADDR),
+                    //     msg: to_binary(&ExecuteMsg::SetClusterTokenHook {
+                    //         cluster: h("asset0000"),
+                    //     })
+                    //     .unwrap(),
+                    // }),
                 })
                 .unwrap(),
             }),
@@ -570,13 +569,13 @@ fn test_set_cluster_token_hook() {
                             contract_addr: h("cluster_token0000"),
                         },
                     ],
-                    init_hook: Some(InitHook {
-                        msg: to_binary(&ExecuteMsg::TerraswapCreationHook {
-                            asset_token: h("cluster_token0000"),
-                        })
-                        .unwrap(),
-                        contract_addr: h(MOCK_CONTRACT_ADDR),
-                    }),
+                    // init_hook: Some(InitHook {
+                    //     msg: to_binary(&ExecuteMsg::TerraswapCreationHook {
+                    //         asset_token: h("cluster_token0000"),
+                    //     })
+                    //     .unwrap(),
+                    //     contract_addr: h(MOCK_CONTRACT_ADDR),
+                    // }),
                 })
                 .unwrap(),
             })
@@ -705,13 +704,13 @@ fn test_set_cluster_token_hook_without_weight() {
                             contract_addr: h("cluster_token0000"),
                         },
                     ],
-                    init_hook: Some(InitHook {
-                        msg: to_binary(&ExecuteMsg::TerraswapCreationHook {
-                            asset_token: h("cluster_token0000"),
-                        })
-                        .unwrap(),
-                        contract_addr: h(MOCK_CONTRACT_ADDR),
-                    }),
+                    // init_hook: Some(InitHook {
+                    //     msg: to_binary(&ExecuteMsg::TerraswapCreationHook {
+                    //         asset_token: h("cluster_token0000"),
+                    //     })
+                    //     .unwrap(),
+                    //     contract_addr: h(MOCK_CONTRACT_ADDR),
+                    // }),
                 })
                 .unwrap(),
             })

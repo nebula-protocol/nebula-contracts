@@ -3,7 +3,7 @@ use nebula_protocol::cluster_factory::ClusterExistsResponse;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::testing::{MockApi, MockQueier, MockStorage, MOCK_CONTRACT_ADDR};
+use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     coin, from_binary, from_slice, to_binary, BalanceResponse, BankQuery, Binary, CanonicalAddr,
     Coin, Decimal, Deps, DepsMut, HumanAddr, QuerierResult, QueryRequest, SystemError, Uint128,

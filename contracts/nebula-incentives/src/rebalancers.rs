@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    attr, to_binary, Coin, CosmosMsg, Deps, DepsMut, Env, HumanAddr, QueryRequest, StdError,
-    StdResult, Uint128, WasmMsg, WasmQuery,
+    attr, to_binary, Coin, CosmosMsg, Deps, DepsMut, Env, HumanAddr, QueryRequest, Response,
+    StdError, StdResult, Uint128, WasmMsg, WasmQuery,
 };
 
 use crate::state::{read_config, record_contribution};
@@ -68,7 +68,7 @@ pub fn record_rebalancer_rewards(
     original_imbalance: Uint128,
 ) -> StdResult<Response> {
     if env.message.sender != env.contract.address {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     let new_imbalance = cluster_imbalance(deps, &cluster_contract)?;
@@ -101,7 +101,7 @@ pub fn internal_rewarded_mint(
     min_tokens: Option<Uint128>,
 ) -> StdResult<Response> {
     if env.message.sender != env.contract.address {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     let original_imbalance = cluster_imbalance(deps, &cluster_contract)?;
@@ -173,7 +173,7 @@ pub fn internal_rewarded_redeem(
     asset_amounts: Option<Vec<Asset>>,
 ) -> StdResult<Response> {
     if env.message.sender != env.contract.address {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     let max_tokens = match max_tokens {

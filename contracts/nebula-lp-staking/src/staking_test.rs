@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::contract::{execute, init, query};
+    use crate::contract::{execute, instantiate, query};
     use crate::mock_querier::mock_dependencies_with_querier;
     use cosmwasm_std::testing::{mock_dependencies, mock_info, MOCK_CONTRACT_ADDR};
     use cosmwasm_std::{
@@ -418,7 +418,7 @@ mod tests {
                         slippage_tolerance: None,
                     })
                     .unwrap(),
-                    send: vec![Coin {
+                    funds: vec![Coin {
                         denom: "uusd".to_string(),
                         amount: Uint128::new(99u128), // 1% tax
                     }],
@@ -460,7 +460,7 @@ mod tests {
         // unauthorized attempt
         let env = mock_info("addr0000", &[]);
         let res = execute(deps.as_mut(), env, msg.clone()).unwrap_err();
-        assert_eq!(res, StdError::unauthorized());
+        assert_eq!(res, StdError::generic_err("unauthorized"));
 
         // successfull attempt
         let env = mock_info(MOCK_CONTRACT_ADDR, &[]);

@@ -18,7 +18,7 @@ pub struct PenaltyConfig {
     pub last_block: u64,
 }
 
-pub fn config_store(storage: &mut dyn Storage) -> Singleton<Storage, PenaltyConfig> {
+pub fn config_store(storage: &mut dyn Storage) -> Singleton<PenaltyConfig> {
     singleton(storage, CONFIG_KEY)
 }
 

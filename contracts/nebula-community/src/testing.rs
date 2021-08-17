@@ -1,4 +1,4 @@
-use crate::contract::{execute, init, query};
+use crate::contract::{execute, instantiate, query};
 
 use cosmwasm_std::testing::{mock_dependencies, mock_info};
 use cosmwasm_std::{from_binary, to_binary, CosmosMsg, HumanAddr, StdError, Uint128, WasmMsg};

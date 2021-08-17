@@ -32,7 +32,7 @@ pub fn update_owner(deps: DepsMut, env: Env, owner: &HumanAddr) -> StdResult<Res
 
     // check permission
     if env.message.sender != old_owner {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     set_owner(deps.storage, &owner)?;
@@ -46,7 +46,7 @@ pub fn update_owner(deps: DepsMut, env: Env, owner: &HumanAddr) -> StdResult<Res
 
 pub fn request_neb(deps: DepsMut, env: Env, amount: Uint128) -> StdResult<Response> {
     if env.message.sender != read_owner(deps.storage)? {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     Ok(Response::new()
@@ -71,7 +71,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Balance { custody } => {
             let nebula_token = read_neb(deps.storage)?;
-            let balance = load_token_balance(&deps, &nebula_token, &custody)?;
+            let balance = load_token_balance(deps, &nebula_token, &custody)?;
             Ok(to_binary(&to_binary(&balance).unwrap())?)
         }
     }

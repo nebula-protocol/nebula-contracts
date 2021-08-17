@@ -1,4 +1,4 @@
-use crate::contract::{execute, init, query};
+use crate::contract::{execute, instantiate, query};
 use crate::mock_querier::{mock_dependencies, WasmMockQuerier};
 use crate::querier::load_token_balance;
 use crate::staking::SECONDS_PER_WEEK;

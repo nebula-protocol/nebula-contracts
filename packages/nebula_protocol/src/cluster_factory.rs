@@ -41,16 +41,6 @@ pub enum ExecuteMsg {
         /// used to create all necessary contract or register asset
         params: Params,
     },
-    /// Internal use
-    TokenCreationHook {},
-    /// Internal use
-    TerraswapCreationHook {
-        asset_token: HumanAddr,
-    },
-    /// Internal use - Set Cluster Token
-    SetClusterTokenHook {
-        cluster: HumanAddr,
-    },
     PassCommand {
         contract_addr: HumanAddr,
         msg: Binary,

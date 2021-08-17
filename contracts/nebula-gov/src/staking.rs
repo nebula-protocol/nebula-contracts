@@ -9,8 +9,8 @@ use crate::state::{
 use cluster_math::FPDecimal;
 
 use cosmwasm_std::{
-    attr, to_binary, CosmosMsg, Deps, DepsMut, Env, HumanAddr, StdError, StdResult, Uint128,
-    WasmMsg,
+    attr, to_binary, CosmosMsg, Deps, DepsMut, Env, HumanAddr, Response, StdError, StdResult,
+    Storage, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::common::OrderBy;
@@ -302,7 +302,7 @@ pub fn withdraw_voting_rewards(deps: DepsMut, env: Env) -> StdResult<Response> {
 
     state_store(deps.storage).update(|mut state| {
         state.pending_voting_rewards =
-            (state.pending_voting_rewards - Uint128::new(user_reward_amount))?;
+            state.pending_voting_rewards.checked_sub(Uint128::new(user_reward_amount))?;
         Ok(state)
     })?;
 
@@ -379,19 +379,19 @@ fn send_tokens(
         attr("amount", &amount.to_string()),
     ];
 
-    let r = Response {
-        messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+    Ok(
+        Response::new()
+        .add_messages(
+            vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: contract_human,
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: recipient_human,
                 amount: Uint128::from(amount),
             })?,
             funds: vec![],
-        })],
-        log,
-        data: None,
-    };
-    Ok(r)
+        })])
+        .add_attributes(log)
+    )
 }
 
 pub fn query_staker(deps: Deps, address: HumanAddr) -> StdResult<StakerResponse> {

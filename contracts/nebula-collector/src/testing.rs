@@ -1,4 +1,4 @@
-use crate::contract::{execute, init, query_config};
+use crate::contract::{execute, instantiate, query_config};
 use crate::mock_querier::mock_dependencies;
 use cosmwasm_std::testing::{mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{to_binary, Coin, CosmosMsg, Decimal, HumanAddr, Uint128, WasmMsg};
@@ -120,7 +120,7 @@ fn test_convert() {
                 to: None,
             })
             .unwrap(),
-            send: vec![Coin {
+            funds: vec![Coin {
                 amount: Uint128::new(99u128),
                 denom: "uusd".to_string(),
             }],

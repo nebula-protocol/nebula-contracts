@@ -55,7 +55,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 pub fn update_config(deps: DepsMut, env: Env, owner: Option<HumanAddr>) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
     if env.message.sender != config.owner {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     if let Some(owner) = owner {
@@ -63,11 +63,10 @@ pub fn update_config(deps: DepsMut, env: Env, owner: Option<HumanAddr>) -> StdRe
     }
 
     store_config(deps.storage, &config)?;
-    Ok(Response::new {
-        messages: vec![],
-        attributes: vec![attr("action", "update_config")],
-        data: None,
-    })
+    Ok(
+        Response::new()
+        .add_attributes(vec![attr("action", "update_config")])
+    )
 }
 
 fn validate_merkle_root(merkle_root: String) -> StdResult<()> {
@@ -81,7 +80,7 @@ fn validate_merkle_root(merkle_root: String) -> StdResult<()> {
 pub fn register_merkle_root(deps: DepsMut, env: Env, merkle_root: String) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
     if env.message.sender != config.owner {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     validate_merkle_root(merkle_root.clone())?;
@@ -148,7 +147,7 @@ pub fn claim(
 
     Ok(Response::new()
         .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: config.nebula_token,
+            contract_addr: config.nebula_token.to_string(),
             funds: vec![],
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: env.message.sender.clone(),

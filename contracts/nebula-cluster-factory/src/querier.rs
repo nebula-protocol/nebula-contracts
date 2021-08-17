@@ -12,7 +12,7 @@ pub fn load_oracle_feeder(
     asset_token: &CanonicalAddr,
 ) -> StdResult<CanonicalAddr> {
     let res: StdResult<Binary> = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Raw {
-        contract_addr: HumanAddr::from(contract_addr),
+        contract_addr: contract_addr.to_string(),
         key: Binary::from(concat(
             &to_length_prefixed(b"feeder"),
             asset_token.as_slice(),

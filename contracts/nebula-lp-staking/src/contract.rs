@@ -76,7 +76,7 @@ pub fn receive_cw20(deps: DepsMut, env: Env, cw20_msg: Cw20ReceiveMsg) -> StdRes
 
                 // only staking token contract can execute this message
                 if pool_info.staking_token != env.message.sender {
-                    return Err(StdError::unauthorized());
+                    return Err(StdError::generic_err("unauthorized"));
                 }
 
                 bond(deps, env, cw20_msg.sender, asset_token, cw20_msg.amount)
@@ -84,7 +84,7 @@ pub fn receive_cw20(deps: DepsMut, env: Env, cw20_msg: Cw20ReceiveMsg) -> StdRes
             Cw20HookMsg::DepositReward { rewards } => {
                 // only reward token contract can execute this message
                 if config.nebula_token != env.message.sender {
-                    return Err(StdError::unauthorized());
+                    return Err(StdError::generic_err("unauthorized"));
                 }
 
                 let mut rewards_amount = Uint128::zero();
@@ -108,7 +108,7 @@ pub fn update_config(deps: DepsMut, env: Env, owner: Option<HumanAddr>) -> StdRe
     let mut config: Config = read_config(deps.storage)?;
 
     if env.message.sender != config.owner {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     if let Some(owner) = owner {
@@ -128,7 +128,7 @@ fn register_asset(
     let config: Config = read_config(deps.storage)?;
 
     if config.owner != env.message.sender {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     if read_pool_info(deps.storage, &asset_token).is_ok() {

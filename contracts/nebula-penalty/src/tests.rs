@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use crate::contract::{execute, init, query};
+use crate::contract::{execute, instantiate, query};
 use crate::contract::{get_ema, notional_penalty, update_ema};
 use crate::mock_querier::{mock_dependencies, WasmMockQuerier};
 use crate::state::{read_config, PenaltyConfig};

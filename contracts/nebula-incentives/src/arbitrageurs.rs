@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     attr, to_binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, HumanAddr, QueryRequest,
-    StdError, StdResult, Uint128, WasmMsg, WasmQuery,
+    Response, StdError, StdResult, Uint128, WasmMsg, WasmQuery,
 };
 
 use crate::rebalancers::{assert_cluster_exists, get_cluster_state};
@@ -248,7 +248,7 @@ pub fn record_terraswap_impact(
     pool_before: TerraswapPoolResponse,
 ) -> StdResult<Response> {
     if env.message.sender != env.contract.address {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     let pool_now: TerraswapPoolResponse =
@@ -344,7 +344,7 @@ pub fn swap_all(
     min_return: Uint128,
 ) -> StdResult<Response> {
     if env.message.sender != env.contract.address {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     let config: Config = read_config(deps.storage)?;
@@ -403,7 +403,7 @@ pub fn swap_all(
                 belief_price: Some(belief_price),
                 to: None,
             })?,
-            send: vec![Coin {
+            funds: vec![Coin {
                 denom: config.base_denom,
                 amount,
             }],
@@ -419,7 +419,7 @@ pub fn send_all(
     send_to: HumanAddr,
 ) -> StdResult<Response> {
     if env.message.sender != env.contract.address {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     let mut messages = vec![];

@@ -2,7 +2,7 @@ use crate::state::{read_config, store_config, Config};
 
 use cosmwasm_std::{
     entry_point, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, HumanAddr, MessageInfo,
-    MigrateResult, Response, StdError, StdResult, Uint128, WasmMsg,
+    Response, StdError, StdResult, Uint128, WasmMsg,
 };
 
 use nebula_protocol::community::{
@@ -48,7 +48,7 @@ pub fn update_config(
 ) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
     if config.owner != env.message.sender {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     if let Some(owner) = owner {
@@ -75,7 +75,7 @@ pub fn spend(
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
     if config.owner != env.message.sender {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     if config.spend_limit < amount {

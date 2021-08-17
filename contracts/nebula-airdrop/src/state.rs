@@ -37,24 +37,24 @@ pub fn store_merkle_root(
     stage: u8,
     merkle_root: String,
 ) -> StdResult<()> {
-    let mut merkle_root_bucket: Bucket<Storage, String> = Bucket::new(storage, PREFIX_MERKLE_ROOT);
+    let mut merkle_root_bucket: Bucket<String> = Bucket::new(storage, PREFIX_MERKLE_ROOT);
     merkle_root_bucket.save(&[stage], &merkle_root)
 }
 
 pub fn read_merkle_root(storage: &dyn Storage, stage: u8) -> StdResult<String> {
-    let claim_index_bucket: ReadonlyBucket<Storage, String> =
+    let claim_index_bucket: ReadonlyBucket<String> =
         ReadonlyBucket::new(storage, PREFIX_MERKLE_ROOT);
     claim_index_bucket.load(&[stage])
 }
 
 pub fn store_claimed(storage: &mut dyn Storage, user: &HumanAddr, stage: u8) -> StdResult<()> {
-    let mut claim_index_bucket: Bucket<Storage, bool> =
+    let mut claim_index_bucket: Bucket<bool> =
         Bucket::multilevel(storage, &[PREFIX_CLAIM_INDEX, user.as_str().as_bytes()]);
     claim_index_bucket.save(&[stage], &true)
 }
 
 pub fn read_claimed(storage: &dyn Storage, user: &HumanAddr, stage: u8) -> StdResult<bool> {
-    let claim_index_bucket: ReadonlyBucket<Storage, bool> =
+    let claim_index_bucket: ReadonlyBucket<bool> =
         ReadonlyBucket::multilevel(storage, &[PREFIX_CLAIM_INDEX, user.as_str().as_bytes()]);
     let res = claim_index_bucket.may_load(&[stage])?;
     match res {

@@ -1,4 +1,4 @@
-use crate::contract::{execute, init, query};
+use crate::contract::{execute, instantiate, query};
 use crate::mock_querier::mock_dependencies;
 use crate::state::{read_neb, read_owner};
 

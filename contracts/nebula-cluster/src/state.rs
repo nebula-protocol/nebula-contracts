@@ -12,7 +12,7 @@ pub static TARGET_KEY: &[u8] = b"target";
 /// asset data: Vec<AssetData>
 pub static ASSET_DATA_KEY: &[u8] = b"asset_data";
 
-pub fn config_store(storage: &mut dyn Storage) -> Singleton<Storage, ClusterConfig> {
+pub fn config_store(storage: &mut dyn Storage) -> Singleton<ClusterConfig> {
     singleton(storage, CONFIG_KEY)
 }
 

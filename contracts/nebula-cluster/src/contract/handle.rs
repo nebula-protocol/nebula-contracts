@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    attr, entry_point, to_binary, CosmosMsg, Deps, DepsMut, Env, HumanAddr, MessageInfo, StdError,
-    StdResult, Uint128, WasmMsg,
+    attr, entry_point, to_binary, CosmosMsg, Deps, DepsMut, Env, HumanAddr, MessageInfo, Response,
+    StdError, StdResult, Uint128, WasmMsg,
 };
 
 use cw20::Cw20ExecuteMsg;
@@ -81,7 +81,7 @@ pub fn update_config(
     // First, update cluster config
     config_store(deps.storage).update(|mut config| {
         if config.owner != env.message.sender {
-            return Err(StdError::unauthorized());
+            return Err(StdError::generic_err("unauthorized"));
         }
 
         if let Some(owner) = owner {
@@ -138,7 +138,7 @@ pub fn update_target(deps: DepsMut, env: Env, target: &Vec<Asset>) -> StdResult<
     }
     // check permission
     if (env.message.sender != cfg.owner) && (env.message.sender != cfg.composition_oracle) {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     let mut asset_data = target.clone();
@@ -206,7 +206,7 @@ pub fn decommission(deps: DepsMut, env: Env) -> StdResult<Response> {
     }
     // check permission for factory
     if env.message.sender != cfg.factory {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     // can only decommission an active cluster

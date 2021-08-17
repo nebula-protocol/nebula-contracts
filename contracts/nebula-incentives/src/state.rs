@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{Api, Deps, DepsMut, HumanAddr, StdResult, Uint128};
+use cosmwasm_std::{Api, Deps, DepsMut, HumanAddr, StdResult, Storage, Uint128};
 use cosmwasm_storage::{singleton, singleton_read, Bucket, ReadonlyBucket};
 
 static KEY_CONFIG: &[u8] = b"config";
@@ -49,22 +49,14 @@ pub struct PoolInfo {
     pub reward_total: Uint128,
 }
 
-pub fn pool_info_store(
-    storage: &mut dyn Storage,
-    pool_type: u16,
-    n: u64,
-) -> Bucket<Storage, PoolInfo> {
+pub fn pool_info_store(storage: &mut dyn Storage, pool_type: u16, n: u64) -> Bucket<PoolInfo> {
     Bucket::multilevel(
         storage,
         &[PREFIX_POOL_INFO, &pool_type.to_be_bytes(), &n.to_be_bytes()],
     )
 }
 
-pub fn pool_info_read(
-    storage: &dyn Storage,
-    pool_type: u16,
-    n: u64,
-) -> ReadonlyBucket<Storage, PoolInfo> {
+pub fn pool_info_read(storage: &dyn Storage, pool_type: u16, n: u64) -> ReadonlyBucket<PoolInfo> {
     ReadonlyBucket::multilevel(
         storage,
         &[PREFIX_POOL_INFO, &pool_type.to_be_bytes(), &n.to_be_bytes()],
@@ -72,7 +64,7 @@ pub fn pool_info_read(
 }
 
 pub fn read_from_pool_bucket(
-    bucket: &ReadonlyBucket<Storage, PoolInfo>,
+    bucket: &ReadonlyBucket<PoolInfo>,
     cluster_address: &HumanAddr,
 ) -> PoolInfo {
     match bucket.load(cluster_address.as_str().as_bytes()) {
@@ -112,7 +104,7 @@ pub struct PoolContribution {
 }
 
 /// returns a bucket with all contributions from this owner (query it by owner)
-pub fn contributions_store<'a, Storage: Storage>(
+pub fn contributions_store<'a>(
     storage: &'a mut Storage,
     contributor: &HumanAddr,
     pool_type: u16,
@@ -133,7 +125,7 @@ pub fn contributions_read<'a>(
     storage: &'a Storage,
     contributor: &HumanAddr,
     pool_type: u16,
-) -> ReadonlyBucket<'a, Storage, PoolContribution> {
+) -> ReadonlyBucket<'a, PoolContribution> {
     ReadonlyBucket::multilevel(
         storage,
         &[
@@ -146,7 +138,7 @@ pub fn contributions_read<'a>(
 
 // bucket over all cluster
 pub fn read_from_contribution_bucket(
-    bucket: &ReadonlyBucket<Storage, PoolContribution>,
+    bucket: &ReadonlyBucket<PoolContribution>,
     cluster_address: &HumanAddr,
 ) -> PoolContribution {
     match bucket.load(cluster_address.as_str().as_bytes()) {

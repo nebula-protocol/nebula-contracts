@@ -1,4 +1,4 @@
-use cosmwasm_std::{Binary, Decimal, HumanAddr, StdResult, Uint128};
+use cosmwasm_std::{Binary, Decimal, HumanAddr, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use cluster_math::FPDecimal;
 
 use nebula_protocol::common::OrderBy;
-use nebula_protocol::gov::{PollStatus, VoterInfo};
+use nebula_protocol::gov::{PollExecuteMsg, PollStatus, VoterInfo};
 
 static KEY_CONFIG: &[u8] = b"config";
 static KEY_STATE: &[u8] = b"state";
@@ -85,55 +85,53 @@ pub struct TotalVotingPower {
     pub last_upd: u64,
 }
 
-pub fn config_store(storage: &mut dyn Storage) -> Singleton<Storage, Config> {
+pub fn config_store(storage: &mut dyn Storage) -> Singleton<Config> {
     singleton(storage, KEY_CONFIG)
 }
 
-pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<Storage, Config> {
+pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<Config> {
     singleton_read(storage, KEY_CONFIG)
 }
 
-pub fn state_store(storage: &mut dyn Storage) -> Singleton<Storage, State> {
+pub fn state_store(storage: &mut dyn Storage) -> Singleton<State> {
     singleton(storage, KEY_STATE)
 }
 
-pub fn state_read(storage: &dyn Storage) -> ReadonlySingleton<Storage, State> {
+pub fn state_read(storage: &dyn Storage) -> ReadonlySingleton<State> {
     singleton_read(storage, KEY_STATE)
 }
 
-pub fn poll_store(storage: &mut dyn Storage) -> Bucket<Storage, Poll> {
+pub fn poll_store(storage: &mut dyn Storage) -> Bucket<Poll> {
     bucket(PREFIX_POLL, storage)
 }
 
-pub fn poll_read(storage: &dyn Storage) -> ReadonlyBucket<Storage, Poll> {
+pub fn poll_read(storage: &dyn Storage) -> ReadonlyBucket<Poll> {
     bucket_read(PREFIX_POLL, storage)
 }
 
-pub fn total_voting_power_store(storage: &mut dyn Storage) -> Singleton<Storage, TotalVotingPower> {
+pub fn total_voting_power_store(storage: &mut dyn Storage) -> Singleton<TotalVotingPower> {
     singleton(storage, KEY_TOTAL_VOTING_POWER)
 }
 
-pub fn total_voting_power_read(
-    storage: &dyn Storage,
-) -> ReadonlySingleton<Storage, TotalVotingPower> {
+pub fn total_voting_power_read(storage: &dyn Storage) -> ReadonlySingleton<TotalVotingPower> {
     singleton_read(storage, KEY_TOTAL_VOTING_POWER)
 }
 
 pub fn poll_indexer_store<'a>(
     storage: &'a mut Storage,
     status: &PollStatus,
-) -> Bucket<'a, Storage, bool> {
+) -> Bucket<'a, bool> {
     Bucket::multilevel(
         storage,
         &[PREFIX_POLL_INDEXER, status.to_string().as_bytes()],
     )
 }
 
-pub fn poll_voter_store(storage: &mut dyn Storage, poll_id: u64) -> Bucket<Storage, VoterInfo> {
+pub fn poll_voter_store(storage: &mut dyn Storage, poll_id: u64) -> Bucket<VoterInfo> {
     Bucket::multilevel(storage, &[PREFIX_POLL_VOTER, &poll_id.to_be_bytes()])
 }
 
-pub fn poll_voter_read(storage: &dyn Storage, poll_id: u64) -> ReadonlyBucket<Storage, VoterInfo> {
+pub fn poll_voter_read(storage: &dyn Storage, poll_id: u64) -> ReadonlyBucket<VoterInfo> {
     ReadonlyBucket::multilevel(storage, &[PREFIX_POLL_VOTER, &poll_id.to_be_bytes()])
 }
 
@@ -213,11 +211,11 @@ pub fn read_polls<'a>(
     }
 }
 
-pub fn bank_store(storage: &mut dyn Storage) -> Bucket<Storage, TokenManager> {
+pub fn bank_store(storage: &mut dyn Storage) -> Bucket<TokenManager> {
     bucket(PREFIX_BANK, storage)
 }
 
-pub fn bank_read(storage: &dyn Storage) -> ReadonlyBucket<Storage, TokenManager> {
+pub fn bank_read(storage: &dyn Storage) -> ReadonlyBucket<TokenManager> {
     bucket_read(PREFIX_BANK, storage)
 }
 

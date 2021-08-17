@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::contract::{execute, init, query};
+    use crate::contract::{execute, instantiate, query};
     use cosmwasm_std::testing::{mock_dependencies, mock_info};
     use cosmwasm_std::{
         attr, from_binary, to_binary, CosmosMsg, HumanAddr, StdError, Uint128, WasmMsg,
@@ -13,7 +13,7 @@ mod tests {
 
     #[test]
     fn proper_initialization() {
-        let mut deps = mock_dependencies(20, &[]);
+        let mut deps = mock_dependencies_with_balances(20, &[]);
 
         let msg = InstantiateMsg {
             owner: HumanAddr("owner0000".to_string()),
@@ -26,12 +26,12 @@ mod tests {
         let _res = instantiate(deps.as_mut(), env, msg).unwrap();
 
         // it worked, let's query the state
-        let res = query(deps.as_ref(), QueryMsg::Config {}).unwrap();
+        let res = query(deps.as_ref(), env.clone(), QueryMsg::Config {}).unwrap();
         let config: ConfigResponse = from_binary(&res).unwrap();
         assert_eq!("owner0000", config.owner.as_str());
         assert_eq!("nebula0000", config.nebula_token.as_str());
 
-        let res = query(deps.as_ref(), QueryMsg::LatestStage {}).unwrap();
+        let res = query(deps.as_ref(), env.clone(), QueryMsg::LatestStage {}).unwrap();
         let latest_stage: LatestStageResponse = from_binary(&res).unwrap();
         assert_eq!(0u8, latest_stage.latest_stage);
     }

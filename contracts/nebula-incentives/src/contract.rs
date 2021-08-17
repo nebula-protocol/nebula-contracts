@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     attr, entry_point, from_binary, to_binary, Binary, Deps, DepsMut, Env, HumanAddr, MessageInfo,
-    MigrateResult, Response, StdError, StdResult, Uint128,
+    Response, StdError, StdResult, Uint128,
 };
 
 use crate::arbitrageurs::{
@@ -134,7 +134,7 @@ pub fn update_owner(deps: DepsMut, env: Env, owner: &HumanAddr) -> StdResult<Res
     let cfg = read_config(deps.storage)?;
 
     if env.message.sender != cfg.owner {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     let mut new_cfg = cfg;
@@ -152,7 +152,7 @@ pub fn receive_cw20(deps: DepsMut, env: Env, cw20_msg: Cw20ReceiveMsg) -> StdRes
             Cw20HookMsg::DepositReward { rewards } => {
                 // only reward token contract can execute this message
                 if config.nebula_token != env.message.sender {
-                    return Err(StdError::unauthorized());
+                    return Err(StdError::generic_err("unauthorized"));
                 }
 
                 let mut rewards_amount = Uint128::zero();
@@ -176,7 +176,7 @@ pub fn new_penalty_period(deps: DepsMut, env: Env) -> StdResult<Response> {
     let cfg = read_config(deps.storage)?;
 
     if env.message.sender != cfg.owner {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     let n = read_current_n(deps.storage)?;

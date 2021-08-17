@@ -1,4 +1,3 @@
-cargo-features = ["resolver"]
 [package]
 name = "nebula-penalty"
 version = "2.0.0"

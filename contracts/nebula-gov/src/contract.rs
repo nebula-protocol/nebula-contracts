@@ -32,7 +32,7 @@ const MIN_LINK_LENGTH: usize = 12;
 const MAX_LINK_LENGTH: usize = 128;
 const MAX_POLLS_IN_PROGRESS: usize = 50;
 
-pub fn instantiate(deps: DepsMut, env: Env, info: MessageInfo, msg: InstantiateMsg) -> Response {
+pub fn instantiate(deps: DepsMut, env: Env, info: MessageInfo, msg: InstantiateMsg) -> StdResult<Response> {
     validate_quorum(msg.quorum)?;
     validate_threshold(msg.threshold)?;
     validate_voter_weight(msg.voter_weight)?;
@@ -118,7 +118,7 @@ pub fn receive_cw20(deps: DepsMut, env: Env, cw20_msg: Cw20ReceiveMsg) -> StdRes
     // only nebula token contract can execute this executer
     let config: Config = config_read(deps.storage).load()?;
     if config.nebula_token != env.message.sender {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     if let Some(msg) = cw20_msg.msg {
@@ -166,7 +166,7 @@ pub fn update_config(
 ) -> StdResult<Response> {
     config_store(deps.storage).update(|mut config| {
         if config.owner != env.message.sender {
-            return Err(StdError::unauthorized());
+            return Err(StdError::generic_err("unauthorized"));
         }
 
         if let Some(owner) = owner {
@@ -358,16 +358,15 @@ pub fn create_poll(
 
     state_store(deps.storage).save(&state)?;
 
-    let r = Response {
-        messages: vec![],
-        attributes: vec![
+    let r = Response::new()
+    .add_attributes(
+        vec![
             attr("action", "create_poll"),
             attr("creator", new_poll.creator),
             attr("poll_id", &poll_id.to_string()),
             attr("end_height", new_poll.end_height),
-        ],
-        data: None,
-    };
+        ]
+    );
     Ok(r)
 }
 
@@ -633,11 +632,8 @@ pub fn cast_vote(
         attr("vote_option", vote_info.vote),
     ];
 
-    let r = Response {
-        messages: vec![],
-        log,
-        data: None,
-    };
+    let r = Response::new()
+    .add_attributes(log);
     Ok(r)
 }
 
@@ -752,7 +748,7 @@ fn query_poll(deps: Deps, poll_id: u64) -> StdResult<PollResponse> {
         link: poll.link,
         deposit_amount: poll.deposit_amount,
         execute_data: if let Some(execute_data) = poll.execute_data {
-            Some(ExecuteMsg {
+            Some(PollExecuteMsg {
                 contract: execute_data.contract,
                 msg: execute_data.msg,
             })
@@ -789,7 +785,7 @@ fn query_polls(
                 link: poll.link.clone(),
                 deposit_amount: poll.deposit_amount,
                 execute_data: if let Some(execute_data) = poll.execute_data.clone() {
-                    Some(ExecuteMsg {
+                    Some(PollExecuteMsg {
                         contract: execute_data.contract,
                         msg: execute_data.msg,
                     })

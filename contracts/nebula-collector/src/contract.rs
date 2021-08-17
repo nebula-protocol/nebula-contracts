@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    attr, entry_point, to_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, HumanAddr,
+    attr, entry_point, to_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, HumanAddr,
     MessageInfo, Response, StdResult, WasmMsg,
 };
 
@@ -52,14 +52,14 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: HumanAddr) -> StdResult<Res
     let terraswap_factory_raw = config.terraswap_factory;
 
     let pair_info: PairInfo = query_pair_info(
-        &deps,
-        &terraswap_factory_raw,
+        &deps.querier,
+        Addr::unchecked(terraswap_factory_raw.to_string()),
         &[
             AssetInfo::NativeToken {
                 denom: config.base_denom.to_string(),
             },
             AssetInfo::Token {
-                contract_addr: asset_token.clone(),
+                contract_addr: asset_token.clone().to_string(),
             },
         ],
     )?;
@@ -67,7 +67,11 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: HumanAddr) -> StdResult<Res
     let messages: Vec<CosmosMsg>;
     if config.nebula_token == asset_token {
         // collateral token => nebula token
-        let amount = query_balance(&deps, &env.contract.address, config.base_denom.to_string())?;
+        let amount = query_balance(
+            &deps.querier,
+            Addr::unchecked(env.contract.address.to_string()),
+            config.base_denom.to_string(),
+        )?;
         let swap_asset = Asset {
             info: AssetInfo::NativeToken {
                 denom: config.base_denom.clone(),
@@ -76,7 +80,7 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: HumanAddr) -> StdResult<Res
         };
 
         // deduct tax first
-        let amount = (swap_asset.deduct_tax(&deps)?).amount;
+        let amount = (swap_asset.deduct_tax(&deps.querier)?).amount;
         messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: pair_info.contract_addr,
             msg: to_binary(&TerraswapExecuteMsg::Swap {
@@ -88,25 +92,29 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: HumanAddr) -> StdResult<Res
                 belief_price: None,
                 to: None,
             })?,
-            send: vec![Coin {
+            funds: vec![Coin {
                 denom: config.base_denom,
                 amount,
             }],
         })];
     } else {
         // asset token => collateral token
-        let amount = query_token_balance(&deps, &asset_token, &env.contract.address)?;
+        let amount = query_token_balance(
+            &deps.querier,
+            Addr::unchecked(asset_token.to_string()),
+            env.contract.address,
+        )?;
 
         messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: asset_token.clone(),
+            contract_addr: asset_token.clone().to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Send {
                 contract: pair_info.contract_addr,
                 amount,
-                msg: Some(to_binary(&TerraswapCw20HookMsg::Swap {
+                msg: to_binary(&TerraswapCw20HookMsg::Swap {
                     max_spread: None,
                     belief_price: None,
                     to: None,
-                })?),
+                })?,
             })?,
             funds: vec![],
         })];
@@ -121,15 +129,19 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: HumanAddr) -> StdResult<Res
 // Anyone can execute send function to receive staking token rewards
 pub fn distribute(deps: DepsMut, env: Env) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
-    let amount = query_token_balance(&deps, &config.nebula_token, &env.contract.address)?;
+    let amount = query_token_balance(
+        &deps.querier,
+        Addr::unchecked(config.nebula_token.to_string()),
+        Addr::unchecked(env.contract.address.to_string()),
+    )?;
 
     Ok(Response::new()
         .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: config.nebula_token,
+            contract_addr: config.nebula_token.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Send {
-                contract: config.distribution_contract,
+                contract: config.distribution_contract.to_string(),
                 amount,
-                msg: Some(to_binary(&GovCw20HookMsg::DepositReward {})?),
+                msg: to_binary(&GovCw20HookMsg::DepositReward {})?,
             })?,
             funds: vec![],
         })])

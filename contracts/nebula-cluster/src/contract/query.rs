@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, Deps, DepsMut, HumanAddr, StdError, StdResult, Uint128,
+    entry_point, to_binary, Binary, Deps, DepsMut, Env, HumanAddr, StdError, StdResult, Uint128,
 };
 
 use crate::ext_query::{query_cw20_balance, query_cw20_token_supply, query_price};
@@ -86,12 +86,16 @@ pub fn query_cluster_state(
     let inv: Vec<Uint128> = asset_infos
         .iter()
         .map(|asset| match asset {
-            AssetInfo::Token { contract_addr } => {
-                query_cw20_balance(&deps.querier, &contract_addr, cluster_contract_address)
-            }
-            AssetInfo::NativeToken { denom } => {
-                query_balance(&deps, cluster_contract_address, denom.clone())
-            }
+            AssetInfo::Token { contract_addr } => query_cw20_balance(
+                &deps.querier,
+                HumanAddr::from(contract_addr),
+                cluster_contract_address,
+            ),
+            AssetInfo::NativeToken { denom } => query_balance(
+                &deps.querier,
+                Addr::unchecked(cluster_contract_address.to_string()),
+                denom.clone(),
+            ),
         })
         .collect::<StdResult<Vec<Uint128>>>()?;
 

@@ -11,9 +11,9 @@ pub fn load_token_balance(
 ) -> StdResult<Uint128> {
     // load balance form the token contract
     let res: BalanceResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: HumanAddr::from(contract_addr),
+        contract_addr: contract_addr.to_string(),
         msg: to_binary(&Cw20QueryMsg::Balance {
-            address: HumanAddr::from(account_addr),
+            address: account_addr.to_string(),
         })?,
     }))?;
 

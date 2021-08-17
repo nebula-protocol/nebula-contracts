@@ -28,7 +28,6 @@ use nebula_protocol::staking::{
 use cw20::{Cw20ExecuteMsg, MinterResponse};
 use terraswap::asset::{AssetInfo, PairInfo};
 use terraswap::factory::ExecuteMsg as TerraswapFactoryExecuteMsg;
-use terraswap::hook::InitHook;
 use terraswap::querier::query_pair_info;
 use terraswap::token::InstantiateMsg as TokenInstantiateMsg;
 
@@ -105,11 +104,6 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             weight,
         } => update_weight(deps, env, asset_token, weight),
         ExecuteMsg::CreateCluster { params } => create_cluster(deps, env, params),
-        ExecuteMsg::TokenCreationHook {} => token_creation_hook(deps, env),
-        ExecuteMsg::SetClusterTokenHook { cluster } => set_cluster_token_hook(deps, env, cluster),
-        ExecuteMsg::TerraswapCreationHook { asset_token } => {
-            terraswap_creation_hook(deps, env, asset_token)
-        }
         ExecuteMsg::Distribute {} => distribute(deps, env),
         ExecuteMsg::PassCommand { contract_addr, msg } => {
             pass_command(deps, env, contract_addr, msg)
@@ -133,7 +127,7 @@ pub fn post_initialize(
 ) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
     if config.owner != HumanAddr::default() {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     config.owner = owner;
@@ -143,7 +137,12 @@ pub fn post_initialize(
     config.commission_collector = commission_collector;
     store_config(deps.storage, &config)?;
 
-    Ok(Response::default())
+    store_weight(deps.storage, &config.mirror_token, NEBULA_TOKEN_WEIGHT)?;
+    increase_total_weight(deps.storage, NEBULA_TOKEN_WEIGHT)?;
+
+    let neb_addr = &config.nebula_token;
+
+    terraswap_creation_hook(deps, env, neb_addr)
 }
 
 pub fn update_config(
@@ -156,7 +155,7 @@ pub fn update_config(
 ) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
     if config.owner != env.message.sender {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     if let Some(owner) = owner {
@@ -188,7 +187,7 @@ pub fn update_weight(
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
     if config.owner != env.message.sender {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     let origin_weight = read_weight(deps.storage, &asset_token)?;
@@ -213,7 +212,7 @@ pub fn pass_command(
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
     if config.owner != env.message.sender {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     Ok(
@@ -238,7 +237,7 @@ Whitelisting process
 pub fn create_cluster(deps: DepsMut, env: Env, params: Params) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
     if config.owner != env.message.sender {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     if read_params(deps.storage).is_ok() {
@@ -250,31 +249,71 @@ pub fn create_cluster(deps: DepsMut, env: Env, params: Params) -> StdResult<Resp
     store_params(deps.storage, &params)?;
 
     Ok(Response::new()
-        .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Instantiate {
-            code_id: config.cluster_code_id,
-            funds: vec![],
-            label: None,
-            msg: to_binary(&ClusterInstantiateMsg {
-                name: params.name.clone(),
-                description: params.description.clone(),
-                owner: env.contract.address.clone(),
-                pricing_oracle: params.pricing_oracle.clone(),
-                composition_oracle: params.composition_oracle.clone(),
-                penalty: params.penalty,
-                factory: env.contract.address.clone(),
-                cluster_token: None,
-                target: params.target,
-                init_hook: Some(InitHook {
-                    contract_addr: env.contract.address,
-                    msg: to_binary(&ExecuteMsg::TokenCreationHook {})?,
-                }),
-            })?,
-        })])
+        .add_submessages(vec![SubMsg {
+            msg: WasmMsg::Instantiate {
+                admin: None,
+                code_id: config.cluster_code_id,
+                funds: vec![],
+                label: "".to_string(),
+                msg: to_binary(&ClusterInstantiateMsg {
+                    name: params.name.clone(),
+                    description: params.description.clone(),
+                    owner: env.contract.address.clone(),
+                    pricing_oracle: params.pricing_oracle.clone(),
+                    composition_oracle: params.composition_oracle.clone(),
+                    penalty: params.penalty,
+                    factory: env.contract.address.clone(),
+                    cluster_token: None,
+                    target: params.target,
+                })?,
+            }
+            .into(),
+            gas_limit: None,
+            id: 1,
+            reply_on: ReplyOn::Success,
+        }])
         .add_attributes(vec![
             attr("action", "create_cluster"),
             attr("symbol", params.symbol.clone()),
             attr("name", params.name),
         ]))
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
+    match msg.id {
+        1 => {
+            // get new token's contract address
+            let res: MsgInstantiateContractResponse = Message::parse_from_bytes(
+                msg.result.unwrap().data.unwrap().as_slice(),
+            )
+            .map_err(|_| {
+                StdError::parse_err("MsgInstantiateContractResponse", "failed to parse data")
+            })?;
+            let asset_token = res.get_contract_address();
+
+            token_creation_hook(deps, env, asset_token)
+        }
+        2 => {
+            let cluster = read_tmp_cluster(deps.storage)?;
+
+            // get new token's contract address
+            let res: MsgInstantiateContractResponse = Message::parse_from_bytes(
+                msg.result.unwrap().data.unwrap().as_slice(),
+            )
+            .map_err(|_| {
+                StdError::parse_err("MsgInstantiateContractResponse", "failed to parse data")
+            })?;
+            let token = res.get_contract_address();
+
+            set_cluster_token_hook(deps, env, cluster, token);
+        }
+        3 => {
+            let token = read_tmp_asset(deps.storage)?;
+            terraswap_creation_hook(deps, env, token);
+        }
+        _ => Err(StdError::generic_err("reply id is invalid")),
+    }
 }
 
 /*
@@ -283,7 +322,7 @@ TokenCreationHook
 2. Register asset and oracle feeder to oracle contract
 3. Create terraswap pair through terraswap factory with `TerraswapCreationHook`
 */
-pub fn token_creation_hook(deps: DepsMut, env: Env) -> StdResult<Response> {
+pub fn token_creation_hook(deps: DepsMut, env: Env, cluster: HumanAddr) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
 
     // If the param is not exists, it means there is no cluster registration process in progress
@@ -298,8 +337,8 @@ pub fn token_creation_hook(deps: DepsMut, env: Env) -> StdResult<Response> {
 
     let penalty = params.penalty;
 
-    let cluster = env.message.sender;
     record_cluster(deps.storage, &cluster)?;
+    store_tmp_cluster(deps.storage, &cluster)?;
     Ok(Response::new()
         .add_messages(vec![
             // tell penalty contract to set owner to cluster
@@ -309,29 +348,6 @@ pub fn token_creation_hook(deps: DepsMut, env: Env) -> StdResult<Response> {
                 msg: to_binary(&PenaltyExecuteMsg::UpdateConfig {
                     owner: Some(cluster.clone()),
                     penalty_params: None,
-                })?,
-            }),
-            // Instantiate token
-            CosmosMsg::Wasm(WasmMsg::Instantiate {
-                code_id: config.token_code_id,
-                funds: vec![],
-                label: None,
-                msg: to_binary(&TokenInstantiateMsg {
-                    name: params.name.clone(),
-                    symbol: params.symbol,
-                    decimals: 6u8,
-                    initial_balances: vec![],
-                    mint: Some(MinterResponse {
-                        minter: cluster.clone(),
-                        cap: None,
-                    }),
-                    // Set Cluster Token
-                    init_hook: Some(InitHook {
-                        contract_addr: env.contract.address,
-                        msg: to_binary(&ExecuteMsg::SetClusterTokenHook {
-                            cluster: cluster.clone(),
-                        })?,
-                    }),
                 })?,
             }),
             // Set cluster owner (should end up being governance)
@@ -350,13 +366,39 @@ pub fn token_creation_hook(deps: DepsMut, env: Env) -> StdResult<Response> {
                 })?,
             }),
         ])
+        .add_submessages(vec![SubMsg {
+            msg: WasmMsg::Instantiate {
+                admin: None,
+                code_id: config.token_code_id,
+                funds: vec![],
+                label: "".to_string(),
+                msg: to_binary(&TokenInstantiateMsg {
+                    name: params.name.clone(),
+                    symbol: params.symbol,
+                    decimals: 6u8,
+                    initial_balances: vec![],
+                    mint: Some(MinterResponse {
+                        minter: cluster.clone(),
+                        cap: None,
+                    }),
+                })?,
+            }
+            .into(),
+            gas_limit: None,
+            id: 2,
+            reply_on: ReplyOn::Success,
+        }])
         .add_attributes(vec![attr("cluster_addr", cluster.as_str())]))
 }
 
 /// Set Token Hook
-pub fn set_cluster_token_hook(deps: DepsMut, env: Env, cluster: HumanAddr) -> StdResult<Response> {
+pub fn set_cluster_token_hook(
+    deps: DepsMut,
+    env: Env,
+    cluster: HumanAddr,
+    token: HumanAddr,
+) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
-    let token = env.message.sender;
 
     // If the param is not exists, it means there is no cluster registration process in progress
     let params: Params = match read_params(deps.storage) {
@@ -380,7 +422,7 @@ pub fn set_cluster_token_hook(deps: DepsMut, env: Env, cluster: HumanAddr) -> St
 
     // Remove params == clear flag
     remove_params(deps.storage);
-
+    store_tmp_asset(deps.storage, token.clone());
     Ok(Response::new()
         .add_messages(vec![
             //Set cluster token
@@ -398,8 +440,10 @@ pub fn set_cluster_token_hook(deps: DepsMut, env: Env, cluster: HumanAddr) -> St
                     target: None,
                 })?,
             }),
+        ])
+        .add_submessages(vec![SubMsg {
             // set up terraswap pair
-            CosmosMsg::Wasm(WasmMsg::Execute {
+            msg: WasmMsg::Execute {
                 contract_addr: config.terraswap_factory,
                 funds: vec![],
                 msg: to_binary(&TerraswapFactoryExecuteMsg::CreatePair {
@@ -411,15 +455,13 @@ pub fn set_cluster_token_hook(deps: DepsMut, env: Env, cluster: HumanAddr) -> St
                             contract_addr: token.clone(),
                         },
                     ],
-                    init_hook: Some(InitHook {
-                        msg: to_binary(&ExecuteMsg::TerraswapCreationHook {
-                            asset_token: token.clone(),
-                        })?,
-                        contract_addr: env.contract.address,
-                    }),
                 })?,
-            }),
-        ])
+            }
+            .into(),
+            gas_limit: None,
+            id: 3,
+            reply_on: ReplyOn::Success,
+        }])
         .add_attributes(vec![
             attr("action", "set_cluster_token"),
             attr("cluster", cluster),
@@ -435,13 +477,6 @@ pub fn terraswap_creation_hook(
     // Now terraswap contract is already created,
     // and liquidty token also created
     let config: Config = read_config(deps.storage)?;
-
-    if config.nebula_token == asset_token {
-        store_weight(deps.storage, &asset_token, NEBULA_TOKEN_WEIGHT)?;
-        increase_total_weight(deps.storage, NEBULA_TOKEN_WEIGHT)?;
-    } else if config.terraswap_factory != env.message.sender {
-        return Err(StdError::unauthorized());
-    }
 
     let asset_infos = [
         AssetInfo::NativeToken {
@@ -557,7 +592,7 @@ pub fn decommission_cluster(
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
     if config.owner != env.message.sender {
-        return Err(StdError::unauthorized());
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     let weight = read_weight(deps.storage, &cluster_token.clone())?;

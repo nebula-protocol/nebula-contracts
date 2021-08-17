@@ -21,8 +21,8 @@ use terra_cosmwasm::*;
 use terraswap::asset::{Asset, AssetInfo};
 
 /// Convenience function for creating inline HumanAddr
-pub fn h(s: &str) -> HumanAddr {
-    HumanAddr(s.to_string())
+pub fn h(s: &str) -> String {
+    s.to_string()
 }
 
 #[macro_export]
@@ -420,10 +420,7 @@ impl WasmMockQuerier {
 
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies
 /// this uses our CustomQuerier.
-pub fn mock_dependencies(
-    canonical_length: usize,
-    contract_balance: &[Coin],
-) -> Deps<MockStorage, MockApi, WasmMockQuerier> {
+pub fn mock_dependencies(canonical_length: usize, contract_balance: &[Coin]) -> Deps {
     let contract_addr = HumanAddr::from(MOCK_CONTRACT_ADDR);
     let custom_querier: WasmMockQuerier = WasmMockQuerier::new(
         MockQuerier::new(&[(&contract_addr, contract_balance)]),
@@ -432,7 +429,7 @@ pub fn mock_dependencies(
     );
 
     Deps {
-        storage: MockStorage::default(),
+        storage: &MockStorage::default(),
         api: MockApi::new(canonical_length),
         querier: custom_querier,
     }

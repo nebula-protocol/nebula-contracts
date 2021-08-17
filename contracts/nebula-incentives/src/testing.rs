@@ -1,4 +1,4 @@
-use crate::contract::{execute, init, query, query_config, query_penalty_period};
+use crate::contract::{execute, instantiate, query, query_config, query_penalty_period};
 use crate::mock_querier::{mock_dependencies, WasmMockQuerier};
 use crate::state::{contributions_read, read_from_contribution_bucket, record_contribution};
 use cosmwasm_std::testing::{mock_info, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
@@ -80,7 +80,7 @@ fn proper_initialization() {
 
     match res {
         Ok(_) => panic!("Must return error"),
-        Err(e) => assert_eq!(e, StdError::unauthorized()),
+        Err(e) => assert_eq!(e, StdError::generic_err("unauthorized")),
     }
 
     let msg = ExecuteMsg::UpdateOwner {
@@ -862,7 +862,7 @@ fn test_swap_all() {
                 to: None,
             })
             .unwrap(),
-            send: coins(990, &"uusd".to_string()),
+            funds: coins(990, &"uusd".to_string()),
         })]
     );
 }
@@ -962,7 +962,7 @@ fn test_incentives_internal_rewarded_mint() {
                     asset_amounts: mint_asset_amounts_after_tax,
                 })
                 .unwrap(),
-                send: coins(99, &"native_asset0000".to_string()),
+                funds: coins(99, &"native_asset0000".to_string()),
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address,
