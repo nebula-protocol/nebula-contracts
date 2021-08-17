@@ -602,7 +602,7 @@
 // }
 
 // pub fn mock_init() -> (Deps, Response) {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 //     let msg = InstantiateMsg {
 //         name: consts::name().to_string(),
 //         description: consts::description().to_string(),
@@ -615,13 +615,13 @@
 //         factory: consts::factory(),
 //     };
 
-//     let env = mock_info(consts::pricing_oracle().as_str(), &[]);
+//     let info = mock_info(consts::pricing_oracle().as_str(), &[]);
 //     let res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 //     (deps, res)
 // }
 
 // pub fn mock_init_native_stage() -> (Deps, Response) {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 //     let msg = InstantiateMsg {
 //         name: consts::name().to_string(),
 //         description: consts::description().to_string(),
@@ -634,7 +634,7 @@
 //         factory: consts::factory(),
 //     };
 
-//     let env = mock_info(consts::pricing_oracle().as_str(), &[]);
+//     let info = mock_info(consts::pricing_oracle().as_str(), &[]);
 //     let res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 //     (deps, res)
 // }
@@ -808,7 +808,7 @@
 //     };
 
 //     let addr = "addr0000";
-//     let env = mock_info(h(addr), &[]);
+//     let info = mock_info(h(addr), &[]);
 //     let res = execute(deps.as_mut(), env.clone(), mint_msg).unwrap();
 
 //     assert_eq!(
@@ -945,7 +945,7 @@
 //         max_tokens: Uint128::new(20_000_000),
 //         asset_amounts: None,
 //     };
-//     let env = mock_info("addr0000".to_string(), &[]);
+//     let info = mock_info("addr0000".to_string(), &[]);
 //     let res = execute(deps.as_mut(), env.clone(), msg).unwrap();
 
 //     assert_eq!(
@@ -1091,8 +1091,8 @@
 //     ];
 //     let msg = ExecuteMsg::UpdateTarget { target: new_target };
 
-//     let env = mock_info(consts::owner(), &[]);
-//     let res = execute(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info(consts::owner(), &[]);
+//     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     assert_eq!(
 //         res.attributes,
@@ -1122,15 +1122,15 @@
 
 //     let msg = ExecuteMsg::Decommission {};
 
-//     let env = mock_info("owner0001", &[]);
-//     let res = execute(deps.as_mut(), env, msg.clone()).unwrap_err();
+//     let info = mock_info("owner0001", &[]);
+//     let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
 
 //     match res {
 //         StdError::Unauthorized { .. } => {}
 //         _ => panic!("DO NOT ENTER HERE"),
 //     }
 
-//     let env = mock_info(consts::factory(), &[]);
+//     let info = mock_info(consts::factory(), &[]);
 
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 

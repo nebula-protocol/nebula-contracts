@@ -27,7 +27,7 @@
 // use terraswap::token::InstantiateMsg as TokenInstantiateMsg;
 
 // fn mock_info_time(signer: &String, time: u64) -> Env {
-//     let mut env = mock_info(signer, &[]);
+//     let mut info = mock_info(signer, &[]);
 //     env.block.time = Timestamp::from_seconds(time);
 //     env
 // }
@@ -82,7 +82,7 @@
 
 // #[test]
 // fn proper_initialization() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 
 //     let msg = InstantiateMsg {
 //         base_denom: BASE_DENOM.to_string(),
@@ -92,7 +92,7 @@
 //         distribution_schedule: vec![],
 //     };
 
-//     let env = mock_info("addr0000", &[]);
+//     let info = mock_info("addr0000", &[]);
 //     let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
 //     let msg = ExecuteMsg::PostInitialize {
@@ -112,10 +112,10 @@
 //         staking_contract: ("staking0000"),
 //         commission_collector: ("collector0000"),
 //     };
-//     let _res = execute(deps.as_mut(), env, msg).unwrap_err();
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
 
 //     // it worked, let's query the state
-//     let res = query(deps.as_ref(), QueryMsg::Config {}).unwrap();
+//     let res = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
 //     let config: ConfigResponse = from_binary(&res).unwrap();
 //     assert_eq!(
 //         config,
@@ -137,7 +137,7 @@
 
 // #[test]
 // fn test_update_config() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 
 //     let msg = InstantiateMsg {
 //         base_denom: BASE_DENOM.to_string(),
@@ -147,7 +147,7 @@
 //         distribution_schedule: vec![],
 //     };
 
-//     let env = mock_info("addr0000", &[]);
+//     let info = mock_info("addr0000", &[]);
 //     let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
 //     let msg = ExecuteMsg::PostInitialize {
@@ -167,9 +167,9 @@
 //         cluster_code_id: None,
 //     };
 
-//     let env = mock_info("owner0000", &[]);
-//     let _res = execute(deps.as_mut(), env, msg).unwrap();
-//     let res = query(deps.as_ref(), QueryMsg::Config {}).unwrap();
+//     let info = mock_info("owner0000", &[]);
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+//     let res = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
 //     let config: ConfigResponse = from_binary(&res).unwrap();
 //     assert_eq!(
 //         config,
@@ -196,9 +196,9 @@
 //         cluster_code_id: Some(CLUSTER_CODE_ID + 1),
 //     };
 
-//     let env = mock_info("owner0001", &[]);
-//     let _res = execute(deps.as_mut(), env, msg).unwrap();
-//     let res = query(deps.as_ref(), QueryMsg::Config {}).unwrap();
+//     let info = mock_info("owner0001", &[]);
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+//     let res = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
 //     let config: ConfigResponse = from_binary(&res).unwrap();
 //     assert_eq!(
 //         config,
@@ -225,8 +225,8 @@
 //         cluster_code_id: Some(CLUSTER_CODE_ID + 1),
 //     };
 
-//     let env = mock_info("owner0000", &[]);
-//     let res = execute(deps.as_mut(), env, msg).unwrap_err();
+//     let info = mock_info("owner0000", &[]);
+//     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
 //     match res {
 //         StdError::Unauthorized { .. } => {}
 //         _ => panic!("DO NOT ENTER HERE"),
@@ -235,7 +235,7 @@
 
 // #[test]
 // fn test_update_weight() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 //     let msg = InstantiateMsg {
 //         base_denom: BASE_DENOM.to_string(),
 //         token_code_id: TOKEN_CODE_ID,
@@ -244,7 +244,7 @@
 //         distribution_schedule: vec![],
 //     };
 
-//     let env = mock_info("addr0000", &[]);
+//     let info = mock_info("addr0000", &[]);
 //     let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
 //     let msg = ExecuteMsg::PostInitialize {
@@ -264,16 +264,16 @@
 //         asset_token: ("asset0000"),
 //         weight: 20,
 //     };
-//     let env = mock_info("owner0001", &[]);
-//     let res = execute(deps.as_mut(), env, msg.clone()).unwrap_err();
+//     let info = mock_info("owner0001", &[]);
+//     let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
 //     match res {
 //         StdError::Unauthorized { .. } => {}
 //         _ => panic!("DO NOT ENTER HERE"),
 //     }
 
-//     let env = mock_info("owner0000", &[]);
-//     let _res = execute(deps.as_mut(), env, msg).unwrap();
-//     let res = query(deps.as_ref(), QueryMsg::DistributionInfo {}).unwrap();
+//     let info = mock_info("owner0000", &[]);
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+//     let res = query(deps.as_ref(), mock_env(), QueryMsg::DistributionInfo {}).unwrap();
 //     let distribution_info: DistributionInfoResponse = from_binary(&res).unwrap();
 //     assert_eq!(
 //         distribution_info,
@@ -289,7 +289,7 @@
 
 // #[test]
 // fn test_create_cluster() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 
 //     let msg = InstantiateMsg {
 //         base_denom: BASE_DENOM.to_string(),
@@ -299,7 +299,7 @@
 //         distribution_schedule: vec![],
 //     };
 
-//     let env = mock_info("addr0000", &[]);
+//     let info = mock_info("addr0000", &[]);
 //     let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
 //     let msg = ExecuteMsg::PostInitialize {
@@ -316,7 +316,7 @@
 //     let msg = ExecuteMsg::CreateCluster {
 //         params: input_params.clone(),
 //     };
-//     let env = mock_info("owner0000", &[]);
+//     let info = mock_info("owner0000", &[]);
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     assert_eq!(
@@ -365,8 +365,8 @@
 //         _ => panic!("DO NOT ENTER HERE"),
 //     }
 
-//     let env = mock_info("addr0001", &[]);
-//     let res = execute(deps.as_mut(), env, msg).unwrap_err();
+//     let info = mock_info("addr0001", &[]);
+//     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
 //     match res {
 //         StdError::Unauthorized { .. } => {}
 //         _ => panic!("DO NOT ENTER HERE"),
@@ -375,7 +375,7 @@
 
 // #[test]
 // fn test_token_creation_hook() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 
 //     let msg = InstantiateMsg {
 //         base_denom: BASE_DENOM.to_string(),
@@ -385,7 +385,7 @@
 //         distribution_schedule: vec![],
 //     };
 
-//     let env = mock_info("addr0000", &[]);
+//     let info = mock_info("addr0000", &[]);
 //     let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
 //     let msg = ExecuteMsg::PostInitialize {
@@ -400,7 +400,7 @@
 
 //     // There is no cluster registration process; failed
 //     let msg = ExecuteMsg::TokenCreationHook {};
-//     let env = mock_info("asset0000", &[]);
+//     let info = mock_info("asset0000", &[]);
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone());
 //     match res {
 //         Err(StdError::GenericErr { msg, .. }) => {
@@ -413,12 +413,12 @@
 //     let msg = ExecuteMsg::CreateCluster {
 //         params: input_params.clone(),
 //     };
-//     let env = mock_info("owner0000", &[]);
+//     let info = mock_info("owner0000", &[]);
 //     let _res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     let msg = ExecuteMsg::TokenCreationHook {};
 
-//     let env = mock_info("asset0000", &[]);
+//     let info = mock_info("asset0000", &[]);
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 //     assert_eq!(
 //         res.messages,
@@ -481,7 +481,7 @@
 
 // #[test]
 // fn test_set_cluster_token_hook() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 
 //     let msg = InstantiateMsg {
 //         base_denom: BASE_DENOM.to_string(),
@@ -491,7 +491,7 @@
 //         distribution_schedule: vec![],
 //     };
 
-//     let env = mock_info("addr0000", &[]);
+//     let info = mock_info("addr0000", &[]);
 //     let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
 //     let msg = ExecuteMsg::PostInitialize {
@@ -508,7 +508,7 @@
 //     let msg = ExecuteMsg::SetClusterTokenHook {
 //         cluster: h("asset0000"),
 //     };
-//     let env = mock_info("cluster_token0000", &[]);
+//     let info = mock_info("cluster_token0000", &[]);
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone());
 //     match res {
 //         Err(StdError::GenericErr { msg, .. }) => {
@@ -521,19 +521,19 @@
 //     let msg = ExecuteMsg::CreateCluster {
 //         params: input_params.clone(),
 //     };
-//     let env = mock_info("owner0000", &[]);
+//     let info = mock_info("owner0000", &[]);
 //     let _res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     let msg = ExecuteMsg::TokenCreationHook {};
-//     let env = mock_info("asset0000", &[]);
-//     let _res = execute(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info("asset0000", &[]);
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     let msg = ExecuteMsg::SetClusterTokenHook {
 //         cluster: h("asset0000"),
 //     };
 
-//     let env = mock_info("cluster_token0000", &[]);
-//     let res = execute(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info("cluster_token0000", &[]);
+//     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     assert_eq!(
 //         res.messages,
@@ -588,7 +588,7 @@
 //         ]
 //     );
 
-//     let res = query(deps.as_ref(), QueryMsg::DistributionInfo {}).unwrap();
+//     let res = query(deps.as_ref(), mock_env(), QueryMsg::DistributionInfo {}).unwrap();
 //     let distribution_info: DistributionInfoResponse = from_binary(&res).unwrap();
 //     assert_eq!(
 //         distribution_info,
@@ -603,7 +603,7 @@
 //     let msg = ExecuteMsg::SetClusterTokenHook {
 //         cluster: h("asset0000"),
 //     };
-//     let env = mock_info("cluster_token0000", &[]);
+//     let info = mock_info("cluster_token0000", &[]);
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone());
 //     match res {
 //         Err(StdError::GenericErr { msg, .. }) => {
@@ -615,7 +615,7 @@
 
 // #[test]
 // fn test_set_cluster_token_hook_without_weight() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 
 //     let msg = InstantiateMsg {
 //         base_denom: BASE_DENOM.to_string(),
@@ -625,7 +625,7 @@
 //         distribution_schedule: vec![],
 //     };
 
-//     let env = mock_info("addr0000", &[]);
+//     let info = mock_info("addr0000", &[]);
 //     let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
 //     let msg = ExecuteMsg::PostInitialize {
@@ -642,7 +642,7 @@
 //     let msg = ExecuteMsg::SetClusterTokenHook {
 //         cluster: h("asset0000"),
 //     };
-//     let env = mock_info("cluster_token0000", &[]);
+//     let info = mock_info("cluster_token0000", &[]);
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone());
 //     match res {
 //         Err(StdError::GenericErr { msg, .. }) => {
@@ -656,19 +656,19 @@
 //     let msg = ExecuteMsg::CreateCluster {
 //         params: input_params.clone(),
 //     };
-//     let env = mock_info("owner0000", &[]);
+//     let info = mock_info("owner0000", &[]);
 //     let _res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     let msg = ExecuteMsg::TokenCreationHook {};
-//     let env = mock_info("asset0000", &[]);
-//     let _res = execute(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info("asset0000", &[]);
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     let msg = ExecuteMsg::SetClusterTokenHook {
 //         cluster: h("asset0000"),
 //     };
 
-//     let env = mock_info("cluster_token0000", &[]);
-//     let res = execute(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info("cluster_token0000", &[]);
+//     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     assert_eq!(
 //         res.messages,
@@ -723,7 +723,7 @@
 //         ]
 //     );
 
-//     let res = query(deps.as_ref(), QueryMsg::DistributionInfo {}).unwrap();
+//     let res = query(deps.as_ref(), mock_env(), QueryMsg::DistributionInfo {}).unwrap();
 //     let distribution_info: DistributionInfoResponse = from_binary(&res).unwrap();
 //     assert_eq!(
 //         distribution_info,
@@ -738,7 +738,7 @@
 //     let msg = ExecuteMsg::SetClusterTokenHook {
 //         cluster: h("asset0000"),
 //     };
-//     let env = mock_info("cluster_token0000", &[]);
+//     let info = mock_info("cluster_token0000", &[]);
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone());
 //     match res {
 //         Err(StdError::GenericErr { msg, .. }) => {
@@ -750,7 +750,7 @@
 
 // #[test]
 // fn test_terraswap_creation_hook() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 //     deps.querier
 //         .with_terraswap_pairs(&[(&"uusdasset0000".to_string(), &("LP0000"))]);
 
@@ -762,7 +762,7 @@
 //         distribution_schedule: vec![],
 //     };
 
-//     let env = mock_info("addr0000", &[]);
+//     let info = mock_info("addr0000", &[]);
 //     let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
 //     let msg = ExecuteMsg::PostInitialize {
@@ -779,8 +779,8 @@
 //         asset_token: ("asset0000"),
 //     };
 
-//     let env = mock_info("terraswapfactory1", &[]);
-//     let res = execute(deps.as_mut(), env, msg).unwrap_err();
+//     let info = mock_info("terraswapfactory1", &[]);
+//     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
 
 //     match res {
 //         StdError::Unauthorized { .. } => {}
@@ -791,26 +791,26 @@
 //     let msg = ExecuteMsg::CreateCluster {
 //         params: input_params.clone(),
 //     };
-//     let env = mock_info("owner0000", &[]);
+//     let info = mock_info("owner0000", &[]);
 //     let _res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     let msg = ExecuteMsg::TokenCreationHook {};
-//     let env = mock_info("asset0000", &[]);
-//     let _res = execute(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info("asset0000", &[]);
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     let msg = ExecuteMsg::SetClusterTokenHook {
 //         cluster: h("asset0000"),
 //     };
 
-//     let env = mock_info("cluster_token0000", &[]);
-//     let _res = execute(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info("cluster_token0000", &[]);
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     let msg = ExecuteMsg::TerraswapCreationHook {
 //         asset_token: ("asset0000"),
 //     };
 
-//     let env = mock_info("terraswapfactory", &[]);
-//     let res = execute(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info("terraswapfactory", &[]);
+//     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     assert_eq!(
 //         res.messages,
@@ -828,7 +828,7 @@
 
 // #[test]
 // fn test_distribute() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 //     deps.querier.with_terraswap_pairs(&[
 //         (&"uusdasset0000".to_string(), &("LP0000")),
 //         (&"uusdasset0001".to_string(), &("LP0001")),
@@ -845,7 +845,7 @@
 //         ],
 //     };
 
-//     let env = mock_info("addr0000", &[]);
+//     let info = mock_info("addr0000", &[]);
 //     let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
 //     let msg = ExecuteMsg::PostInitialize {
@@ -855,33 +855,33 @@
 //         commission_collector: ("collector0000"),
 //         terraswap_factory: ("terraswapfactory"),
 //     };
-//     let _res = execute(deps.as_mut(), env, msg).unwrap();
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     // create first cluter with weight 100
 //     let input_params: Params = get_input_params();
 //     let msg = ExecuteMsg::CreateCluster {
 //         params: input_params.clone(),
 //     };
-//     let env = mock_info("owner0000", &[]);
+//     let info = mock_info("owner0000", &[]);
 //     let _res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     let msg = ExecuteMsg::TokenCreationHook {};
-//     let env = mock_info("asset0000", &[]);
-//     let _res = execute(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info("asset0000", &[]);
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     let msg = ExecuteMsg::SetClusterTokenHook {
 //         cluster: h("asset0000"),
 //     };
 
-//     let env = mock_info("cluster_token0000", &[]);
-//     let _res = execute(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info("cluster_token0000", &[]);
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     let msg = ExecuteMsg::TerraswapCreationHook {
 //         asset_token: ("asset0000"),
 //     };
 
-//     let env = mock_info("terraswapfactory", &[]);
-//     let _res = execute(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info("terraswapfactory", &[]);
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     // create second cluter with weight 30
 //     let mut input_params: Params = get_input_params();
@@ -892,31 +892,31 @@
 //     let msg = ExecuteMsg::CreateCluster {
 //         params: input_params.clone(),
 //     };
-//     let env = mock_info("owner0000", &[]);
+//     let info = mock_info("owner0000", &[]);
 //     let _res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     let msg = ExecuteMsg::TokenCreationHook {};
-//     let env = mock_info("asset0001", &[]);
-//     let _res = execute(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info("asset0001", &[]);
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     let msg = ExecuteMsg::SetClusterTokenHook {
 //         cluster: h("asset0001"),
 //     };
 
-//     let env = mock_info("cluster_token0001", &[]);
-//     let _res = execute(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info("cluster_token0001", &[]);
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     let msg = ExecuteMsg::TerraswapCreationHook {
 //         asset_token: ("asset0001"),
 //     };
 
-//     let env = mock_info("terraswapfactory", &[]);
-//     let _res = execute(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info("terraswapfactory", &[]);
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     // height is not increased so zero amount will be minted
 //     let msg = ExecuteMsg::Distribute {};
-//     let env = mock_info("anyone", &[]);
-//     let res = execute(deps.as_mut(), env, msg);
+//     let info = mock_info("anyone", &[]);
+//     let res = execute(deps.as_mut(), mock_env(), info, msg);
 //     match res {
 //         Err(StdError::GenericErr { msg, .. }) => {
 //             assert_eq!(msg, "Cannot distribute nebula token before interval")
@@ -926,8 +926,8 @@
 
 //     // one height increase
 //     let msg = ExecuteMsg::Distribute {};
-//     let env = mock_info_time(&"addr0000".to_string(), 1_571_797_419u64 + 5400u64);
-//     let res = execute(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info_time(&"addr0000".to_string(), 1_571_797_419u64 + 5400u64);
+//     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 //     assert_eq!(
 //         res.attributes,
 //         vec![
@@ -957,7 +957,7 @@
 //         }),],
 //     );
 
-//     let res = query(deps.as_ref(), QueryMsg::DistributionInfo {}).unwrap();
+//     let res = query(deps.as_ref(), mock_env(), QueryMsg::DistributionInfo {}).unwrap();
 //     let distribution_info: DistributionInfoResponse = from_binary(&res).unwrap();
 //     assert_eq!(
 //         distribution_info,
@@ -970,7 +970,7 @@
 
 // #[test]
 // fn test_decommission_cluster() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 //     deps.querier
 //         .with_terraswap_pairs(&[(&"uusdasset0000".to_string(), &("LP0000"))]);
 
@@ -985,7 +985,7 @@
 //         ],
 //     };
 
-//     let env = mock_info("addr0000", &[]);
+//     let info = mock_info("addr0000", &[]);
 //     let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
 //     let msg = ExecuteMsg::PostInitialize {
@@ -995,49 +995,49 @@
 //         commission_collector: ("collector0000"),
 //         terraswap_factory: ("terraswapfactory"),
 //     };
-//     let _res = execute(deps.as_mut(), env, msg).unwrap();
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     // Create a test cluster
 //     let input_params: Params = get_input_params();
 //     let msg = ExecuteMsg::CreateCluster {
 //         params: input_params.clone(),
 //     };
-//     let env = mock_info("owner0000", &[]);
+//     let info = mock_info("owner0000", &[]);
 //     let _res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     let msg = ExecuteMsg::TokenCreationHook {};
-//     let env = mock_info("asset0000", &[]);
-//     let _res = execute(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info("asset0000", &[]);
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     let msg = ExecuteMsg::SetClusterTokenHook {
 //         cluster: h("asset0000"),
 //     };
 
-//     let env = mock_info("cluster_token0000", &[]);
-//     let _res = execute(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info("cluster_token0000", &[]);
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     let msg = ExecuteMsg::TerraswapCreationHook {
 //         asset_token: ("asset0000"),
 //     };
 
-//     let env = mock_info("terraswapfactory", &[]);
-//     let _res = execute(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info("terraswapfactory", &[]);
+//     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     // unauthorized decomission attempt
 //     let msg = ExecuteMsg::DecommissionCluster {
 //         cluster_contract: h("asset0000"),
 //         cluster_token: h("cluster_token0000"),
 //     };
-//     let env = mock_info("owner0001", &[]);
-//     let res = execute(deps.as_mut(), env, msg.clone()).unwrap_err();
+//     let info = mock_info("owner0001", &[]);
+//     let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
 
 //     match res {
 //         StdError::Unauthorized { .. } => {}
 //         _ => panic!("DO NOT ENTER HERE"),
 //     }
 
-//     let env = mock_info("owner0000", &[]);
-//     let res = execute(deps.as_mut(), env, msg.clone()).unwrap();
+//     let info = mock_info("owner0000", &[]);
+//     let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
 
 //     assert_eq!(
 //         res.messages,
@@ -1062,7 +1062,7 @@
 //         false
 //     );
 
-//     let res = query(deps.as_ref(), QueryMsg::DistributionInfo {}).unwrap();
+//     let res = query(deps.as_ref(), mock_env(), QueryMsg::DistributionInfo {}).unwrap();
 //     let distribution_info: DistributionInfoResponse = from_binary(&res).unwrap();
 
 //     assert_eq!(

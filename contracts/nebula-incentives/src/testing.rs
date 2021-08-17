@@ -34,13 +34,13 @@
 
 // fn mock_init(mut deps: DepsMut) {
 //     let msg = init_msg();
-//     let env = mock_info(TEST_CREATOR, &[]);
-//     let _res = instantiate(deps.as_mut(), env, msg)
+//     let info = mock_info(TEST_CREATOR, &[]);
+//     let _res = instantiate(deps.as_mut(), mock_env(), info, msg)
 //         .expect("contract successfully executes InstantiateMsg");
 // }
 
 // fn mock_info_height(sender: &str, sent: &[Coin], height: u64, time: u64) -> Env {
-//     let mut env = mock_info(sender, sent);
+//     let mut info = mock_info(sender, sent);
 //     env.block.height = height;
 //     env.block.time = Timestamp::from_seconds(time);
 //     env
@@ -48,14 +48,14 @@
 
 // #[test]
 // fn proper_initialization() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 
 //     let msg = init_msg();
 
-//     let env = mock_info("owner0000", &[]);
+//     let info = mock_info("owner0000", &[]);
 
 //     // we can just call .unwrap() to assert this was a success
-//     let _res = instantiate(deps.as_mut(), env, msg).unwrap();
+//     let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     // it worked, let's query the state
 //     let config: ConfigResponse = query_config(deps.as_ref()).unwrap();
@@ -75,8 +75,8 @@
 //         owner:"owner0001".to_string(),
 //     };
 
-//     let env = mock_info("owner0001", &[]);
-//     let res = execute(deps.as_mut(), env, msg);
+//     let info = mock_info("owner0001", &[]);
+//     let res = execute(deps.as_mut(), mock_env(), info, msg);
 
 //     match res {
 //         Ok(_) => panic!("Must return error"),
@@ -87,8 +87,8 @@
 //         owner: "owner0001".to_string(),
 //     };
 
-//     let env = mock_info("owner0000", &[]);
-//     let res = execute(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info("owner0000", &[]);
+//     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 //     assert_eq!(res.attributes, vec![attr("action", "update_owner"),]);
 
 //     // it worked, let's query the state
@@ -108,7 +108,7 @@
 
 // #[test]
 // fn test_deposit_reward() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 
 //     mock_init(deps.as_mut());
 
@@ -117,7 +117,7 @@
 
 //     // Send Nebula token to this contract
 //     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: (TEST_CREATOR),
+//         sender: TEST_CREATOR.to_string(),
 //         amount: total_rewards_amount,
 //         msg:
 //             to_binary(&Cw20HookMsg::DepositReward {
@@ -128,7 +128,7 @@
 //             })
 //             .unwrap(),
 //     });
-//     let env = mock_info(("nebula_token"), &[]);
+//     let info = mock_info(("nebula_token"), &[]);
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     assert_eq!(
@@ -147,11 +147,11 @@
 
 // #[test]
 // fn test_penalty_period() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 
 //     mock_init(deps.as_mut());
 //     let msg = ExecuteMsg::NewPenaltyPeriod {};
-//     let env = mock_info("owner0000", &[]);
+//     let info = mock_info("owner0000", &[]);
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     assert_eq!(
@@ -163,14 +163,14 @@
 //         ]
 //     );
 
-//     let res = query(deps.as_ref(), QueryMsg::PenaltyPeriod {}).unwrap();
+//     let res = query(deps.as_ref(), mock_env(), QueryMsg::PenaltyPeriod {}).unwrap();
 //     let response: PenaltyPeriodResponse = from_binary(&res).unwrap();
 //     assert_eq!(response, PenaltyPeriodResponse { n: 1 });
 // }
 
 // #[test]
 // fn test_withdraw_reward() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 
 //     mock_init(deps.as_mut());
 
@@ -180,7 +180,7 @@
 
 //     // Send Nebula token to this contract
 //     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: (TEST_CREATOR),
+//         sender: TEST_CREATOR.to_string(),
 //         amount: total_rewards_amount,
 //         msg:
 //             to_binary(&Cw20HookMsg::DepositReward {
@@ -191,7 +191,7 @@
 //             })
 //             .unwrap(),
 //     });
-//     let env = mock_info(("nebula_token"), &[]);
+//     let info = mock_info(("nebula_token"), &[]);
 //     let _res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     // Manually record contribution to pools; one pool has other contribution from another address, make sure ratio is correct
@@ -225,7 +225,7 @@
 //     // Test without advancing penalty period (should give 0)
 
 //     let msg = ExecuteMsg::Withdraw {};
-//     let env = mock_info("contributor0000", &[]);
+//     let info = mock_info("contributor0000", &[]);
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 //     assert_eq!(
 //         res.attributes,
@@ -235,13 +235,13 @@
 //     // Advance penalty period
 
 //     let msg = ExecuteMsg::NewPenaltyPeriod {};
-//     let env = mock_info("owner0000", &[]);
+//     let info = mock_info("owner0000", &[]);
 //     let _res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     // Now, we are eligible to collect rewards
 
 //     let msg = ExecuteMsg::Withdraw {};
-//     let env = mock_info("contributor0000", &[]);
+//     let info = mock_info("contributor0000", &[]);
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 //     assert_eq!(
 //         res.attributes,
@@ -251,11 +251,11 @@
 //     // Make a new penalty period and make sure users can claim past penalties
 
 //     let msg = ExecuteMsg::NewPenaltyPeriod {};
-//     let env = mock_info("owner0000", &[]);
+//     let info = mock_info("owner0000", &[]);
 //     let _res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     let msg = ExecuteMsg::Withdraw {};
-//     let env = mock_info("contributor0001", &[]);
+//     let info = mock_info("contributor0001", &[]);
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 //     assert_eq!(
 //         res.attributes,
@@ -267,7 +267,7 @@
 
 // #[test]
 // fn test_incentives_mint() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 
 //     mock_init(deps.as_mut());
 
@@ -297,7 +297,7 @@
 //         asset_amounts: asset_amounts.clone(),
 //         min_tokens: None,
 //     };
-//     let env = mock_info("owner0000", &coins(100, &"native_asset0000".to_string()));
+//     let info = mock_info("owner0000", &coins(100, &"native_asset0000".to_string()));
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     assert_eq!(
@@ -351,7 +351,7 @@
 
 // #[test]
 // fn test_incentives_redeem() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 
 //     mock_init(deps.as_mut());
 
@@ -399,7 +399,7 @@
 //         max_tokens: Uint128::new(1000),
 //     };
 
-//     let env = mock_info("owner0000", &coins(100, &"native_asset0000".to_string()));
+//     let info = mock_info("owner0000", &coins(100, &"native_asset0000".to_string()));
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     assert_eq!(res.messages.len(), 3);
@@ -444,7 +444,7 @@
 
 // #[test]
 // fn test_incentives_arb_cluster_mint() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 
 //     mock_init(deps.as_mut());
 
@@ -478,7 +478,7 @@
 //         min_ust: None,
 //     };
 
-//     let env = mock_info("owner0000", &coins(100, &"native_asset0000".to_string()));
+//     let info = mock_info("owner0000", &coins(100, &"native_asset0000".to_string()));
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     assert_eq!(
@@ -570,7 +570,7 @@
 
 // #[test]
 // fn test_incentives_arb_cluster_redeem() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 
 //     mock_init(deps.as_mut());
 
@@ -588,7 +588,7 @@
 //         min_cluster: None,
 //     };
 
-//     let env = mock_info("owner0000", &coins(100, &"uusd".to_string()));
+//     let info = mock_info("owner0000", &coins(100, &"uusd".to_string()));
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone());
 
 //     match res {
@@ -608,7 +608,7 @@
 //         min_cluster: None,
 //     };
 
-//     let env = mock_info("owner0000", &coins(100, &"uusd".to_string()));
+//     let info = mock_info("owner0000", &coins(100, &"uusd".to_string()));
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     assert_eq!(
@@ -689,7 +689,7 @@
 
 // #[test]
 // fn test_send_all() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 
 //     mock_init(deps.as_mut());
 
@@ -722,7 +722,7 @@
 //         send_to: "owner0000".to_string(),
 //     };
 
-//     let env = mock_info(MOCK_CONTRACT_ADDR, &vec![]);
+//     let info = mock_info(MOCK_CONTRACT_ADDR, &vec![]);
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     assert_eq!(res.messages.len(), 2);
@@ -749,7 +749,7 @@
 
 // #[test]
 // fn test_swap_all() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 
 //     mock_init(deps.as_mut());
 
@@ -777,7 +777,7 @@
 //         min_return: Uint128::zero(),
 //     };
 
-//     let env = mock_info(MOCK_CONTRACT_ADDR, &vec![]);
+//     let info = mock_info(MOCK_CONTRACT_ADDR, &vec![]);
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     assert_eq!(
@@ -808,7 +808,7 @@
 //         min_return: Uint128::zero(),
 //     };
 
-//     let env = mock_info(MOCK_CONTRACT_ADDR, &vec![]);
+//     let info = mock_info(MOCK_CONTRACT_ADDR, &vec![]);
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     assert_eq!(
@@ -834,7 +834,7 @@
 
 // #[test]
 // fn test_incentives_internal_rewarded_mint() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 
 //     mock_init(deps.as_mut());
 
@@ -870,7 +870,7 @@
 //         min_tokens: None,
 //         rebalancer: ("rebalancer"),
 //     };
-//     let env = mock_info(
+//     let info = mock_info(
 //         MOCK_CONTRACT_ADDR,
 //         &coins(100, &"native_asset0000".to_string()),
 //     );
@@ -945,7 +945,7 @@
 
 // #[test]
 // fn test_incentives_internal_rewarded_redeem() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 
 //     mock_init(deps.as_mut());
 
@@ -982,7 +982,7 @@
 //         cluster_token: ("cluster_token"),
 //         max_tokens: None,
 //     };
-//     let env = mock_info(
+//     let info = mock_info(
 //         MOCK_CONTRACT_ADDR,
 //         &coins(100, &"native_asset0000".to_string()),
 //     );
@@ -1037,12 +1037,12 @@
 
 // #[test]
 // fn test_record_rebalancer_rewards() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 
 //     mock_init(deps.as_mut());
 
 //     let msg = ExecuteMsg::NewPenaltyPeriod {};
-//     let env = mock_info("owner0000", &[]);
+//     let info = mock_info("owner0000", &[]);
 //     let _res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     let msg = ExecuteMsg::_RecordRebalancerRewards {
@@ -1050,7 +1050,7 @@
 //         rebalancer: ("rebalancer"),
 //         original_imbalance: Uint128::new(100),
 //     };
-//     let env = mock_info(MOCK_CONTRACT_ADDR, &[]);
+//     let info = mock_info(MOCK_CONTRACT_ADDR, &[]);
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     assert_eq!(
@@ -1072,7 +1072,7 @@
 
 // #[test]
 // fn test_record_terraswap_impact() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 
 //     mock_init(deps.as_mut());
 
@@ -1080,7 +1080,7 @@
 //         .with_terraswap_pairs(&[(&"uusdcluster_token".to_string(), &("uusd_cluster_pair"))]);
 
 //     let msg = ExecuteMsg::NewPenaltyPeriod {};
-//     let env = mock_info("owner0000", &[]);
+//     let info = mock_info("owner0000", &[]);
 //     let _res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     let msg = ExecuteMsg::_RecordTerraswapImpact {
@@ -1105,7 +1105,7 @@
 //             total_share: Uint128::new(100),
 //         },
 //     };
-//     let env = mock_info(MOCK_CONTRACT_ADDR, &[]);
+//     let info = mock_info(MOCK_CONTRACT_ADDR, &[]);
 //     let res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
 //     assert_eq!(

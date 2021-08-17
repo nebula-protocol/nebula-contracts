@@ -10,7 +10,7 @@
 
 // #[test]
 // fn proper_initialization() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 
 //     let msg = InstantiateMsg {
 //         terraswap_factory: ("terraswapfactory".to_string()),
@@ -20,10 +20,10 @@
 //         base_denom: "uusd".to_string(),
 //     };
 
-//     let env = mock_info("addr0000", &[]);
+//     let info = mock_info("addr0000", &[]);
 
 //     // we can just call .unwrap() to assert this was a success
-//     let _res = instantiate(deps.as_mut(), env, msg).unwrap();
+//     let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     // it worked, let's query the state
 //     let config: ConfigResponse = query_config(deps.as_ref()).unwrap();
@@ -63,15 +63,15 @@
 //         base_denom: "uusd".to_string(),
 //     };
 
-//     let env = mock_info("addr0000", &[]);
-//     let _res = instantiate(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info("addr0000", &[]);
+//     let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     let msg = ExecuteMsg::Convert {
 //         asset_token: ("tokenAPPL"),
 //     };
 
-//     let env = mock_info("addr0000", &[]);
-//     let res = execute(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info("addr0000", &[]);
+//     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 //     assert_eq!(
 //         res.messages,
 //         vec![CosmosMsg::Wasm(WasmMsg::Execute {
@@ -96,8 +96,8 @@
 //         asset_token: ("tokennebula"),
 //     };
 
-//     let env = mock_info("addr0000", &[]);
-//     let res = execute(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info("addr0000", &[]);
+//     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     // tax deduct 100 => 99
 //     assert_eq!(
@@ -126,7 +126,7 @@
 
 // #[test]
 // fn test_distribute() {
-//     let mut deps = mock_dependencies(20, &[]);
+//     let mut deps = mock_dependencies(&[]);
 //     deps.querier.with_token_balances(&[(
 //         &("nebula0000"),
 //         &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(100u128))],
@@ -140,12 +140,12 @@
 //         base_denom: "uusd".to_string(),
 //     };
 
-//     let env = mock_info("addr0000", &[]);
-//     let _res = instantiate(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info("addr0000", &[]);
+//     let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 //     let msg = ExecuteMsg::Distribute {};
 
-//     let env = mock_info("addr0000", &[]);
-//     let res = execute(deps.as_mut(), env, msg).unwrap();
+//     let info = mock_info("addr0000", &[]);
+//     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
 //     assert_eq!(
 //         res.messages,
