@@ -62,7 +62,7 @@ pub fn withdraw_reward(deps: DepsMut, info: MessageInfo) -> StdResult<Response> 
         for kv in contribution_bucket.range(None, None, Order::Ascending) {
             let (k, _) = kv?;
 
-            let asset_address = unsafe { std::str::from_utf8_unchecked(&k) };
+            let asset_address = (unsafe { std::str::from_utf8_unchecked(&k) }).to_string();
             contribution_tuples.push((i, asset_address));
         }
     }
@@ -72,7 +72,7 @@ pub fn withdraw_reward(deps: DepsMut, info: MessageInfo) -> StdResult<Response> 
             deps.storage,
             &reward_owner,
             **pool_type,
-            &asset_address.to_string(),
+            &asset_address,
         )?;
     }
 

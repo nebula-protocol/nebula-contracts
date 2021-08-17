@@ -4,8 +4,7 @@ use crate::{
     util::vec_to_string,
 };
 use cosmwasm_std::{
-    attr, entry_point, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
-    WasmMsg,
+    attr, entry_point, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult
 };
 use nebula_protocol::cluster::{ClusterConfig, InstantiateMsg};
 use terraswap::asset::AssetInfo;
@@ -38,7 +37,7 @@ pub fn validate_targets(
 pub fn instantiate(
     deps: DepsMut,
     env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
     let cfg = ClusterConfig {
@@ -76,15 +75,6 @@ pub fn instantiate(
         attr("assets", vec_to_string(&asset_infos)),
     ];
 
-    if let Some(hook) = msg.init_hook {
-        Ok(Response::new()
-            .add_attributes(log)
-            .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: hook.contract_addr,
-                msg: hook.msg,
-                funds: vec![],
-            })]))
-    } else {
-        Ok(Response::new().add_attributes(log))
-    }
+
+    Ok(Response::new().add_attributes(log))
 }

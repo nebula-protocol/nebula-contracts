@@ -457,7 +457,7 @@ pub fn send_all(
             },
         };
         if asset.amount > Uint128::zero() {
-            messages.push(asset.into_msg(&deps, env.contract.address.clone(), send_to.clone())?);
+            messages.push(asset.into_msg(&deps.querier, Addr::unchecked(send_to.clone()))?);
         }
     }
 

@@ -613,7 +613,6 @@ pub fn mock_init() -> (Deps<MockStorage, MockApi, WasmMockQuerier>, Response) {
         composition_oracle: consts::composition_oracle(),
         penalty: consts::penalty(),
         factory: consts::factory(),
-        init_hook: None,
     };
 
     let env = mock_info(consts::pricing_oracle().as_str(), &[]);
@@ -621,7 +620,7 @@ pub fn mock_init() -> (Deps<MockStorage, MockApi, WasmMockQuerier>, Response) {
     (deps, res)
 }
 
-pub fn mock_init_native_stage() -> (Deps<MockStorage, MockApi, WasmMockQuerier>, Response) {
+pub fn mock_init_native_stage() -> (Deps, Response) {
     let mut deps = mock_dependencies(20, &[]);
     let msg = InstantiateMsg {
         name: consts::name().to_string(),
@@ -633,7 +632,6 @@ pub fn mock_init_native_stage() -> (Deps<MockStorage, MockApi, WasmMockQuerier>,
         composition_oracle: consts::composition_oracle(),
         penalty: consts::penalty(),
         factory: consts::factory(),
-        init_hook: None,
     };
 
     let env = mock_info(consts::pricing_oracle().as_str(), &[]);

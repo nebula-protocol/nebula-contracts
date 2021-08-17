@@ -104,15 +104,15 @@ pub fn auto_stake(
     // assert the token and lp token match with pool info
     let pool_info: PoolInfo = read_pool_info(deps.storage, &token_addr)?;
 
-    if pool_info.staking_token.to_string() != terraswap_pair.liquidity_token {
+    if pool_info.staking_token.to_string() != terraswap_pair.liquidity_token.clone() {
         return Err(StdError::generic_err("Invalid staking token"));
     }
 
     // get current lp token amount to later compute the recived amount
     let prev_staking_token_amount = query_token_balance(
         &deps.querier,
-        Addr::unchecked(terraswap_pair.liquidity_token),
-        env.contract.address,
+        Addr::unchecked(terraswap_pair.liquidity_token.clone()),
+        env.contract.address.clone(),
     )?;
 
     // compute tax
@@ -128,7 +128,7 @@ pub fn auto_stake(
                 contract_addr: token_addr.clone().to_string(),
                 msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
                     owner: info.sender.to_string(),
-                    recipient: env.contract.address.clone().to_string(),
+                    recipient: env.contract.address.to_string(),
                     amount: token_amount,
                 })?,
                 funds: vec![],
@@ -147,7 +147,7 @@ pub fn auto_stake(
                 msg: to_binary(&PairExecuteMsg::ProvideLiquidity {
                     assets: [
                         Asset {
-                            amount: native_asset.amount.clone().checked_sub(tax_amount)?,
+                            amount: native_asset.amount.checked_sub(tax_amount)?,
                             info: native_asset.info.clone(),
                         },
                         Asset {
@@ -158,6 +158,7 @@ pub fn auto_stake(
                         },
                     ],
                     slippage_tolerance,
+                    receiver: None
                 })?,
                 funds: vec![Coin {
                     denom: native_asset.info.to_string(),
@@ -168,7 +169,7 @@ pub fn auto_stake(
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::AutoStakeHook {
                     asset_token: token_addr.clone(),
-                    staking_token: (terraswap_pair.liquidity_token),
+                    staking_token: terraswap_pair.liquidity_token.clone(),
                     staker_addr: info.sender.to_string(),
                     prev_staking_token_amount,
                 })?,

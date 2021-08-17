@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     attr, entry_point, to_binary, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, Uint128, WasmMsg,
+    StdResult, Uint128, WasmMsg, Addr
 };
 
 use cw20::Cw20ExecuteMsg;
@@ -591,7 +591,7 @@ pub fn receive_burn(
             };
 
             // TODO: Check if sender field is correct here (recipient should be sender.clone())
-            asset.into_msg(&deps, env.contract.address.clone(), sender.clone())
+            asset.into_msg(&deps.querier, Addr::unchecked(sender.clone()))
         })
         .collect::<StdResult<Vec<CosmosMsg>>>()?;
 

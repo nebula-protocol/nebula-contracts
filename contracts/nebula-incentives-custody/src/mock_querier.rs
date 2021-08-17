@@ -1,7 +1,7 @@
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     from_binary, from_slice, to_binary, Coin, Deps, DepsMut, Empty, QuerierResult, QueryRequest,
-    SystemError, Uint128, WasmQuery,
+    SystemError, Uint128, WasmQuery, TokenQuerier
 };
 use cw20::{BalanceResponse as Cw20BalanceResponse, Cw20QueryMsg, TokenInfoResponse};
 use std::collections::HashMap;
@@ -25,7 +25,7 @@ pub fn mock_dependencies(
 
 pub struct WasmMockQuerier {
     base: MockQuerier<Empty>,
-    token_querier: Token,
+    token_querier: TokenQuerier,
 }
 
 #[derive(Clone, Default)]

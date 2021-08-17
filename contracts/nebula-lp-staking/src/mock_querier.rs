@@ -1,7 +1,7 @@
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_binary, from_slice, to_binary, Coin, Decimal, Deps, DepsMut, QuerierResult, QueryRequest,
-    SystemError, Uint128, WasmQuery,
+    from_binary, from_slice, to_binary, Coin, Decimal, Deps, Querier, QuerierResult, QueryRequest,
+    SystemError, Uint128, WasmQuery, Api
 };
 use cosmwasm_storage::to_length_prefixed;
 use nebula_protocol::oracle::PriceResponse;
@@ -21,7 +21,7 @@ pub struct WasmMockQuerier {
 pub fn mock_dependencies_with_querier(
     canonical_length: usize,
     contract_balance: &[Coin],
-) -> Deps<MockStorage, MockApi, WasmMockQuerier> {
+) -> Deps {
     let contract_addr = (MOCK_CONTRACT_ADDR);
     let custom_querier: WasmMockQuerier = WasmMockQuerier::new(
         MockQuerier::new(&[(&contract_addr, contract_balance)]),

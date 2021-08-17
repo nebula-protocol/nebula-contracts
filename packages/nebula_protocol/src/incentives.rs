@@ -151,7 +151,7 @@ pub struct ContributorPendingRewardsResponse {
 #[serde(rename_all = "snake_case")]
 pub enum Cw20HookMsg {
     /// Deposit rewards to be distributed among stakers and voters
-    DepositReward { rewards: Vec<(u16, Uint128)> },
+    DepositReward { rewards: Vec<(u16, String, Uint128)> },
 }
 
 /// We currently take no arguments for migrations

@@ -320,7 +320,7 @@ pub fn redeem(
         max_tokens,
         query_token_balance(
             &deps.querier,
-            Addr::unchecked(cluster_token),
+            Addr::unchecked(cluster_token.clone()),
             Addr::unchecked(info.sender.to_string()),
         )?,
     );

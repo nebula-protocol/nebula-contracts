@@ -38,7 +38,7 @@ mod tests {
 
     #[test]
     fn update_config() {
-        let mut deps = mock_dependencies(20, &[]);
+        let mut deps = mock_dependencies_with_balances(20, &[]);
 
         let msg = InstantiateMsg {
             owner: ("owner"),

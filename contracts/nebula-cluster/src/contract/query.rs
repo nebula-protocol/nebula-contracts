@@ -52,7 +52,7 @@ pub fn query_cluster_state(
         .map(|x| x.info.clone())
         .collect::<Vec<_>>();
 
-    let penalty: String = cfg.penalty;
+    let penalty: String = cfg.penalty.clone();
 
     let cluster_token = cfg
         .cluster_token

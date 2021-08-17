@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{Api, Deps, DepsMut, StdResult, Storage, Uint128};
+use cosmwasm_std::{DepsMut, StdResult, Storage, Uint128};
 use cosmwasm_storage::{singleton, singleton_read, Bucket, ReadonlyBucket};
 
 static KEY_CONFIG: &[u8] = b"config";
@@ -105,7 +105,7 @@ pub struct PoolContribution {
 
 /// returns a bucket with all contributions from this owner (query it by owner)
 pub fn contributions_store<'a>(
-    storage: &'a mut Storage,
+    storage: &'a mut dyn Storage,
     contributor: &String,
     pool_type: u16,
 ) -> Bucket<'a, PoolContribution> {
@@ -122,7 +122,7 @@ pub fn contributions_store<'a>(
 /// returns a bucket with all contributions owned by this owner for this pool type
 /// (read-only version for queries)
 pub fn contributions_read<'a>(
-    storage: &'a Storage,
+    storage: &'a dyn Storage,
     contributor: &String,
     pool_type: u16,
 ) -> ReadonlyBucket<'a, PoolContribution> {
