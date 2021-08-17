@@ -1,6 +1,6 @@
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_binary, from_slice, to_binary, Coin, Deps, DepsMut, Empty, QuerierResult, QueryRequest,
+    from_binary, from_slice, to_binary, Coin, Deps, Empty, Querier, QuerierResult, QueryRequest,
     SystemError, Uint128, WasmQuery,
 };
 

@@ -84,7 +84,7 @@
 //     }
 
 //     let msg = ExecuteMsg::UpdateOwner {
-//         owner:"owner0001".to_string(),
+//         owner: "owner0001".to_string(),
 //     };
 
 //     let env = mock_info("owner0000", &[]);
@@ -96,7 +96,7 @@
 //     assert_eq!(
 //         config,
 //         ConfigResponse {
-//             owner:"owner0001".to_string(),
+//             owner: "owner0001".to_string(),
 //             factory: ("factory".to_string()),
 //             custody: ("custody".to_string()),
 //             nebula_token: ("nebula_token"),

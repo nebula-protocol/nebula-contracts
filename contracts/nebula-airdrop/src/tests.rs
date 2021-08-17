@@ -14,7 +14,7 @@
 //         let mut deps = mock_dependencies_with_balances(20, &[]);
 
 //         let msg = InstantiateMsg {
-//             owner: String("owner0000".to_string()),
+//             owner: "owner0000".to_string(),
 //             nebula_token: String("nebula0000".to_string()),
 //         };
 
@@ -49,7 +49,7 @@
 //         // update owner
 //         let env = mock_info("owner0000", &[]);
 //         let msg = ExecuteMsg::UpdateConfig {
-//             owner: Some(String("owner0001".to_string())),
+//             owner: Some("owner0001".to_string()),
 //         };
 
 //         let res = execute(deps.as_mut(), env, msg).unwrap();
@@ -66,7 +66,7 @@
 
 //         let res = execute(deps.as_mut(), env, msg);
 //         match res {
-//             Err(StdError::Unauthorized { .. }) => {}
+//             Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized")
 //             _ => panic!("Must return unauthorized error"),
 //         }
 //     }

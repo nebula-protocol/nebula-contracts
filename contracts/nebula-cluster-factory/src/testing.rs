@@ -161,7 +161,7 @@
 
 //     // upate owner
 //     let msg = ExecuteMsg::UpdateConfig {
-//         owner: Some(("owner0001")),
+//         owner: Some("owner0001".to_string()),
 //         distribution_schedule: None,
 //         token_code_id: None,
 //         cluster_code_id: None,

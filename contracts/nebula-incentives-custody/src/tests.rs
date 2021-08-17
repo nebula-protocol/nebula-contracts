@@ -57,7 +57,7 @@ fn test_request_neb() {
     let res = execute(deps.as_mut(), env, msg);
 
     match res {
-        Err(StdError::Unauthorized { .. }) => {}
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized")
         _ => panic!("Must return unauthorized error"),
     }
 
@@ -137,7 +137,7 @@ fn test_update_owner() {
     let res = execute(deps.as_mut(), env, msg);
 
     match res {
-        Err(StdError::Unauthorized { .. }) => {}
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized")
         _ => panic!("Must return unauthorized error"),
     }
 

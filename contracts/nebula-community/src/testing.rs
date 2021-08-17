@@ -51,14 +51,14 @@ fn update_config() {
     assert_eq!(Uint128::from(1000000u128), config.spend_limit);
 
     let msg = ExecuteMsg::UpdateConfig {
-        owner: Some(("owner0001")),
+        owner: Some("owner0001".to_string()),
         spend_limit: None,
     };
     let env = mock_info("addr0000", &[]);
     let res = execute(deps.as_mut(), env, msg.clone());
 
     match res {
-        Err(StdError::Unauthorized { .. }) => {}
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized"),
         _ => panic!("DO NOT ENTER HERE"),
     }
 
@@ -118,7 +118,7 @@ fn test_spend() {
     let env = mock_info("addr0000", &[]);
     let res = execute(deps.as_mut(), env, msg);
     match res {
-        Err(StdError::Unauthorized { .. }) => {}
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized")
         _ => panic!("DO NOT ENTER HERE"),
     }
 

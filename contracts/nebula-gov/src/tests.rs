@@ -2052,7 +2052,7 @@ fn fails_staking_wrong_token() {
 
     match res {
         Ok(_) => panic!("Must return error"),
-        Err(StdError::Unauthorized { .. }) => {}
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized")
         Err(e) => panic!("Unexpected error: {:?}", e),
     }
 }
@@ -2329,7 +2329,7 @@ fn assert_stake_tokens_result(
     new_share: u128,
     poll_count: u64,
     execute_res: Response,
-    deps: DepsMut<MockStorage, MockApi, WasmMockQuerier>,
+    deps: DepsMut,
 ) {
     assert_eq!(
         execute_res.attributes.get(2).expect("no log"),
@@ -2446,7 +2446,7 @@ fn update_config() {
 
     let res = execute(deps.as_mut(), env, msg);
     match res {
-        Err(StdError::Unauthorized { .. }) => {}
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized")
         _ => panic!("Must return unauthorized error"),
     }
 }
