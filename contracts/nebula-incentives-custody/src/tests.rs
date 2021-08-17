@@ -4,7 +4,7 @@ use crate::state::{read_neb, read_owner};
 
 use cosmwasm_std::testing::{mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_binary, to_binary, Binary, CosmosMsg, HumanAddr, StdError, Uint128, WasmMsg,
+    attr, from_binary, to_binary, Binary, CosmosMsg, HumanAddr, StdError, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::incentives_custody::{ExecuteMsg, InstantiateMsg, QueryMsg};

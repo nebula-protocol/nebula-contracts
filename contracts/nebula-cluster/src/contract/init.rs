@@ -4,7 +4,8 @@ use crate::{
     util::vec_to_string,
 };
 use cosmwasm_std::{
-    entry_point, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult, WasmMsg,
+    attr, entry_point, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
+    WasmMsg,
 };
 use nebula_protocol::cluster::{ClusterConfig, InstantiateMsg};
 use terraswap::asset::AssetInfo;

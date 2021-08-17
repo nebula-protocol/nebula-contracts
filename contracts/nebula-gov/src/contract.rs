@@ -10,8 +10,8 @@ use crate::state::{
     TotalVotingPower,
 };
 use cosmwasm_std::{
-    entry_point, from_binary, to_binary, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env, HumanAddr,
-    MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg,
+    attr, entry_point, from_binary, to_binary, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env,
+    HumanAddr, MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 

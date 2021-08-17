@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    entry_point, from_binary, to_binary, Binary, Decimal, Deps, DepsMut, Env, HumanAddr,
+    attr, entry_point, from_binary, to_binary, Binary, Decimal, Deps, DepsMut, Env, HumanAddr,
     MessageInfo, Response, StdError, StdResult, Uint128,
 };
 

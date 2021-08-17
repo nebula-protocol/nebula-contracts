@@ -9,7 +9,8 @@ use crate::state::{
 use cluster_math::FPDecimal;
 
 use cosmwasm_std::{
-    log, to_binary, CosmosMsg, Deps, DepsMut, Env, HumanAddr, StdError, StdResult, Uint128, WasmMsg,
+    attr, to_binary, CosmosMsg, Deps, DepsMut, Env, HumanAddr, StdError, StdResult, Uint128,
+    WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::common::OrderBy;

@@ -25,12 +25,6 @@ checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 
 [[package]]
 name = "base64"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b41b7ea54a0c9d92199de89e20e58d49f02f8e699814ef3fdf266f6f748d15c7"
-
-[[package]]
-name = "base64"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
@@ -115,12 +109,12 @@ name = "cluster-math"
 version = "0.1.0"
 dependencies = [
  "bigint",
- "cosmwasm-std 0.16.0",
+ "cosmwasm-std",
  "cosmwasm-storage",
  "plotters",
- "schemars 0.8.3",
+ "schemars",
  "serde",
- "terra-cosmwasm 1.2.4",
+ "terra-cosmwasm",
 ]
 
 [[package]]
@@ -225,21 +219,8 @@ version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac9ba1eea088e7f1ec4a7679c43adcb51e80cbc2af6a6d83d1bb652b7adaf6dc"
 dependencies = [
- "schemars 0.8.3",
+ "schemars",
  "serde_json",
-]
-
-[[package]]
-name = "cosmwasm-std"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f85908a2696117c8f2c1b3ce201d34a1aa9a6b3c1583a65cfb794ec66e1cfde4"
-dependencies = [
- "base64 0.11.0",
- "schemars 0.7.6",
- "serde",
- "serde-json-wasm 0.2.3",
- "snafu",
 ]
 
 [[package]]
@@ -248,12 +229,12 @@ version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92bdeee0ebba164ebbef9380522cc50f889db38acc1f1210f6b55ee2244b8c59"
 dependencies = [
- "base64 0.13.0",
+ "base64",
  "cosmwasm-crypto",
  "cosmwasm-derive",
- "schemars 0.8.3",
+ "schemars",
  "serde",
- "serde-json-wasm 0.3.1",
+ "serde-json-wasm",
  "thiserror",
  "uint",
 ]
@@ -264,7 +245,7 @@ version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e26053f14f971b05abca3be34f80c631d70c5b5b9df175e7a1d8b4aad83e40cc"
 dependencies = [
- "cosmwasm-std 0.16.0",
+ "cosmwasm-std",
  "serde",
 ]
 
@@ -349,8 +330,8 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "debc623e83cca463fc5f195bb6f23803a7e5e281b330b759381dcc7ef76d4393"
 dependencies = [
- "cosmwasm-std 0.16.0",
- "schemars 0.8.3",
+ "cosmwasm-std",
+ "schemars",
  "serde",
  "thiserror",
 ]
@@ -361,9 +342,9 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f24779556263d95d5a7ebf8a0b0cd615df0b34bff69c23f409e5f17b5fb529ef"
 dependencies = [
- "cosmwasm-std 0.16.0",
+ "cosmwasm-std",
  "cw0",
- "schemars 0.8.3",
+ "schemars",
  "serde",
 ]
 
@@ -734,12 +715,12 @@ name = "nebula-airdrop"
 version = "2.0.0"
 dependencies = [
  "cosmwasm-schema",
- "cosmwasm-std 0.16.0",
+ "cosmwasm-std",
  "cosmwasm-storage",
  "cw20",
  "hex",
  "nebula-protocol",
- "schemars 0.8.3",
+ "schemars",
  "serde",
  "sha3",
  "snafu",
@@ -749,19 +730,19 @@ dependencies = [
 name = "nebula-cluster"
 version = "2.0.0"
 dependencies = [
- "base64 0.13.0",
+ "base64",
  "cluster-math",
  "cosmwasm-schema",
- "cosmwasm-std 0.16.0",
+ "cosmwasm-std",
  "cosmwasm-storage",
  "cw20",
  "nebula-protocol",
  "plotters",
  "pretty_assertions",
- "schemars 0.8.3",
+ "schemars",
  "serde",
  "snafu",
- "terra-cosmwasm 1.2.4",
+ "terra-cosmwasm",
  "terraswap",
 ]
 
@@ -771,11 +752,11 @@ version = "2.0.0"
 dependencies = [
  "cluster-math",
  "cosmwasm-schema",
- "cosmwasm-std 0.16.0",
+ "cosmwasm-std",
  "cosmwasm-storage",
  "cw20",
  "nebula-protocol",
- "schemars 0.8.3",
+ "schemars",
  "serde",
  "snafu",
  "terraswap",
@@ -786,13 +767,13 @@ name = "nebula-collector"
 version = "2.0.0"
 dependencies = [
  "cosmwasm-schema",
- "cosmwasm-std 0.16.0",
+ "cosmwasm-std",
  "cosmwasm-storage",
  "cw20",
  "nebula-protocol",
- "schemars 0.8.3",
+ "schemars",
  "serde",
- "terra-cosmwasm 1.2.4",
+ "terra-cosmwasm",
  "terraswap",
 ]
 
@@ -801,11 +782,11 @@ name = "nebula-community"
 version = "2.0.0"
 dependencies = [
  "cosmwasm-schema",
- "cosmwasm-std 0.16.0",
+ "cosmwasm-std",
  "cosmwasm-storage",
  "cw20",
  "nebula-protocol",
- "schemars 0.8.3",
+ "schemars",
  "serde",
  "snafu",
 ]
@@ -815,9 +796,9 @@ name = "nebula-dummy-oracle"
 version = "2.0.0"
 dependencies = [
  "cosmwasm-schema",
- "cosmwasm-std 0.16.0",
+ "cosmwasm-std",
  "cosmwasm-storage",
- "schemars 0.8.3",
+ "schemars",
  "serde",
  "snafu",
 ]
@@ -828,12 +809,12 @@ version = "2.0.0"
 dependencies = [
  "cluster-math",
  "cosmwasm-schema",
- "cosmwasm-std 0.16.0",
+ "cosmwasm-std",
  "cosmwasm-storage",
  "cw20",
  "hex",
  "nebula-protocol",
- "schemars 0.8.3",
+ "schemars",
  "serde",
  "snafu",
 ]
@@ -844,13 +825,13 @@ version = "2.0.0"
 dependencies = [
  "cluster-math",
  "cosmwasm-schema",
- "cosmwasm-std 0.16.0",
+ "cosmwasm-std",
  "cosmwasm-storage",
  "cw20",
  "nebula-protocol",
- "schemars 0.8.3",
+ "schemars",
  "serde",
- "terra-cosmwasm 1.2.4",
+ "terra-cosmwasm",
  "terraswap",
 ]
 
@@ -859,11 +840,11 @@ name = "nebula-incentives-custody"
 version = "2.0.0"
 dependencies = [
  "cosmwasm-schema",
- "cosmwasm-std 0.16.0",
+ "cosmwasm-std",
  "cosmwasm-storage",
  "cw20",
  "nebula-protocol",
- "schemars 0.8.3",
+ "schemars",
  "serde",
  "snafu",
 ]
@@ -873,13 +854,13 @@ name = "nebula-lp-staking"
 version = "2.0.0"
 dependencies = [
  "cosmwasm-schema",
- "cosmwasm-std 0.16.0",
+ "cosmwasm-std",
  "cosmwasm-storage",
  "cw20",
  "nebula-protocol",
- "schemars 0.8.3",
+ "schemars",
  "serde",
- "terra-cosmwasm 1.2.4",
+ "terra-cosmwasm",
  "terraswap",
 ]
 
@@ -889,10 +870,10 @@ version = "2.0.0"
 dependencies = [
  "cluster-math",
  "cosmwasm-schema",
- "cosmwasm-std 0.16.0",
+ "cosmwasm-std",
  "cosmwasm-storage",
  "nebula-protocol",
- "schemars 0.8.3",
+ "schemars",
  "serde",
  "snafu",
 ]
@@ -903,10 +884,10 @@ version = "2.0.0"
 dependencies = [
  "cluster-math",
  "cosmwasm-schema",
- "cosmwasm-std 0.16.0",
+ "cosmwasm-std",
  "cosmwasm-storage",
  "cw20",
- "schemars 0.8.3",
+ "schemars",
  "serde",
  "terraswap",
 ]
@@ -1162,37 +1143,14 @@ dependencies = [
 
 [[package]]
 name = "schemars"
-version = "0.7.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be77ed66abed6954aabf6a3e31a84706bedbf93750d267e92ef4a6d90bbd6a61"
-dependencies = [
- "schemars_derive 0.7.6",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "schemars"
 version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc6ab463ae35acccb5cba66c0084c985257b797d288b6050cc2f6ac1b266cb78"
 dependencies = [
  "dyn-clone",
- "schemars_derive 0.8.3",
+ "schemars_derive",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "schemars_derive"
-version = "0.7.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11af7a475c9ee266cfaa9e303a47c830ebe072bf3101ab907a7b7b9d816fa01d"
-dependencies = [
- "proc-macro2",
- "quote",
- "serde_derive_internals",
- "syn",
 ]
 
 [[package]]
@@ -1232,15 +1190,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f03b9878abf6d14e6779d3f24f07b2cfa90352cfec4acc5aab8f1ac7f146fae8"
 dependencies = [
  "serde_derive",
-]
-
-[[package]]
-name = "serde-json-wasm"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "120bad73306616e91acd7ceed522ba96032a51cffeef3cc813de7f367df71e37"
-dependencies = [
- "serde",
 ]
 
 [[package]]
@@ -1396,23 +1345,12 @@ dependencies = [
 
 [[package]]
 name = "terra-cosmwasm"
-version = "1.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d7275aacd385e4f41647634c35692b1982085917b4dcfc1fdfa3984ee4ce45d"
-dependencies = [
- "cosmwasm-std 0.10.1",
- "schemars 0.7.6",
- "serde",
-]
-
-[[package]]
-name = "terra-cosmwasm"
 version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "552f18cba2b535d1f8c0e3b3f37696820b954bc7535d2e33909f2a6342302718"
 dependencies = [
- "cosmwasm-std 0.16.0",
- "schemars 0.8.3",
+ "cosmwasm-std",
+ "schemars",
  "serde",
 ]
 
@@ -1422,12 +1360,12 @@ version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "96f2c2a6371e9ddf2c942368e64645cc3e8fc2855da70c8c6bed238dcdd5522f"
 dependencies = [
- "cosmwasm-std 0.16.0",
+ "cosmwasm-std",
  "cosmwasm-storage",
  "cw20",
- "schemars 0.8.3",
+ "schemars",
  "serde",
- "terra-cosmwasm 2.2.0",
+ "terra-cosmwasm",
 ]
 
 [[package]]

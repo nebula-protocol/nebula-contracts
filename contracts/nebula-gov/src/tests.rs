@@ -12,7 +12,7 @@ use cluster_math::FPDecimal;
 
 use cosmwasm_std::testing::{mock_info, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    coins, from_binary, to_binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, HumanAddr,
+    attr, coins, from_binary, to_binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, HumanAddr,
     Response, StdError, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};

@@ -4,8 +4,8 @@ use cosmwasm_std::{
 };
 
 use crate::state::{
-    read_config, read_pool_info, rewards_read, rewards_store, store_pool_info, Config, PoolInfo,
-    RewardInfo,
+    attr, read_config, read_pool_info, rewards_read, rewards_store, store_pool_info, Config,
+    PoolInfo, RewardInfo,
 };
 use nebula_protocol::staking::{RewardInfoResponse, RewardInfoResponseItem};
 

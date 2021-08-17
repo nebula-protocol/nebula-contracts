@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    to_binary, CosmosMsg, Deps, DepsMut, Env, HumanAddr, Order, StdError, StdResult, Uint128,
+    attr, to_binary, CosmosMsg, Deps, DepsMut, Env, HumanAddr, Order, StdError, StdResult, Uint128,
     WasmMsg,
 };
 

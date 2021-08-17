@@ -3,7 +3,7 @@ mod tests {
     use crate::contract::{execute, init, query};
     use cosmwasm_std::testing::{mock_dependencies, mock_info};
     use cosmwasm_std::{
-        from_binary, log, to_binary, CosmosMsg, HumanAddr, StdError, Uint128, WasmMsg,
+        attr, from_binary, to_binary, CosmosMsg, HumanAddr, StdError, Uint128, WasmMsg,
     };
     use cw20::Cw20ExecuteMsg;
     use nebula_protocol::airdrop::{

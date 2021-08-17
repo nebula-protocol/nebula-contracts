@@ -44,4 +44,4 @@ nebula-protocol = { version = "2.0.0", path = "../../packages/nebula_protocol" }
 
 [dev-dependencies]
 cosmwasm-schema = "0.16.0"
-terra-cosmwasm = "1.2.2"
+terra-cosmwasm = "2.0.0"

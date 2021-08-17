@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env, HumanAddr, MessageInfo,
-    Response, StdError, StdResult, Uint128, WasmMsg,
+    attr, entry_point, to_binary, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env, HumanAddr,
+    MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg,
 };
 
 use crate::state::{
