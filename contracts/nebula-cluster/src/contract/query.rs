@@ -88,7 +88,7 @@ pub fn query_cluster_state(
         .map(|asset| match asset {
             AssetInfo::Token { contract_addr } => query_cw20_balance(
                 &deps.querier,
-                HumanAddr::from(contract_addr),
+                &HumanAddr::from(contract_addr),
                 cluster_contract_address,
             ),
             AssetInfo::NativeToken { denom } => query_balance(

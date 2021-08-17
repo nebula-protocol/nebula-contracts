@@ -67,40 +67,37 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 }
 
 pub fn receive_cw20(deps: DepsMut, env: Env, cw20_msg: Cw20ReceiveMsg) -> StdResult<Response> {
-    if let Some(msg) = cw20_msg.msg {
-        let config: Config = read_config(deps.storage)?;
+    let msg = cw20_msg.msg;
+    let config: Config = read_config(deps.storage)?;
 
-        match from_binary(&msg)? {
-            Cw20HookMsg::Bond { asset_token } => {
-                let pool_info: PoolInfo = read_pool_info(deps.storage, &asset_token)?;
+    match from_binary(&msg)? {
+        Cw20HookMsg::Bond { asset_token } => {
+            let pool_info: PoolInfo = read_pool_info(deps.storage, &asset_token)?;
 
-                // only staking token contract can execute this message
-                if pool_info.staking_token != env.message.sender {
-                    return Err(StdError::generic_err("unauthorized"));
-                }
-
-                bond(deps, env, cw20_msg.sender, asset_token, cw20_msg.amount)
+            // only staking token contract can execute this message
+            if pool_info.staking_token != env.message.sender {
+                return Err(StdError::generic_err("unauthorized"));
             }
-            Cw20HookMsg::DepositReward { rewards } => {
-                // only reward token contract can execute this message
-                if config.nebula_token != env.message.sender {
-                    return Err(StdError::generic_err("unauthorized"));
-                }
 
-                let mut rewards_amount = Uint128::zero();
-                for (_, amount) in rewards.iter() {
-                    rewards_amount += *amount;
-                }
-
-                if rewards_amount != cw20_msg.amount {
-                    return Err(StdError::generic_err("rewards amount miss matched"));
-                }
-
-                deposit_reward(deps, rewards, rewards_amount)
-            }
+            bond(deps, env, cw20_msg.sender, asset_token, cw20_msg.amount)
         }
-    } else {
-        Err(StdError::generic_err("data should be given"))
+        Cw20HookMsg::DepositReward { rewards } => {
+            // only reward token contract can execute this message
+            if config.nebula_token != env.message.sender {
+                return Err(StdError::generic_err("unauthorized"));
+            }
+
+            let mut rewards_amount = Uint128::zero();
+            for (_, amount) in rewards.iter() {
+                rewards_amount += *amount;
+            }
+
+            if rewards_amount != cw20_msg.amount {
+                return Err(StdError::generic_err("rewards amount miss matched"));
+            }
+
+            deposit_reward(deps, rewards, rewards_amount)
+        }
     }
 }
 

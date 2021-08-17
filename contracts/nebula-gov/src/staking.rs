@@ -301,8 +301,9 @@ pub fn withdraw_voting_rewards(deps: DepsMut, env: Env) -> StdResult<Response> {
     bank_store(deps.storage).save(key, &token_manager)?;
 
     state_store(deps.storage).update(|mut state| {
-        state.pending_voting_rewards =
-            state.pending_voting_rewards.checked_sub(Uint128::new(user_reward_amount))?;
+        state.pending_voting_rewards = state
+            .pending_voting_rewards
+            .checked_sub(Uint128::new(user_reward_amount))?;
         Ok(state)
     })?;
 
@@ -379,10 +380,8 @@ fn send_tokens(
         attr("amount", &amount.to_string()),
     ];
 
-    Ok(
-        Response::new()
-        .add_messages(
-            vec![CosmosMsg::Wasm(WasmMsg::Execute {
+    Ok(Response::new()
+        .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: contract_human,
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: recipient_human,
@@ -390,8 +389,7 @@ fn send_tokens(
             })?,
             funds: vec![],
         })])
-        .add_attributes(log)
-    )
+        .add_attributes(log))
 }
 
 pub fn query_staker(deps: Deps, address: HumanAddr) -> StdResult<StakerResponse> {

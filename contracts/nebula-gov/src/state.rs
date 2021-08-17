@@ -117,10 +117,7 @@ pub fn total_voting_power_read(storage: &dyn Storage) -> ReadonlySingleton<Total
     singleton_read(storage, KEY_TOTAL_VOTING_POWER)
 }
 
-pub fn poll_indexer_store<'a>(
-    storage: &'a mut Storage,
-    status: &PollStatus,
-) -> Bucket<'a, bool> {
+pub fn poll_indexer_store<'a>(storage: &'a mut Storage, status: &PollStatus) -> Bucket<'a, bool> {
     Bucket::multilevel(
         storage,
         &[PREFIX_POLL_INDEXER, status.to_string().as_bytes()],

@@ -32,7 +32,12 @@ const MIN_LINK_LENGTH: usize = 12;
 const MAX_LINK_LENGTH: usize = 128;
 const MAX_POLLS_IN_PROGRESS: usize = 50;
 
-pub fn instantiate(deps: DepsMut, env: Env, info: MessageInfo, msg: InstantiateMsg) -> StdResult<Response> {
+pub fn instantiate(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: InstantiateMsg,
+) -> StdResult<Response> {
     validate_quorum(msg.quorum)?;
     validate_threshold(msg.threshold)?;
     validate_voter_weight(msg.voter_weight)?;
@@ -358,15 +363,12 @@ pub fn create_poll(
 
     state_store(deps.storage).save(&state)?;
 
-    let r = Response::new()
-    .add_attributes(
-        vec![
-            attr("action", "create_poll"),
-            attr("creator", new_poll.creator),
-            attr("poll_id", &poll_id.to_string()),
-            attr("end_height", new_poll.end_height),
-        ]
-    );
+    let r = Response::new().add_attributes(vec![
+        attr("action", "create_poll"),
+        attr("creator", new_poll.creator),
+        attr("poll_id", &poll_id.to_string()),
+        attr("end_height", new_poll.end_height),
+    ]);
     Ok(r)
 }
 
@@ -632,8 +634,7 @@ pub fn cast_vote(
         attr("vote_option", vote_info.vote),
     ];
 
-    let r = Response::new()
-    .add_attributes(log);
+    let r = Response::new().add_attributes(log);
     Ok(r)
 }
 

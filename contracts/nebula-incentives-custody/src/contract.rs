@@ -39,8 +39,8 @@ pub fn update_owner(deps: DepsMut, env: Env, owner: &HumanAddr) -> StdResult<Res
 
     Ok(Response::new().add_attributes(vec![
         attr("action", "update_owner"),
-        attr("old_owner", old_owner),
-        attr("new_owner", owner),
+        attr("old_owner", old_owner.to_string()),
+        attr("new_owner", owner.to_string()),
     ]))
 }
 
@@ -51,7 +51,7 @@ pub fn request_neb(deps: DepsMut, env: Env, amount: Uint128) -> StdResult<Respon
 
     Ok(Response::new()
         .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: read_neb(deps.storage)?,
+            contract_addr: read_neb(deps.storage)?.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: env.message.sender.clone(),
                 amount,

@@ -6,8 +6,9 @@ use cosmwasm_std::{
 use crate::state::{
     cluster_exists, deactivate_cluster, decrease_total_weight, get_cluster_data,
     increase_total_weight, read_all_weight, read_config, read_last_distributed, read_params,
-    read_total_weight, read_weight, record_cluster, remove_params, remove_weight, store_config,
-    store_last_distributed, store_params, store_total_weight, store_weight, Config,
+    read_tmp_asset, read_tmp_cluster, read_total_weight, read_weight, record_cluster,
+    remove_params, remove_weight, store_config, store_last_distributed, store_params,
+    store_tmp_asset, store_tmp_cluser, store_total_weight, store_weight, Config,
 };
 
 use cluster_math::FPDecimal;
@@ -306,11 +307,11 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
             })?;
             let token = res.get_contract_address();
 
-            set_cluster_token_hook(deps, env, cluster, token);
+            set_cluster_token_hook(deps, env, cluster, token)
         }
         3 => {
             let token = read_tmp_asset(deps.storage)?;
-            terraswap_creation_hook(deps, env, token);
+            terraswap_creation_hook(deps, env, token)
         }
         _ => Err(StdError::generic_err("reply id is invalid")),
     }

@@ -63,10 +63,7 @@ pub fn update_config(deps: DepsMut, env: Env, owner: Option<HumanAddr>) -> StdRe
     }
 
     store_config(deps.storage, &config)?;
-    Ok(
-        Response::new()
-        .add_attributes(vec![attr("action", "update_config")])
-    )
+    Ok(Response::new().add_attributes(vec![attr("action", "update_config")]))
 }
 
 fn validate_merkle_root(merkle_root: String) -> StdResult<()> {

@@ -52,9 +52,9 @@ pub fn withdraw_reward(
     let config: Config = read_config(deps.storage)?;
     Ok(Response::new()
         .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: config.nebula_token,
+            contract_addr: config.nebula_token.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: staker_addr,
+                recipient: staker_addr.to_string(),
                 amount: reward_amount,
             })?,
             funds: vec![],
@@ -119,8 +119,8 @@ fn _withdraw_reward(
 // withdraw reward to pending reward
 #[allow(clippy::suspicious_operation_groupings)]
 pub fn before_share_change(pool_info: &PoolInfo, reward_info: &mut RewardInfo) -> StdResult<()> {
-    let pending_reward = (reward_info.bond_amount * pool_info.reward_index
-        - reward_info.bond_amount * reward_info.index)?;
+    let pending_reward = (reward_info.bond_amount * pool_info.reward_index).checked_sub(
+        reward_info.bond_amount * reward_info.index)?;
 
     reward_info.index = pool_info.reward_index;
     reward_info.pending_reward += pending_reward;

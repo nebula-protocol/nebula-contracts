@@ -55,7 +55,7 @@ pub fn instantiate(
         .map(|x| x.info.clone())
         .collect::<Vec<_>>();
 
-    if validate_targets(&deps, &env, asset_infos.clone(), Some(false)).is_err() {
+    if validate_targets(deps.as_ref(), &env, asset_infos.clone(), Some(false)).is_err() {
         return Err(StdError::generic_err(
             "Cluster must contain valid assets and cannot contain duplicate assets",
         ));
