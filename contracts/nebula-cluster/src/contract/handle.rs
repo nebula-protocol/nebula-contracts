@@ -273,7 +273,7 @@ pub fn mint(
     let cluster_state = query_cluster_state(
         deps.as_ref(),
         &env.contract.address.to_string(),
-        (env.block.time.nanos() / 1_000_000_000) - FRESH_TIMESPAN,
+        env.block.time.seconds() - FRESH_TIMESPAN,
     )?;
 
     let prices = cluster_state.prices;
@@ -509,7 +509,7 @@ pub fn receive_burn(
 
     // Use min as stale threshold if pro-rata redeem
     let stale_threshold = match asset_amounts {
-        Some(_) => (env.block.time.nanos() / 1_000_000_000) - FRESH_TIMESPAN,
+        Some(_) => env.block.time.seconds() - FRESH_TIMESPAN,
         None => u64::MIN,
     };
 

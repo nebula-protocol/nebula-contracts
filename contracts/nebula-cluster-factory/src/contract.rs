@@ -63,13 +63,13 @@ pub fn instantiate(
             token_code_id: msg.token_code_id,
             cluster_code_id: msg.cluster_code_id,
             base_denom: msg.base_denom,
-            genesis_time: (env.block.time.nanos() / 1_000_000_000),
+            genesis_time: env.block.time.seconds(),
             distribution_schedule: msg.distribution_schedule,
         },
     )?;
 
     store_total_weight(deps.storage, 0u32)?;
-    store_last_distributed(deps.storage, (env.block.time.nanos() / 1_000_000_000))?;
+    store_last_distributed(deps.storage, env.block.time.seconds())?;
     Ok(Response::default())
 }
 
@@ -524,14 +524,14 @@ nebula inflation rewards on the staking pool
 */
 pub fn distribute(deps: DepsMut, env: Env) -> StdResult<Response> {
     let last_distributed = read_last_distributed(deps.storage)?;
-    if last_distributed + DISTRIBUTION_INTERVAL > (env.block.time.nanos() / 1_000_000_000) {
+    if last_distributed + DISTRIBUTION_INTERVAL > env.block.time.seconds() {
         return Err(StdError::generic_err(
             "Cannot distribute nebula token before interval",
         ));
     }
 
     let config: Config = read_config(deps.storage)?;
-    let time_elapsed = (env.block.time.nanos() / 1_000_000_000) - config.genesis_time;
+    let time_elapsed = env.block.time.seconds() - config.genesis_time;
     let last_time_elapsed = last_distributed - config.genesis_time;
     let mut target_distribution_amount: Uint128 = Uint128::zero();
     for s in config.distribution_schedule.iter() {
@@ -556,7 +556,7 @@ pub fn distribute(deps: DepsMut, env: Env) -> StdResult<Response> {
         _compute_rewards(deps.as_ref(), target_distribution_amount)?;
 
     // store last distributed
-    store_last_distributed(deps.storage, (env.block.time.nanos() / 1_000_000_000))?;
+    store_last_distributed(deps.storage, env.block.time.seconds())?;
     // mint token to self and try send minted tokens to staking contract
 
     Ok(Response::new()

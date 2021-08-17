@@ -26,7 +26,7 @@ use terraswap::token::InstantiateMsg as TokenInstantiateMsg;
 
 fn mock_info_time(signer: &String, time: u64) -> Env {
     let mut env = mock_info(signer, &[]);
-    (env.block.time.nanos() / 1_000_000_000) = time;
+    env.block.time = Timestamp::from_seconds(time);
     env
 }
 

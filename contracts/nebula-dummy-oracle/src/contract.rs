@@ -35,7 +35,7 @@ pub fn try_set_prices(
     for (asset, price) in prices.iter() {
         set_price(deps.storage, asset, price)?;
     }
-    store_last_update_time(deps.storage, &(env.block.time.nanos() / 1_000_000_000))?;
+    store_last_update_time(deps.storage, &env.block.time.seconds())?;
     Ok(Response::default())
 }
 

@@ -4,7 +4,7 @@ use crate::state::{contributions_read, read_from_contribution_bucket, record_con
 use cosmwasm_std::testing::{mock_info, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     coins, from_binary, to_binary, BankMsg, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    QueryRequest, StdError, Uint128, WasmMsg, WasmQuery,
+    QueryRequest, StdError, Uint128, WasmMsg, WasmQuery, Timestamp
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use nebula_protocol::cluster::{
@@ -42,7 +42,7 @@ fn mock_init(mut deps: &mut Extern<MockStorage, MockApi, WasmMockQuerier>) {
 fn mock_info_height(sender: &str, sent: &[Coin], height: u64, time: u64) -> Env {
     let mut env = mock_info(sender, sent);
     env.block.height = height;
-    (env.block.time.nanos() / 1_000_000_000) = time;
+    env.block.time = Timestamp::from_seconds(time); 
     env
 }
 

@@ -60,7 +60,7 @@ fn mock_init(mut deps: &mut Extern<MockStorage, MockApi, WasmMockQuerier>) {
 fn mock_info_height(sender: &str, sent: &[Coin], height: u64, time: u64) -> Env {
     let mut env = mock_info(sender, sent);
     env.block.height = height;
-    (env.block.time.nanos() / 1_000_000_000) = time;
+    env.block.time = Timestamp::from_seconds(time); 
     env
 }
 
@@ -641,7 +641,7 @@ fn happy_days_end_poll() {
         TEST_VOTER,
         &[],
         POLL_START_HEIGHT,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let execute_res = execute(deps.as_mut(), env.clone(), msg).unwrap();
 
@@ -806,7 +806,7 @@ fn happy_days_end_poll() {
             share: Uint128::new(stake_amount),
             locked_balance: vec![],
             pending_voting_rewards: Uint128::zero(),
-            lock_end_week: Some((env.block.time.nanos() / 1_000_000_000) / SECONDS_PER_WEEK + 104),
+            lock_end_week: Some(env.block.time.seconds() / SECONDS_PER_WEEK + 104),
         }
     );
 }
@@ -889,7 +889,7 @@ fn expire_poll() {
         TEST_VOTER,
         &[],
         POLL_START_HEIGHT,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let execute_res = execute(deps.as_mut(), env, msg).unwrap();
 
@@ -1370,7 +1370,7 @@ fn fails_cast_vote_not_enough_staked() {
         TEST_VOTER,
         &coins(11, VOTING_TOKEN),
         0,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let msg = ExecuteMsg::CastVote {
         poll_id: 1,
@@ -1441,7 +1441,7 @@ fn happy_days_cast_vote() {
         TEST_VOTER,
         &coins(11, VOTING_TOKEN),
         0,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let amount = 10u128;
     let msg = ExecuteMsg::CastVote {
@@ -1485,7 +1485,7 @@ fn happy_days_cast_vote() {
             )],
             pending_voting_rewards: Uint128::zero(),
             lock_end_week: Some(
-                (env.block.time.nanos() / 1_000_000_000) / SECONDS_PER_WEEK + lock_for_weeks
+                env.block.time.seconds() / SECONDS_PER_WEEK + lock_for_weeks
             ),
         }
     );
@@ -1588,7 +1588,7 @@ fn happy_days_withdraw_voting_tokens() {
         TEST_VOTER,
         &[],
         0,
-        (env.block.time.nanos() / 1_000_000_000) + 104 * SECONDS_PER_WEEK,
+        env.block.time.seconds() + 104 * SECONDS_PER_WEEK,
     );
 
     let execute_res = execute(deps.as_mut(), env, msg.clone()).unwrap();
@@ -1666,7 +1666,7 @@ fn happy_days_withdraw_voting_tokens_all() {
 
     let mut env = mock_info(TEST_VOTER, &[]);
 
-    (env.block.time.nanos() / 1_000_000_000) += 104 * SECONDS_PER_WEEK;
+    env.block.time.plus_seconds(104 * SECONDS_PER_WEEK);
 
     let msg = ExecuteMsg::WithdrawVotingTokens { amount: None };
 
@@ -1814,14 +1814,14 @@ fn withdraw_voting_tokens() {
                     ),
                 ],
                 participated_polls: vec![],
-                lock_end_week: Some((env.block.time.nanos() / 1_000_000_000) / SECONDS_PER_WEEK),
+                lock_end_week: Some(env.block.time.seconds() / SECONDS_PER_WEEK),
             },
         )
         .unwrap();
 
     let mut env = mock_info(TEST_VOTER, &[]);
 
-    (env.block.time.nanos() / 1_000_000_000) += 104 * SECONDS_PER_WEEK;
+    env.block.time = env.block.time.plus_seconds(104 * SECONDS_PER_WEEK);
     let msg = ExecuteMsg::WithdrawVotingTokens {
         amount: Some(Uint128::from(5u128)),
     };
@@ -1898,7 +1898,7 @@ fn fails_withdraw_too_many_tokens() {
     assert_stake_tokens_result(10, 0, 10, 0, execute_res, deps.as_mut());
 
     let mut env = mock_info(TEST_VOTER, &[]);
-    (env.block.time.nanos() / 1_000_000_000) += 104 * SECONDS_PER_WEEK;
+    env.block.time = env.block.time.plus_seconds(104 * SECONDS_PER_WEEK);
     let msg = ExecuteMsg::WithdrawVotingTokens {
         amount: Some(Uint128::from(11u128)),
     };
@@ -2165,7 +2165,7 @@ fn share_calculation() {
         amount: Some(Uint128::new(100u128)),
     };
     let mut env = mock_info(TEST_VOTER.to_string(), &[]);
-    (env.block.time.nanos() / 1_000_000_000) += 104 * SECONDS_PER_WEEK;
+    env.block.time = env.block.time.plus_seconds(104 * SECONDS_PER_WEEK);
     let res = execute(deps.as_mut(), env, msg).unwrap();
     assert_eq!(
         res.attributes,
@@ -2308,7 +2308,7 @@ fn share_calculation_with_voter_rewards() {
         amount: Some(Uint128::new(100u128)),
     };
     let mut env = mock_info(TEST_VOTER.to_string(), &[]);
-    (env.block.time.nanos() / 1_000_000_000) += 104 * SECONDS_PER_WEEK;
+    env.block.time = env.block.time.plus_seconds(104 * SECONDS_PER_WEEK);
     let res = execute(deps.as_mut(), env, msg).unwrap();
     assert_eq!(
         res.attributes,
@@ -2585,7 +2585,7 @@ fn distribute_voting_rewards() {
     // FAIL - there is no finished polls, amount to withdraw is 0, returning error
     let msg = ExecuteMsg::WithdrawVotingRewards {};
     let mut env = mock_info(TEST_VOTER, &[]);
-    (env.block.time.nanos() / 1_000_000_000) += 104 * SECONDS_PER_WEEK;
+    env.block.time = env.block.time.plus_seconds(104 * SECONDS_PER_WEEK);
     let res = execute(deps.as_mut(), env.clone(), msg).unwrap_err();
     assert_eq!(res, StdError::generic_err("Nothing to withdraw"));
 
@@ -2593,14 +2593,14 @@ fn distribute_voting_rewards() {
         TEST_VOTER,
         &[],
         poll_end_height,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
 
     // SUCCESS
     let msg = ExecuteMsg::WithdrawVotingRewards {};
-    let env = mock_info_height(TEST_VOTER, &[], 0, (env.block.time.nanos() / 1_000_000_000));
+    let env = mock_info_height(TEST_VOTER, &[], 0, env.block.time.seconds());
     let res = execute(deps.as_mut(), env.clone(), msg).unwrap();
 
     // user can withdraw 50% of total staked (weight = 50% poll share = 100%)
@@ -2790,7 +2790,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
         TEST_VOTER,
         &[],
         poll_end_height,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
@@ -2799,7 +2799,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
 
     let msg = ExecuteMsg::WithdrawVotingRewards {};
     // ALICE withdraws voting rewards
-    let env = mock_info_height(ALICE, &[], 0, (env.block.time.nanos() / 1_000_000_000));
+    let env = mock_info_height(ALICE, &[], 0, env.block.time.seconds());
     let res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
     assert_eq!(
         res.attributes,
@@ -2811,7 +2811,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
     );
 
     // BOB withdraws voting rewards
-    let env = mock_info_height(BOB, &[], 0, (env.block.time.nanos() / 1_000_000_000));
+    let env = mock_info_height(BOB, &[], 0, env.block.time.seconds());
     let res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
     assert_eq!(
         res.attributes,
@@ -2823,7 +2823,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
     );
 
     // CINDY
-    let env = mock_info_height(CINDY, &[], 0, (env.block.time.nanos() / 1_000_000_000));
+    let env = mock_info_height(CINDY, &[], 0, env.block.time.seconds());
     let res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
     assert_eq!(
         res.attributes,
@@ -3082,7 +3082,7 @@ fn test_staking_and_voting_rewards() {
         TEST_VOTER,
         &[],
         poll_end_height,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
@@ -3114,7 +3114,7 @@ fn test_staking_and_voting_rewards() {
             share: Uint128::new(ALICE_STAKE),
             locked_balance: vec![],
             pending_voting_rewards: Uint128::new(750_000_000u128),
-            lock_end_week: Some((env.block.time.nanos() / 1_000_000_000) / SECONDS_PER_WEEK + 104),
+            lock_end_week: Some(env.block.time.seconds() / SECONDS_PER_WEEK + 104),
         }
     );
     let res = query(deps.as_ref(), QueryMsg::Staker { address: (BOB) }).unwrap();
@@ -3126,7 +3126,7 @@ fn test_staking_and_voting_rewards() {
             share: Uint128::new(BOB_STAKE),
             locked_balance: vec![],
             pending_voting_rewards: Uint128::new(250_000_000u128),
-            lock_end_week: Some((env.block.time.nanos() / 1_000_000_000) / SECONDS_PER_WEEK + 104),
+            lock_end_week: Some(env.block.time.seconds() / SECONDS_PER_WEEK + 104),
         }
     );
 
@@ -3171,7 +3171,7 @@ fn test_staking_and_voting_rewards() {
         ALICE,
         &[],
         env.block.height,
-        (env.block.time.nanos() / 1_000_000_000) + lock_expiry_duration,
+        env.block.time.seconds() + lock_expiry_duration,
     );
 
     let res = execute(deps.as_mut(), env.clone(), msg).unwrap();
@@ -3196,7 +3196,7 @@ fn test_staking_and_voting_rewards() {
         BOB,
         &[],
         env.block.height,
-        (env.block.time.nanos() / 1_000_000_000) + lock_expiry_duration,
+        env.block.time.seconds() + lock_expiry_duration,
     );
     let res = execute(deps.as_mut(), env, msg).unwrap();
     assert_eq!(
@@ -3332,7 +3332,7 @@ fn test_abstain_votes_theshold() {
         TEST_VOTER,
         &[],
         poll_end_height,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let execute_res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
     // abstain votes should not affect threshold, so poll is passed
@@ -3473,7 +3473,7 @@ fn test_abstain_votes_quorum() {
         TEST_VOTER,
         &[],
         poll_end_height,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let execute_res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
     // abstain votes make the poll surpass quorum
@@ -3520,7 +3520,7 @@ fn test_abstain_votes_quorum() {
         TEST_VOTER,
         &[],
         poll_end_height,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let execute_res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
     // without abstain votes, quroum is not reached
@@ -3830,7 +3830,7 @@ fn happy_days_cast_vote_with_snapshot() {
         TEST_VOTER,
         &coins(11, VOTING_TOKEN),
         0,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let amount = 10u128;
 
@@ -3882,7 +3882,7 @@ fn happy_days_cast_vote_with_snapshot() {
         TEST_VOTER_2,
         &[],
         end_height - 9,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let execute_res = execute(deps.as_mut(), env.clone(), msg).unwrap();
     assert_cast_vote_success(TEST_VOTER_2, amount, 1, VoteOption::Yes, execute_res);
@@ -3935,7 +3935,7 @@ fn happy_days_cast_vote_with_snapshot() {
         TEST_VOTER_3,
         &[],
         end_height - 8,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let execute_res = execute(deps.as_mut(), env.clone(), msg).unwrap();
     assert_cast_vote_success(TEST_VOTER_3, amount, 1, VoteOption::Yes, execute_res);
@@ -4025,7 +4025,7 @@ fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
         TEST_VOTER,
         &[],
         POLL_START_HEIGHT,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let execute_res = execute(deps.as_mut(), env.clone(), msg).unwrap();
 
@@ -4069,7 +4069,7 @@ fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
         VOTING_TOKEN,
         &[],
         0,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let _execute_res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
@@ -4083,7 +4083,7 @@ fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
         TEST_VOTER_2,
         &[],
         POLL_START_HEIGHT,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let execute_res = execute(deps.as_mut(), env, msg).unwrap();
 
@@ -4206,7 +4206,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
         TEST_VOTER,
         &[],
         POLL_START_HEIGHT,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let execute_res = execute(deps.as_mut(), env.clone(), msg).unwrap();
 
@@ -4222,7 +4222,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
     );
 
     creator_env.block.height = &creator_env.block.height + DEFAULT_VOTING_PERIOD - 10;
-    creator_(env.block.time.nanos() / 1_000_000_000) = (env.block.time.nanos() / 1_000_000_000);
+    creator_env.block.time = env.block.time;
 
     // send SnapshotPoll
     let fix_res = execute(
@@ -4274,7 +4274,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
         TEST_VOTER_2,
         &[],
         creator_env.block.height,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let execute_res = execute(deps.as_mut(), env, msg).unwrap();
 
@@ -4413,7 +4413,7 @@ fn increase_lock_time() {
 
     let mut env = mock_info(TEST_VOTER, &[]);
 
-    (env.block.time.nanos() / 1_000_000_000) += initial_lock_period * SECONDS_PER_WEEK;
+    env.block.time = env.block.time.plus_seconds( initial_lock_period * SECONDS_PER_WEEK;
 
     let msg = ExecuteMsg::WithdrawVotingTokens {
         amount: Some(Uint128::from(stake_amount)),
@@ -4430,7 +4430,7 @@ fn increase_lock_time() {
         Err(e) => panic!("Unexpected error: {:?}", e),
     }
 
-    (env.block.time.nanos() / 1_000_000_000) += increased_lock_period * SECONDS_PER_WEEK;
+    env.block.time = env.block.time.plus_seconds( increased_lock_period * SECONDS_PER_WEEK;
     let msg = ExecuteMsg::WithdrawVotingTokens {
         amount: Some(Uint128::from(stake_amount)),
     };
@@ -4606,7 +4606,7 @@ fn total_voting_power_calculation() {
     assert_stake_tokens_result(stake_amount, 0, stake_amount, 0, execute_res, deps.as_mut());
 
     let total_voting_power = total_voting_power_read(deps.storage).load().unwrap();
-    let current_week = (env.block.time.nanos() / 1_000_000_000) / SECONDS_PER_WEEK;
+    let current_week = env.block.time.seconds() / SECONDS_PER_WEEK;
 
     assert_eq!(
         total_voting_power,
@@ -4729,12 +4729,12 @@ fn total_voting_power_calculation() {
     let mut env = mock_info(TEST_VOTER, &[]);
 
     // Make 5 weeks pass by
-    (env.block.time.nanos() / 1_000_000_000) += 5 * SECONDS_PER_WEEK;
+    env.block.time = env.block.time.plus_seconds( 5 * SECONDS_PER_WEEK;
 
     let _execute_res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
 
     let total_voting_power = total_voting_power_read(deps.storage).load().unwrap();
-    let current_week = (env.block.time.nanos() / 1_000_000_000) / SECONDS_PER_WEEK;
+    let current_week = env.block.time.seconds() / SECONDS_PER_WEEK;
 
     assert_eq!(
         total_voting_power,
@@ -4870,7 +4870,7 @@ fn total_voting_power_calculation() {
         VOTING_TOKEN,
         &[],
         env.block.height,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let execute_res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
     assert_stake_tokens_result(
@@ -4883,7 +4883,7 @@ fn total_voting_power_calculation() {
     );
 
     let total_voting_power = total_voting_power_read(deps.storage).load().unwrap();
-    let current_week = (env.block.time.nanos() / 1_000_000_000) / SECONDS_PER_WEEK;
+    let current_week = env.block.time.seconds() / SECONDS_PER_WEEK;
 
     assert_eq!(
         total_voting_power,
@@ -5056,7 +5056,7 @@ fn test_unstake_before_claiming_voting_rewards() {
         VOTING_TOKEN,
         &[],
         env.block.height,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
 
@@ -5069,7 +5069,7 @@ fn test_unstake_before_claiming_voting_rewards() {
         TEST_VOTER,
         &[],
         env.block.height,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
 
@@ -5091,7 +5091,7 @@ fn test_unstake_before_claiming_voting_rewards() {
         VOTING_TOKEN,
         &[],
         env.block.height,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
 
@@ -5100,7 +5100,7 @@ fn test_unstake_before_claiming_voting_rewards() {
         TEST_VOTER,
         &[],
         env.block.height + DEFAULT_VOTING_PERIOD,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
@@ -5119,11 +5119,11 @@ fn test_unstake_before_claiming_voting_rewards() {
         TEST_VOTER,
         &[],
         env.block.height,
-        (env.block.time.nanos() / 1_000_000_000),
+        env.block.time.seconds(),
     );
 
     //Make 2 years pass by so lock expires
-    (env.block.time.nanos() / 1_000_000_000) += 104 * SECONDS_PER_WEEK;
+    env.block.time = env.block.time.plus_seconds(104 * SECONDS_PER_WEEK);
     let res = execute(deps.as_mut(), env, msg).unwrap();
     assert_eq!(
         res.attributes,

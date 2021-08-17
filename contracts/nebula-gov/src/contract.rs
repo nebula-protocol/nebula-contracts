@@ -65,7 +65,7 @@ pub fn instantiate(
 
     let voting_power = TotalVotingPower {
         voting_power: vec![FPDecimal::zero(); M as usize],
-        last_upd: (env.block.time.nanos() / 1_000_000_000) / SECONDS_PER_WEEK,
+        last_upd: env.block.time.seconds() / SECONDS_PER_WEEK,
     };
 
     config_store(deps.storage).save(&config)?;
@@ -584,7 +584,7 @@ pub fn cast_vote(
             .share
             .multiply_ratio(total_balance, total_share),
         token_manager.lock_end_week.unwrap(),
-        (env.block.time.nanos() / 1_000_000_000) / SECONDS_PER_WEEK,
+        env.block.time.seconds() / SECONDS_PER_WEEK,
     );
 
     if voting_power < amount {
@@ -602,7 +602,7 @@ pub fn cast_vote(
     let total_voting_power = total_voting_power_read(deps.storage).load()?;
     // don't need to zero anything out here -- if the user does have voting power then
     // the entry at current_week has to be filled with a valid value
-    let current_week = ((env.block.time.nanos() / 1_000_000_000) / SECONDS_PER_WEEK) % M;
+    let current_week = (env.block.time.seconds() / SECONDS_PER_WEEK) % M;
     a_poll.max_voting_power = max(
         a_poll.max_voting_power,
         Uint128::from(u128::from(
@@ -667,7 +667,7 @@ pub fn snapshot_poll(deps: DepsMut, env: Env, poll_id: u64) -> StdResult<Respons
     let total_voting_power = total_voting_power_read(deps.storage).load()?;
     // don't need to zero anything out here -- if the user does have voting power then
     // the entry at current_week has to be filled with a valid value
-    let current_week = ((env.block.time.nanos() / 1_000_000_000) / SECONDS_PER_WEEK) % M;
+    let current_week = (env.block.time.seconds() / SECONDS_PER_WEEK) % M;
     a_poll.max_voting_power = max(
         a_poll.max_voting_power,
         Uint128::from(u128::from(

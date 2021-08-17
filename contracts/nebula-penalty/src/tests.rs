@@ -30,7 +30,7 @@ fn mock_init(mut deps: DepsMut<MockStorage, MockApi, WasmMockQuerier>) {
 fn mock_info_height(sender: &str, sent: &[Coin], height: u64, time: u64) -> Env {
     let mut env = mock_info(sender, sent);
     env.block.height = height;
-    (env.block.time.nanos() / 1_000_000_000) = time;
+    env.block.time = Timestamp::from_seconds(time); 
     env
 }
 

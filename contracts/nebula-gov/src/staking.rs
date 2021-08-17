@@ -81,7 +81,7 @@ pub fn stake_voting_tokens(
 
     let mut total_voting_power = total_voting_power_read(deps.storage).load()?;
 
-    let current_week = (env.block.time.nanos() / 1_000_000_000) / SECONDS_PER_WEEK;
+    let current_week = env.block.time.seconds() / SECONDS_PER_WEEK;
 
     if let Some(_) = token_manager.lock_end_week {
         if lock_for_weeks.is_some() {
@@ -168,7 +168,7 @@ pub fn withdraw_voting_tokens(
             Err(StdError::generic_err(
                 "User is trying to withdraw too many tokens.",
             ))
-        } else if (env.block.time.nanos() / 1_000_000_000) / SECONDS_PER_WEEK
+        } else if env.block.time.seconds() / SECONDS_PER_WEEK
             < token_manager.lock_end_week.unwrap()
         {
             //Check if locked time has passed before allowing
@@ -459,7 +459,7 @@ pub fn increase_lock_time(
     let key = sender_address.as_str().as_bytes();
 
     let mut total_voting_power = total_voting_power_read(deps.storage).load()?;
-    let current_week = (env.block.time.nanos() / 1_000_000_000) / SECONDS_PER_WEEK;
+    let current_week = env.block.time.seconds() / SECONDS_PER_WEEK;
     let mut token_manager = bank_read(deps.storage).may_load(key)?.unwrap_or_default();
 
     if let Some(lock_end_week) = token_manager.lock_end_week {
