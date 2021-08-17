@@ -1,11 +1,11 @@
 use cluster_math::FPDecimal;
-use cosmwasm_std::{Attribute, HumanAddr, Uint128};
+use cosmwasm_std::{Attribute, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
-    pub owner: HumanAddr,
+    pub owner: String,
     pub penalty_params: PenaltyParams,
 }
 
@@ -14,7 +14,7 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     /// OWNER-CALLABLE
     UpdateConfig {
-        owner: Option<HumanAddr>,
+        owner: Option<String>,
         penalty_params: Option<PenaltyParams>,
     },
 

@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{Api, Deps, DepsMut, HumanAddr, StdResult, Storage, Uint128};
+use cosmwasm_std::{Api, Deps, DepsMut, StdResult, Storage, Uint128};
 use cosmwasm_storage::{singleton, singleton_read, Bucket, ReadonlyBucket};
 
 static KEY_CONFIG: &[u8] = b"config";
@@ -14,11 +14,11 @@ static PREFIX_REWARD: &[u8] = b"reward";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
-    pub owner: HumanAddr,
-    pub factory: HumanAddr,
-    pub custody: HumanAddr,
-    pub terraswap_factory: HumanAddr, // terraswap factory contract
-    pub nebula_token: HumanAddr,
+    pub owner: String,
+    pub factory: String,
+    pub custody: String,
+    pub terraswap_factory: String, // terraswap factory contract
+    pub nebula_token: String,
     pub base_denom: String,
 }
 
@@ -65,7 +65,7 @@ pub fn pool_info_read(storage: &dyn Storage, pool_type: u16, n: u64) -> Readonly
 
 pub fn read_from_pool_bucket(
     bucket: &ReadonlyBucket<PoolInfo>,
-    cluster_address: &HumanAddr,
+    cluster_address: &String,
 ) -> PoolInfo {
     match bucket.load(cluster_address.as_str().as_bytes()) {
         Ok(reward_info) => reward_info,
@@ -79,13 +79,13 @@ pub fn read_from_pool_bucket(
 // amount of nebula each person is owed
 pub fn store_pending_rewards(
     storage: &mut dyn Storage,
-    contributor: &HumanAddr,
+    contributor: &String,
     amt: Uint128,
 ) -> StdResult<()> {
     Bucket::new(PREFIX_PENDING_REWARDS, storage).save(contributor.as_str().as_bytes(), &amt)
 }
 
-pub fn read_pending_rewards(storage: &dyn Storage, contributor: &HumanAddr) -> Uint128 {
+pub fn read_pending_rewards(storage: &dyn Storage, contributor: &String) -> Uint128 {
     match ReadonlyBucket::new(storage, PREFIX_PENDING_REWARDS).load(contributor.as_str().as_bytes())
     {
         Ok(pending_reward) => pending_reward,
@@ -106,9 +106,9 @@ pub struct PoolContribution {
 /// returns a bucket with all contributions from this owner (query it by owner)
 pub fn contributions_store<'a>(
     storage: &'a mut Storage,
-    contributor: &HumanAddr,
+    contributor: &String,
     pool_type: u16,
-) -> Bucket<'a, Storage, PoolContribution> {
+) -> Bucket<'a, PoolContribution> {
     Bucket::multilevel(
         storage,
         &[
@@ -123,7 +123,7 @@ pub fn contributions_store<'a>(
 /// (read-only version for queries)
 pub fn contributions_read<'a>(
     storage: &'a Storage,
-    contributor: &HumanAddr,
+    contributor: &String,
     pool_type: u16,
 ) -> ReadonlyBucket<'a, PoolContribution> {
     ReadonlyBucket::multilevel(
@@ -139,7 +139,7 @@ pub fn contributions_read<'a>(
 // bucket over all cluster
 pub fn read_from_contribution_bucket(
     bucket: &ReadonlyBucket<PoolContribution>,
-    cluster_address: &HumanAddr,
+    cluster_address: &String,
 ) -> PoolContribution {
     match bucket.load(cluster_address.as_str().as_bytes()) {
         Ok(reward_info) => reward_info,
@@ -156,9 +156,9 @@ pub fn read_from_contribution_bucket(
 // the contribution must be from before the current n
 pub fn contributions_to_pending_rewards(
     storage: &mut dyn Storage,
-    contributor_address: &HumanAddr,
+    contributor_address: &String,
     pool_type: u16,
-    cluster_address: &HumanAddr,
+    cluster_address: &String,
 ) -> StdResult<()> {
     let contribution_bucket = contributions_read(storage, &contributor_address, pool_type);
     let mut contribution = read_from_contribution_bucket(&contribution_bucket, &cluster_address);
@@ -186,9 +186,9 @@ pub fn contributions_to_pending_rewards(
 
 pub fn record_contribution(
     deps: DepsMut,
-    contributor: &HumanAddr,
+    contributor: &String,
     pool_type: u16,
-    cluster_address: &HumanAddr,
+    cluster_address: &String,
     contribution_amt: Uint128,
 ) -> StdResult<()> {
     let n = read_current_n(deps.storage)?;

@@ -3,18 +3,16 @@ use crate::mock_querier::mock_dependencies;
 use crate::state::{read_neb, read_owner};
 
 use cosmwasm_std::testing::{mock_info, MOCK_CONTRACT_ADDR};
-use cosmwasm_std::{
-    attr, from_binary, to_binary, Binary, CosmosMsg, HumanAddr, StdError, Uint128, WasmMsg,
-};
+use cosmwasm_std::{attr, from_binary, to_binary, Binary, CosmosMsg, StdError, Uint128, WasmMsg};
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::incentives_custody::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 const OWNER: &str = "owner0000";
 const NEB_TOKEN: &str = "nebula_token0000";
 
-/// Convenience function for creating inline HumanAddr
-pub fn h(s: &str) -> HumanAddr {
-    HumanAddr(s.to_string())
+/// Convenience function for creating inline String
+pub fn h(s: &str) -> String {
+    s.to_string()
 }
 
 #[test]

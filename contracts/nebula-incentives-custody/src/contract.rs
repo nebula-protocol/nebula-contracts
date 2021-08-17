@@ -1,8 +1,8 @@
 use crate::querier::load_token_balance;
 use crate::state::{read_neb, read_owner, set_neb, set_owner};
 use cosmwasm_std::{
-    attr, entry_point, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, HumanAddr, MessageInfo,
-    Response, StdError, StdResult, Uint128, WasmMsg,
+    attr, entry_point, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response,
+    StdError, StdResult, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::incentives_custody::{ExecuteMsg, InstantiateMsg, QueryMsg};
@@ -27,7 +27,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
     }
 }
 
-pub fn update_owner(deps: DepsMut, env: Env, owner: &HumanAddr) -> StdResult<Response> {
+pub fn update_owner(deps: DepsMut, env: Env, owner: &String) -> StdResult<Response> {
     let old_owner = read_owner(deps.storage)?;
 
     // check permission

@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    attr, entry_point, to_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, HumanAddr,
-    MessageInfo, Response, StdResult, WasmMsg,
+    attr, entry_point, to_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
+    Response, StdResult, WasmMsg,
 };
 
 use crate::state::{read_config, store_config, Config};
@@ -47,7 +47,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 /// Anyone can execute convert function to swap
 /// asset token => collateral token
 /// collateral token => NEB token
-pub fn convert(deps: DepsMut, env: Env, asset_token: HumanAddr) -> StdResult<Response> {
+pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
     let terraswap_factory_raw = config.terraswap_factory;
 

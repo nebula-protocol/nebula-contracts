@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    attr, entry_point, from_binary, to_binary, Binary, Deps, DepsMut, Env, HumanAddr, MessageInfo,
-    Response, StdError, StdResult, Uint128,
+    attr, entry_point, from_binary, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    StdError, StdResult, Uint128,
 };
 
 use crate::arbitrageurs::{
@@ -130,7 +130,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
     }
 }
 
-pub fn update_owner(deps: DepsMut, env: Env, owner: &HumanAddr) -> StdResult<Response> {
+pub fn update_owner(deps: DepsMut, env: Env, owner: &String) -> StdResult<Response> {
     let cfg = read_config(deps.storage)?;
 
     if env.message.sender != cfg.owner {
@@ -242,7 +242,7 @@ pub fn query_penalty_period(deps: Deps) -> StdResult<PenaltyPeriodResponse> {
 pub fn query_pool_info(
     deps: Deps,
     pool_type: u16,
-    cluster_address: HumanAddr,
+    cluster_address: String,
     n: Option<u64>,
 ) -> StdResult<IncentivesPoolInfoResponse> {
     let n = match n {
@@ -261,8 +261,8 @@ pub fn query_pool_info(
 pub fn query_contributor_info(
     deps: Deps,
     pool_type: u16,
-    contributor_address: HumanAddr,
-    cluster_address: HumanAddr,
+    contributor_address: String,
+    cluster_address: String,
 ) -> StdResult<CurrentContributorInfoResponse> {
     let contribution_bucket = contributions_read(deps.storage, &contributor_address, pool_type);
     let contributions = read_from_contribution_bucket(&contribution_bucket, &cluster_address);
@@ -275,7 +275,7 @@ pub fn query_contributor_info(
 
 pub fn query_contributor_pending_rewards(
     deps: Deps,
-    contributor_address: HumanAddr,
+    contributor_address: String,
 ) -> StdResult<ContributorPendingRewardsResponse> {
     let pending_rewards = read_pending_rewards(deps.storage, &contributor_address);
     let resp = ContributorPendingRewardsResponse { pending_rewards };

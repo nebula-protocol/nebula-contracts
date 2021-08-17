@@ -1,7 +1,7 @@
 use crate::contract::{execute, instantiate, query};
 
 use cosmwasm_std::testing::{mock_dependencies, mock_info};
-use cosmwasm_std::{from_binary, to_binary, CosmosMsg, HumanAddr, StdError, Uint128, WasmMsg};
+use cosmwasm_std::{from_binary, to_binary, CosmosMsg, StdError, Uint128, WasmMsg};
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::community::{ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
 
@@ -10,8 +10,8 @@ fn proper_initialization() {
     let mut deps = mock_dependencies(20, &[]);
 
     let msg = InstantiateMsg {
-        owner: HumanAddr("owner0000".to_string()),
-        nebula_token: HumanAddr("nebula0000".to_string()),
+        owner: ("owner0000".to_string()),
+        nebula_token: ("nebula0000".to_string()),
         spend_limit: Uint128::from(1000000u128),
     };
 
@@ -33,8 +33,8 @@ fn update_config() {
     let mut deps = mock_dependencies(20, &[]);
 
     let msg = InstantiateMsg {
-        owner: HumanAddr("owner0000".to_string()),
-        nebula_token: HumanAddr("nebula0000".to_string()),
+        owner: ("owner0000".to_string()),
+        nebula_token: ("nebula0000".to_string()),
         spend_limit: Uint128::from(1000000u128),
     };
 
@@ -51,7 +51,7 @@ fn update_config() {
     assert_eq!(Uint128::from(1000000u128), config.spend_limit);
 
     let msg = ExecuteMsg::UpdateConfig {
-        owner: Some(HumanAddr::from("owner0001")),
+        owner: Some(("owner0001")),
         spend_limit: None,
     };
     let env = mock_info("addr0000", &[]);
@@ -69,8 +69,8 @@ fn update_config() {
     assert_eq!(
         config,
         ConfigResponse {
-            owner: HumanAddr::from("owner0001"),
-            nebula_token: HumanAddr::from("nebula0000"),
+            owner: ("owner0001"),
+            nebula_token: ("nebula0000"),
             spend_limit: Uint128::from(1000000u128),
         }
     );
@@ -87,8 +87,8 @@ fn update_config() {
     assert_eq!(
         config,
         ConfigResponse {
-            owner: HumanAddr::from("owner0001"),
-            nebula_token: HumanAddr::from("nebula0000"),
+            owner: ("owner0001"),
+            nebula_token: ("nebula0000"),
             spend_limit: Uint128::from(2000000u128),
         }
     );
@@ -99,8 +99,8 @@ fn test_spend() {
     let mut deps = mock_dependencies(20, &[]);
 
     let msg = InstantiateMsg {
-        owner: HumanAddr("owner0000".to_string()),
-        nebula_token: HumanAddr("nebula0000".to_string()),
+        owner: ("owner0000".to_string()),
+        nebula_token: ("nebula0000".to_string()),
         spend_limit: Uint128::from(1000000u128),
     };
 
@@ -111,7 +111,7 @@ fn test_spend() {
 
     // permission failed
     let msg = ExecuteMsg::Spend {
-        recipient: HumanAddr::from("addr0000"),
+        recipient: ("addr0000"),
         amount: Uint128::from(1000000u128),
     };
 
@@ -124,7 +124,7 @@ fn test_spend() {
 
     // failed due to spend limit
     let msg = ExecuteMsg::Spend {
-        recipient: HumanAddr::from("addr0000"),
+        recipient: ("addr0000"),
         amount: Uint128::from(2000000u128),
     };
 
@@ -138,7 +138,7 @@ fn test_spend() {
     }
 
     let msg = ExecuteMsg::Spend {
-        recipient: HumanAddr::from("addr0000"),
+        recipient: ("addr0000"),
         amount: Uint128::from(1000000u128),
     };
 
@@ -147,10 +147,10 @@ fn test_spend() {
     assert_eq!(
         res.messages,
         vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: HumanAddr::from("nebula0000"),
+            contract_addr: ("nebula0000"),
             funds: vec![],
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: HumanAddr::from("addr0000"),
+                recipient: ("addr0000"),
                 amount: Uint128::from(1000000u128),
             })
             .unwrap(),

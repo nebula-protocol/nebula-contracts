@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    to_binary, Binary, Decimal, Env, Deps, DepsMut,HumanAddr, Response, 
+    to_binary, Binary, Decimal, Env, Deps, DepsMut, Response, 
     QueryRequest, StdResult, WasmQuery, MessageInfo, entry_point
 };
 
@@ -56,11 +56,11 @@ fn query_price(
 
     let asset_info = if deps
         .api
-        .canonical_address(&HumanAddr::from(asset.as_str()))
+        .canonical_address(&(asset.as_str()))
         .is_ok()
     {
         AssetInfo::Token {
-            contract_addr: HumanAddr::from(asset),
+            contract_addr: (asset),
         }
     } else {
         AssetInfo::NativeToken { denom: asset }

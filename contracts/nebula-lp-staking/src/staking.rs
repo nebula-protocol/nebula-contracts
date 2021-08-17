@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    attr, to_binary, Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, HumanAddr, Response,
-    StdError, StdResult, Storage, Uint128, WasmMsg,
+    attr, to_binary, Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, Response, StdError,
+    StdResult, Storage, Uint128, WasmMsg,
 };
 
 use crate::rewards::before_share_change;
@@ -19,8 +19,8 @@ use cw20::Cw20ExecuteMsg;
 pub fn bond(
     deps: DepsMut,
     _env: Env,
-    staker_addr: HumanAddr,
-    asset_token: HumanAddr,
+    staker_addr: String,
+    asset_token: String,
     amount: Uint128,
 ) -> StdResult<Response> {
     _increase_bond_amount(deps.storage, &staker_addr, &asset_token, amount)?;
@@ -35,11 +35,11 @@ pub fn bond(
 
 pub fn unbond(
     deps: DepsMut,
-    staker_addr: HumanAddr,
-    asset_token: HumanAddr,
+    staker_addr: String,
+    asset_token: String,
     amount: Uint128,
 ) -> StdResult<Response> {
-    let staking_token: HumanAddr =
+    let staking_token: String =
         _decrease_bond_amount(deps.storage, &staker_addr, &asset_token, amount)?;
 
     Ok(Response::new()
@@ -66,10 +66,10 @@ pub fn auto_stake(
     slippage_tolerance: Option<Decimal>,
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
-    let terraswap_factory: HumanAddr = config.terraswap_factory;
+    let terraswap_factory: String = config.terraswap_factory;
 
     let mut native_asset_op: Option<Asset> = None;
-    let mut token_info_op: Option<(HumanAddr, Uint128)> = None;
+    let mut token_info_op: Option<(String, Uint128)> = None;
     for asset in assets.iter() {
         match asset.info.clone() {
             AssetInfo::NativeToken { .. } => {
@@ -77,7 +77,7 @@ pub fn auto_stake(
                 native_asset_op = Some(asset.clone())
             }
             AssetInfo::Token { contract_addr } => {
-                token_info_op = Some((HumanAddr::from(contract_addr), asset.amount))
+                token_info_op = Some(((contract_addr), asset.amount))
             }
         }
     }
@@ -167,7 +167,7 @@ pub fn auto_stake(
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::AutoStakeHook {
                     asset_token: token_addr.clone(),
-                    staking_token: HumanAddr::from(terraswap_pair.liquidity_token),
+                    staking_token: (terraswap_pair.liquidity_token),
                     staker_addr: env.message.sender,
                     prev_staking_token_amount,
                 })?,
@@ -184,9 +184,9 @@ pub fn auto_stake(
 pub fn auto_stake_hook(
     deps: DepsMut,
     env: Env,
-    asset_token: HumanAddr,
-    staking_token: HumanAddr,
-    staker_addr: HumanAddr,
+    asset_token: String,
+    staking_token: String,
+    staker_addr: String,
     prev_staking_token_amount: Uint128,
 ) -> StdResult<Response> {
     // only can be called by itself
@@ -207,8 +207,8 @@ pub fn auto_stake_hook(
 
 fn _increase_bond_amount(
     storage: &mut dyn Storage,
-    staker_addr: &HumanAddr,
-    asset_token: &HumanAddr,
+    staker_addr: &String,
+    asset_token: &String,
     amount: Uint128,
 ) -> StdResult<()> {
     let mut pool_info: PoolInfo = read_pool_info(storage, asset_token)?;
@@ -235,10 +235,10 @@ fn _increase_bond_amount(
 
 fn _decrease_bond_amount(
     storage: &mut dyn Storage,
-    staker_addr: &HumanAddr,
-    asset_token: &HumanAddr,
+    staker_addr: &String,
+    asset_token: &String,
     amount: Uint128,
-) -> StdResult<HumanAddr> {
+) -> StdResult<String> {
     let mut pool_info: PoolInfo = read_pool_info(storage, &asset_token)?;
     let mut reward_info: RewardInfo =
         rewards_read(storage, &staker_addr).load(asset_token.as_str().as_bytes())?;

@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    attr, to_binary, CosmosMsg, Deps, DepsMut, Env, HumanAddr, Order, Response, StdError,
-    StdResult, Storage, Uint128, WasmMsg,
+    attr, to_binary, CosmosMsg, Deps, DepsMut, Env, Order, Response, StdError, StdResult, Storage,
+    Uint128, WasmMsg,
 };
 
 use crate::state::{
@@ -17,7 +17,7 @@ use cw20::Cw20ExecuteMsg;
 pub fn deposit_reward(
     deps: DepsMut,
     // pool_type, asset_address, amount
-    rewards: Vec<(u16, HumanAddr, Uint128)>,
+    rewards: Vec<(u16, String, Uint128)>,
     rewards_amount: Uint128,
 ) -> StdResult<Response> {
     let cfg = read_config(deps.storage)?;
@@ -62,7 +62,7 @@ pub fn withdraw_reward(deps: DepsMut, env: Env) -> StdResult<Response> {
         for kv in contribution_bucket.range(None, None, Order::Ascending) {
             let (k, _) = kv?;
 
-            let asset_address = HumanAddr::from(unsafe { std::str::from_utf8_unchecked(&k) });
+            let asset_address = (unsafe { std::str::from_utf8_unchecked(&k) });
             contribution_tuples.push((i, asset_address));
         }
     }

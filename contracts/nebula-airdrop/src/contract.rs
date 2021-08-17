@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    attr, entry_point, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, HumanAddr, MessageInfo,
-    Response, StdError, StdResult, Uint128, WasmMsg,
+    attr, entry_point, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response,
+    StdError, StdResult, Uint128, WasmMsg,
 };
 
 use crate::state::{
@@ -52,7 +52,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
     }
 }
 
-pub fn update_config(deps: DepsMut, env: Env, owner: Option<HumanAddr>) -> StdResult<Response> {
+pub fn update_config(deps: DepsMut, env: Env, owner: Option<String>) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
     if env.message.sender != config.owner {
         return Err(StdError::generic_err("unauthorized"));
@@ -212,7 +212,7 @@ pub fn query_latest_stage(deps: Deps) -> StdResult<LatestStageResponse> {
     Ok(resp)
 }
 
-pub fn query_is_claimed(deps: Deps, stage: u8, address: HumanAddr) -> StdResult<IsClaimedResponse> {
+pub fn query_is_claimed(deps: Deps, stage: u8, address: String) -> StdResult<IsClaimedResponse> {
     let resp = IsClaimedResponse {
         is_claimed: read_claimed(deps.storage, &address, stage)?,
     };

@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    to_binary, BalanceResponse, BankQuery, HumanAddr, QuerierWrapper, QueryRequest, StdResult,
-    Uint128, WasmQuery,
+    to_binary, BalanceResponse, BankQuery, QuerierWrapper, QueryRequest, StdResult, Uint128,
+    WasmQuery,
 };
 use cw20::Cw20QueryMsg;
 use cw20::{BalanceResponse as Cw20BalanceResponse, TokenInfoResponse as Cw20TokenInfoResponse};
@@ -16,7 +16,7 @@ use terraswap::asset::AssetInfo;
 /// -- Queries the oracle contract for the current asset price
 pub fn query_price(
     querier: &QuerierWrapper,
-    pricing_oracle_address: &HumanAddr,
+    pricing_oracle_address: &String,
     asset_info: &AssetInfo,
     // prices from before < stale_threshold are considered stale
     // and result in an error
@@ -42,12 +42,12 @@ pub fn query_price(
 /// -- Queries the asset balance of account
 pub fn query_asset_balance(
     querier: &QuerierWrapper,
-    account_address: &HumanAddr,
+    account_address: &String,
     asset_info: &AssetInfo,
 ) -> StdResult<Uint128> {
     match asset_info {
         AssetInfo::Token { contract_addr } => {
-            query_cw20_balance(querier, &HumanAddr::from(contract_addr), &account_address)
+            query_cw20_balance(querier, &(contract_addr), &account_address)
         }
         AssetInfo::NativeToken { denom } => query_balance(querier, &account_address, denom.clone()),
     }
@@ -57,7 +57,7 @@ pub fn query_asset_balance(
 /// -- Queries the native token balance of account
 pub fn query_balance(
     querier: &QuerierWrapper,
-    account_addr: &HumanAddr,
+    account_addr: &String,
     denom: String,
 ) -> StdResult<Uint128> {
     let balance: BalanceResponse = querier.query(&QueryRequest::Bank(BankQuery::Balance {
@@ -71,8 +71,8 @@ pub fn query_balance(
 /// -- Queries the token_address contract for the current balance of account
 pub fn query_cw20_balance(
     querier: &QuerierWrapper,
-    asset_address: &HumanAddr,
-    account_address: &HumanAddr,
+    asset_address: &String,
+    account_address: &String,
 ) -> StdResult<Uint128> {
     let res: Cw20BalanceResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: asset_address.clone().to_string(),
@@ -88,7 +88,7 @@ pub fn query_cw20_balance(
 /// -- Queries the token_address contract for the current total supply
 pub fn query_cw20_token_supply(
     querier: &QuerierWrapper,
-    asset_address: &HumanAddr,
+    asset_address: &String,
 ) -> StdResult<Uint128> {
     let res: Cw20TokenInfoResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: asset_address.clone().to_string(),
@@ -102,8 +102,8 @@ pub fn query_cw20_token_supply(
 /// -- Queries the cluster factory contract for the current total supply
 pub fn query_collector_contract_address(
     querier: &QuerierWrapper,
-    factory_address: &HumanAddr,
-) -> StdResult<(HumanAddr, String)> {
+    factory_address: &String,
+) -> StdResult<(String, String)> {
     let res: FactoryConfigResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: factory_address.clone().to_string(),
         msg: to_binary(&FactoryQueryMsg::Config {})?,
@@ -116,7 +116,7 @@ pub fn query_collector_contract_address(
 /// -- Queries the penalty contract for the amount to mint
 pub fn query_mint_amount(
     querier: &QuerierWrapper,
-    penalty_address: &HumanAddr,
+    penalty_address: &String,
     block_height: u64,
     cluster_token_supply: Uint128,
     inventory: Vec<Uint128>,
@@ -143,7 +143,7 @@ pub fn query_mint_amount(
 /// -- Queries the penalty contract for the amount to redeem
 pub fn query_redeem_amount(
     querier: &QuerierWrapper,
-    penalty_address: &HumanAddr,
+    penalty_address: &String,
     block_height: u64,
     cluster_token_supply: Uint128,
     inventory: Vec<Uint128>,

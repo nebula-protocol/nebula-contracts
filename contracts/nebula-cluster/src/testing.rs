@@ -20,7 +20,7 @@ pub use std::str::FromStr;
 use terra_cosmwasm::*;
 use terraswap::asset::{Asset, AssetInfo};
 
-/// Convenience function for creating inline HumanAddr
+/// Convenience function for creating inline String
 pub fn h(s: &str) -> String {
     s.to_string()
 }
@@ -207,7 +207,7 @@ impl WasmMockQuerier {
 #[derive(Clone)]
 pub struct TokenData {
     info: TokenInfoResponse,
-    balances: HashMap<HumanAddr, Uint128>,
+    balances: HashMap<String, Uint128>,
 }
 
 pub fn token_data<T, U>(
@@ -219,9 +219,9 @@ pub fn token_data<T, U>(
 ) -> TokenData
 where
     T: IntoIterator<Item = (U, u128)>,
-    U: Into<HumanAddr>,
+    U: Into<String>,
 {
-    let mut balances_map: HashMap<HumanAddr, Uint128> = HashMap::new();
+    let mut balances_map: HashMap<String, Uint128> = HashMap::new();
     for (account_addr, balance) in balances.into_iter() {
         balances_map.insert(account_addr.into(), Uint128::new(balance));
     }
@@ -240,7 +240,7 @@ where
 #[derive(Default)]
 pub struct TokenQuerier {
     // this lets us iterate over all pairs that match the first string
-    pub tokens: HashMap<HumanAddr, TokenData>,
+    pub tokens: HashMap<String, TokenData>,
 }
 
 impl TokenQuerier {
@@ -273,7 +273,7 @@ pub struct BalanceQuerier {
     // this lets us iterate over all pairs that match the first string
 
     // balances: denom -> account address -> amount
-    pub balances: HashMap<String, HashMap<HumanAddr, Uint128>>,
+    pub balances: HashMap<String, HashMap<String, Uint128>>,
 }
 
 impl BalanceQuerier {
@@ -322,13 +322,13 @@ impl WasmMockQuerier {
 
     pub fn set_token<T>(&mut self, token_address: T, data: TokenData) -> &mut Self
     where
-        T: Into<HumanAddr>,
+        T: Into<String>,
     {
         self.token_querier.tokens.insert(token_address.into(), data);
         self
     }
 
-    pub fn set_denom<T>(&mut self, denom: T, balances: HashMap<HumanAddr, Uint128>) -> &mut Self
+    pub fn set_denom<T>(&mut self, denom: T, balances: HashMap<String, Uint128>) -> &mut Self
     where
         T: Into<String>,
     {
@@ -338,7 +338,7 @@ impl WasmMockQuerier {
 
     pub fn set_token_supply<T>(&mut self, token_address: T, supply: u128) -> &mut Self
     where
-        T: Into<HumanAddr>,
+        T: Into<String>,
     {
         if let Some(token) = self.token_querier.tokens.get_mut(&token_address.into()) {
             token.info.total_supply = Uint128::new(supply);
@@ -353,8 +353,8 @@ impl WasmMockQuerier {
         balance: u128,
     ) -> &mut Self
     where
-        T: Into<HumanAddr>,
-        U: Into<HumanAddr>,
+        T: Into<String>,
+        U: Into<String>,
     {
         if let Some(token) = self.token_querier.tokens.get_mut(&token_address.into()) {
             token
@@ -372,7 +372,7 @@ impl WasmMockQuerier {
     ) -> &mut Self
     where
         T: Into<String>,
-        U: Into<HumanAddr>,
+        U: Into<String>,
     {
         if let Some(denom) = self.balance_querier.balances.get_mut(&denom.into()) {
             denom.insert(account_address.into(), Uint128::new(balance));
@@ -421,7 +421,7 @@ impl WasmMockQuerier {
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies
 /// this uses our CustomQuerier.
 pub fn mock_dependencies(canonical_length: usize, contract_balance: &[Coin]) -> Deps {
-    let contract_addr = HumanAddr::from(MOCK_CONTRACT_ADDR);
+    let contract_addr = (MOCK_CONTRACT_ADDR);
     let custom_querier: WasmMockQuerier = WasmMockQuerier::new(
         MockQuerier::new(&[(&contract_addr, contract_balance)]),
         MockApi::new(canonical_length),
@@ -449,19 +449,19 @@ pub mod consts {
         "description"
     }
 
-    pub fn owner() -> HumanAddr {
+    pub fn owner() -> String {
         h("owner")
     }
-    pub fn cluster_token() -> HumanAddr {
+    pub fn cluster_token() -> String {
         h("cluster")
     }
-    pub fn factory() -> HumanAddr {
+    pub fn factory() -> String {
         h("factory")
     }
-    pub fn pricing_oracle() -> HumanAddr {
+    pub fn pricing_oracle() -> String {
         h("pricing_oracle")
     }
-    pub fn composition_oracle() -> HumanAddr {
+    pub fn composition_oracle() -> String {
         h("composition_oracle")
     }
     pub fn target_assets_stage() -> Vec<Asset> {
@@ -543,7 +543,7 @@ pub mod consts {
         ]
     }
 
-    pub fn penalty() -> HumanAddr {
+    pub fn penalty() -> String {
         h("penalty")
     }
 
@@ -828,40 +828,40 @@ fn mint() {
         res.messages,
         vec![
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: HumanAddr::from("mAAPL"),
+                contract_addr: ("mAAPL"),
                 msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
-                    owner: HumanAddr::from("addr0000"),
-                    recipient: HumanAddr::from(MOCK_CONTRACT_ADDR),
+                    owner: ("addr0000"),
+                    recipient: (MOCK_CONTRACT_ADDR),
                     amount: Uint128::new(125_000_000),
                 })
                 .unwrap(),
                 funds: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: HumanAddr::from("mGOOG"),
+                contract_addr: ("mGOOG"),
                 msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
-                    owner: HumanAddr::from("addr0000"),
-                    recipient: HumanAddr::from(MOCK_CONTRACT_ADDR),
+                    owner: ("addr0000"),
+                    recipient: (MOCK_CONTRACT_ADDR),
                     amount: Uint128::zero(),
                 })
                 .unwrap(),
                 funds: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: HumanAddr::from("mMSFT"),
+                contract_addr: ("mMSFT"),
                 msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
-                    owner: HumanAddr::from("addr0000"),
-                    recipient: HumanAddr::from(MOCK_CONTRACT_ADDR),
+                    owner: ("addr0000"),
+                    recipient: (MOCK_CONTRACT_ADDR),
                     amount: Uint128::new(149_000_000),
                 })
                 .unwrap(),
                 funds: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: HumanAddr::from("mNFLX"),
+                contract_addr: ("mNFLX"),
                 msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
-                    owner: HumanAddr::from("addr0000"),
-                    recipient: HumanAddr::from(MOCK_CONTRACT_ADDR),
+                    owner: ("addr0000"),
+                    recipient: (MOCK_CONTRACT_ADDR),
                     amount: Uint128::new(50_090_272),
                 })
                 .unwrap(),
@@ -913,7 +913,7 @@ fn mint() {
                 contract_addr: consts::cluster_token(),
                 msg: to_binary(&Cw20ExecuteMsg::Mint {
                     amount: Uint128::new(98),
-                    recipient: HumanAddr::from("addr0000"),
+                    recipient: ("addr0000"),
                 })
                 .unwrap(),
                 funds: vec![],

@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_binary, from_slice, to_binary, CanonicalAddr, Coin, Decimal, Deps, Empty, HumanAddr,
-    QuerierResult, QueryRequest, SystemError, WasmQuery,
+    from_binary, from_slice, to_binary, CanonicalAddr, Coin, Decimal, Deps, Empty, QuerierResult,
+    QueryRequest, SystemError, WasmQuery,
 };
 use cosmwasm_storage::to_length_prefixed;
 
@@ -18,7 +18,7 @@ pub fn mock_dependencies(
     canonical_length: usize,
     contract_balance: &[Coin],
 ) -> Deps<MockStorage, MockApi, WasmMockQuerier> {
-    let contract_addr = HumanAddr::from(MOCK_CONTRACT_ADDR);
+    let contract_addr = (MOCK_CONTRACT_ADDR);
     let custom_querier: WasmMockQuerier = WasmMockQuerier::new(
         MockQuerier::new(&[(&contract_addr, contract_balance)]),
         MockApi::new(canonical_length),
@@ -42,33 +42,33 @@ pub struct WasmMockQuerier {
 
 #[derive(Clone, Default)]
 pub struct TerraswapFactoryQuerier {
-    pairs: HashMap<String, HumanAddr>,
+    pairs: HashMap<String, String>,
 }
 
 impl TerraswapFactoryQuerier {
-    pub fn new(pairs: &[(&String, &HumanAddr)]) -> Self {
+    pub fn new(pairs: &[(&String, &String)]) -> Self {
         TerraswapFactoryQuerier {
             pairs: pairs_to_map(pairs),
         }
     }
 }
 
-pub(crate) fn pairs_to_map(pairs: &[(&String, &HumanAddr)]) -> HashMap<String, HumanAddr> {
-    let mut pairs_map: HashMap<String, HumanAddr> = HashMap::new();
+pub(crate) fn pairs_to_map(pairs: &[(&String, &String)]) -> HashMap<String, String> {
+    let mut pairs_map: HashMap<String, String> = HashMap::new();
     for (key, pair) in pairs.iter() {
-        pairs_map.insert(key.to_string(), HumanAddr::from(pair));
+        pairs_map.insert(key.to_string(), (pair));
     }
     pairs_map
 }
 
 #[derive(Clone, Default)]
 pub struct OracleQuerier {
-    feeders: HashMap<HumanAddr, HumanAddr>,
+    feeders: HashMap<String, String>,
 }
 
 #[derive(Clone, Default)]
 pub struct MintQuerier {
-    configs: HashMap<HumanAddr, (Decimal, Decimal, Option<Decimal>)>,
+    configs: HashMap<String, (Decimal, Decimal, Option<Decimal>)>,
 }
 
 impl Querier for WasmMockQuerier {
@@ -104,7 +104,7 @@ impl WasmMockQuerier {
                     let key = asset_infos[0].to_string() + asset_infos[1].to_string().as_str();
                     match self.terraswap_factory_querier.pairs.get(&key) {
                         Some(v) => Ok(to_binary(&PairInfo {
-                            contract_addr: HumanAddr::from("pair"),
+                            contract_addr: ("pair"),
                             liquidity_token: v.clone(),
                             asset_infos: [
                                 AssetInfo::NativeToken {
@@ -134,8 +134,8 @@ impl WasmMockQuerier {
                     let api: MockApi = MockApi::new(self.canonical_length);
                     let rest_key: &[u8] = &key[prefix_feeder.len()..];
 
-                    if contract_addr == &HumanAddr::from("oracle0000") {
-                        let asset_token: HumanAddr = api
+                    if contract_addr == &("oracle0000") {
+                        let asset_token: String = api
                             .human_address(&(CanonicalAddr::from(rest_key.to_vec())))
                             .unwrap();
 
@@ -162,7 +162,7 @@ impl WasmMockQuerier {
                     && key[..prefix_asset_config.len()].to_vec() == prefix_asset_config
                 {
                     let rest_key: &[u8] = &key[prefix_asset_config.len()..];
-                    let asset_token: HumanAddr = api
+                    let asset_token: String = api
                         .human_address(&(CanonicalAddr::from(rest_key.to_vec())))
                         .unwrap();
 
@@ -206,7 +206,7 @@ impl WasmMockQuerier {
     }
 
     // configure the terraswap pair
-    pub fn with_terraswap_pairs(&mut self, pairs: &[(&String, &HumanAddr)]) {
+    pub fn with_terraswap_pairs(&mut self, pairs: &[(&String, &String)]) {
         self.terraswap_factory_querier = TerraswapFactoryQuerier::new(pairs);
     }
 }

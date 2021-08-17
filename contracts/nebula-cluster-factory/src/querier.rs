@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    from_binary, Binary, CanonicalAddr, Decimal, Deps, DepsMut, HumanAddr, QueryRequest, StdError,
-    StdResult, WasmQuery,
+    from_binary, Binary, CanonicalAddr, Decimal, Deps, DepsMut, QueryRequest, StdError, StdResult,
+    WasmQuery,
 };
 
 use cosmwasm_storage::to_length_prefixed;
@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 pub fn load_oracle_feeder(
     deps: Deps,
-    contract_addr: &HumanAddr,
+    contract_addr: &String,
     asset_token: &CanonicalAddr,
 ) -> StdResult<CanonicalAddr> {
     let res: StdResult<Binary> = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Raw {
@@ -47,11 +47,11 @@ pub struct MintAssetConfig {
 
 pub fn load_mint_asset_config(
     deps: Deps,
-    contract_addr: &HumanAddr,
+    contract_addr: &String,
     asset_token: &CanonicalAddr,
 ) -> StdResult<(Decimal, Decimal, Option<Decimal>)> {
     let res: StdResult<Binary> = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Raw {
-        contract_addr: HumanAddr::from(contract_addr),
+        contract_addr: (contract_addr),
         key: Binary::from(concat(
             &to_length_prefixed(b"asset_config"),
             asset_token.as_slice(),

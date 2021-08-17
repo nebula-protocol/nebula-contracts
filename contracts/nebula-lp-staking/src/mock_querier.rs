@@ -1,7 +1,7 @@
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_binary, from_slice, to_binary, Coin, Decimal, Deps, DepsMut, HumanAddr, QuerierResult,
-    QueryRequest, SystemError, Uint128, WasmQuery,
+    from_binary, from_slice, to_binary, Coin, Decimal, Deps, DepsMut, QuerierResult, QueryRequest,
+    SystemError, Uint128, WasmQuery,
 };
 use cosmwasm_storage::to_length_prefixed;
 use nebula_protocol::oracle::PriceResponse;
@@ -11,7 +11,7 @@ use terraswap::{asset::Asset, asset::AssetInfo, asset::PairInfo, pair::PoolRespo
 
 pub struct WasmMockQuerier {
     base: MockQuerier<TerraQueryWrapper>,
-    pair_addr: HumanAddr,
+    pair_addr: String,
     pool_assets: [Asset; 2],
     oracle_price: Decimal,
     token_balance: Uint128,
@@ -22,7 +22,7 @@ pub fn mock_dependencies_with_querier(
     canonical_length: usize,
     contract_balance: &[Coin],
 ) -> Deps<MockStorage, MockApi, WasmMockQuerier> {
-    let contract_addr = HumanAddr::from(MOCK_CONTRACT_ADDR);
+    let contract_addr = (MOCK_CONTRACT_ADDR);
     let custom_querier: WasmMockQuerier = WasmMockQuerier::new(
         MockQuerier::new(&[(&contract_addr, contract_balance)]),
         MockApi::new(canonical_length),
@@ -92,7 +92,7 @@ impl WasmMockQuerier {
                 MockQueryMsg::Pair { asset_infos } => Ok(to_binary(&PairInfo {
                     asset_infos: asset_infos.clone(),
                     contract_addr: self.pair_addr.clone(),
-                    liquidity_token: HumanAddr::from("lptoken"),
+                    liquidity_token: ("lptoken"),
                 })),
                 MockQueryMsg::Pool {} => Ok(to_binary(&PoolResponse {
                     assets: self.pool_assets.clone(),
@@ -132,7 +132,7 @@ impl WasmMockQuerier {
     ) -> Self {
         WasmMockQuerier {
             base,
-            pair_addr: HumanAddr::default(),
+            pair_addr: String::default(),
             pool_assets: [
                 Asset {
                     info: AssetInfo::NativeToken {
@@ -142,7 +142,7 @@ impl WasmMockQuerier {
                 },
                 Asset {
                     info: AssetInfo::Token {
-                        contract_addr: HumanAddr::from("asset"),
+                        contract_addr: ("asset"),
                     },
                     amount: Uint128::zero(),
                 },
@@ -153,7 +153,7 @@ impl WasmMockQuerier {
         }
     }
 
-    pub fn with_pair_info(&mut self, pair_addr: HumanAddr) {
+    pub fn with_pair_info(&mut self, pair_addr: String) {
         self.pair_addr = pair_addr;
     }
 

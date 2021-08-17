@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    attr, to_binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, HumanAddr, QueryRequest,
-    Response, StdError, StdResult, Uint128, WasmMsg, WasmQuery,
+    attr, to_binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, QueryRequest, Response,
+    StdError, StdResult, Uint128, WasmMsg, WasmQuery,
 };
 
 use crate::rebalancers::{assert_cluster_exists, get_cluster_state};
@@ -20,7 +20,7 @@ use terraswap::querier::{query_balance, query_pair_info, query_token_balance};
 use cluster_math::FPDecimal;
 use std::str::FromStr;
 
-pub fn get_pair_info(deps: Deps, cluster_token: &HumanAddr) -> StdResult<PairInfo> {
+pub fn get_pair_info(deps: Deps, cluster_token: &String) -> StdResult<PairInfo> {
     let config: Config = read_config(deps.storage)?;
     let terraswap_factory_raw = config.terraswap_factory;
     query_pair_info(
@@ -45,7 +45,7 @@ pub fn get_pair_info(deps: Deps, cluster_token: &HumanAddr) -> StdResult<PairInf
 // pub fn ust_to_asset_tokens(
 //     deps: DepsMut,
 //     env: Env,
-//     cluster_contract: &HumanAddr,
+//     cluster_contract: &String,
 //     assets: &Vec<Asset>,
 // ) -> StdResult<Response> {
 //
@@ -59,7 +59,7 @@ pub fn get_pair_info(deps: Deps, cluster_token: &HumanAddr) -> StdResult<PairInf
 pub fn arb_cluster_mint(
     deps: DepsMut,
     env: Env,
-    cluster_contract: HumanAddr,
+    cluster_contract: String,
     assets: &[Asset],
     min_ust: Option<Uint128>,
 ) -> StdResult<Response> {
@@ -152,7 +152,7 @@ pub fn arb_cluster_mint(
 pub fn arb_cluster_redeem(
     deps: DepsMut,
     env: Env,
-    cluster_contract: HumanAddr,
+    cluster_contract: String,
     asset: Asset,
     min_cluster: Option<Uint128>,
 ) -> StdResult<Response> {
@@ -242,9 +242,9 @@ pub fn arb_cluster_redeem(
 pub fn record_terraswap_impact(
     deps: DepsMut,
     env: Env,
-    arbitrageur: HumanAddr,
-    terraswap_pair: HumanAddr,
-    cluster_contract: HumanAddr,
+    arbitrageur: String,
+    terraswap_pair: String,
+    cluster_contract: String,
     pool_before: TerraswapPoolResponse,
 ) -> StdResult<Response> {
     if env.message.sender != env.contract.address {
@@ -338,8 +338,8 @@ pub fn record_terraswap_impact(
 pub fn swap_all(
     deps: DepsMut,
     env: Env,
-    terraswap_pair: HumanAddr,
-    cluster_token: HumanAddr,
+    terraswap_pair: String,
+    cluster_token: String,
     to_ust: bool,
     min_return: Uint128,
 ) -> StdResult<Response> {
@@ -416,7 +416,7 @@ pub fn send_all(
     deps: DepsMut,
     env: Env,
     asset_infos: &[AssetInfo],
-    send_to: HumanAddr,
+    send_to: String,
 ) -> StdResult<Response> {
     if env.message.sender != env.contract.address {
         return Err(StdError::generic_err("unauthorized"));

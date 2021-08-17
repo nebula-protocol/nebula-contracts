@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    attr, to_binary, Coin, CosmosMsg, Deps, DepsMut, Env, HumanAddr, QueryRequest, Response,
-    StdError, StdResult, Uint128, WasmMsg, WasmQuery,
+    attr, to_binary, Coin, CosmosMsg, Deps, DepsMut, Env, QueryRequest, Response, StdError,
+    StdResult, Uint128, WasmMsg, WasmQuery,
 };
 
 use crate::state::{read_config, record_contribution};
@@ -19,7 +19,7 @@ use nebula_protocol::cluster_factory::ClusterExistsResponse;
 use nebula_protocol::cluster_factory::QueryMsg::ClusterExists;
 use std::cmp::min;
 
-pub fn get_cluster_state(deps: Deps, cluster: &HumanAddr) -> StdResult<ClusterStateResponse> {
+pub fn get_cluster_state(deps: Deps, cluster: &String) -> StdResult<ClusterStateResponse> {
     deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: cluster.clone(),
         msg: to_binary(&ClusterQueryMsg::ClusterState {
@@ -28,7 +28,7 @@ pub fn get_cluster_state(deps: Deps, cluster: &HumanAddr) -> StdResult<ClusterSt
     }))
 }
 
-pub fn assert_cluster_exists(deps: Deps, cluster: &HumanAddr) -> StdResult<bool> {
+pub fn assert_cluster_exists(deps: Deps, cluster: &String) -> StdResult<bool> {
     let cfg = read_config(deps.storage)?;
     let res: ClusterExistsResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: cfg.factory,
@@ -44,7 +44,7 @@ pub fn assert_cluster_exists(deps: Deps, cluster: &HumanAddr) -> StdResult<bool>
     }
 }
 
-pub fn cluster_imbalance(deps: Deps, cluster_contract: &HumanAddr) -> StdResult<Uint128> {
+pub fn cluster_imbalance(deps: Deps, cluster_contract: &String) -> StdResult<Uint128> {
     let cluster_state = get_cluster_state(deps, cluster_contract)?;
 
     let i = int_vec_to_fpdec(&cluster_state.inv);
@@ -63,8 +63,8 @@ pub fn cluster_imbalance(deps: Deps, cluster_contract: &HumanAddr) -> StdResult<
 pub fn record_rebalancer_rewards(
     deps: DepsMut,
     env: Env,
-    rebalancer: HumanAddr,
-    cluster_contract: HumanAddr,
+    rebalancer: String,
+    cluster_contract: String,
     original_imbalance: Uint128,
 ) -> StdResult<Response> {
     if env.message.sender != env.contract.address {
@@ -95,8 +95,8 @@ pub fn record_rebalancer_rewards(
 pub fn internal_rewarded_mint(
     deps: DepsMut,
     env: Env,
-    rebalancer: HumanAddr,
-    cluster_contract: HumanAddr,
+    rebalancer: String,
+    cluster_contract: String,
     asset_amounts: &[Asset],
     min_tokens: Option<Uint128>,
 ) -> StdResult<Response> {
@@ -166,9 +166,9 @@ pub fn internal_rewarded_mint(
 pub fn internal_rewarded_redeem(
     deps: DepsMut,
     env: Env,
-    rebalancer: HumanAddr,
-    cluster_contract: HumanAddr,
-    cluster_token: HumanAddr,
+    rebalancer: String,
+    cluster_contract: String,
+    cluster_token: String,
     max_tokens: Option<Uint128>,
     asset_amounts: Option<Vec<Asset>>,
 ) -> StdResult<Response> {
@@ -228,7 +228,7 @@ pub fn internal_rewarded_redeem(
 pub fn mint(
     deps: DepsMut,
     env: Env,
-    cluster_contract: HumanAddr,
+    cluster_contract: String,
     asset_amounts: &[Asset],
     min_tokens: Option<Uint128>,
 ) -> StdResult<Response> {
@@ -291,7 +291,7 @@ pub fn mint(
 pub fn redeem(
     deps: DepsMut,
     env: Env,
-    cluster_contract: HumanAddr,
+    cluster_contract: String,
     max_tokens: Uint128,
     asset_amounts: Option<Vec<Asset>>,
 ) -> StdResult<Response> {

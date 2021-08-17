@@ -1,4 +1,4 @@
-use cosmwasm_std::{Binary, Decimal, HumanAddr, StdResult, Storage, Uint128};
+use cosmwasm_std::{Binary, Decimal, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -22,8 +22,8 @@ static PREFIX_BANK: &[u8] = b"bank";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
-    pub owner: HumanAddr,
-    pub nebula_token: HumanAddr,
+    pub owner: String,
+    pub nebula_token: String,
     pub quorum: Decimal,
     pub threshold: Decimal,
     pub voting_period: u64,
@@ -36,7 +36,7 @@ pub struct Config {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
-    pub contract_addr: HumanAddr,
+    pub contract_addr: String,
     pub poll_count: u64,
     pub total_share: Uint128,
     pub total_deposit: Uint128,
@@ -54,7 +54,7 @@ pub struct TokenManager {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Poll {
     pub id: u64,
-    pub creator: HumanAddr,
+    pub creator: String,
     pub status: PollStatus,
     pub yes_votes: Uint128,
     pub no_votes: Uint128,
@@ -75,7 +75,7 @@ pub struct Poll {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ExecuteData {
-    pub contract: HumanAddr,
+    pub contract: String,
     pub msg: Binary,
 }
 
@@ -135,10 +135,10 @@ pub fn poll_voter_read(storage: &dyn Storage, poll_id: u64) -> ReadonlyBucket<Vo
 pub fn read_poll_voters<'a>(
     storage: &'a Storage,
     poll_id: u64,
-    start_after: Option<HumanAddr>,
+    start_after: Option<String>,
     limit: Option<u32>,
     order_by: Option<OrderBy>,
-) -> StdResult<Vec<(HumanAddr, VoterInfo)>> {
+) -> StdResult<Vec<(String, VoterInfo)>> {
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
     let (start, end, order_by) = match order_by {
         Some(OrderBy::Asc) => (calc_range_start_addr(start_after), None, OrderBy::Asc),
@@ -152,10 +152,7 @@ pub fn read_poll_voters<'a>(
         .take(limit)
         .map(|item| {
             let (k, v) = item?;
-            Ok((
-                HumanAddr::from(unsafe { std::str::from_utf8_unchecked(&k) }),
-                v,
-            ))
+            Ok(((unsafe { std::str::from_utf8_unchecked(&k) }), v))
         })
         .collect()
 }
@@ -218,10 +215,10 @@ pub fn bank_read(storage: &dyn Storage) -> ReadonlyBucket<TokenManager> {
 
 pub fn read_bank_stakers<'a>(
     storage: &'a Storage,
-    start_after: Option<HumanAddr>,
+    start_after: Option<String>,
     limit: Option<u32>,
     order_by: Option<OrderBy>,
-) -> StdResult<Vec<(HumanAddr, TokenManager)>> {
+) -> StdResult<Vec<(String, TokenManager)>> {
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
     let (start, end, order_by) = match order_by {
         Some(OrderBy::Asc) => (calc_range_start_addr(start_after), None, OrderBy::Asc),
@@ -234,10 +231,7 @@ pub fn read_bank_stakers<'a>(
         .take(limit)
         .map(|item| {
             let (k, v) = item?;
-            Ok((
-                HumanAddr::from(unsafe { std::str::from_utf8_unchecked(&k) }),
-                v,
-            ))
+            Ok(((unsafe { std::str::from_utf8_unchecked(&k) }), v))
         })
         .collect()
 }
@@ -257,7 +251,7 @@ fn calc_range_end(start_after: Option<u64>) -> Option<Vec<u8>> {
 }
 
 // this will set the first key after the provided key, by appending a 1 byte
-fn calc_range_start_addr(start_after: Option<HumanAddr>) -> Option<Vec<u8>> {
+fn calc_range_start_addr(start_after: Option<String>) -> Option<Vec<u8>> {
     start_after.map(|addr| {
         let mut v = addr.as_str().as_bytes().to_vec();
         v.push(1);
@@ -266,6 +260,6 @@ fn calc_range_start_addr(start_after: Option<HumanAddr>) -> Option<Vec<u8>> {
 }
 
 // this will set the first key after the provided key, by appending a 1 byte
-fn calc_range_end_addr(start_after: Option<HumanAddr>) -> Option<Vec<u8>> {
+fn calc_range_end_addr(start_after: Option<String>) -> Option<Vec<u8>> {
     start_after.map(|addr| addr.as_str().as_bytes().to_vec())
 }

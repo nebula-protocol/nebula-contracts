@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, Deps, DepsMut, Env, HumanAddr, StdError, StdResult, Uint128,
+    entry_point, to_binary, Binary, Deps, DepsMut, Env, StdError, StdResult, Uint128,
 };
 
 use crate::ext_query::{query_cw20_balance, query_cw20_token_supply, query_price};
@@ -10,9 +10,9 @@ use nebula_protocol::cluster::{
 use terraswap::asset::AssetInfo;
 use terraswap::querier::query_balance;
 
-/// Convenience function for creating inline HumanAddr
-pub fn h(s: &str) -> HumanAddr {
-    HumanAddr(s.to_string())
+/// Convenience function for creating inline String
+pub fn h(s: &str) -> String {
+    s.to_string()
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -41,7 +41,7 @@ fn query_target(deps: Deps) -> StdResult<TargetResponse> {
 
 pub fn query_cluster_state(
     deps: Deps,
-    cluster_contract_address: &HumanAddr,
+    cluster_contract_address: &String,
     stale_threshold: u64,
 ) -> StdResult<ClusterStateResponse> {
     let cfg = &read_config(deps.storage)?;
@@ -54,7 +54,7 @@ pub fn query_cluster_state(
         .map(|x| x.info.clone())
         .collect::<Vec<_>>();
 
-    let penalty: HumanAddr = HumanAddr::from(&cfg.penalty);
+    let penalty: String = (&cfg.penalty);
 
     let cluster_token = cfg
         .cluster_token
@@ -86,11 +86,9 @@ pub fn query_cluster_state(
     let inv: Vec<Uint128> = asset_infos
         .iter()
         .map(|asset| match asset {
-            AssetInfo::Token { contract_addr } => query_cw20_balance(
-                &deps.querier,
-                &HumanAddr::from(contract_addr),
-                cluster_contract_address,
-            ),
+            AssetInfo::Token { contract_addr } => {
+                query_cw20_balance(&deps.querier, &(contract_addr), cluster_contract_address)
+            }
             AssetInfo::NativeToken { denom } => query_balance(
                 &deps.querier,
                 Addr::unchecked(cluster_contract_address.to_string()),

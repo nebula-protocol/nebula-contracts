@@ -4,8 +4,7 @@ mod tests {
     use crate::mock_querier::mock_dependencies_with_querier;
     use cosmwasm_std::testing::{mock_dependencies, mock_info, MOCK_CONTRACT_ADDR};
     use cosmwasm_std::{
-        attr, from_binary, to_binary, Coin, CosmosMsg, Decimal, HumanAddr, StdError, Uint128,
-        WasmMsg,
+        attr, from_binary, to_binary, Coin, CosmosMsg, Decimal, StdError, Uint128, WasmMsg,
     };
     use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
     use nebula_protocol::staking::{
@@ -21,28 +20,28 @@ mod tests {
         let mut deps = mock_dependencies(20, &[]);
 
         let msg = InstantiateMsg {
-            owner: HumanAddr::from("owner"),
-            nebula_token: HumanAddr::from("nebtoken"),
-            terraswap_factory: HumanAddr::from("terraswap-factory"),
+            owner: ("owner"),
+            nebula_token: ("nebtoken"),
+            terraswap_factory: ("terraswap-factory"),
         };
 
         let env = mock_info("addr", &[]);
         let _res = instantiate(deps.as_mut(), env, msg).unwrap();
 
         let msg = ExecuteMsg::RegisterAsset {
-            asset_token: HumanAddr::from("asset"),
-            staking_token: HumanAddr::from("staking"),
+            asset_token: ("asset"),
+            staking_token: ("staking"),
         };
 
         let env = mock_info("owner", &[]);
         let _res = execute(deps.as_mut(), env, msg.clone()).unwrap();
 
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-            sender: HumanAddr::from("addr"),
+            sender: ("addr"),
             amount: Uint128::new(100u128),
             msg: Some(
                 to_binary(&Cw20HookMsg::Bond {
-                    asset_token: HumanAddr::from("asset"),
+                    asset_token: ("asset"),
                 })
                 .unwrap(),
             ),
@@ -53,8 +52,8 @@ mod tests {
         let data = query(
             deps.as_ref(),
             QueryMsg::RewardInfo {
-                asset_token: Some(HumanAddr::from("asset")),
-                staker_addr: HumanAddr::from("addr"),
+                asset_token: Some(("asset")),
+                staker_addr: ("addr"),
             },
         )
         .unwrap();
@@ -62,9 +61,9 @@ mod tests {
         assert_eq!(
             res,
             RewardInfoResponse {
-                staker_addr: HumanAddr::from("addr"),
+                staker_addr: ("addr"),
                 reward_infos: vec![RewardInfoResponseItem {
-                    asset_token: HumanAddr::from("asset"),
+                    asset_token: ("asset"),
                     pending_reward: Uint128::zero(),
                     bond_amount: Uint128::new(100u128),
                 }],
@@ -74,7 +73,7 @@ mod tests {
         let data = query(
             deps.as_ref(),
             QueryMsg::PoolInfo {
-                asset_token: HumanAddr::from("asset"),
+                asset_token: ("asset"),
             },
         )
         .unwrap();
@@ -83,8 +82,8 @@ mod tests {
         assert_eq!(
             pool_info,
             PoolInfoResponse {
-                asset_token: HumanAddr::from("asset"),
-                staking_token: HumanAddr::from("staking"),
+                asset_token: ("asset"),
+                staking_token: ("staking"),
                 total_bond_amount: Uint128::new(100u128),
                 reward_index: Decimal::zero(),
                 pending_reward: Uint128::zero(),
@@ -93,11 +92,11 @@ mod tests {
 
         // bond 100 more tokens from other account
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-            sender: HumanAddr::from("addr2"),
+            sender: ("addr2"),
             amount: Uint128::new(100u128),
             msg: Some(
                 to_binary(&Cw20HookMsg::Bond {
-                    asset_token: HumanAddr::from("asset"),
+                    asset_token: ("asset"),
                 })
                 .unwrap(),
             ),
@@ -108,7 +107,7 @@ mod tests {
         let data = query(
             deps.as_ref(),
             QueryMsg::PoolInfo {
-                asset_token: HumanAddr::from("asset"),
+                asset_token: ("asset"),
             },
         )
         .unwrap();
@@ -116,8 +115,8 @@ mod tests {
         assert_eq!(
             pool_info,
             PoolInfoResponse {
-                asset_token: HumanAddr::from("asset"),
-                staking_token: HumanAddr::from("staking"),
+                asset_token: ("asset"),
+                staking_token: ("staking"),
                 total_bond_amount: Uint128::new(200u128),
                 reward_index: Decimal::zero(),
                 pending_reward: Uint128::zero(),
@@ -126,11 +125,11 @@ mod tests {
 
         // failed with unauthorized
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-            sender: HumanAddr::from("addr"),
+            sender: ("addr"),
             amount: Uint128::new(100u128),
             msg: Some(
                 to_binary(&Cw20HookMsg::Bond {
-                    asset_token: HumanAddr::from("asset"),
+                    asset_token: ("asset"),
                 })
                 .unwrap(),
             ),
@@ -149,9 +148,9 @@ mod tests {
         let mut deps = mock_dependencies(20, &[]);
 
         let msg = InstantiateMsg {
-            owner: HumanAddr::from("owner"),
-            nebula_token: HumanAddr::from("nebtoken"),
-            terraswap_factory: HumanAddr::from("terraswap-factory"),
+            owner: ("owner"),
+            nebula_token: ("nebtoken"),
+            terraswap_factory: ("terraswap-factory"),
         };
 
         let env = mock_info("addr", &[]);
@@ -159,8 +158,8 @@ mod tests {
 
         // register asset
         let msg = ExecuteMsg::RegisterAsset {
-            asset_token: HumanAddr::from("asset"),
-            staking_token: HumanAddr::from("staking"),
+            asset_token: ("asset"),
+            staking_token: ("staking"),
         };
 
         let env = mock_info("owner", &[]);
@@ -168,11 +167,11 @@ mod tests {
 
         // bond 100 tokens
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-            sender: HumanAddr::from("addr"),
+            sender: ("addr"),
             amount: Uint128::new(100u128),
             msg: Some(
                 to_binary(&Cw20HookMsg::Bond {
-                    asset_token: HumanAddr::from("asset"),
+                    asset_token: ("asset"),
                 })
                 .unwrap(),
             ),
@@ -182,7 +181,7 @@ mod tests {
 
         // unbond 150 tokens; failed
         let msg = ExecuteMsg::Unbond {
-            asset_token: HumanAddr::from("asset"),
+            asset_token: ("asset"),
             amount: Uint128::new(150u128),
         };
 
@@ -197,7 +196,7 @@ mod tests {
 
         // normal unbond
         let msg = ExecuteMsg::Unbond {
-            asset_token: HumanAddr::from("asset"),
+            asset_token: ("asset"),
             amount: Uint128::new(100u128),
         };
 
@@ -206,9 +205,9 @@ mod tests {
         assert_eq!(
             res.messages,
             vec![CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: HumanAddr::from("staking"),
+                contract_addr: ("staking"),
                 msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                    recipient: HumanAddr::from("addr"),
+                    recipient: ("addr"),
                     amount: Uint128::new(100u128),
                 })
                 .unwrap(),
@@ -219,7 +218,7 @@ mod tests {
         let data = query(
             deps.as_ref(),
             QueryMsg::PoolInfo {
-                asset_token: HumanAddr::from("asset"),
+                asset_token: ("asset"),
             },
         )
         .unwrap();
@@ -227,8 +226,8 @@ mod tests {
         assert_eq!(
             pool_info,
             PoolInfoResponse {
-                asset_token: HumanAddr::from("asset"),
-                staking_token: HumanAddr::from("staking"),
+                asset_token: ("asset"),
+                staking_token: ("staking"),
                 total_bond_amount: Uint128::zero(),
                 reward_index: Decimal::zero(),
                 pending_reward: Uint128::zero(),
@@ -239,7 +238,7 @@ mod tests {
             deps.as_ref(),
             QueryMsg::RewardInfo {
                 asset_token: None,
-                staker_addr: HumanAddr::from("addr"),
+                staker_addr: ("addr"),
             },
         )
         .unwrap();
@@ -247,7 +246,7 @@ mod tests {
         assert_eq!(
             res,
             RewardInfoResponse {
-                staker_addr: HumanAddr::from("addr"),
+                staker_addr: ("addr"),
                 reward_infos: vec![],
             }
         );
@@ -256,7 +255,7 @@ mod tests {
     #[test]
     fn test_auto_stake() {
         let mut deps = mock_dependencies_with_querier(20, &[]);
-        deps.querier.with_pair_info(HumanAddr::from("pair"));
+        deps.querier.with_pair_info(("pair"));
         deps.querier.with_pool_assets([
             Asset {
                 info: AssetInfo::NativeToken {
@@ -266,24 +265,24 @@ mod tests {
             },
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: HumanAddr::from("asset"),
+                    contract_addr: ("asset"),
                 },
                 amount: Uint128::from(1u128),
             },
         ]);
 
         let msg = InstantiateMsg {
-            owner: HumanAddr::from("owner"),
-            nebula_token: HumanAddr::from("nebtoken"),
-            terraswap_factory: HumanAddr::from("terraswap_factory"),
+            owner: ("owner"),
+            nebula_token: ("nebtoken"),
+            terraswap_factory: ("terraswap_factory"),
         };
 
         let env = mock_info("addr", &[]);
         let _res = instantiate(deps.as_mut(), env, msg).unwrap();
 
         let msg = ExecuteMsg::RegisterAsset {
-            asset_token: HumanAddr::from("asset"),
-            staking_token: HumanAddr::from("lptoken"),
+            asset_token: ("asset"),
+            staking_token: ("lptoken"),
         };
 
         let env = mock_info("owner", &[]);
@@ -322,13 +321,13 @@ mod tests {
             assets: [
                 Asset {
                     info: AssetInfo::Token {
-                        contract_addr: HumanAddr::from("asset"),
+                        contract_addr: ("asset"),
                     },
                     amount: Uint128::from(1u128),
                 },
                 Asset {
                     info: AssetInfo::Token {
-                        contract_addr: HumanAddr::from("asset"),
+                        contract_addr: ("asset"),
                     },
                     amount: Uint128::from(1u128),
                 },
@@ -349,7 +348,7 @@ mod tests {
                 },
                 Asset {
                     info: AssetInfo::Token {
-                        contract_addr: HumanAddr::from("asset"),
+                        contract_addr: ("asset"),
                     },
                     amount: Uint128::new(1u128),
                 },
@@ -379,19 +378,19 @@ mod tests {
             res.messages,
             vec![
                 CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: HumanAddr::from("asset"),
+                    contract_addr: ("asset"),
                     msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
-                        owner: HumanAddr::from("addr0000"),
-                        recipient: HumanAddr::from(MOCK_CONTRACT_ADDR),
+                        owner: ("addr0000"),
+                        recipient: (MOCK_CONTRACT_ADDR),
                         amount: Uint128::new(1u128),
                     })
                     .unwrap(),
                     funds: vec![],
                 }),
                 CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: HumanAddr::from("asset"),
+                    contract_addr: ("asset"),
                     msg: to_binary(&Cw20ExecuteMsg::IncreaseAllowance {
-                        spender: HumanAddr::from("pair"),
+                        spender: ("pair"),
                         amount: Uint128::new(1),
                         expires: None,
                     })
@@ -399,7 +398,7 @@ mod tests {
                     funds: vec![],
                 }),
                 CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: HumanAddr::from("pair"),
+                    contract_addr: ("pair"),
                     msg: to_binary(&PairExecuteMsg::ProvideLiquidity {
                         assets: [
                             Asset {
@@ -410,7 +409,7 @@ mod tests {
                             },
                             Asset {
                                 info: AssetInfo::Token {
-                                    contract_addr: HumanAddr::from("asset")
+                                    contract_addr: ("asset")
                                 },
                                 amount: Uint128::new(1u128),
                             },
@@ -424,11 +423,11 @@ mod tests {
                     }],
                 }),
                 CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: HumanAddr::from(MOCK_CONTRACT_ADDR),
+                    contract_addr: (MOCK_CONTRACT_ADDR),
                     msg: to_binary(&ExecuteMsg::AutoStakeHook {
-                        asset_token: HumanAddr::from("asset"),
-                        staking_token: HumanAddr::from("lptoken"),
-                        staker_addr: HumanAddr::from("addr0000"),
+                        asset_token: ("asset"),
+                        staking_token: ("lptoken"),
+                        staker_addr: ("addr0000"),
                         prev_staking_token_amount: Uint128::zero(),
                     })
                     .unwrap(),
@@ -441,9 +440,9 @@ mod tests {
 
         // wrong asset
         let msg = ExecuteMsg::AutoStakeHook {
-            asset_token: HumanAddr::from("asset1"),
-            staking_token: HumanAddr::from("lptoken"),
-            staker_addr: HumanAddr::from("addr0000"),
+            asset_token: ("asset1"),
+            staking_token: ("lptoken"),
+            staker_addr: ("addr0000"),
             prev_staking_token_amount: Uint128::zero(),
         };
         let env = mock_info(MOCK_CONTRACT_ADDR, &[]);
@@ -451,9 +450,9 @@ mod tests {
 
         // valid msg
         let msg = ExecuteMsg::AutoStakeHook {
-            asset_token: HumanAddr::from("asset"),
-            staking_token: HumanAddr::from("lptoken"),
-            staker_addr: HumanAddr::from("addr0000"),
+            asset_token: ("asset"),
+            staking_token: ("lptoken"),
+            staker_addr: ("addr0000"),
             prev_staking_token_amount: Uint128::zero(),
         };
 
@@ -478,7 +477,7 @@ mod tests {
         let data = query(
             deps.as_ref(),
             QueryMsg::PoolInfo {
-                asset_token: HumanAddr::from("asset"),
+                asset_token: ("asset"),
             },
         )
         .unwrap();
@@ -486,8 +485,8 @@ mod tests {
         assert_eq!(
             pool_info,
             PoolInfoResponse {
-                asset_token: HumanAddr::from("asset"),
-                staking_token: HumanAddr::from("lptoken"),
+                asset_token: ("asset"),
+                staking_token: ("lptoken"),
                 total_bond_amount: Uint128::new(100u128),
                 reward_index: Decimal::zero(),
                 pending_reward: Uint128::zero(),

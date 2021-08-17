@@ -1,11 +1,11 @@
-use cosmwasm_std::{HumanAddr, Uint128};
+use cosmwasm_std::Uint128;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
-    pub owner: HumanAddr,
-    pub neb_token: HumanAddr,
+    pub owner: String,
+    pub neb_token: String,
 }
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -15,12 +15,12 @@ pub enum ExecuteMsg {
         amount: Uint128,
     },
     UpdateOwner {
-        owner: HumanAddr,
+        owner: String,
     },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    Balance { custody: HumanAddr },
+    Balance { custody: String },
 }

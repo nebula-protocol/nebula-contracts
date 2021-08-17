@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    attr, entry_point, to_binary, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env, HumanAddr,
-    MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg,
+    attr, entry_point, to_binary, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
+    Response, StdError, StdResult, Uint128, WasmMsg,
 };
 
 use crate::state::{
@@ -50,11 +50,11 @@ pub fn instantiate(
     store_config(
         deps.storage,
         &Config {
-            owner: HumanAddr::default(),
-            nebula_token: HumanAddr::default(),
-            terraswap_factory: HumanAddr::default(),
-            staking_contract: HumanAddr::default(),
-            commission_collector: HumanAddr::default(),
+            owner: String::default(),
+            nebula_token: String::default(),
+            terraswap_factory: String::default(),
+            staking_contract: String::default(),
+            commission_collector: String::default(),
             protocol_fee_rate: msg.protocol_fee_rate,
             token_code_id: msg.token_code_id,
             cluster_code_id: msg.cluster_code_id,
@@ -120,14 +120,14 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 pub fn post_initialize(
     deps: DepsMut,
     _env: Env,
-    owner: HumanAddr,
-    nebula_token: HumanAddr,
-    terraswap_factory: HumanAddr,
-    staking_contract: HumanAddr,
-    commission_collector: HumanAddr,
+    owner: String,
+    nebula_token: String,
+    terraswap_factory: String,
+    staking_contract: String,
+    commission_collector: String,
 ) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
-    if config.owner != HumanAddr::default() {
+    if config.owner != String::default() {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -149,7 +149,7 @@ pub fn post_initialize(
 pub fn update_config(
     deps: DepsMut,
     env: Env,
-    owner: Option<HumanAddr>,
+    owner: Option<String>,
     token_code_id: Option<u64>,
     cluster_code_id: Option<u64>,
     distribution_schedule: Option<Vec<(u64, u64, Uint128)>>,
@@ -183,7 +183,7 @@ pub fn update_config(
 pub fn update_weight(
     deps: DepsMut,
     env: Env,
-    asset_token: HumanAddr,
+    asset_token: String,
     weight: u32,
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
@@ -208,7 +208,7 @@ pub fn update_weight(
 pub fn pass_command(
     deps: DepsMut,
     env: Env,
-    contract_addr: HumanAddr,
+    contract_addr: String,
     msg: Binary,
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
@@ -323,7 +323,7 @@ TokenCreationHook
 2. Register asset and oracle feeder to oracle contract
 3. Create terraswap pair through terraswap factory with `TerraswapCreationHook`
 */
-pub fn token_creation_hook(deps: DepsMut, env: Env, cluster: HumanAddr) -> StdResult<Response> {
+pub fn token_creation_hook(deps: DepsMut, env: Env, cluster: String) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
 
     // If the param is not exists, it means there is no cluster registration process in progress
@@ -396,8 +396,8 @@ pub fn token_creation_hook(deps: DepsMut, env: Env, cluster: HumanAddr) -> StdRe
 pub fn set_cluster_token_hook(
     deps: DepsMut,
     env: Env,
-    cluster: HumanAddr,
-    token: HumanAddr,
+    cluster: String,
+    token: String,
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
 
@@ -473,7 +473,7 @@ pub fn set_cluster_token_hook(
 pub fn terraswap_creation_hook(
     deps: DepsMut,
     env: Env,
-    asset_token: HumanAddr,
+    asset_token: String,
 ) -> StdResult<Response> {
     // Now terraswap contract is already created,
     // and liquidty token also created
@@ -564,11 +564,11 @@ pub fn distribute(deps: DepsMut, env: Env) -> StdResult<Response> {
 pub fn _compute_rewards(
     deps: Deps,
     target_distribution_amount: Uint128,
-) -> StdResult<(Vec<(HumanAddr, Uint128)>, Uint128)> {
+) -> StdResult<(Vec<(String, Uint128)>, Uint128)> {
     let total_weight: u32 = read_total_weight(deps.storage)?;
     let mut distribution_amount: FPDecimal = FPDecimal::zero();
-    let weights: Vec<(HumanAddr, u32)> = read_all_weight(deps.storage)?;
-    let rewards: Vec<(HumanAddr, Uint128)> = weights
+    let weights: Vec<(String, u32)> = read_all_weight(deps.storage)?;
+    let rewards: Vec<(String, Uint128)> = weights
         .iter()
         .map(|w| {
             let mut amount =
@@ -581,15 +581,15 @@ pub fn _compute_rewards(
             Ok((w.0.clone(), Uint128::new(u128::from(amount))))
         })
         .filter(|m| m.is_ok())
-        .collect::<StdResult<Vec<(HumanAddr, Uint128)>>>()?;
+        .collect::<StdResult<Vec<(String, Uint128)>>>()?;
     Ok((rewards, Uint128::new(u128::from(distribution_amount))))
 }
 
 pub fn decommission_cluster(
     deps: DepsMut,
     env: Env,
-    cluster_contract: HumanAddr,
-    cluster_token: HumanAddr,
+    cluster_contract: String,
+    cluster_token: String,
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
     if config.owner != env.message.sender {
@@ -646,14 +646,14 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
 }
 
 pub fn query_distribution_info(deps: Deps) -> StdResult<DistributionInfoResponse> {
-    let weights: Vec<(HumanAddr, u32)> = read_all_weight(deps.storage)?;
+    let weights: Vec<(String, u32)> = read_all_weight(deps.storage)?;
     let last_distributed = read_last_distributed(deps.storage)?;
     let resp = DistributionInfoResponse {
         last_distributed,
         weights: weights
             .iter()
             .map(|w| Ok((w.0.clone(), w.1)))
-            .collect::<StdResult<Vec<(HumanAddr, u32)>>>()?,
+            .collect::<StdResult<Vec<(String, u32)>>>()?,
     };
 
     Ok(resp)
@@ -661,7 +661,7 @@ pub fn query_distribution_info(deps: Deps) -> StdResult<DistributionInfoResponse
 
 pub fn query_cluster_exists(
     deps: Deps,
-    cluster_address: HumanAddr,
+    cluster_address: String,
 ) -> StdResult<ClusterExistsResponse> {
     Ok(ClusterExistsResponse {
         exists: cluster_exists(deps.storage, &cluster_address)?,

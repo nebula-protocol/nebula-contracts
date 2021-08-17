@@ -9,8 +9,8 @@ use crate::state::{
 use cluster_math::FPDecimal;
 
 use cosmwasm_std::{
-    attr, to_binary, CosmosMsg, Deps, DepsMut, Env, HumanAddr, Response, StdError, StdResult,
-    Storage, Uint128, WasmMsg,
+    attr, to_binary, CosmosMsg, Deps, DepsMut, Env, Response, StdError, StdResult, Storage,
+    Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::common::OrderBy;
@@ -54,7 +54,7 @@ pub fn adjust_total_voting_power(
 pub fn stake_voting_tokens(
     deps: DepsMut,
     env: Env,
-    sender: HumanAddr,
+    sender: String,
     amount: Uint128,
     lock_for_weeks: Option<u64>,
 ) -> StdResult<Response> {
@@ -234,7 +234,7 @@ fn compute_locked_balance(
 pub fn deposit_reward(
     deps: DepsMut,
     _env: Env,
-    _sender: HumanAddr,
+    _sender: String,
     amount: Uint128,
 ) -> StdResult<Response> {
     let config = config_read(deps.storage).load()?;
@@ -317,7 +317,7 @@ pub fn withdraw_voting_rewards(deps: DepsMut, env: Env) -> StdResult<Response> {
 
 fn withdraw_user_voting_rewards(
     storage: &mut dyn Storage,
-    user_address: &HumanAddr,
+    user_address: &String,
     token_manager: &TokenManager,
 ) -> StdResult<(u128, Vec<u64>)> {
     let w_polls: Vec<(Poll, VoterInfo)> =
@@ -347,7 +347,7 @@ fn withdraw_user_voting_rewards(
 fn get_withdrawable_polls(
     storage: &dyn Storage,
     token_manager: &TokenManager,
-    user_address: &HumanAddr,
+    user_address: &String,
 ) -> Vec<(Poll, VoterInfo)> {
     let w_polls: Vec<(Poll, VoterInfo)> = token_manager
         .locked_balance
@@ -367,13 +367,13 @@ fn get_withdrawable_polls(
 }
 
 fn send_tokens(
-    asset_token: &HumanAddr,
-    recipient: &HumanAddr,
+    asset_token: &String,
+    recipient: &String,
     amount: u128,
     action: &str,
 ) -> StdResult<Response> {
-    let contract_human = HumanAddr::from(asset_token);
-    let recipient_human = HumanAddr::from(recipient);
+    let contract_human = (asset_token);
+    let recipient_human = (recipient);
     let log = vec![
         attr("action", action),
         attr("recipient", recipient_human.as_str()),
@@ -392,7 +392,7 @@ fn send_tokens(
         .add_attributes(log))
 }
 
-pub fn query_staker(deps: Deps, address: HumanAddr) -> StdResult<StakerResponse> {
+pub fn query_staker(deps: Deps, address: String) -> StdResult<StakerResponse> {
     let config: Config = config_read(deps.storage).load()?;
     let state: State = state_read(deps.storage).load()?;
     let mut token_manager = bank_read(deps.storage)
@@ -501,11 +501,11 @@ pub fn increase_lock_time(deps: DepsMut, env: Env, increase_weeks: u64) -> StdRe
 
 pub fn query_shares(
     deps: Deps,
-    start_after: Option<HumanAddr>,
+    start_after: Option<String>,
     limit: Option<u32>,
     order_by: Option<OrderBy>,
 ) -> StdResult<SharesResponse> {
-    let stakers: Vec<(HumanAddr, TokenManager)> = if let Some(start_after) = start_after {
+    let stakers: Vec<(String, TokenManager)> = if let Some(start_after) = start_after {
         read_bank_stakers(deps.storage, Some(start_after), limit, order_by)?
     } else {
         read_bank_stakers(deps.storage, None, limit, order_by)?

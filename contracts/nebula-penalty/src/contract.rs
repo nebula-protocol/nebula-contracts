@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    attr, entry_point, to_binary, Binary, Deps, DepsMut, Env, HumanAddr, MessageInfo, Response,
-    StdError, StdResult, Uint128,
+    attr, entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult, Uint128,
 };
 
 use crate::state::{config_store, read_config, save_config, PenaltyConfig};
@@ -273,7 +273,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
 pub fn update_config(
     deps: DepsMut,
-    owner: Option<HumanAddr>,
+    owner: Option<String>,
     penalty_params: Option<PenaltyParams>,
 ) -> StdResult<Response> {
     config_store(deps.storage).update(|mut config| {

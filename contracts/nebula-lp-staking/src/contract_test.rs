@@ -3,7 +3,7 @@ mod tests {
 
     use crate::contract::{execute, instantiate, query};
     use cosmwasm_std::testing::{mock_dependencies, mock_info};
-    use cosmwasm_std::{attr, from_binary, Decimal, HumanAddr, StdError, Uint128};
+    use cosmwasm_std::{attr, from_binary, Decimal, StdError, Uint128};
 
     use nebula_protocol::staking::{
         ConfigResponse, ExecuteMsg, InstantiateMsg, PoolInfoResponse, QueryMsg,
@@ -14,9 +14,9 @@ mod tests {
         let mut deps = mock_dependencies(20, &[]);
 
         let msg = InstantiateMsg {
-            owner: HumanAddr::from("owner"),
-            nebula_token: HumanAddr::from("reward"),
-            terraswap_factory: HumanAddr::from("terraswap-factory"),
+            owner: ("owner"),
+            nebula_token: ("reward"),
+            terraswap_factory: ("terraswap-factory"),
         };
 
         let env = mock_info("addr", &[]);
@@ -29,8 +29,8 @@ mod tests {
         let config: ConfigResponse = from_binary(&res).unwrap();
         assert_eq!(
             ConfigResponse {
-                owner: HumanAddr::from("owner"),
-                nebula_token: HumanAddr::from("reward"),
+                owner: ("owner"),
+                nebula_token: ("reward"),
             },
             config
         );
@@ -41,9 +41,9 @@ mod tests {
         let mut deps = mock_dependencies(20, &[]);
 
         let msg = InstantiateMsg {
-            owner: HumanAddr::from("owner"),
-            nebula_token: HumanAddr::from("reward"),
-            terraswap_factory: HumanAddr::from("terraswap-factory"),
+            owner: ("owner"),
+            nebula_token: ("reward"),
+            terraswap_factory: ("terraswap-factory"),
         };
 
         let env = mock_info("addr", &[]);
@@ -52,7 +52,7 @@ mod tests {
         // update owner
         let env = mock_info("owner", &[]);
         let msg = ExecuteMsg::UpdateConfig {
-            owner: Some(HumanAddr("owner2".to_string())),
+            owner: Some(("owner2".to_string())),
         };
 
         let res = execute(deps.as_mut(), env, msg).unwrap();
@@ -63,8 +63,8 @@ mod tests {
         let config: ConfigResponse = from_binary(&res).unwrap();
         assert_eq!(
             ConfigResponse {
-                owner: HumanAddr::from("owner2"),
-                nebula_token: HumanAddr::from("reward"),
+                owner: ("owner2"),
+                nebula_token: ("reward"),
             },
             config
         );
@@ -85,9 +85,9 @@ mod tests {
         let mut deps = mock_dependencies(20, &[]);
 
         let msg = InstantiateMsg {
-            owner: HumanAddr::from("owner"),
-            nebula_token: HumanAddr::from("reward"),
-            terraswap_factory: HumanAddr::from("terraswap-factory"),
+            owner: ("owner"),
+            nebula_token: ("reward"),
+            terraswap_factory: ("terraswap-factory"),
         };
 
         let env = mock_info("addr", &[]);
@@ -96,8 +96,8 @@ mod tests {
         let _res = instantiate(deps.as_mut(), env, msg).unwrap();
 
         let msg = ExecuteMsg::RegisterAsset {
-            asset_token: HumanAddr::from("asset"),
-            staking_token: HumanAddr::from("staking"),
+            asset_token: ("asset"),
+            staking_token: ("staking"),
         };
 
         // failed with unauthorized error
@@ -121,7 +121,7 @@ mod tests {
         let res = query(
             deps.as_ref(),
             QueryMsg::PoolInfo {
-                asset_token: HumanAddr::from("asset"),
+                asset_token: ("asset"),
             },
         )
         .unwrap();
@@ -129,8 +129,8 @@ mod tests {
         assert_eq!(
             pool_info,
             PoolInfoResponse {
-                asset_token: HumanAddr::from("asset"),
-                staking_token: HumanAddr::from("staking"),
+                asset_token: ("asset"),
+                staking_token: ("staking"),
                 total_bond_amount: Uint128::zero(),
                 reward_index: Decimal::zero(),
                 pending_reward: Uint128::zero(),

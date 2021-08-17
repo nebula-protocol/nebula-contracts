@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    attr, entry_point, to_binary, CosmosMsg, Deps, DepsMut, Env, HumanAddr, MessageInfo, Response,
-    StdError, StdResult, Uint128, WasmMsg,
+    attr, entry_point, to_binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult, Uint128, WasmMsg,
 };
 
 use cw20::Cw20ExecuteMsg;
@@ -69,13 +69,13 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 pub fn update_config(
     deps: DepsMut,
     env: Env,
-    owner: Option<HumanAddr>,
+    owner: Option<String>,
     name: Option<String>,
     description: Option<String>,
-    cluster_token: Option<HumanAddr>,
-    pricing_oracle: Option<HumanAddr>,
-    composition_oracle: Option<HumanAddr>,
-    penalty: Option<HumanAddr>,
+    cluster_token: Option<String>,
+    pricing_oracle: Option<String>,
+    composition_oracle: Option<String>,
+    penalty: Option<String>,
     target: Option<Vec<Asset>>,
 ) -> StdResult<Response> {
     // First, update cluster config

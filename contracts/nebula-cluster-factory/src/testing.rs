@@ -5,9 +5,7 @@ use crate::state::{
     cluster_exists, read_params, read_total_weight, read_weight, store_total_weight, store_weight,
 };
 use cosmwasm_std::testing::{mock_info, MOCK_CONTRACT_ADDR};
-use cosmwasm_std::{
-    attr, from_binary, to_binary, CosmosMsg, Env, HumanAddr, StdError, Uint128, WasmMsg,
-};
+use cosmwasm_std::{attr, from_binary, to_binary, CosmosMsg, Env, StdError, Uint128, WasmMsg};
 use cw20::{Cw20ExecuteMsg, MinterResponse};
 
 use nebula_protocol::cluster_factory::{
@@ -26,15 +24,15 @@ use terraswap::asset::{Asset, AssetInfo};
 use terraswap::factory::ExecuteMsg as TerraswapFactoryExecuteMsg;
 use terraswap::token::InstantiateMsg as TokenInstantiateMsg;
 
-fn mock_info_time(signer: &HumanAddr, time: u64) -> Env {
+fn mock_info_time(signer: &String, time: u64) -> Env {
     let mut env = mock_info(signer, &[]);
     (env.block.time.nanos() / 1_000_000_000) = time;
     env
 }
 
-/// Convenience function for creating inline HumanAddr
-pub fn h(s: &str) -> HumanAddr {
-    HumanAddr(s.to_string())
+/// Convenience function for creating inline String
+pub fn h(s: &str) -> String {
+    s.to_string()
 }
 
 pub fn get_input_params() -> Params {
@@ -43,9 +41,9 @@ pub fn get_input_params() -> Params {
         symbol: "TEST".to_string(),
         description: "Sample cluster for testing".to_string(),
         weight: Some(100u32),
-        penalty: HumanAddr::from("penalty0000"),
-        pricing_oracle: HumanAddr::from("pricing_oracle0000"),
-        composition_oracle: HumanAddr::from("comp_oracle0000"),
+        penalty: ("penalty0000"),
+        pricing_oracle: ("pricing_oracle0000"),
+        composition_oracle: ("comp_oracle0000"),
         target: vec![
             Asset {
                 info: AssetInfo::Token {
@@ -96,21 +94,21 @@ fn proper_initialization() {
     let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
     let msg = ExecuteMsg::PostInitialize {
-        owner: HumanAddr::from("owner0000"),
-        terraswap_factory: HumanAddr::from("terraswapfactory"),
-        nebula_token: HumanAddr::from("nebula0000"),
-        staking_contract: HumanAddr::from("staking0000"),
-        commission_collector: HumanAddr::from("collector0000"),
+        owner: ("owner0000"),
+        terraswap_factory: ("terraswapfactory"),
+        nebula_token: ("nebula0000"),
+        staking_contract: ("staking0000"),
+        commission_collector: ("collector0000"),
     };
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
 
     // cannot update mirror token after initialization
     let msg = ExecuteMsg::PostInitialize {
-        owner: HumanAddr::from("owner0000"),
-        terraswap_factory: HumanAddr::from("terraswapfactory"),
-        nebula_token: HumanAddr::from("nebula0000"),
-        staking_contract: HumanAddr::from("staking0000"),
-        commission_collector: HumanAddr::from("collector0000"),
+        owner: ("owner0000"),
+        terraswap_factory: ("terraswapfactory"),
+        nebula_token: ("nebula0000"),
+        staking_contract: ("staking0000"),
+        commission_collector: ("collector0000"),
     };
     let _res = execute(deps.as_mut(), env, msg).unwrap_err();
 
@@ -120,12 +118,12 @@ fn proper_initialization() {
     assert_eq!(
         config,
         ConfigResponse {
-            owner: HumanAddr::from("owner0000"),
-            nebula_token: HumanAddr::from("nebula0000"),
-            staking_contract: HumanAddr::from("staking0000"),
-            commission_collector: HumanAddr::from("collector0000"),
+            owner: ("owner0000"),
+            nebula_token: ("nebula0000"),
+            staking_contract: ("staking0000"),
+            commission_collector: ("collector0000"),
             protocol_fee_rate: PROTOCOL_FEE_RATE.to_string(),
-            terraswap_factory: HumanAddr::from("terraswapfactory"),
+            terraswap_factory: ("terraswapfactory"),
             base_denom: BASE_DENOM.to_string(),
             token_code_id: TOKEN_CODE_ID,
             cluster_code_id: CLUSTER_CODE_ID,
@@ -151,17 +149,17 @@ fn test_update_config() {
     let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
     let msg = ExecuteMsg::PostInitialize {
-        owner: HumanAddr::from("owner0000"),
-        nebula_token: HumanAddr::from("nebula0000"),
-        staking_contract: HumanAddr::from("staking0000"),
-        commission_collector: HumanAddr::from("collector0000"),
-        terraswap_factory: HumanAddr::from("terraswapfactory"),
+        owner: ("owner0000"),
+        nebula_token: ("nebula0000"),
+        staking_contract: ("staking0000"),
+        commission_collector: ("collector0000"),
+        terraswap_factory: ("terraswapfactory"),
     };
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
 
     // upate owner
     let msg = ExecuteMsg::UpdateConfig {
-        owner: Some(HumanAddr::from("owner0001")),
+        owner: Some(("owner0001")),
         distribution_schedule: None,
         token_code_id: None,
         cluster_code_id: None,
@@ -174,12 +172,12 @@ fn test_update_config() {
     assert_eq!(
         config,
         ConfigResponse {
-            owner: HumanAddr::from("owner0001"),
-            nebula_token: HumanAddr::from("nebula0000"),
-            staking_contract: HumanAddr::from("staking0000"),
-            commission_collector: HumanAddr::from("collector0000"),
+            owner: ("owner0001"),
+            nebula_token: ("nebula0000"),
+            staking_contract: ("staking0000"),
+            commission_collector: ("collector0000"),
             protocol_fee_rate: PROTOCOL_FEE_RATE.to_string(),
-            terraswap_factory: HumanAddr::from("terraswapfactory"),
+            terraswap_factory: ("terraswapfactory"),
             base_denom: BASE_DENOM.to_string(),
             token_code_id: TOKEN_CODE_ID,
             cluster_code_id: CLUSTER_CODE_ID,
@@ -203,12 +201,12 @@ fn test_update_config() {
     assert_eq!(
         config,
         ConfigResponse {
-            owner: HumanAddr::from("owner0001"),
-            nebula_token: HumanAddr::from("nebula0000"),
-            staking_contract: HumanAddr::from("staking0000"),
-            commission_collector: HumanAddr::from("collector0000"),
+            owner: ("owner0001"),
+            nebula_token: ("nebula0000"),
+            staking_contract: ("staking0000"),
+            commission_collector: ("collector0000"),
             protocol_fee_rate: PROTOCOL_FEE_RATE.to_string(),
-            terraswap_factory: HumanAddr::from("terraswapfactory"),
+            terraswap_factory: ("terraswapfactory"),
             base_denom: BASE_DENOM.to_string(),
             token_code_id: TOKEN_CODE_ID + 1,
             cluster_code_id: CLUSTER_CODE_ID + 1,
@@ -248,20 +246,20 @@ fn test_update_weight() {
     let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
     let msg = ExecuteMsg::PostInitialize {
-        owner: HumanAddr::from("owner0000"),
-        nebula_token: HumanAddr::from("nebula0000"),
-        staking_contract: HumanAddr::from("staking0000"),
-        commission_collector: HumanAddr::from("collector0000"),
-        terraswap_factory: HumanAddr::from("terraswapfactory"),
+        owner: ("owner0000"),
+        nebula_token: ("nebula0000"),
+        staking_contract: ("staking0000"),
+        commission_collector: ("collector0000"),
+        terraswap_factory: ("terraswapfactory"),
     };
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
 
     store_total_weight(deps.storage, 100).unwrap();
-    store_weight(deps.storage, &HumanAddr::from("asset0000"), 10).unwrap();
+    store_weight(deps.storage, &("asset0000"), 10).unwrap();
 
     // incrase weight
     let msg = ExecuteMsg::UpdateWeight {
-        asset_token: HumanAddr::from("asset0000"),
+        asset_token: ("asset0000"),
         weight: 20,
     };
     let env = mock_info("owner0001", &[]);
@@ -278,15 +276,12 @@ fn test_update_weight() {
     assert_eq!(
         distribution_info,
         DistributionInfoResponse {
-            weights: vec![(HumanAddr::from("asset0000"), 20)],
+            weights: vec![(("asset0000"), 20)],
             last_distributed: 1_571_797_419,
         }
     );
 
-    assert_eq!(
-        read_weight(deps.storage, &HumanAddr::from("asset0000")).unwrap(),
-        20u32
-    );
+    assert_eq!(read_weight(deps.storage, &("asset0000")).unwrap(), 20u32);
     assert_eq!(read_total_weight(deps.storage).unwrap(), 110u32);
 }
 
@@ -306,11 +301,11 @@ fn test_create_cluster() {
     let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
     let msg = ExecuteMsg::PostInitialize {
-        owner: HumanAddr::from("owner0000"),
-        nebula_token: HumanAddr::from("nebula0000"),
-        staking_contract: HumanAddr::from("staking0000"),
-        commission_collector: HumanAddr::from("collector0000"),
-        terraswap_factory: HumanAddr::from("terraswapfactory"),
+        owner: ("owner0000"),
+        nebula_token: ("nebula0000"),
+        staking_contract: ("staking0000"),
+        commission_collector: ("collector0000"),
+        terraswap_factory: ("terraswapfactory"),
     };
 
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
@@ -349,7 +344,7 @@ fn test_create_cluster() {
                 cluster_token: None,
                 target: input_params.target.clone(),
                 // init_hook: Some(InitHook {
-                //     contract_addr: HumanAddr::from(MOCK_CONTRACT_ADDR),
+                //     contract_addr: (MOCK_CONTRACT_ADDR),
                 //     msg: to_binary(&ExecuteMsg::TokenCreationHook {}).unwrap(),
                 // }),
             })
@@ -392,11 +387,11 @@ fn test_token_creation_hook() {
     let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
     let msg = ExecuteMsg::PostInitialize {
-        owner: HumanAddr::from("owner0000"),
-        nebula_token: HumanAddr::from("nebula0000"),
-        staking_contract: HumanAddr::from("staking0000"),
-        commission_collector: HumanAddr::from("collector0000"),
-        terraswap_factory: HumanAddr::from("terraswapfactory"),
+        owner: ("owner0000"),
+        nebula_token: ("nebula0000"),
+        staking_contract: ("staking0000"),
+        commission_collector: ("collector0000"),
+        terraswap_factory: ("terraswapfactory"),
     };
 
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
@@ -498,11 +493,11 @@ fn test_set_cluster_token_hook() {
     let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
     let msg = ExecuteMsg::PostInitialize {
-        owner: HumanAddr::from("owner0000"),
-        nebula_token: HumanAddr::from("nebula0000"),
-        staking_contract: HumanAddr::from("staking0000"),
-        commission_collector: HumanAddr::from("collector0000"),
-        terraswap_factory: HumanAddr::from("terraswapfactory"),
+        owner: ("owner0000"),
+        nebula_token: ("nebula0000"),
+        staking_contract: ("staking0000"),
+        commission_collector: ("collector0000"),
+        terraswap_factory: ("terraswapfactory"),
     };
 
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
@@ -596,7 +591,7 @@ fn test_set_cluster_token_hook() {
     assert_eq!(
         distribution_info,
         DistributionInfoResponse {
-            weights: vec![(HumanAddr::from("cluster_token0000"), 100)],
+            weights: vec![(("cluster_token0000"), 100)],
             last_distributed: 1_571_797_419,
         }
     );
@@ -632,11 +627,11 @@ fn test_set_cluster_token_hook_without_weight() {
     let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
     let msg = ExecuteMsg::PostInitialize {
-        owner: HumanAddr::from("owner0000"),
-        nebula_token: HumanAddr::from("nebula0000"),
-        staking_contract: HumanAddr::from("staking0000"),
-        commission_collector: HumanAddr::from("collector0000"),
-        terraswap_factory: HumanAddr::from("terraswapfactory"),
+        owner: ("owner0000"),
+        nebula_token: ("nebula0000"),
+        staking_contract: ("staking0000"),
+        commission_collector: ("collector0000"),
+        terraswap_factory: ("terraswapfactory"),
     };
 
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
@@ -731,7 +726,7 @@ fn test_set_cluster_token_hook_without_weight() {
     assert_eq!(
         distribution_info,
         DistributionInfoResponse {
-            weights: vec![(HumanAddr::from("cluster_token0000"), 30)],
+            weights: vec![(("cluster_token0000"), 30)],
             last_distributed: 1_571_797_419,
         }
     );
@@ -755,7 +750,7 @@ fn test_set_cluster_token_hook_without_weight() {
 fn test_terraswap_creation_hook() {
     let mut deps = mock_dependencies(20, &[]);
     deps.querier
-        .with_terraswap_pairs(&[(&"uusdasset0000".to_string(), &HumanAddr::from("LP0000"))]);
+        .with_terraswap_pairs(&[(&"uusdasset0000".to_string(), &("LP0000"))]);
 
     let msg = InstantiateMsg {
         base_denom: BASE_DENOM.to_string(),
@@ -769,17 +764,17 @@ fn test_terraswap_creation_hook() {
     let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
     let msg = ExecuteMsg::PostInitialize {
-        owner: HumanAddr::from("owner0000"),
-        nebula_token: HumanAddr::from("nebula0000"),
-        staking_contract: HumanAddr::from("staking0000"),
-        commission_collector: HumanAddr::from("collector0000"),
-        terraswap_factory: HumanAddr::from("terraswapfactory"),
+        owner: ("owner0000"),
+        nebula_token: ("nebula0000"),
+        staking_contract: ("staking0000"),
+        commission_collector: ("collector0000"),
+        terraswap_factory: ("terraswapfactory"),
     };
 
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
 
     let msg = ExecuteMsg::TerraswapCreationHook {
-        asset_token: HumanAddr::from("asset0000"),
+        asset_token: ("asset0000"),
     };
 
     let env = mock_info("terraswapfactory1", &[]);
@@ -809,7 +804,7 @@ fn test_terraswap_creation_hook() {
     let _res = execute(deps.as_mut(), env, msg).unwrap();
 
     let msg = ExecuteMsg::TerraswapCreationHook {
-        asset_token: HumanAddr::from("asset0000"),
+        asset_token: ("asset0000"),
     };
 
     let env = mock_info("terraswapfactory", &[]);
@@ -818,11 +813,11 @@ fn test_terraswap_creation_hook() {
     assert_eq!(
         res.messages,
         vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: HumanAddr::from("staking0000"),
+            contract_addr: ("staking0000"),
             funds: vec![],
             msg: to_binary(&StakingExecuteMsg::RegisterAsset {
-                asset_token: HumanAddr::from("asset0000"),
-                staking_token: HumanAddr::from("LP0000"),
+                asset_token: ("asset0000"),
+                staking_token: ("LP0000"),
             })
             .unwrap(),
         })]
@@ -833,8 +828,8 @@ fn test_terraswap_creation_hook() {
 fn test_distribute() {
     let mut deps = mock_dependencies(20, &[]);
     deps.querier.with_terraswap_pairs(&[
-        (&"uusdasset0000".to_string(), &HumanAddr::from("LP0000")),
-        (&"uusdasset0001".to_string(), &HumanAddr::from("LP0001")),
+        (&"uusdasset0000".to_string(), &("LP0000")),
+        (&"uusdasset0001".to_string(), &("LP0001")),
     ]);
 
     let msg = InstantiateMsg {
@@ -852,11 +847,11 @@ fn test_distribute() {
     let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
     let msg = ExecuteMsg::PostInitialize {
-        owner: HumanAddr::from("owner0000"),
-        nebula_token: HumanAddr::from("nebula0000"),
-        staking_contract: HumanAddr::from("staking0000"),
-        commission_collector: HumanAddr::from("collector0000"),
-        terraswap_factory: HumanAddr::from("terraswapfactory"),
+        owner: ("owner0000"),
+        nebula_token: ("nebula0000"),
+        staking_contract: ("staking0000"),
+        commission_collector: ("collector0000"),
+        terraswap_factory: ("terraswapfactory"),
     };
     let _res = execute(deps.as_mut(), env, msg).unwrap();
 
@@ -880,7 +875,7 @@ fn test_distribute() {
     let _res = execute(deps.as_mut(), env, msg).unwrap();
 
     let msg = ExecuteMsg::TerraswapCreationHook {
-        asset_token: HumanAddr::from("asset0000"),
+        asset_token: ("asset0000"),
     };
 
     let env = mock_info("terraswapfactory", &[]);
@@ -910,7 +905,7 @@ fn test_distribute() {
     let _res = execute(deps.as_mut(), env, msg).unwrap();
 
     let msg = ExecuteMsg::TerraswapCreationHook {
-        asset_token: HumanAddr::from("asset0001"),
+        asset_token: ("asset0001"),
     };
 
     let env = mock_info("terraswapfactory", &[]);
@@ -929,7 +924,7 @@ fn test_distribute() {
 
     // one height increase
     let msg = ExecuteMsg::Distribute {};
-    let env = mock_info_time(&HumanAddr::from("addr0000"), 1_571_797_419u64 + 5400u64);
+    let env = mock_info_time(&("addr0000"), 1_571_797_419u64 + 5400u64);
     let res = execute(deps.as_mut(), env, msg).unwrap();
     assert_eq!(
         res.attributes,
@@ -949,8 +944,8 @@ fn test_distribute() {
                 msg: Some(
                     to_binary(&StakingCw20HookMsg::DepositReward {
                         rewards: vec![
-                            (HumanAddr::from("cluster_token0000"), Uint128::new(5538)),
-                            (HumanAddr::from("cluster_token0001"), Uint128::new(1661)),
+                            (("cluster_token0000"), Uint128::new(5538)),
+                            (("cluster_token0001"), Uint128::new(1661)),
                         ],
                     })
                     .unwrap()
@@ -966,10 +961,7 @@ fn test_distribute() {
     assert_eq!(
         distribution_info,
         DistributionInfoResponse {
-            weights: vec![
-                (HumanAddr::from("cluster_token0000"), 100),
-                (HumanAddr::from("cluster_token0001"), 30)
-            ],
+            weights: vec![(("cluster_token0000"), 100), (("cluster_token0001"), 30)],
             last_distributed: 1_571_802_819,
         }
     );
@@ -979,7 +971,7 @@ fn test_distribute() {
 fn test_decommission_cluster() {
     let mut deps = mock_dependencies(20, &[]);
     deps.querier
-        .with_terraswap_pairs(&[(&"uusdasset0000".to_string(), &HumanAddr::from("LP0000"))]);
+        .with_terraswap_pairs(&[(&"uusdasset0000".to_string(), &("LP0000"))]);
 
     let msg = InstantiateMsg {
         base_denom: BASE_DENOM.to_string(),
@@ -996,11 +988,11 @@ fn test_decommission_cluster() {
     let _res = instantiate(deps.as_mut(), env.clone(), msg).unwrap();
 
     let msg = ExecuteMsg::PostInitialize {
-        owner: HumanAddr::from("owner0000"),
-        nebula_token: HumanAddr::from("nebula0000"),
-        staking_contract: HumanAddr::from("staking0000"),
-        commission_collector: HumanAddr::from("collector0000"),
-        terraswap_factory: HumanAddr::from("terraswapfactory"),
+        owner: ("owner0000"),
+        nebula_token: ("nebula0000"),
+        staking_contract: ("staking0000"),
+        commission_collector: ("collector0000"),
+        terraswap_factory: ("terraswapfactory"),
     };
     let _res = execute(deps.as_mut(), env, msg).unwrap();
 
@@ -1024,7 +1016,7 @@ fn test_decommission_cluster() {
     let _res = execute(deps.as_mut(), env, msg).unwrap();
 
     let msg = ExecuteMsg::TerraswapCreationHook {
-        asset_token: HumanAddr::from("asset0000"),
+        asset_token: ("asset0000"),
     };
 
     let env = mock_info("terraswapfactory", &[]);
@@ -1080,7 +1072,7 @@ fn test_decommission_cluster() {
         }
     );
 
-    let res = read_weight(deps.storage, &HumanAddr::from("asset0000")).unwrap_err();
+    let res = read_weight(deps.storage, &("asset0000")).unwrap_err();
     match res {
         StdError::GenericErr { msg, .. } => {
             assert_eq!(msg, "No distribution info stored")

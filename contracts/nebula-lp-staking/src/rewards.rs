@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    attr, to_binary, CosmosMsg, Decimal, Deps, DepsMut, Env, HumanAddr, Order, Response, StdResult,
-    Storage, Uint128, WasmMsg,
+    attr, to_binary, CosmosMsg, Decimal, Deps, DepsMut, Env, Order, Response, StdResult, Storage,
+    Uint128, WasmMsg,
 };
 
 use crate::state::{
@@ -14,7 +14,7 @@ use cw20::Cw20ExecuteMsg;
 // deposit_reward must be from reward token contract
 pub fn deposit_reward(
     deps: DepsMut,
-    rewards: Vec<(HumanAddr, Uint128)>,
+    rewards: Vec<(String, Uint128)>,
     rewards_amount: Uint128,
 ) -> StdResult<Response> {
     for (asset_token, amount) in rewards.iter() {
@@ -44,7 +44,7 @@ pub fn deposit_reward(
 pub fn withdraw_reward(
     deps: DepsMut,
     env: Env,
-    asset_token: Option<HumanAddr>,
+    asset_token: Option<String>,
 ) -> StdResult<Response> {
     let staker_addr = env.message.sender;
     let reward_amount = _withdraw_reward(deps.storage, &staker_addr, &asset_token)?;
@@ -67,13 +67,13 @@ pub fn withdraw_reward(
 
 fn _withdraw_reward(
     storage: &mut dyn Storage,
-    staker_addr: &HumanAddr,
-    asset_token: &Option<HumanAddr>,
+    staker_addr: &String,
+    asset_token: &Option<String>,
 ) -> StdResult<Uint128> {
     let rewards_bucket = rewards_read(storage, &staker_addr);
 
     // single reward withdraw
-    let reward_pairs: Vec<(HumanAddr, RewardInfo)>;
+    let reward_pairs: Vec<(String, RewardInfo)>;
     if let Some(asset_token) = asset_token {
         let reward_info = rewards_bucket.may_load(asset_token.as_str().as_bytes())?;
         reward_pairs = if let Some(reward_info) = reward_info {
@@ -86,12 +86,9 @@ fn _withdraw_reward(
             .range(None, None, Order::Ascending)
             .map(|item| {
                 let (k, v) = item?;
-                Ok((
-                    HumanAddr::from(unsafe { std::str::from_utf8_unchecked(&k) }),
-                    v,
-                ))
+                Ok(((unsafe { std::str::from_utf8_unchecked(&k) }), v))
             })
-            .collect::<StdResult<Vec<(HumanAddr, RewardInfo)>>>()?;
+            .collect::<StdResult<Vec<(String, RewardInfo)>>>()?;
     }
 
     let mut amount: Uint128 = Uint128::zero();
@@ -119,8 +116,8 @@ fn _withdraw_reward(
 // withdraw reward to pending reward
 #[allow(clippy::suspicious_operation_groupings)]
 pub fn before_share_change(pool_info: &PoolInfo, reward_info: &mut RewardInfo) -> StdResult<()> {
-    let pending_reward = (reward_info.bond_amount * pool_info.reward_index).checked_sub(
-        reward_info.bond_amount * reward_info.index)?;
+    let pending_reward = (reward_info.bond_amount * pool_info.reward_index)
+        .checked_sub(reward_info.bond_amount * reward_info.index)?;
 
     reward_info.index = pool_info.reward_index;
     reward_info.pending_reward += pending_reward;
@@ -129,8 +126,8 @@ pub fn before_share_change(pool_info: &PoolInfo, reward_info: &mut RewardInfo) -
 
 pub fn query_reward_info(
     deps: Deps,
-    staker_addr: HumanAddr,
-    asset_token: Option<HumanAddr>,
+    staker_addr: String,
+    asset_token: Option<String>,
 ) -> StdResult<RewardInfoResponse> {
     let reward_infos: Vec<RewardInfoResponseItem> =
         _read_reward_infos(deps.storage, &staker_addr, &asset_token)?;
@@ -143,8 +140,8 @@ pub fn query_reward_info(
 
 fn _read_reward_infos(
     storage: &dyn Storage,
-    staker_addr: &HumanAddr,
-    asset_token: &Option<HumanAddr>,
+    staker_addr: &String,
+    asset_token: &Option<String>,
 ) -> StdResult<Vec<RewardInfoResponseItem>> {
     let rewards_bucket = rewards_read(storage, staker_addr);
     let reward_infos: Vec<RewardInfoResponseItem>;
@@ -168,7 +165,7 @@ fn _read_reward_infos(
             .range(None, None, Order::Ascending)
             .map(|item| {
                 let (k, v) = item?;
-                let asset_token = HumanAddr::from(unsafe { std::str::from_utf8_unchecked(&k) });
+                let asset_token = (unsafe { std::str::from_utf8_unchecked(&k) });
                 let mut reward_info = v;
                 let pool_info = read_pool_info(storage, &asset_token)?;
                 before_share_change(&pool_info, &mut reward_info)?;

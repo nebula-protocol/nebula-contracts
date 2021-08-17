@@ -3,7 +3,7 @@ mod tests {
     use crate::contract::{execute, instantiate, query};
     use crate::state::{rewards_read, RewardInfo};
     use cosmwasm_std::testing::{mock_dependencies, mock_info};
-    use cosmwasm_std::{from_binary, to_binary, CosmosMsg, Decimal, HumanAddr, Uint128, WasmMsg};
+    use cosmwasm_std::{from_binary, to_binary, CosmosMsg, Decimal, Uint128, WasmMsg};
     use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
     use nebula_protocol::staking::{
         Cw20HookMsg, ExecuteMsg, InstantiateMsg, PoolInfoResponse, QueryMsg, RewardInfoResponse,
@@ -15,17 +15,17 @@ mod tests {
         let mut deps = mock_dependencies(20, &[]);
 
         let msg = InstantiateMsg {
-            owner: HumanAddr::from("owner"),
-            nebula_token: HumanAddr::from("reward"),
-            terraswap_factory: HumanAddr::from("terraswap-factory"),
+            owner: ("owner"),
+            nebula_token: ("reward"),
+            terraswap_factory: ("terraswap-factory"),
         };
 
         let env = mock_info("addr", &[]);
         let _res = instantiate(deps.as_mut(), env, msg).unwrap();
 
         let msg = ExecuteMsg::RegisterAsset {
-            asset_token: HumanAddr::from("asset"),
-            staking_token: HumanAddr::from("staking"),
+            asset_token: ("asset"),
+            staking_token: ("staking"),
         };
 
         let env = mock_info("owner", &[]);
@@ -33,11 +33,11 @@ mod tests {
 
         // bond 100 tokens
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-            sender: HumanAddr::from("addr"),
+            sender: ("addr"),
             amount: Uint128::new(100u128),
             msg: Some(
                 to_binary(&Cw20HookMsg::Bond {
-                    asset_token: HumanAddr::from("asset"),
+                    asset_token: ("asset"),
                 })
                 .unwrap(),
             ),
@@ -48,11 +48,11 @@ mod tests {
         // factory deposit 100 reward tokens
         // premium is 0, so rewards distributed 80:20
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-            sender: HumanAddr::from("factory"),
+            sender: ("factory"),
             amount: Uint128::new(100u128),
             msg: Some(
                 to_binary(&Cw20HookMsg::DepositReward {
-                    rewards: vec![(HumanAddr::from("asset"), Uint128::new(100u128))],
+                    rewards: vec![(("asset"), Uint128::new(100u128))],
                 })
                 .unwrap(),
             ),
@@ -65,7 +65,7 @@ mod tests {
             &query(
                 deps.as_ref(),
                 QueryMsg::PoolInfo {
-                    asset_token: HumanAddr::from("asset"),
+                    asset_token: ("asset"),
                 },
             )
             .unwrap(),
@@ -86,17 +86,17 @@ mod tests {
         let mut deps = mock_dependencies(20, &[]);
 
         let msg = InstantiateMsg {
-            owner: HumanAddr::from("owner"),
-            nebula_token: HumanAddr::from("reward"),
-            terraswap_factory: HumanAddr::from("terraswap-factory"),
+            owner: ("owner"),
+            nebula_token: ("reward"),
+            terraswap_factory: ("terraswap-factory"),
         };
 
         let env = mock_info("addr", &[]);
         let _res = instantiate(deps.as_mut(), env, msg).unwrap();
 
         let msg = ExecuteMsg::RegisterAsset {
-            asset_token: HumanAddr::from("asset"),
-            staking_token: HumanAddr::from("staking"),
+            asset_token: ("asset"),
+            staking_token: ("staking"),
         };
 
         let env = mock_info("owner", &[]);
@@ -105,11 +105,11 @@ mod tests {
         // factory deposit 100 reward tokens
         // premium is 0, so rewards distributed 80:20
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-            sender: HumanAddr::from("factory"),
+            sender: ("factory"),
             amount: Uint128::new(100u128),
             msg: Some(
                 to_binary(&Cw20HookMsg::DepositReward {
-                    rewards: vec![(HumanAddr::from("asset"), Uint128::new(100u128))],
+                    rewards: vec![(("asset"), Uint128::new(100u128))],
                 })
                 .unwrap(),
             ),
@@ -122,7 +122,7 @@ mod tests {
             &query(
                 deps.as_ref(),
                 QueryMsg::PoolInfo {
-                    asset_token: HumanAddr::from("asset"),
+                    asset_token: ("asset"),
                 },
             )
             .unwrap(),
@@ -143,17 +143,17 @@ mod tests {
         let mut deps = mock_dependencies(20, &[]);
 
         let msg = InstantiateMsg {
-            owner: HumanAddr::from("owner"),
-            nebula_token: HumanAddr::from("reward"),
-            terraswap_factory: HumanAddr::from("terraswap-factory"),
+            owner: ("owner"),
+            nebula_token: ("reward"),
+            terraswap_factory: ("terraswap-factory"),
         };
 
         let env = mock_info("addr", &[]);
         let _res = instantiate(deps.as_mut(), env, msg).unwrap();
 
         let msg = ExecuteMsg::RegisterAsset {
-            asset_token: HumanAddr::from("asset"),
-            staking_token: HumanAddr::from("staking"),
+            asset_token: ("asset"),
+            staking_token: ("staking"),
         };
 
         let env = mock_info("owner", &[]);
@@ -161,11 +161,11 @@ mod tests {
 
         // bond 100 tokens
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-            sender: HumanAddr::from("addr"),
+            sender: ("addr"),
             amount: Uint128::new(100u128),
             msg: Some(
                 to_binary(&Cw20HookMsg::Bond {
-                    asset_token: HumanAddr::from("asset"),
+                    asset_token: ("asset"),
                 })
                 .unwrap(),
             ),
@@ -176,11 +176,11 @@ mod tests {
         // factory deposit 100 reward tokens
         // premium is 0, so rewards distributed 80:20
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-            sender: HumanAddr::from("factory"),
+            sender: ("factory"),
             amount: Uint128::new(100u128),
             msg: Some(
                 to_binary(&Cw20HookMsg::DepositReward {
-                    rewards: vec![(HumanAddr::from("asset"), Uint128::new(100u128))],
+                    rewards: vec![(("asset"), Uint128::new(100u128))],
                 })
                 .unwrap(),
             ),
@@ -189,8 +189,8 @@ mod tests {
         let env = mock_info("reward", &[]);
         let _res = execute(deps.as_mut(), env, msg).unwrap();
 
-        let user_addr = HumanAddr::from("addr");
-        let asset_addr = HumanAddr::from("asset");
+        let user_addr = ("addr");
+        let asset_addr = ("asset");
 
         let reward_bucket = rewards_read(deps.storage, &user_addr);
         let reward_info: RewardInfo = reward_bucket.load(asset_addr.as_str().as_bytes()).unwrap();
@@ -205,11 +205,11 @@ mod tests {
 
         // bond 100 more tokens
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-            sender: HumanAddr::from("addr"),
+            sender: ("addr"),
             amount: Uint128::new(100u128),
             msg: Some(
                 to_binary(&Cw20HookMsg::Bond {
-                    asset_token: HumanAddr::from("asset"),
+                    asset_token: ("asset"),
                 })
                 .unwrap(),
             ),
@@ -230,11 +230,11 @@ mod tests {
 
         // factory deposit 100 reward tokens; = 1.0 + 0.5 = 1.5 is reward_index
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-            sender: HumanAddr::from("factory"),
+            sender: ("factory"),
             amount: Uint128::new(100u128),
             msg: Some(
                 to_binary(&Cw20HookMsg::DepositReward {
-                    rewards: vec![(HumanAddr::from("asset"), Uint128::new(100u128))],
+                    rewards: vec![(("asset"), Uint128::new(100u128))],
                 })
                 .unwrap(),
             ),
@@ -244,7 +244,7 @@ mod tests {
 
         // unbond
         let msg = ExecuteMsg::Unbond {
-            asset_token: HumanAddr::from("asset"),
+            asset_token: ("asset"),
             amount: Uint128::new(100u128),
         };
         let env = mock_info("addr", &[]);
@@ -267,17 +267,17 @@ mod tests {
         let mut deps = mock_dependencies(20, &[]);
 
         let msg = InstantiateMsg {
-            owner: HumanAddr::from("owner"),
-            nebula_token: HumanAddr::from("reward"),
-            terraswap_factory: HumanAddr::from("terraswap-factory"),
+            owner: ("owner"),
+            nebula_token: ("reward"),
+            terraswap_factory: ("terraswap-factory"),
         };
 
         let env = mock_info("addr", &[]);
         let _res = instantiate(deps.as_mut(), env, msg).unwrap();
 
         let msg = ExecuteMsg::RegisterAsset {
-            asset_token: HumanAddr::from("asset"),
-            staking_token: HumanAddr::from("staking"),
+            asset_token: ("asset"),
+            staking_token: ("staking"),
         };
 
         let env = mock_info("owner", &[]);
@@ -285,11 +285,11 @@ mod tests {
 
         // bond 100 tokens
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-            sender: HumanAddr::from("addr"),
+            sender: ("addr"),
             amount: Uint128::new(100u128),
             msg: Some(
                 to_binary(&Cw20HookMsg::Bond {
-                    asset_token: HumanAddr::from("asset"),
+                    asset_token: ("asset"),
                 })
                 .unwrap(),
             ),
@@ -299,11 +299,11 @@ mod tests {
 
         // factory deposit 100 reward tokens
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-            sender: HumanAddr::from("factory"),
+            sender: ("factory"),
             amount: Uint128::new(100u128),
             msg: Some(
                 to_binary(&Cw20HookMsg::DepositReward {
-                    rewards: vec![(HumanAddr::from("asset"), Uint128::new(100u128))],
+                    rewards: vec![(("asset"), Uint128::new(100u128))],
                 })
                 .unwrap(),
             ),
@@ -312,7 +312,7 @@ mod tests {
         let _res = execute(deps.as_mut(), env, msg).unwrap();
 
         let msg = ExecuteMsg::Withdraw {
-            asset_token: Some(HumanAddr::from("asset")),
+            asset_token: Some(("asset")),
         };
         let env = mock_info("addr", &[]);
         let res = execute(deps.as_mut(), env, msg).unwrap();
@@ -320,9 +320,9 @@ mod tests {
         assert_eq!(
             res.messages,
             vec![CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: HumanAddr::from("reward"),
+                contract_addr: ("reward"),
                 msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                    recipient: HumanAddr::from("addr"),
+                    recipient: ("addr"),
                     amount: Uint128::new(100u128),
                 })
                 .unwrap(),
@@ -336,25 +336,25 @@ mod tests {
         let mut deps = mock_dependencies(20, &[]);
 
         let msg = InstantiateMsg {
-            owner: HumanAddr::from("owner"),
-            nebula_token: HumanAddr::from("reward"),
-            terraswap_factory: HumanAddr::from("terraswap-factory"),
+            owner: ("owner"),
+            nebula_token: ("reward"),
+            terraswap_factory: ("terraswap-factory"),
         };
 
         let env = mock_info("addr", &[]);
         let _res = instantiate(deps.as_mut(), env, msg).unwrap();
 
         let msg = ExecuteMsg::RegisterAsset {
-            asset_token: HumanAddr::from("asset"),
-            staking_token: HumanAddr::from("staking"),
+            asset_token: ("asset"),
+            staking_token: ("staking"),
         };
 
         let env = mock_info("owner", &[]);
         let _res = execute(deps.as_mut(), env, msg.clone()).unwrap();
 
         let msg = ExecuteMsg::RegisterAsset {
-            asset_token: HumanAddr::from("asset2"),
-            staking_token: HumanAddr::from("staking2"),
+            asset_token: ("asset2"),
+            staking_token: ("staking2"),
         };
 
         let env = mock_info("owner", &[]);
@@ -362,11 +362,11 @@ mod tests {
 
         // bond 100 tokens
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-            sender: HumanAddr::from("addr"),
+            sender: ("addr"),
             amount: Uint128::new(100u128),
             msg: Some(
                 to_binary(&Cw20HookMsg::Bond {
-                    asset_token: HumanAddr::from("asset"),
+                    asset_token: ("asset"),
                 })
                 .unwrap(),
             ),
@@ -376,11 +376,11 @@ mod tests {
 
         // bond second 1000 tokens
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-            sender: HumanAddr::from("addr"),
+            sender: ("addr"),
             amount: Uint128::new(1000u128),
             msg: Some(
                 to_binary(&Cw20HookMsg::Bond {
-                    asset_token: HumanAddr::from("asset2"),
+                    asset_token: ("asset2"),
                 })
                 .unwrap(),
             ),
@@ -390,13 +390,13 @@ mod tests {
 
         // factory deposit asset
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-            sender: HumanAddr::from("factory"),
+            sender: ("factory"),
             amount: Uint128::new(300u128),
             msg: Some(
                 to_binary(&Cw20HookMsg::DepositReward {
                     rewards: vec![
-                        (HumanAddr::from("asset"), Uint128::new(100u128)),
-                        (HumanAddr::from("asset2"), Uint128::new(200u128)),
+                        (("asset"), Uint128::new(100u128)),
+                        (("asset2"), Uint128::new(200u128)),
                     ],
                 })
                 .unwrap(),
@@ -409,7 +409,7 @@ mod tests {
             deps.as_ref(),
             QueryMsg::RewardInfo {
                 asset_token: None,
-                staker_addr: HumanAddr::from("addr"),
+                staker_addr: ("addr"),
             },
         )
         .unwrap();
@@ -417,15 +417,15 @@ mod tests {
         assert_eq!(
             res,
             RewardInfoResponse {
-                staker_addr: HumanAddr::from("addr"),
+                staker_addr: ("addr"),
                 reward_infos: vec![
                     RewardInfoResponseItem {
-                        asset_token: HumanAddr::from("asset"),
+                        asset_token: ("asset"),
                         bond_amount: Uint128::new(100u128),
                         pending_reward: Uint128::new(100u128),
                     },
                     RewardInfoResponseItem {
-                        asset_token: HumanAddr::from("asset2"),
+                        asset_token: ("asset2"),
                         bond_amount: Uint128::new(1000u128),
                         pending_reward: Uint128::new(200u128),
                     },
@@ -441,9 +441,9 @@ mod tests {
         assert_eq!(
             res.messages,
             vec![CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: HumanAddr::from("reward"),
+                contract_addr: ("reward"),
                 msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                    recipient: HumanAddr::from("addr"),
+                    recipient: ("addr"),
                     amount: Uint128::new(300u128),
                 })
                 .unwrap(),
@@ -455,7 +455,7 @@ mod tests {
             deps.as_ref(),
             QueryMsg::RewardInfo {
                 asset_token: None,
-                staker_addr: HumanAddr::from("addr"),
+                staker_addr: ("addr"),
             },
         )
         .unwrap();
@@ -463,15 +463,15 @@ mod tests {
         assert_eq!(
             res,
             RewardInfoResponse {
-                staker_addr: HumanAddr::from("addr"),
+                staker_addr: ("addr"),
                 reward_infos: vec![
                     RewardInfoResponseItem {
-                        asset_token: HumanAddr::from("asset"),
+                        asset_token: ("asset"),
                         bond_amount: Uint128::new(100u128),
                         pending_reward: Uint128::zero(),
                     },
                     RewardInfoResponseItem {
-                        asset_token: HumanAddr::from("asset2"),
+                        asset_token: ("asset2"),
                         bond_amount: Uint128::new(1000u128),
                         pending_reward: Uint128::zero(),
                     },

@@ -11,7 +11,7 @@ use crate::state::{
 };
 use cosmwasm_std::{
     attr, entry_point, from_binary, to_binary, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    HumanAddr, MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg,
+    MessageInfo, Response, StdError, StdResult, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 
@@ -159,7 +159,7 @@ pub fn receive_cw20(deps: DepsMut, env: Env, cw20_msg: Cw20ReceiveMsg) -> StdRes
 pub fn update_config(
     deps: DepsMut,
     env: Env,
-    owner: Option<HumanAddr>,
+    owner: Option<String>,
     quorum: Option<Decimal>,
     threshold: Option<Decimal>,
     voting_period: Option<u64>,
@@ -290,7 +290,7 @@ fn validate_voter_weight(voter_weight: Decimal) -> StdResult<()> {
 pub fn create_poll(
     deps: DepsMut,
     env: Env,
-    proposer: HumanAddr,
+    proposer: String,
     deposit_amount: Uint128,
     title: String,
     description: String,
@@ -811,7 +811,7 @@ fn query_polls(
 fn query_voters(
     deps: Deps,
     poll_id: u64,
-    start_after: Option<HumanAddr>,
+    start_after: Option<String>,
     limit: Option<u32>,
     order_by: Option<OrderBy>,
 ) -> StdResult<VotersResponse> {

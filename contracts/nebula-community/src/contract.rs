@@ -1,8 +1,8 @@
 use crate::state::{read_config, store_config, Config};
 
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, HumanAddr, MessageInfo,
-    Response, StdError, StdResult, Uint128, WasmMsg,
+    entry_point, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult, Uint128, WasmMsg,
 };
 
 use nebula_protocol::community::{
@@ -43,7 +43,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 pub fn update_config(
     deps: DepsMut,
     env: Env,
-    owner: Option<HumanAddr>,
+    owner: Option<String>,
     spend_limit: Option<Uint128>,
 ) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
@@ -67,12 +67,7 @@ pub fn update_config(
 /// Spend
 /// Owner can execute spend operation to send
 /// `amount` of NEB token to `recipient` for community purpose
-pub fn spend(
-    deps: DepsMut,
-    env: Env,
-    recipient: HumanAddr,
-    amount: Uint128,
-) -> StdResult<Response> {
+pub fn spend(deps: DepsMut, env: Env, recipient: String, amount: Uint128) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
     if config.owner != env.message.sender {
         return Err(StdError::generic_err("unauthorized"));

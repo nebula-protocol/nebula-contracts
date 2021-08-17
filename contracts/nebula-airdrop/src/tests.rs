@@ -1,10 +1,8 @@
 #[cfg(test)]
 mod tests {
     use crate::contract::{execute, instantiate, query};
-    use cosmwasm_std::testing::{mock_dependencies, mock_info};
-    use cosmwasm_std::{
-        attr, from_binary, to_binary, CosmosMsg, HumanAddr, StdError, Uint128, WasmMsg,
-    };
+    use cosmwasm_std::testing::{mock_dependencies_with_balances, mock_info};
+    use cosmwasm_std::{attr, from_binary, to_binary, CosmosMsg, StdError, Uint128, WasmMsg};
     use cw20::Cw20ExecuteMsg;
     use nebula_protocol::airdrop::{
         ConfigResponse, ExecuteMsg, InstantiateMsg, IsClaimedResponse, LatestStageResponse,
@@ -16,8 +14,8 @@ mod tests {
         let mut deps = mock_dependencies_with_balances(20, &[]);
 
         let msg = InstantiateMsg {
-            owner: HumanAddr("owner0000".to_string()),
-            nebula_token: HumanAddr("nebula0000".to_string()),
+            owner: String("owner0000".to_string()),
+            nebula_token: String("nebula0000".to_string()),
         };
 
         let env = mock_info("addr0000", &[]);
@@ -41,8 +39,8 @@ mod tests {
         let mut deps = mock_dependencies(20, &[]);
 
         let msg = InstantiateMsg {
-            owner: HumanAddr::from("owner0000"),
-            nebula_token: HumanAddr::from("nebula0000"),
+            owner: String::from("owner0000"),
+            nebula_token: String::from("nebula0000"),
         };
 
         let env = mock_info("addr0000", &[]);
@@ -51,7 +49,7 @@ mod tests {
         // update owner
         let env = mock_info("owner0000", &[]);
         let msg = ExecuteMsg::UpdateConfig {
-            owner: Some(HumanAddr("owner0001".to_string())),
+            owner: Some(String("owner0001".to_string())),
         };
 
         let res = execute(deps.as_mut(), env, msg).unwrap();
@@ -78,8 +76,8 @@ mod tests {
         let mut deps = mock_dependencies(20, &[]);
 
         let msg = InstantiateMsg {
-            owner: HumanAddr::from("owner0000"),
-            nebula_token: HumanAddr::from("nebula0000"),
+            owner: String::from("owner0000"),
+            nebula_token: String::from("nebula0000"),
         };
 
         let env = mock_info("addr0000", &[]);
@@ -139,8 +137,8 @@ mod tests {
         let mut deps = mock_dependencies(44, &[]);
 
         let msg = InstantiateMsg {
-            owner: HumanAddr::from("owner0000"),
-            nebula_token: HumanAddr::from("nebula0000"),
+            owner: String::from("owner0000"),
+            nebula_token: String::from("nebula0000"),
         };
 
         let env = mock_info("addr0000", &[]);
@@ -180,10 +178,10 @@ mod tests {
         assert_eq!(
             res.messages,
             vec![CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: HumanAddr::from("nebula0000"),
+                contract_addr: String::from("nebula0000"),
                 funds: vec![],
                 msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                    recipient: HumanAddr::from("terra1qfqa2eu9wp272ha93lj4yhcenrc6ymng079nu8"),
+                    recipient: String::from("terra1qfqa2eu9wp272ha93lj4yhcenrc6ymng079nu8"),
                     amount: Uint128::from(1000001u128),
                 })
                 .unwrap(),
@@ -207,7 +205,7 @@ mod tests {
                     deps.as_mut(),
                     QueryMsg::IsClaimed {
                         stage: 1,
-                        address: HumanAddr::from("terra1qfqa2eu9wp272ha93lj4yhcenrc6ymng079nu8"),
+                        address: String::from("terra1qfqa2eu9wp272ha93lj4yhcenrc6ymng079nu8"),
                     }
                 )
                 .unwrap()
@@ -242,10 +240,10 @@ mod tests {
         assert_eq!(
             res.messages,
             vec![CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: HumanAddr::from("nebula0000"),
+                contract_addr: String::from("nebula0000"),
                 funds: vec![],
                 msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                    recipient: HumanAddr::from("terra1qfqa2eu9wp272ha93lj4yhcenrc6ymng079nu8"),
+                    recipient: String::from("terra1qfqa2eu9wp272ha93lj4yhcenrc6ymng079nu8"),
                     amount: Uint128::from(2000001u128),
                 })
                 .unwrap(),

@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    attr, entry_point, from_binary, to_binary, Binary, Decimal, Deps, DepsMut, Env, HumanAddr,
-    MessageInfo, Response, StdError, StdResult, Uint128,
+    attr, entry_point, from_binary, to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo,
+    Response, StdError, StdResult, Uint128,
 };
 
 use nebula_protocol::staking::{
@@ -101,7 +101,7 @@ pub fn receive_cw20(deps: DepsMut, env: Env, cw20_msg: Cw20ReceiveMsg) -> StdRes
     }
 }
 
-pub fn update_config(deps: DepsMut, env: Env, owner: Option<HumanAddr>) -> StdResult<Response> {
+pub fn update_config(deps: DepsMut, env: Env, owner: Option<String>) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
 
     if env.message.sender != config.owner {
@@ -119,8 +119,8 @@ pub fn update_config(deps: DepsMut, env: Env, owner: Option<HumanAddr>) -> StdRe
 fn register_asset(
     deps: DepsMut,
     env: Env,
-    asset_token: HumanAddr,
-    staking_token: HumanAddr,
+    asset_token: String,
+    staking_token: String,
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
 
@@ -171,7 +171,7 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     Ok(resp)
 }
 
-pub fn query_pool_info(deps: Deps, asset_token: HumanAddr) -> StdResult<PoolInfoResponse> {
+pub fn query_pool_info(deps: Deps, asset_token: String) -> StdResult<PoolInfoResponse> {
     let pool_info: PoolInfo = read_pool_info(deps.storage, &asset_token)?;
     Ok(PoolInfoResponse {
         asset_token,
