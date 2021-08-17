@@ -168,8 +168,7 @@ pub fn withdraw_voting_tokens(
             Err(StdError::generic_err(
                 "User is trying to withdraw too many tokens.",
             ))
-        } else if env.block.time.seconds() / SECONDS_PER_WEEK
-            < token_manager.lock_end_week.unwrap()
+        } else if env.block.time.seconds() / SECONDS_PER_WEEK < token_manager.lock_end_week.unwrap()
         {
             //Check if locked time has passed before allowing
             Err(StdError::generic_err(

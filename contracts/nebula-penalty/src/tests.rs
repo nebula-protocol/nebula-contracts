@@ -9,7 +9,7 @@ use cluster_math::{
     dot, imbalance, int32_vec_to_fpdec, int_vec_to_fpdec, str_vec_to_fpdec, FPDecimal,
 };
 use cosmwasm_std::testing::{mock_info, MockApi, MockStorage};
-use cosmwasm_std::{attr, from_binary, Coin, Deps, DepsMut, Env, StdError, Uint128};
+use cosmwasm_std::{attr, from_binary, Coin, DepsMut, Env, StdError, Timestamp, Uint128};
 use nebula_protocol::penalty::{
     ExecuteMsg, InstantiateMsg, MintResponse, PenaltyParams, QueryMsg, RedeemResponse,
 };
@@ -30,7 +30,7 @@ fn mock_init(mut deps: DepsMut<MockStorage, MockApi, WasmMockQuerier>) {
 fn mock_info_height(sender: &str, sent: &[Coin], height: u64, time: u64) -> Env {
     let mut env = mock_info(sender, sent);
     env.block.height = height;
-    env.block.time = Timestamp::from_seconds(time); 
+    env.block.time = Timestamp::from_seconds(time);
     env
 }
 

@@ -4,7 +4,7 @@ use crate::{
     util::vec_to_string,
 };
 use cosmwasm_std::{
-    attr, entry_point, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult
+    attr, entry_point, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
 };
 use nebula_protocol::cluster::{ClusterConfig, InstantiateMsg};
 use terraswap::asset::AssetInfo;
@@ -74,7 +74,6 @@ pub fn instantiate(
         attr("owner", msg.owner),
         attr("assets", vec_to_string(&asset_infos)),
     ];
-
 
     Ok(Response::new().add_attributes(log))
 }

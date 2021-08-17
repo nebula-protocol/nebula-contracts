@@ -68,12 +68,7 @@ pub fn withdraw_reward(deps: DepsMut, info: MessageInfo) -> StdResult<Response> 
     }
 
     for (pool_type, asset_address) in contribution_tuples {
-        contributions_to_pending_rewards(
-            deps.storage,
-            &reward_owner,
-            **pool_type,
-            &asset_address,
-        )?;
+        contributions_to_pending_rewards(deps.storage, &reward_owner, **pool_type, &asset_address)?;
     }
 
     let reward_amt = read_pending_rewards(deps.storage, &reward_owner);

@@ -69,8 +69,8 @@ fn update_config() {
     assert_eq!(
         config,
         ConfigResponse {
-            owner: ("owner0001"),
-            nebula_token: ("nebula0000"),
+            owner: "owner0001".to_string(),
+            nebula_token: "nebula0000".to_string(),
             spend_limit: Uint128::from(1000000u128),
         }
     );
@@ -87,8 +87,8 @@ fn update_config() {
     assert_eq!(
         config,
         ConfigResponse {
-            owner: ("owner0001"),
-            nebula_token: ("nebula0000"),
+            owner: "owner0001".to_string(),
+            nebula_token: "nebula0000".to_string(),
             spend_limit: Uint128::from(2000000u128),
         }
     );
@@ -111,7 +111,7 @@ fn test_spend() {
 
     // permission failed
     let msg = ExecuteMsg::Spend {
-        recipient: ("addr0000"),
+        recipient: "addr0000".to_string(),
         amount: Uint128::from(1000000u128),
     };
 
@@ -124,7 +124,7 @@ fn test_spend() {
 
     // failed due to spend limit
     let msg = ExecuteMsg::Spend {
-        recipient: ("addr0000"),
+        recipient: "addr0000".to_string(),
         amount: Uint128::from(2000000u128),
     };
 
@@ -138,7 +138,7 @@ fn test_spend() {
     }
 
     let msg = ExecuteMsg::Spend {
-        recipient: ("addr0000"),
+        recipient: "addr0000".to_string(),
         amount: Uint128::from(1000000u128),
     };
 
@@ -147,10 +147,10 @@ fn test_spend() {
     assert_eq!(
         res.messages,
         vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: ("nebula0000"),
+            contract_addr: "nebula0000".to_string(),
             funds: vec![],
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: ("addr0000"),
+                recipient: "addr0000".to_string(),
                 amount: Uint128::from(1000000u128),
             })
             .unwrap(),

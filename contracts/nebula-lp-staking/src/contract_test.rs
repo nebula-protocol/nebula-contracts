@@ -14,9 +14,9 @@ mod tests {
         let mut deps = mock_dependencies(20, &[]);
 
         let msg = InstantiateMsg {
-            owner: ("owner"),
-            nebula_token: ("reward"),
-            terraswap_factory: ("terraswap-factory"),
+            owner: "owner".to_string(),
+            nebula_token: "reward".to_string(),
+            terraswap_factory: "terraswap-factory".to_string(),
         };
 
         let env = mock_info("addr", &[]);
@@ -29,8 +29,8 @@ mod tests {
         let config: ConfigResponse = from_binary(&res).unwrap();
         assert_eq!(
             ConfigResponse {
-                owner: ("owner"),
-                nebula_token: ("reward"),
+                owner: "owner".to_string(),
+                nebula_token: "reward".to_string(),
             },
             config
         );
@@ -41,9 +41,9 @@ mod tests {
         let mut deps = mock_dependencies_with_balances(20, &[]);
 
         let msg = InstantiateMsg {
-            owner: ("owner"),
-            nebula_token: ("reward"),
-            terraswap_factory: ("terraswap-factory"),
+            owner: "owner".to_string(),
+            nebula_token: "reward".to_string(),
+            terraswap_factory: "terraswap-factory".to_string(),
         };
 
         let env = mock_info("addr", &[]);
@@ -64,7 +64,7 @@ mod tests {
         assert_eq!(
             ConfigResponse {
                 owner: ("owner2"),
-                nebula_token: ("reward"),
+                nebula_token: "reward".to_string(),
             },
             config
         );
@@ -85,9 +85,9 @@ mod tests {
         let mut deps = mock_dependencies(20, &[]);
 
         let msg = InstantiateMsg {
-            owner: ("owner"),
-            nebula_token: ("reward"),
-            terraswap_factory: ("terraswap-factory"),
+            owner: "owner".to_string(),
+            nebula_token: "reward".to_string(),
+            terraswap_factory: "terraswap-factory".to_string(),
         };
 
         let env = mock_info("addr", &[]);
@@ -96,8 +96,8 @@ mod tests {
         let _res = instantiate(deps.as_mut(), env, msg).unwrap();
 
         let msg = ExecuteMsg::RegisterAsset {
-            asset_token: ("asset"),
-            staking_token: ("staking"),
+            asset_token: "asset".to_string(),
+            staking_token: "staking".to_string(),
         };
 
         // failed with unauthorized error
@@ -121,7 +121,7 @@ mod tests {
         let res = query(
             deps.as_ref(),
             QueryMsg::PoolInfo {
-                asset_token: ("asset"),
+                asset_token: "asset".to_string(),
             },
         )
         .unwrap();
@@ -129,8 +129,8 @@ mod tests {
         assert_eq!(
             pool_info,
             PoolInfoResponse {
-                asset_token: ("asset"),
-                staking_token: ("staking"),
+                asset_token: "asset".to_string(),
+                staking_token: "staking".to_string(),
                 total_bond_amount: Uint128::zero(),
                 reward_index: Decimal::zero(),
                 pending_reward: Uint128::zero(),

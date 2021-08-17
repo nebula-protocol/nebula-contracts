@@ -1,6 +1,6 @@
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_binary, from_slice, to_binary, Coin, Deps, Empty, QuerierResult, QueryRequest,
+    from_binary, from_slice, to_binary, Coin, Deps, Empty, Querier, QuerierResult, QueryRequest,
     SystemError, Uint128, WasmQuery,
 };
 use cw20::{BalanceResponse as Cw20BalanceResponse, Cw20QueryMsg, TokenInfoResponse};
@@ -49,10 +49,10 @@ pub(crate) fn balances_to_map(
     for (contract_addr, balances) in balances.iter() {
         let mut contract_balances_map: HashMap<String, Uint128> = HashMap::new();
         for (addr, balance) in balances.iter() {
-            contract_balances_map.insert((addr), **balance);
+            contract_balances_map.insert(addr, **balance);
         }
 
-        balances_map.insert((contract_addr), contract_balances_map);
+        balances_map.insert(contract_addr, contract_balances_map);
     }
     balances_map
 }

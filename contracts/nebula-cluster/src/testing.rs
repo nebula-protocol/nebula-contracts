@@ -421,7 +421,7 @@ impl WasmMockQuerier {
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies
 /// this uses our CustomQuerier.
 pub fn mock_dependencies(canonical_length: usize, contract_balance: &[Coin]) -> Deps {
-    let contract_addr = (MOCK_CONTRACT_ADDR);
+    let contract_addr = MOCK_CONTRACT_ADDR.to_string();
     let custom_querier: WasmMockQuerier = WasmMockQuerier::new(
         MockQuerier::new(&[(&contract_addr, contract_balance)]),
         MockApi::new(canonical_length),
@@ -551,7 +551,7 @@ pub mod consts {
         FactoryConfigResponse {
             owner: h("gov"),
             nebula_token: h("neb"),
-            staking_contract: h("staking"),
+            staking_contract: "staking".to_string(),
             commission_collector: h("collector"),
             protocol_fee_rate: "0.01".to_string(),
             terraswap_factory: h("ts_factory"),
@@ -828,8 +828,8 @@ fn mint() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: ("mAAPL"),
                 msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
-                    owner: ("addr0000"),
-                    recipient: (MOCK_CONTRACT_ADDR),
+                    owner: "addr0000".to_string(),
+                    recipient: MOCK_CONTRACT_ADDR.to_string(),
                     amount: Uint128::new(125_000_000),
                 })
                 .unwrap(),
@@ -838,8 +838,8 @@ fn mint() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: ("mGOOG"),
                 msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
-                    owner: ("addr0000"),
-                    recipient: (MOCK_CONTRACT_ADDR),
+                    owner: "addr0000".to_string(),
+                    recipient: MOCK_CONTRACT_ADDR.to_string(),
                     amount: Uint128::zero(),
                 })
                 .unwrap(),
@@ -848,8 +848,8 @@ fn mint() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: ("mMSFT"),
                 msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
-                    owner: ("addr0000"),
-                    recipient: (MOCK_CONTRACT_ADDR),
+                    owner: "addr0000".to_string(),
+                    recipient: MOCK_CONTRACT_ADDR.to_string(),
                     amount: Uint128::new(149_000_000),
                 })
                 .unwrap(),
@@ -858,8 +858,8 @@ fn mint() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: ("mNFLX"),
                 msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
-                    owner: ("addr0000"),
-                    recipient: (MOCK_CONTRACT_ADDR),
+                    owner: "addr0000".to_string(),
+                    recipient: MOCK_CONTRACT_ADDR.to_string(),
                     amount: Uint128::new(50_090_272),
                 })
                 .unwrap(),
@@ -911,7 +911,7 @@ fn mint() {
                 contract_addr: consts::cluster_token(),
                 msg: to_binary(&Cw20ExecuteMsg::Mint {
                     amount: Uint128::new(98),
-                    recipient: ("addr0000"),
+                    recipient: "addr0000".to_string(),
                 })
                 .unwrap(),
                 funds: vec![],
@@ -945,7 +945,7 @@ fn burn() {
         max_tokens: Uint128::new(20_000_000),
         asset_amounts: None,
     };
-    let env = mock_info(h("addr0000"), &[]);
+    let env = mock_info("addr0000".to_string(), &[]);
     let res = execute(deps.as_mut(), env.clone(), msg).unwrap();
 
     assert_eq!(
@@ -968,7 +968,7 @@ fn burn() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: h("mAAPL"),
                 msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                    recipient: h("addr0000"),
+                    recipient: "addr0000".to_string(),
                     amount: Uint128::new(99u128)
                 })
                 .unwrap(),
@@ -977,7 +977,7 @@ fn burn() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: h("mGOOG"),
                 msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                    recipient: h("addr0000"),
+                    recipient: "addr0000".to_string(),
                     amount: Uint128::new(98u128)
                 })
                 .unwrap(),
@@ -986,7 +986,7 @@ fn burn() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: h("mMSFT"),
                 msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                    recipient: h("addr0000"),
+                    recipient: "addr0000".to_string(),
                     amount: Uint128::new(97u128)
                 })
                 .unwrap(),
@@ -995,7 +995,7 @@ fn burn() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: h("mNFLX"),
                 msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                    recipient: h("addr0000"),
+                    recipient: "addr0000".to_string(),
                     amount: Uint128::new(96u128)
                 })
                 .unwrap(),
@@ -1004,7 +1004,7 @@ fn burn() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: consts::cluster_token(),
                 msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
-                    owner: h("addr0000"),
+                    owner: "addr0000".to_string(),
                     amount: Uint128::new(13u128),
                     recipient: h("collector"),
                 })
@@ -1014,7 +1014,7 @@ fn burn() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: consts::cluster_token(),
                 msg: to_binary(&Cw20ExecuteMsg::BurnFrom {
-                    owner: h("addr0000"),
+                    owner: "addr0000".to_string(),
                     amount: Uint128::new(1234u128),
                 })
                 .unwrap(),

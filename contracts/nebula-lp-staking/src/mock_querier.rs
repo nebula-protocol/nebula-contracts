@@ -1,7 +1,7 @@
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_binary, from_slice, to_binary, Coin, Decimal, Deps, Querier, QuerierResult, QueryRequest,
-    SystemError, Uint128, WasmQuery, Api
+    from_binary, from_slice, to_binary, Api, Coin, Decimal, Deps, Querier, QuerierResult,
+    QueryRequest, SystemError, Uint128, WasmQuery,
 };
 use cosmwasm_storage::to_length_prefixed;
 use nebula_protocol::oracle::PriceResponse;
@@ -18,11 +18,8 @@ pub struct WasmMockQuerier {
     tax: (Decimal, Uint128),
 }
 
-pub fn mock_dependencies_with_querier(
-    canonical_length: usize,
-    contract_balance: &[Coin],
-) -> Deps {
-    let contract_addr = (MOCK_CONTRACT_ADDR);
+pub fn mock_dependencies_with_querier(canonical_length: usize, contract_balance: &[Coin]) -> Deps {
+    let contract_addr = MOCK_CONTRACT_ADDR.to_string();
     let custom_querier: WasmMockQuerier = WasmMockQuerier::new(
         MockQuerier::new(&[(&contract_addr, contract_balance)]),
         MockApi::new(canonical_length),
@@ -92,7 +89,7 @@ impl WasmMockQuerier {
                 MockQueryMsg::Pair { asset_infos } => Ok(to_binary(&PairInfo {
                     asset_infos: asset_infos.clone(),
                     contract_addr: self.pair_addr.clone(),
-                    liquidity_token: ("lptoken"),
+                    liquidity_token: "lptoken".to_string(),
                 })),
                 MockQueryMsg::Pool {} => Ok(to_binary(&PoolResponse {
                     assets: self.pool_assets.clone(),
@@ -142,7 +139,7 @@ impl WasmMockQuerier {
                 },
                 Asset {
                     info: AssetInfo::Token {
-                        contract_addr: ("asset"),
+                        contract_addr: "asset".to_string(),
                     },
                     amount: Uint128::zero(),
                 },

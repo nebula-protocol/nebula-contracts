@@ -48,8 +48,10 @@ fn test_request_neb() {
         .expect("contract successfully executes InstantiateMsg");
 
     let neb_amount = Uint128::new(1000u128);
-    deps.querier
-        .with_token_balances(&[(&h(NEB_TOKEN), &[(&h(MOCK_CONTRACT_ADDR), &neb_amount)])]);
+    deps.querier.with_token_balances(&[(
+        &h(NEB_TOKEN),
+        &[(&hMOCK_CONTRACT_ADDR.to_string(), &neb_amount)],
+    )]);
     let env = mock_info("random", &[]);
     let msg = ExecuteMsg::RequestNeb { amount: neb_amount };
     let res = execute(deps.as_mut(), env, msg);
@@ -101,11 +103,13 @@ fn test_query() {
     let _res = instantiate(deps.as_mut(), env, msg)
         .expect("contract successfully executes InstantiateMsg");
     let amount = Uint128::new(1000u128);
-    deps.querier
-        .with_token_balances(&[(&h(NEB_TOKEN), &[(&h(MOCK_CONTRACT_ADDR), &amount)])]);
+    deps.querier.with_token_balances(&[(
+        &h(NEB_TOKEN),
+        &[(&hMOCK_CONTRACT_ADDR.to_string(), &amount)],
+    )]);
 
     let msg = QueryMsg::Balance {
-        custody: h(MOCK_CONTRACT_ADDR),
+        custody: hMOCK_CONTRACT_ADDR.to_string(),
     };
 
     let res = query(deps.as_ref(), msg).unwrap();

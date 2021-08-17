@@ -158,7 +158,7 @@ pub fn auto_stake(
                         },
                     ],
                     slippage_tolerance,
-                    receiver: None
+                    receiver: None,
                 })?,
                 funds: vec![Coin {
                     denom: native_asset.info.to_string(),
