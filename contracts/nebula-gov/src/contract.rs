@@ -44,7 +44,7 @@ pub fn instantiate(
 
     let config = Config {
         nebula_token: msg.nebula_token,
-        owner: env.message.sender,
+        owner: info.sender.to_string(),
         quorum: msg.quorum,
         threshold: msg.threshold,
         voting_period: msg.voting_period,
@@ -56,7 +56,7 @@ pub fn instantiate(
     };
 
     let state = State {
-        contract_addr: env.contract.address,
+        contract_addr: env.contract.address.to_string(),
         poll_count: 0,
         total_share: Uint128::zero(),
         total_deposit: Uint128::zero(),
@@ -78,7 +78,7 @@ pub fn instantiate(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
-        ExecuteMsg::Receive(msg) => receive_cw20(deps, env, msg),
+        ExecuteMsg::Receive(msg) => receive_cw20(deps, env, info, msg),
         ExecuteMsg::UpdateConfig {
             owner,
             quorum,
@@ -91,7 +91,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             snapshot_period,
         } => update_config(
             deps,
-            env,
+            info,
             owner,
             quorum,
             threshold,
@@ -102,63 +102,68 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             voter_weight,
             snapshot_period,
         ),
-        ExecuteMsg::WithdrawVotingTokens { amount } => withdraw_voting_tokens(deps, env, amount),
-        ExecuteMsg::WithdrawVotingRewards {} => withdraw_voting_rewards(deps, env),
+        ExecuteMsg::WithdrawVotingTokens { amount } => {
+            withdraw_voting_tokens(deps, env, info, amount)
+        }
+        ExecuteMsg::WithdrawVotingRewards {} => withdraw_voting_rewards(deps, info),
         ExecuteMsg::CastVote {
             poll_id,
             vote,
             amount,
-        } => cast_vote(deps, env, poll_id, vote, amount),
+        } => cast_vote(deps, env, info, poll_id, vote, amount),
         ExecuteMsg::EndPoll { poll_id } => end_poll(deps, env, poll_id),
         ExecuteMsg::ExecutePoll { poll_id } => execute_poll(deps, env, poll_id),
         ExecuteMsg::ExpirePoll { poll_id } => expire_poll(deps, env, poll_id),
         ExecuteMsg::SnapshotPoll { poll_id } => snapshot_poll(deps, env, poll_id),
         ExecuteMsg::IncreaseLockTime { increase_weeks } => {
-            increase_lock_time(deps, env, increase_weeks)
+            increase_lock_time(deps, env, info, increase_weeks)
         }
     }
 }
 
-pub fn receive_cw20(deps: DepsMut, env: Env, cw20_msg: Cw20ReceiveMsg) -> StdResult<Response> {
+pub fn receive_cw20(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    cw20_msg: Cw20ReceiveMsg,
+) -> StdResult<Response> {
     // only nebula token contract can execute this executer
     let config: Config = config_read(deps.storage).load()?;
-    if config.nebula_token != env.message.sender {
+    if config.nebula_token != info.sender.to_string() {
         return Err(StdError::generic_err("unauthorized"));
     }
 
-    if let Some(msg) = cw20_msg.msg {
-        match from_binary(&msg)? {
-            Cw20HookMsg::StakeVotingTokens { lock_for_weeks } => {
-                stake_voting_tokens(deps, env, cw20_msg.sender, cw20_msg.amount, lock_for_weeks)
-            }
-            Cw20HookMsg::CreatePoll {
-                title,
-                description,
-                link,
-                execute_msg,
-            } => create_poll(
-                deps,
-                env,
-                cw20_msg.sender,
-                cw20_msg.amount,
-                title,
-                description,
-                link,
-                execute_msg,
-            ),
-            Cw20HookMsg::DepositReward {} => {
-                deposit_reward(deps, env, cw20_msg.sender, cw20_msg.amount)
-            }
+    let msg = cw20_msg.msg;
+
+    match from_binary(&msg)? {
+        Cw20HookMsg::StakeVotingTokens { lock_for_weeks } => {
+            stake_voting_tokens(deps, env, cw20_msg.sender, cw20_msg.amount, lock_for_weeks)
         }
-    } else {
-        Err(StdError::generic_err("data should be given"))
+        Cw20HookMsg::CreatePoll {
+            title,
+            description,
+            link,
+            execute_msg,
+        } => create_poll(
+            deps,
+            env,
+            cw20_msg.sender,
+            cw20_msg.amount,
+            title,
+            description,
+            link,
+            execute_msg,
+        ),
+        Cw20HookMsg::DepositReward {} => {
+            deposit_reward(deps, info, cw20_msg.sender, cw20_msg.amount)
+        }
     }
 }
 
 #[allow(clippy::too_many_arguments)]
 pub fn update_config(
     deps: DepsMut,
-    env: Env,
+    info: MessageInfo,
     owner: Option<String>,
     quorum: Option<Decimal>,
     threshold: Option<Decimal>,
@@ -170,7 +175,7 @@ pub fn update_config(
     snapshot_period: Option<u64>,
 ) -> StdResult<Response> {
     config_store(deps.storage).update(|mut config| {
-        if config.owner != env.message.sender {
+        if config.owner != info.sender.to_string() {
             return Err(StdError::generic_err("unauthorized"));
         }
 
@@ -367,7 +372,7 @@ pub fn create_poll(
         attr("action", "create_poll"),
         attr("creator", new_poll.creator),
         attr("poll_id", &poll_id.to_string()),
-        attr("end_height", new_poll.end_height),
+        attr("end_height", new_poll.end_height.to_string()),
     ]);
     Ok(r)
 }
@@ -440,7 +445,7 @@ pub fn end_poll(deps: DepsMut, env: Env, poll_id: u64) -> StdResult<Response> {
     }
 
     // Decrease total deposit amount
-    state.total_deposit = (state.total_deposit - a_poll.deposit_amount)?;
+    state.total_deposit = state.total_deposit.checked_sub(a_poll.deposit_amount)?;
     state_store(deps.storage).save(&state)?;
 
     // Update poll indexer
@@ -454,8 +459,8 @@ pub fn end_poll(deps: DepsMut, env: Env, poll_id: u64) -> StdResult<Response> {
 
     Ok(Response::new().add_messages(messages).add_attributes(vec![
         attr("action", "end_poll"),
-        attr("quorum", quorum),
-        attr("tallied_weight", tallied_weight),
+        attr("quorum", quorum.to_string()),
+        attr("tallied_weight", tallied_weight.to_string()),
         attr("staked_weight", staked_weight),
         attr("poll_id", &poll_id.to_string()),
         attr("rejected_reason", rejected_reason),
@@ -535,11 +540,12 @@ pub fn expire_poll(deps: DepsMut, env: Env, poll_id: u64) -> StdResult<Response>
 pub fn cast_vote(
     deps: DepsMut,
     env: Env,
+    info: MessageInfo,
     poll_id: u64,
     vote: VoteOption,
     amount: Uint128,
 ) -> StdResult<Response> {
-    let sender_address = env.message.sender;
+    let sender_address = info.sender.to_string();
     let config = config_read(deps.storage).load()?;
     let state = state_read(deps.storage).load()?;
     if poll_id == 0 || state.poll_count < poll_id {
@@ -569,8 +575,9 @@ pub fn cast_vote(
     // convert share to amount
     let total_share = state.total_share;
     let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
-    let total_balance = (load_token_balance(&deps, &config.nebula_token, &state.contract_addr)?
-        - total_locked_balance)?;
+    let total_balance =
+        (load_token_balance(deps.as_ref(), &config.nebula_token, &state.contract_addr)?
+            .checked_sub(total_locked_balance))?;
 
     let voting_power = calc_voting_power(
         token_manager
@@ -631,7 +638,7 @@ pub fn cast_vote(
         attr("poll_id", &poll_id.to_string()),
         attr("amount", &amount.to_string()),
         attr("voter", sender_address),
-        attr("vote_option", vote_info.vote),
+        attr("vote_option", vote_info.vote.to_string()),
     ];
 
     let r = Response::new().add_attributes(log);
@@ -682,8 +689,8 @@ pub fn snapshot_poll(deps: DepsMut, env: Env, poll_id: u64) -> StdResult<Respons
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Config {} => to_binary(&query_config(&deps)?),
-        QueryMsg::State {} => to_binary(&query_state(&deps)?),
+        QueryMsg::Config {} => to_binary(&query_config(deps)?),
+        QueryMsg::State {} => to_binary(&query_state(deps)?),
         QueryMsg::Staker { address } => to_binary(&query_staker(deps, address)?),
         QueryMsg::Poll { poll_id } => to_binary(&query_poll(deps, poll_id)?),
         QueryMsg::Polls {
@@ -702,7 +709,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             start_after,
             limit,
             order_by,
-        } => to_binary(&query_shares(&deps, start_after, limit, order_by)?),
+        } => to_binary(&query_shares(deps, start_after, limit, order_by)?),
     }
 }
 

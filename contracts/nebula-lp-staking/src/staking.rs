@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    attr, to_binary, Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, Response, StdError,
+    attr, to_binary, Addr, Coin, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Response, StdError,
     StdResult, Storage, Uint128, WasmMsg,
 };
 
@@ -18,7 +18,7 @@ use cw20::Cw20ExecuteMsg;
 
 pub fn bond(
     deps: DepsMut,
-    _env: Env,
+    _info: MessageInfo,
     staker_addr: String,
     asset_token: String,
     amount: Uint128,
@@ -62,6 +62,7 @@ pub fn unbond(
 pub fn auto_stake(
     deps: DepsMut,
     env: Env,
+    info: MessageInfo,
     assets: [Asset; 2],
     slippage_tolerance: Option<Decimal>,
 ) -> StdResult<Response> {
@@ -73,7 +74,7 @@ pub fn auto_stake(
     for asset in assets.iter() {
         match asset.info.clone() {
             AssetInfo::NativeToken { .. } => {
-                asset.assert_sent_native_token_balance(&env)?;
+                asset.assert_sent_native_token_balance(&info)?;
                 native_asset_op = Some(asset.clone())
             }
             AssetInfo::Token { contract_addr } => {
@@ -95,7 +96,7 @@ pub fn auto_stake(
     // query pair info to obtain pair contract address
     let asset_infos: [AssetInfo; 2] = [assets[0].info.clone(), assets[1].info.clone()];
     let terraswap_pair: PairInfo = query_pair_info(
-        deps.querier,
+        &deps.querier,
         Addr::unchecked(terraswap_factory.to_string()),
         &asset_infos,
     )?;
@@ -126,7 +127,7 @@ pub fn auto_stake(
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: token_addr.clone().to_string(),
                 msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
-                    owner: env.message.sender.clone(),
+                    owner: info.sender.to_string(),
                     recipient: env.contract.address.clone().to_string(),
                     amount: token_amount,
                 })?,
@@ -168,7 +169,7 @@ pub fn auto_stake(
                 msg: to_binary(&ExecuteMsg::AutoStakeHook {
                     asset_token: token_addr.clone(),
                     staking_token: (terraswap_pair.liquidity_token),
-                    staker_addr: env.message.sender,
+                    staker_addr: info.sender.to_string(),
                     prev_staking_token_amount,
                 })?,
                 funds: vec![],
@@ -184,13 +185,14 @@ pub fn auto_stake(
 pub fn auto_stake_hook(
     deps: DepsMut,
     env: Env,
+    info: MessageInfo,
     asset_token: String,
     staking_token: String,
     staker_addr: String,
     prev_staking_token_amount: Uint128,
 ) -> StdResult<Response> {
     // only can be called by itself
-    if env.message.sender != env.contract.address {
+    if info.sender.to_string() != env.contract.address {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -202,7 +204,7 @@ pub fn auto_stake_hook(
     )?;
     let amount_to_stake = current_staking_token_amount.checked_sub(prev_staking_token_amount)?;
 
-    bond(deps, env, staker_addr, asset_token, amount_to_stake)
+    bond(deps, info, staker_addr, asset_token, amount_to_stake)
 }
 
 fn _increase_bond_amount(

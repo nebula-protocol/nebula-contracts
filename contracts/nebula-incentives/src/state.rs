@@ -82,7 +82,7 @@ pub fn store_pending_rewards(
     contributor: &String,
     amt: Uint128,
 ) -> StdResult<()> {
-    Bucket::new(PREFIX_PENDING_REWARDS, storage).save(contributor.as_str().as_bytes(), &amt)
+    Bucket::new(storage, PREFIX_PENDING_REWARDS).save(contributor.as_str().as_bytes(), &amt)
 }
 
 pub fn read_pending_rewards(storage: &dyn Storage, contributor: &String) -> Uint128 {

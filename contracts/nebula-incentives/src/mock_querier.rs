@@ -5,8 +5,9 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    coin, from_binary, from_slice, to_binary, BalanceResponse, BankQuery, Binary, CanonicalAddr,
-    Coin, Decimal, Deps, DepsMut, QuerierResult, QueryRequest, SystemError, Uint128, WasmQuery,
+    coin, from_binary, from_slice, to_binary, Api, BalanceResponse, BankQuery, Binary,
+    CanonicalAddr, Coin, Decimal, Deps, QuerierResult, QueryRequest, SystemError, Uint128,
+    WasmQuery,
 };
 use cosmwasm_storage::to_length_prefixed;
 
@@ -353,9 +354,9 @@ impl WasmMockQuerier {
 }
 
 impl WasmMockQuerier {
-    pub fn new<A: Api>(
+    pub fn new(
         base: MockQuerier<TerraQueryWrapper>,
-        _api: A,
+        _api: &dyn Api,
         canonical_length: usize,
     ) -> Self {
         WasmMockQuerier {

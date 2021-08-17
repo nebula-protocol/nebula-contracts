@@ -1,6 +1,5 @@
 use cosmwasm_std::{
-    from_binary, Binary, CanonicalAddr, Decimal, Deps, DepsMut, QueryRequest, StdError, StdResult,
-    WasmQuery,
+    from_binary, Binary, CanonicalAddr, Decimal, Deps, QueryRequest, StdError, StdResult, WasmQuery,
 };
 
 use cosmwasm_storage::to_length_prefixed;
@@ -51,7 +50,7 @@ pub fn load_mint_asset_config(
     asset_token: &CanonicalAddr,
 ) -> StdResult<(Decimal, Decimal, Option<Decimal>)> {
     let res: StdResult<Binary> = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Raw {
-        contract_addr: (contract_addr),
+        contract_addr: contract_addr.to_string(),
         key: Binary::from(concat(
             &to_length_prefixed(b"asset_config"),
             asset_token.as_slice(),

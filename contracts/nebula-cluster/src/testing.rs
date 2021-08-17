@@ -299,9 +299,9 @@ impl OracleQuerier {
 }
 
 impl WasmMockQuerier {
-    pub fn new<A: Api>(
+    pub fn new(
         base: MockQuerier<TerraQueryWrapper>,
-        _api: A,
+        _api: &dyn Api,
         canonical_length: usize,
     ) -> Self {
         WasmMockQuerier {

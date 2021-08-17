@@ -35,21 +35,21 @@ pub fn instantiate(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
-        ExecuteMsg::Receive(msg) => receive_cw20(deps, env, msg),
-        ExecuteMsg::UpdateConfig { owner } => update_config(deps, env, owner),
+        ExecuteMsg::Receive(msg) => receive_cw20(deps, info, msg),
+        ExecuteMsg::UpdateConfig { owner } => update_config(deps, info, owner),
         ExecuteMsg::RegisterAsset {
             asset_token,
             staking_token,
-        } => register_asset(deps, env, asset_token, staking_token),
+        } => register_asset(deps, info, asset_token, staking_token),
         ExecuteMsg::Unbond {
             asset_token,
             amount,
-        } => unbond(deps, env.message.sender, asset_token, amount),
-        ExecuteMsg::Withdraw { asset_token } => withdraw_reward(deps, env, asset_token),
+        } => unbond(deps, info.sender.to_string(), asset_token, amount),
+        ExecuteMsg::Withdraw { asset_token } => withdraw_reward(deps, info, asset_token),
         ExecuteMsg::AutoStake {
             assets,
             slippage_tolerance,
-        } => auto_stake(deps, env, assets, slippage_tolerance),
+        } => auto_stake(deps, env, info, assets, slippage_tolerance),
         ExecuteMsg::AutoStakeHook {
             asset_token,
             staking_token,
@@ -58,6 +58,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         } => auto_stake_hook(
             deps,
             env,
+            info,
             asset_token,
             staking_token,
             staker_addr,
@@ -66,7 +67,11 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
     }
 }
 
-pub fn receive_cw20(deps: DepsMut, env: Env, cw20_msg: Cw20ReceiveMsg) -> StdResult<Response> {
+pub fn receive_cw20(
+    deps: DepsMut,
+    info: MessageInfo,
+    cw20_msg: Cw20ReceiveMsg,
+) -> StdResult<Response> {
     let msg = cw20_msg.msg;
     let config: Config = read_config(deps.storage)?;
 
@@ -75,15 +80,15 @@ pub fn receive_cw20(deps: DepsMut, env: Env, cw20_msg: Cw20ReceiveMsg) -> StdRes
             let pool_info: PoolInfo = read_pool_info(deps.storage, &asset_token)?;
 
             // only staking token contract can execute this message
-            if pool_info.staking_token != env.message.sender {
+            if pool_info.staking_token != info.sender.to_string() {
                 return Err(StdError::generic_err("unauthorized"));
             }
 
-            bond(deps, env, cw20_msg.sender, asset_token, cw20_msg.amount)
+            bond(deps, info, cw20_msg.sender, asset_token, cw20_msg.amount)
         }
         Cw20HookMsg::DepositReward { rewards } => {
             // only reward token contract can execute this message
-            if config.nebula_token != env.message.sender {
+            if config.nebula_token != info.sender.to_string() {
                 return Err(StdError::generic_err("unauthorized"));
             }
 
@@ -101,10 +106,14 @@ pub fn receive_cw20(deps: DepsMut, env: Env, cw20_msg: Cw20ReceiveMsg) -> StdRes
     }
 }
 
-pub fn update_config(deps: DepsMut, env: Env, owner: Option<String>) -> StdResult<Response> {
+pub fn update_config(
+    deps: DepsMut,
+    info: MessageInfo,
+    owner: Option<String>,
+) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
 
-    if env.message.sender != config.owner {
+    if info.sender != config.owner {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -118,13 +127,13 @@ pub fn update_config(deps: DepsMut, env: Env, owner: Option<String>) -> StdResul
 
 fn register_asset(
     deps: DepsMut,
-    env: Env,
+    info: MessageInfo,
     asset_token: String,
     staking_token: String,
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
 
-    if config.owner != env.message.sender {
+    if config.owner != info.sender.to_string() {
         return Err(StdError::generic_err("unauthorized"));
     }
 

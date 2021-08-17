@@ -18,7 +18,7 @@ use terraswap::querier::{query_balance, query_pair_info, query_token_balance};
 pub fn instantiate(
     deps: DepsMut,
     _env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
     store_config(
@@ -36,7 +36,12 @@ pub fn instantiate(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
+pub fn execute(
+    deps: DepsMut,
+    env: Env,
+    _info: MessageInfo,
+    msg: ExecuteMsg,
+) -> StdResult<Response> {
     match msg {
         ExecuteMsg::Convert { asset_token } => convert(deps, env, asset_token),
         ExecuteMsg::Distribute {} => distribute(deps, env),

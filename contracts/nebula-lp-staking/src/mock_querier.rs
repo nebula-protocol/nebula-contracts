@@ -125,9 +125,9 @@ impl WasmMockQuerier {
 }
 
 impl WasmMockQuerier {
-    pub fn new<A: Api>(
+    pub fn new(
         base: MockQuerier<TerraQueryWrapper>,
-        _api: A,
+        _api: &dyn Api,
         _canonical_length: usize,
     ) -> Self {
         WasmMockQuerier {

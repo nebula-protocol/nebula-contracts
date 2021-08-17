@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    attr, entry_point, to_binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    attr, entry_point, to_binary, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdError,
     StdResult, Uint128, WasmMsg,
 };
 
@@ -34,11 +34,11 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         ExecuteMsg::Mint {
             asset_amounts,
             min_tokens,
-        } => mint(deps, env, &asset_amounts, &min_tokens),
+        } => mint(deps, env, info, &asset_amounts, &min_tokens),
         ExecuteMsg::Burn {
             max_tokens,
             asset_amounts,
-        } => receive_burn(deps, env, max_tokens, asset_amounts),
+        } => receive_burn(deps, env, info, max_tokens, asset_amounts),
         ExecuteMsg::UpdateConfig {
             owner,
             name,
@@ -51,6 +51,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         } => update_config(
             deps,
             env,
+            info,
             owner,
             name,
             description,
@@ -60,8 +61,8 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             penalty,
             target,
         ),
-        ExecuteMsg::UpdateTarget { target } => update_target(deps, env, &target),
-        ExecuteMsg::Decommission {} => decommission(deps, env),
+        ExecuteMsg::UpdateTarget { target } => update_target(deps, env, info, &target),
+        ExecuteMsg::Decommission {} => decommission(deps, info),
     }
 }
 
@@ -69,6 +70,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 pub fn update_config(
     deps: DepsMut,
     env: Env,
+    info: MessageInfo,
     owner: Option<String>,
     name: Option<String>,
     description: Option<String>,
@@ -80,7 +82,7 @@ pub fn update_config(
 ) -> StdResult<Response> {
     // First, update cluster config
     config_store(deps.storage).update(|mut config| {
-        if config.owner != env.message.sender {
+        if config.owner != info.sender.to_string() {
             return Err(StdError::generic_err("unauthorized"));
         }
 
@@ -118,7 +120,7 @@ pub fn update_config(
 
     match target {
         None => Response::default(),
-        Some(target) => update_target(deps, env, &target)?,
+        Some(target) => update_target(deps, env, info, &target)?,
     };
 
     Ok(Response::new().add_attributes(vec![attr("action", "update_config")]))
@@ -129,7 +131,12 @@ pub fn update_config(
     target weights and saves it. The ordering of the target weights is
     determined by the given assets.
 */
-pub fn update_target(deps: DepsMut, env: Env, target: &Vec<Asset>) -> StdResult<Response> {
+pub fn update_target(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    target: &Vec<Asset>,
+) -> StdResult<Response> {
     // allow removal / adding
 
     let cfg = read_config(deps.storage)?;
@@ -137,7 +144,8 @@ pub fn update_target(deps: DepsMut, env: Env, target: &Vec<Asset>) -> StdResult<
         return Err(error::cluster_token_not_set());
     }
     // check permission
-    if (env.message.sender != cfg.owner) && (env.message.sender != cfg.composition_oracle) {
+    if (info.sender.to_string() != cfg.owner) && (info.sender.to_string() != cfg.composition_oracle)
+    {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -154,7 +162,7 @@ pub fn update_target(deps: DepsMut, env: Env, target: &Vec<Asset>) -> StdResult<
         .map(|x| x.amount.clone())
         .collect::<Vec<_>>();
 
-    if validate_targets(&deps, &env, updated_asset_infos.clone(), None).is_err() {
+    if validate_targets(deps.as_ref(), &env, updated_asset_infos.clone(), None).is_err() {
         return Err(StdError::generic_err(
             "Cluster must contain valid assets and cannot contain duplicate assets",
         ));
@@ -170,7 +178,11 @@ pub fn update_target(deps: DepsMut, env: Env, target: &Vec<Asset>) -> StdResult<
     // When previous assets are not found,
     // then set that not found item target to zero
     for prev_asset in prev_assets.iter() {
-        let inv_balance = query_asset_balance(&deps.querier, &env.contract.address, &prev_asset)?;
+        let inv_balance = query_asset_balance(
+            &deps.querier,
+            &env.contract.address.to_string(),
+            &prev_asset,
+        )?;
         if !inv_balance.is_zero() && !updated_asset_infos.contains(&prev_asset) {
             let asset_elem = Asset {
                 info: prev_asset.clone(),
@@ -198,14 +210,14 @@ pub fn update_target(deps: DepsMut, env: Env, target: &Vec<Asset>) -> StdResult<
     Decommissions an active cluster, disabling mints, and only allowing
     pro-rata redeems
 */
-pub fn decommission(deps: DepsMut, env: Env) -> StdResult<Response> {
+pub fn decommission(deps: DepsMut, info: MessageInfo) -> StdResult<Response> {
     // allow removal / adding
     let cfg = read_config(deps.storage)?;
     if let None = cfg.cluster_token {
         return Err(error::cluster_token_not_set());
     }
     // check permission for factory
-    if env.message.sender != cfg.factory {
+    if info.sender.to_string() != cfg.factory {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -216,7 +228,7 @@ pub fn decommission(deps: DepsMut, env: Env) -> StdResult<Response> {
         ));
     }
 
-    config_store(deps.storage).update(|mut config| {
+    config_store(deps.storage).update(|mut config| -> StdResult<_> {
         config.active = false;
 
         Ok(config)
@@ -232,12 +244,13 @@ pub fn decommission(deps: DepsMut, env: Env) -> StdResult<Response> {
 pub fn mint(
     deps: DepsMut,
     env: Env,
+    info: MessageInfo,
     asset_amounts: &Vec<Asset>,
     min_tokens: &Option<Uint128>,
 ) -> StdResult<Response> {
     // duplication check for the given asset_amounts
     if validate_targets(
-        &deps,
+        deps.as_ref(),
         &env,
         asset_amounts.iter().map(|a| a.info.clone()).collect(),
         None,
@@ -258,8 +271,8 @@ pub fn mint(
     }
 
     let cluster_state = query_cluster_state(
-        &deps,
-        &env.contract.address,
+        deps.as_ref(),
+        &env.contract.address.to_string(),
         (env.block.time.nanos() / 1_000_000_000) - FRESH_TIMESPAN,
     )?;
 
@@ -296,7 +309,7 @@ pub fn mint(
     let mut messages = vec![];
 
     // Return an error if assets not in target are sent to the mint function
-    for coin in env.message.sent_funds.iter() {
+    for coin in info.funds.iter() {
         if !native_coin_denoms.contains(&coin.denom) {
             return Err(StdError::generic_err(
                 "Unsupported assets were sent to the mint function",
@@ -320,15 +333,15 @@ pub fn mint(
                     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: contract_addr.clone(),
                         msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
-                            owner: env.message.sender.clone(),
-                            recipient: env.contract.address.clone().to_string(),
+                            owner: info.sender.to_string(),
+                            recipient: env.contract.address.to_string(),
                             amount: asset.amount,
                         })?,
                         funds: vec![],
                     }));
                 } else {
                     // validate that native token balance is correct
-                    asset.assert_sent_native_token_balance(&env)?;
+                    asset.assert_sent_native_token_balance(&info)?;
 
                     // inventory should not include native assets sent in this transaction
                     inv[i] = inv[i].checked_sub(asset.amount)?;
@@ -447,14 +460,14 @@ pub fn mint(
         contract_addr: cluster_token.clone().to_string(),
         msg: to_binary(&Cw20ExecuteMsg::Mint {
             amount: mint_to_sender,
-            recipient: env.message.sender.clone(),
+            recipient: info.sender.to_string(),
         })?,
         funds: vec![],
     }));
 
     let mut logs = vec![
         attr("action", "mint"),
-        attr("sender", &env.message.sender),
+        attr("sender", &info.sender.to_string()),
         attr("mint_to_sender", mint_to_sender),
     ];
     logs.extend(extra_logs);
@@ -473,10 +486,11 @@ pub fn mint(
 pub fn receive_burn(
     deps: DepsMut,
     env: Env,
+    info: MessageInfo,
     max_tokens: Uint128,
     asset_amounts: Option<Vec<Asset>>,
 ) -> StdResult<Response> {
-    let sender = env.message.sender.clone();
+    let sender = info.sender.to_string();
 
     let cfg = read_config(deps.storage)?;
 
@@ -499,7 +513,11 @@ pub fn receive_burn(
         None => u64::MIN,
     };
 
-    let cluster_state = query_cluster_state(&deps.querier, &env.contract.address, stale_threshold)?;
+    let cluster_state = query_cluster_state(
+        deps.as_ref(),
+        &env.contract.address.to_string(),
+        stale_threshold,
+    )?;
 
     let prices = cluster_state.prices;
     let cluster_token_supply = cluster_state.outstanding_balance_tokens;

@@ -9,8 +9,8 @@ use crate::state::{
 use cluster_math::FPDecimal;
 
 use cosmwasm_std::{
-    attr, to_binary, CosmosMsg, Deps, DepsMut, Env, Response, StdError, StdResult, Storage,
-    Uint128, WasmMsg,
+    attr, to_binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
+    Storage, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::common::OrderBy;
@@ -70,8 +70,9 @@ pub fn stake_voting_tokens(
 
     // balance already increased, so subtract deposit amount
     let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
-    let total_balance = (load_token_balance(&deps, &config.nebula_token, &state.contract_addr)?
-        - (total_locked_balance + amount))?;
+    let total_balance =
+        (load_token_balance(deps.as_ref(), &config.nebula_token, &state.contract_addr)?
+            .checked_sub(total_locked_balance + amount))?;
     let share = if total_balance.is_zero() || state.total_share.is_zero() {
         amount
     } else {
@@ -134,9 +135,10 @@ pub fn stake_voting_tokens(
 pub fn withdraw_voting_tokens(
     deps: DepsMut,
     env: Env,
+    info: MessageInfo,
     amount: Option<Uint128>,
 ) -> StdResult<Response> {
-    let sender_address = env.message.sender;
+    let sender_address = info.sender.to_string();
     let key = sender_address.as_str().as_bytes();
 
     if let Some(mut token_manager) = bank_read(deps.storage).may_load(key)? {
@@ -147,11 +149,11 @@ pub fn withdraw_voting_tokens(
         let total_share = state.total_share.u128();
         let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
         let total_balance =
-            (load_token_balance(&deps, &config.nebula_token, &state.contract_addr)?
-                - total_locked_balance)?
-                .u128();
+            (load_token_balance(deps.as_ref(), &config.nebula_token, &state.contract_addr)?
+                .checked_sub(total_locked_balance))?
+            .u128();
 
-        let user_locked_balance = compute_locked_balance(deps, &mut token_manager, &key)?;
+        let user_locked_balance = compute_locked_balance(deps.storage, &mut token_manager, &key)?;
         let user_locked_share = user_locked_balance * total_share / total_balance;
         let user_share = token_manager.share.u128();
 
@@ -196,7 +198,7 @@ pub fn withdraw_voting_tokens(
 
 // returns the largest locked amount in participated polls.
 fn compute_locked_balance(
-    deps: DepsMut,
+    storage: &mut dyn Storage,
     token_manager: &mut TokenManager,
     voter: &[u8],
 ) -> StdResult<u128> {
@@ -207,13 +209,11 @@ fn compute_locked_balance(
         .locked_balance
         .iter()
         .filter(|(poll_id, _)| {
-            let poll: Poll = poll_read(deps.storage)
-                .load(&poll_id.to_be_bytes())
-                .unwrap();
+            let poll: Poll = poll_read(storage).load(&poll_id.to_be_bytes()).unwrap();
 
             // cleanup not needed information, voting info in polls with no rewards
             if poll.status != PollStatus::InProgress && poll.voters_reward.is_zero() {
-                poll_voter_store(deps.storage, *poll_id).remove(voter);
+                poll_voter_store(storage, *poll_id).remove(voter);
                 lock_entries_to_remove.push(*poll_id);
             }
 
@@ -233,7 +233,7 @@ fn compute_locked_balance(
 
 pub fn deposit_reward(
     deps: DepsMut,
-    _env: Env,
+    _info: MessageInfo,
     _sender: String,
     amount: Uint128,
 ) -> StdResult<Response> {
@@ -268,7 +268,7 @@ pub fn deposit_reward(
             .unwrap()
     }
 
-    state_store(deps.storage).update(|mut state| {
+    state_store(deps.storage).update(|mut state| -> StdResult<_> {
         state.pending_voting_rewards += voter_rewards;
         Ok(state)
     })?;
@@ -279,9 +279,9 @@ pub fn deposit_reward(
     ]))
 }
 
-pub fn withdraw_voting_rewards(deps: DepsMut, env: Env) -> StdResult<Response> {
+pub fn withdraw_voting_rewards(deps: DepsMut, info: MessageInfo) -> StdResult<Response> {
     let config: Config = config_store(deps.storage).load()?;
-    let sender_address = env.message.sender;
+    let sender_address = info.sender.to_string();
     let key = sender_address.as_str().as_bytes();
 
     let mut token_manager = bank_read(deps.storage)
@@ -300,7 +300,7 @@ pub fn withdraw_voting_rewards(deps: DepsMut, env: Env) -> StdResult<Response> {
         .retain(|(poll_id, _)| !w_polls.contains(poll_id));
     bank_store(deps.storage).save(key, &token_manager)?;
 
-    state_store(deps.storage).update(|mut state| {
+    state_store(deps.storage).update(|mut state| -> StdResult<_> {
         state.pending_voting_rewards = state
             .pending_voting_rewards
             .checked_sub(Uint128::new(user_reward_amount))?;
@@ -372,19 +372,17 @@ fn send_tokens(
     amount: u128,
     action: &str,
 ) -> StdResult<Response> {
-    let contract_human = (asset_token);
-    let recipient_human = (recipient);
     let log = vec![
         attr("action", action),
-        attr("recipient", recipient_human.as_str()),
+        attr("recipient", recipient.as_str()),
         attr("amount", &amount.to_string()),
     ];
 
     Ok(Response::new()
         .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: contract_human,
+            contract_addr: asset_token.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: recipient_human,
+                recipient: recipient.to_string(),
                 amount: Uint128::from(amount),
             })?,
             funds: vec![],
@@ -425,8 +423,8 @@ pub fn query_staker(deps: Deps, address: String) -> StdResult<StakerResponse> {
     });
 
     let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
-    let total_balance = (load_token_balance(&deps, &config.nebula_token, &state.contract_addr)?
-        - total_locked_balance)?;
+    let total_balance = (load_token_balance(deps, &config.nebula_token, &state.contract_addr)?
+        .checked_sub(total_locked_balance))?;
 
     Ok(StakerResponse {
         balance: if !state.total_share.is_zero() {
@@ -451,8 +449,13 @@ pub fn calc_voting_power(share: Uint128, lock_end_week: u64, current_week: u64) 
 }
 
 //Increase the number of weeks staked tokens are locked for
-pub fn increase_lock_time(deps: DepsMut, env: Env, increase_weeks: u64) -> StdResult<Response> {
-    let sender_address = env.message.sender;
+pub fn increase_lock_time(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    increase_weeks: u64,
+) -> StdResult<Response> {
+    let sender_address = info.sender;
     let key = sender_address.as_str().as_bytes();
 
     let mut total_voting_power = total_voting_power_read(deps.storage).load()?;

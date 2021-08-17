@@ -19,7 +19,11 @@ pub fn validate_targets(
     for i in 0..target_assets.len() - 1 {
         let to_query = query.unwrap_or(true);
         if to_query {
-            query_asset_balance(&deps.querier, &env.contract.address, &target_assets[i])?;
+            query_asset_balance(
+                &deps.querier,
+                &env.contract.address.to_string(),
+                &target_assets[i],
+            )?;
         }
         for j in i + 1..target_assets.len() {
             if target_assets[i].equal(&target_assets[j]) {

@@ -308,7 +308,7 @@ fn test_incentives_mint() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: ("asset0000"),
                 msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
-                    owner: env.message.sender.clone(),
+                    owner: info.sender.to_string(),
                     recipient: env.contract.address.clone(),
                     amount: Uint128::new(100),
                 })
@@ -318,7 +318,7 @@ fn test_incentives_mint() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: ("asset0001"),
                 msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
-                    owner: env.message.sender.clone(),
+                    owner: info.sender.to_string(),
                     recipient: env.contract.address.clone(),
                     amount: Uint128::new(100),
                 })
@@ -328,7 +328,7 @@ fn test_incentives_mint() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.clone(),
                 msg: to_binary(&ExecuteMsg::_InternalRewardedMint {
-                    rebalancer: env.message.sender.clone(),
+                    rebalancer: info.sender.to_string(),
                     cluster_contract: ("cluster"),
                     asset_amounts: asset_amounts,
                     min_tokens: None,
@@ -342,7 +342,7 @@ fn test_incentives_mint() {
                     asset_infos: vec![AssetInfo::Token {
                         contract_addr: ("cluster_token"),
                     }],
-                    send_to: env.message.sender,
+                    send_to: info.sender.to_string(),
                 })
                 .unwrap(),
                 funds: vec![],
@@ -412,7 +412,7 @@ fn test_incentives_redeem() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: ("cluster_token"),
                 msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
-                    owner: env.message.sender.clone(),
+                    owner: info.sender.to_string(),
                     amount: Uint128::new(1000),
                     recipient: env.contract.address.clone(),
                 })
@@ -422,7 +422,7 @@ fn test_incentives_redeem() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.clone(),
                 msg: to_binary(&ExecuteMsg::_InternalRewardedRedeem {
-                    rebalancer: env.message.sender.clone(),
+                    rebalancer: info.sender.to_string(),
                     cluster_contract: ("cluster"),
                     cluster_token: ("cluster_token"),
                     max_tokens: Some(Uint128::new(1000)),
@@ -435,7 +435,7 @@ fn test_incentives_redeem() {
                 contract_addr: env.contract.address,
                 msg: to_binary(&ExecuteMsg::_SendAll {
                     asset_infos,
-                    send_to: env.message.sender,
+                    send_to: info.sender.to_string(),
                 })
                 .unwrap(),
                 funds: vec![],
@@ -489,7 +489,7 @@ fn test_incentives_arb_cluster_mint() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: ("asset0000"),
                 msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
-                    owner: env.message.sender.clone(),
+                    owner: info.sender.to_string(),
                     recipient: env.contract.address.clone(),
                     amount: Uint128::new(100),
                 })
@@ -499,7 +499,7 @@ fn test_incentives_arb_cluster_mint() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: ("asset0001"),
                 msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
-                    owner: env.message.sender.clone(),
+                    owner: info.sender.to_string(),
                     recipient: env.contract.address.clone(),
                     amount: Uint128::new(100),
                 })
@@ -509,7 +509,7 @@ fn test_incentives_arb_cluster_mint() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.clone(),
                 msg: to_binary(&ExecuteMsg::_InternalRewardedMint {
-                    rebalancer: env.message.sender.clone(),
+                    rebalancer: info.sender.to_string(),
                     cluster_contract: ("cluster"),
                     asset_amounts: asset_amounts,
                     min_tokens: None,
@@ -531,7 +531,7 @@ fn test_incentives_arb_cluster_mint() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.clone(),
                 msg: to_binary(&ExecuteMsg::_RecordTerraswapImpact {
-                    arbitrageur: env.message.sender.clone(),
+                    arbitrageur: info.sender.to_string(),
                     terraswap_pair: ("uusd_cluster_pair"),
                     cluster_contract: ("cluster"),
                     pool_before: TerraswapPoolResponse {
@@ -561,7 +561,7 @@ fn test_incentives_arb_cluster_mint() {
                     asset_infos: vec![AssetInfo::NativeToken {
                         denom: "uusd".to_string(),
                     }],
-                    send_to: env.message.sender,
+                    send_to: info.sender.to_string(),
                 })
                 .unwrap(),
                 funds: vec![],
@@ -630,7 +630,7 @@ fn test_incentives_arb_cluster_redeem() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.clone(),
                 msg: to_binary(&ExecuteMsg::_RecordTerraswapImpact {
-                    arbitrageur: env.message.sender.clone(),
+                    arbitrageur: info.sender.to_string(),
                     terraswap_pair: ("uusd_cluster_pair"),
                     cluster_contract: ("cluster"),
                     pool_before: TerraswapPoolResponse {
@@ -657,7 +657,7 @@ fn test_incentives_arb_cluster_redeem() {
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.clone(),
                 msg: to_binary(&ExecuteMsg::_InternalRewardedRedeem {
-                    rebalancer: env.message.sender.clone(),
+                    rebalancer: info.sender.to_string(),
                     cluster_contract: ("cluster"),
                     cluster_token: ("cluster_token"),
                     max_tokens: None,
@@ -680,7 +680,7 @@ fn test_incentives_arb_cluster_redeem() {
                             denom: "native_asset0000".to_string(),
                         },
                     ],
-                    send_to: env.message.sender,
+                    send_to: info.sender.to_string(),
                 })
                 .unwrap(),
                 funds: vec![],

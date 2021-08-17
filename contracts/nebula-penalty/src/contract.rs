@@ -17,7 +17,7 @@ use std::cmp::{max, min};
 pub fn instantiate(
     deps: DepsMut,
     _env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
     if msg.penalty_params.penalty_amt_hi != FPDecimal::one() {
@@ -276,7 +276,7 @@ pub fn update_config(
     owner: Option<String>,
     penalty_params: Option<PenaltyParams>,
 ) -> StdResult<Response> {
-    config_store(deps.storage).update(|mut config| {
+    config_store(deps.storage).update(|mut config| -> StdResult<_> {
         if let Some(owner) = owner {
             config.owner = owner;
         }
@@ -334,11 +334,11 @@ pub fn execute_redeem(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
+pub fn execute(deps: DepsMut, _env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     let cfg = read_config(deps.storage)?;
 
     // check permission
-    if env.message.sender != cfg.owner {
+    if info.sender.to_string() != cfg.owner {
         return Err(StdError::generic_err("unauthorized"));
     }
 

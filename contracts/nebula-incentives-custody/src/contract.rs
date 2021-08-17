@@ -11,7 +11,7 @@ use nebula_protocol::incentives_custody::{ExecuteMsg, InstantiateMsg, QueryMsg};
 pub fn instantiate(
     deps: DepsMut,
     _env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
     set_owner(deps.storage, &msg.owner)?;
@@ -22,16 +22,16 @@ pub fn instantiate(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
-        ExecuteMsg::RequestNeb { amount } => request_neb(deps, env, amount),
-        ExecuteMsg::UpdateOwner { owner } => update_owner(deps, env, &owner),
+        ExecuteMsg::RequestNeb { amount } => request_neb(deps, env, info, amount),
+        ExecuteMsg::UpdateOwner { owner } => update_owner(deps, info, &owner),
     }
 }
 
-pub fn update_owner(deps: DepsMut, env: Env, owner: &String) -> StdResult<Response> {
+pub fn update_owner(deps: DepsMut, info: MessageInfo, owner: &String) -> StdResult<Response> {
     let old_owner = read_owner(deps.storage)?;
 
     // check permission
-    if env.message.sender != old_owner {
+    if info.sender != old_owner {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -44,8 +44,13 @@ pub fn update_owner(deps: DepsMut, env: Env, owner: &String) -> StdResult<Respon
     ]))
 }
 
-pub fn request_neb(deps: DepsMut, env: Env, amount: Uint128) -> StdResult<Response> {
-    if env.message.sender != read_owner(deps.storage)? {
+pub fn request_neb(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    amount: Uint128,
+) -> StdResult<Response> {
+    if info.sender.to_string() != read_owner(deps.storage)? {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -53,15 +58,15 @@ pub fn request_neb(deps: DepsMut, env: Env, amount: Uint128) -> StdResult<Respon
         .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: read_neb(deps.storage)?.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: env.message.sender.clone(),
+                recipient: info.sender.to_string(),
                 amount,
             })?,
             funds: vec![],
         })])
         .add_attributes(vec![
             attr("action", "request_neb"),
-            attr("from", env.contract.address),
-            attr("to", env.message.sender),
+            attr("from", env.contract.address.to_string()),
+            attr("to", info.sender.to_string()),
             attr("amount", amount),
         ]))
 }

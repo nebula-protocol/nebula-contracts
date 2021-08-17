@@ -1,8 +1,8 @@
 use crate::state::{read_config, store_config, Config};
 
 use cosmwasm_std::{
-    entry_point, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, Uint128, WasmMsg,
+    attr, entry_point, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response,
+    StdError, StdResult, Uint128, WasmMsg,
 };
 
 use nebula_protocol::community::{
@@ -15,7 +15,7 @@ use cw20::Cw20ExecuteMsg;
 pub fn instantiate(
     deps: DepsMut,
     _env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
     store_config(
@@ -31,23 +31,28 @@ pub fn instantiate(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
+pub fn execute(
+    deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    msg: ExecuteMsg,
+) -> StdResult<Response> {
     match msg {
         ExecuteMsg::UpdateConfig { owner, spend_limit } => {
-            update_config(deps, env, owner, spend_limit)
+            update_config(deps, info, owner, spend_limit)
         }
-        ExecuteMsg::Spend { recipient, amount } => spend(deps, env, recipient, amount),
+        ExecuteMsg::Spend { recipient, amount } => spend(deps, info, recipient, amount),
     }
 }
 
 pub fn update_config(
     deps: DepsMut,
-    env: Env,
+    info: MessageInfo,
     owner: Option<String>,
     spend_limit: Option<Uint128>,
 ) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
-    if config.owner != env.message.sender {
+    if config.owner != info.sender.to_string() {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -67,9 +72,14 @@ pub fn update_config(
 /// Spend
 /// Owner can execute spend operation to send
 /// `amount` of NEB token to `recipient` for community purpose
-pub fn spend(deps: DepsMut, env: Env, recipient: String, amount: Uint128) -> StdResult<Response> {
+pub fn spend(
+    deps: DepsMut,
+    info: MessageInfo,
+    recipient: String,
+    amount: Uint128,
+) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
-    if config.owner != env.message.sender {
+    if config.owner != info.sender.to_string() {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -86,14 +96,11 @@ pub fn spend(deps: DepsMut, env: Env, recipient: String, amount: Uint128) -> Std
                 amount,
             })?,
         })])
-        .add_attributes(
-            attributes:
-                vec![
-                    attr("action", "spend"),
-                    attr("recipient", recipient),
-                    attr("amount", amount),
-                ],
-        ))
+        .add_attributes(vec![
+            attr("action", "spend"),
+            attr("recipient", recipient),
+            attr("amount", amount),
+        ]))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

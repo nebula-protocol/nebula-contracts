@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    attr, to_binary, CosmosMsg, Deps, DepsMut, Env, Order, Response, StdError, StdResult, Storage,
-    Uint128, WasmMsg,
+    attr, to_binary, CosmosMsg, DepsMut, MessageInfo, Order, Response, StdError, StdResult,
+    Storage, Uint128, WasmMsg,
 };
 
 use crate::state::{
@@ -50,10 +50,10 @@ pub fn deposit_reward(
 }
 
 // withdraw all rewards or single reward depending on asset_token
-pub fn withdraw_reward(deps: DepsMut, env: Env) -> StdResult<Response> {
+pub fn withdraw_reward(deps: DepsMut, info: MessageInfo) -> StdResult<Response> {
     let cfg = read_config(deps.storage)?;
 
-    let reward_owner = env.message.sender;
+    let reward_owner = info.sender.to_string();
 
     let mut contribution_tuples = vec![];
 
@@ -62,13 +62,18 @@ pub fn withdraw_reward(deps: DepsMut, env: Env) -> StdResult<Response> {
         for kv in contribution_bucket.range(None, None, Order::Ascending) {
             let (k, _) = kv?;
 
-            let asset_address = (unsafe { std::str::from_utf8_unchecked(&k) });
+            let asset_address = unsafe { std::str::from_utf8_unchecked(&k) };
             contribution_tuples.push((i, asset_address));
         }
     }
 
     for (pool_type, asset_address) in contribution_tuples {
-        contributions_to_pending_rewards(deps.storage, &reward_owner, **pool_type, &asset_address)?;
+        contributions_to_pending_rewards(
+            deps.storage,
+            &reward_owner,
+            **pool_type,
+            &asset_address.to_string(),
+        )?;
     }
 
     let reward_amt = read_pending_rewards(deps.storage, &reward_owner);

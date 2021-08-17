@@ -20,7 +20,7 @@ use std::convert::TryInto;
 pub fn instantiate(
     deps: DepsMut,
     _env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
     store_config(
@@ -38,23 +38,27 @@ pub fn instantiate(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
+pub fn execute(deps: DepsMut, _env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
-        ExecuteMsg::UpdateConfig { owner } => update_config(deps, env, owner),
+        ExecuteMsg::UpdateConfig { owner } => update_config(deps, info, owner),
         ExecuteMsg::RegisterMerkleRoot { merkle_root } => {
-            register_merkle_root(deps, env, merkle_root)
+            register_merkle_root(deps, info, merkle_root)
         }
         ExecuteMsg::Claim {
             stage,
             amount,
             proof,
-        } => claim(deps, env, stage, amount, proof),
+        } => claim(deps, info, stage, amount, proof),
     }
 }
 
-pub fn update_config(deps: DepsMut, env: Env, owner: Option<String>) -> StdResult<Response> {
+pub fn update_config(
+    deps: DepsMut,
+    info: MessageInfo,
+    owner: Option<String>,
+) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
-    if env.message.sender != config.owner {
+    if info.sender.to_string() != config.owner {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -74,9 +78,13 @@ fn validate_merkle_root(merkle_root: String) -> StdResult<()> {
     }
 }
 
-pub fn register_merkle_root(deps: DepsMut, env: Env, merkle_root: String) -> StdResult<Response> {
+pub fn register_merkle_root(
+    deps: DepsMut,
+    info: MessageInfo,
+    merkle_root: String,
+) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
-    if env.message.sender != config.owner {
+    if info.sender.to_string() != config.owner {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -97,7 +105,7 @@ pub fn register_merkle_root(deps: DepsMut, env: Env, merkle_root: String) -> Std
 
 pub fn claim(
     deps: DepsMut,
-    env: Env,
+    info: MessageInfo,
     stage: u8,
     amount: Uint128,
     proof: Vec<String>,
@@ -106,11 +114,11 @@ pub fn claim(
     let merkle_root: String = read_merkle_root(deps.storage, stage)?;
 
     // If user claimed target stage, return err
-    if read_claimed(deps.storage, &env.message.sender, stage)? {
+    if read_claimed(deps.storage, &info.sender.to_string(), stage)? {
         return Err(StdError::generic_err("Already claimed"));
     }
 
-    let user_input: String = env.message.sender.to_string() + &amount.to_string();
+    let user_input: String = info.sender.to_string() + &amount.to_string();
     let mut hash: [u8; 32] = sha3::Keccak256::digest(user_input.as_bytes())
         .as_slice()
         .try_into()
@@ -140,21 +148,21 @@ pub fn claim(
     }
 
     // Update claim index to the current stage
-    store_claimed(deps.storage, &env.message.sender, stage)?;
+    store_claimed(deps.storage, &info.sender.to_string(), stage)?;
 
     Ok(Response::new()
         .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: config.nebula_token.to_string(),
             funds: vec![],
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: env.message.sender.clone(),
+                recipient: info.sender.to_string(),
                 amount,
             })?,
         }))
         .add_attributes(vec![
             attr("action", "claim"),
             attr("stage", stage.to_string()),
-            attr("address", env.message.sender),
+            attr("address", info.sender.to_string()),
             attr("amount", amount.to_string()),
         ]))
 }

@@ -1,17 +1,21 @@
 use cosmwasm_std::{
-    attr, entry_point, to_binary, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
-    Response, StdError, StdResult, Uint128, WasmMsg,
+    attr, entry_point, to_binary, Addr, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env,
+    MessageInfo, Reply, ReplyOn, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
+
+use crate::response::MsgInstantiateContractResponse;
 
 use crate::state::{
     cluster_exists, deactivate_cluster, decrease_total_weight, get_cluster_data,
     increase_total_weight, read_all_weight, read_config, read_last_distributed, read_params,
     read_tmp_asset, read_tmp_cluster, read_total_weight, read_weight, record_cluster,
     remove_params, remove_weight, store_config, store_last_distributed, store_params,
-    store_tmp_asset, store_tmp_cluser, store_total_weight, store_weight, Config,
+    store_tmp_asset, store_tmp_cluster, store_total_weight, store_weight, Config,
 };
 
 use cluster_math::FPDecimal;
+
+use protobuf::Message;
 
 use nebula_protocol::cluster_factory::{
     ClusterExistsResponse, ClusterListResponse, ConfigResponse, DistributionInfoResponse,
@@ -44,7 +48,7 @@ const DISTRIBUTION_INTERVAL: u64 = 1u64;
 pub fn instantiate(
     deps: DepsMut,
     env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
     store_config(
@@ -94,7 +98,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             distribution_schedule,
         } => update_config(
             deps,
-            env,
+            info,
             owner,
             token_code_id,
             cluster_code_id,
@@ -103,23 +107,23 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         ExecuteMsg::UpdateWeight {
             asset_token,
             weight,
-        } => update_weight(deps, env, asset_token, weight),
-        ExecuteMsg::CreateCluster { params } => create_cluster(deps, env, params),
+        } => update_weight(deps, info, asset_token, weight),
+        ExecuteMsg::CreateCluster { params } => create_cluster(deps, env, info, params),
         ExecuteMsg::Distribute {} => distribute(deps, env),
         ExecuteMsg::PassCommand { contract_addr, msg } => {
-            pass_command(deps, env, contract_addr, msg)
+            pass_command(deps, info, contract_addr, msg)
         }
         ExecuteMsg::DecommissionCluster {
             cluster_contract,
             cluster_token,
-        } => decommission_cluster(deps, env, cluster_contract, cluster_token),
+        } => decommission_cluster(deps, info, cluster_contract, cluster_token),
     }
 }
 
 #[allow(clippy::too_many_arguments)]
 pub fn post_initialize(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     owner: String,
     nebula_token: String,
     terraswap_factory: String,
@@ -138,24 +142,24 @@ pub fn post_initialize(
     config.commission_collector = commission_collector;
     store_config(deps.storage, &config)?;
 
-    store_weight(deps.storage, &config.mirror_token, NEBULA_TOKEN_WEIGHT)?;
+    store_weight(deps.storage, &config.nebula_token, NEBULA_TOKEN_WEIGHT)?;
     increase_total_weight(deps.storage, NEBULA_TOKEN_WEIGHT)?;
 
-    let neb_addr = &config.nebula_token;
+    let neb_addr = config.nebula_token;
 
     terraswap_creation_hook(deps, env, neb_addr)
 }
 
 pub fn update_config(
     deps: DepsMut,
-    env: Env,
+    info: MessageInfo,
     owner: Option<String>,
     token_code_id: Option<u64>,
     cluster_code_id: Option<u64>,
     distribution_schedule: Option<Vec<(u64, u64, Uint128)>>,
 ) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
-    if config.owner != env.message.sender {
+    if config.owner != info.sender.to_string() {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -182,12 +186,12 @@ pub fn update_config(
 
 pub fn update_weight(
     deps: DepsMut,
-    env: Env,
+    info: MessageInfo,
     asset_token: String,
     weight: u32,
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
-    if config.owner != env.message.sender {
+    if config.owner != info.sender.to_string() {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -200,19 +204,19 @@ pub fn update_weight(
     Ok(Response::new().add_attributes(vec![
         attr("action", "update_weight"),
         attr("asset_token", asset_token),
-        attr("weight", weight),
+        attr("weight", weight.to_string()),
     ]))
 }
 
 // just for by passing command to other contract like update config
 pub fn pass_command(
     deps: DepsMut,
-    env: Env,
+    info: MessageInfo,
     contract_addr: String,
     msg: Binary,
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
-    if config.owner != env.message.sender {
+    if config.owner != info.sender.to_string() {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -235,9 +239,14 @@ Whitelisting process
 3. Call `TerraswapCreationHook`
     3-1. Register asset to staking contract
 */
-pub fn create_cluster(deps: DepsMut, env: Env, params: Params) -> StdResult<Response> {
+pub fn create_cluster(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    params: Params,
+) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
-    if config.owner != env.message.sender {
+    if config.owner != info.sender.to_string() {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -259,11 +268,11 @@ pub fn create_cluster(deps: DepsMut, env: Env, params: Params) -> StdResult<Resp
                 msg: to_binary(&ClusterInstantiateMsg {
                     name: params.name.clone(),
                     description: params.description.clone(),
-                    owner: env.contract.address.clone(),
+                    owner: env.contract.address.to_string(),
                     pricing_oracle: params.pricing_oracle.clone(),
                     composition_oracle: params.composition_oracle.clone(),
                     penalty: params.penalty,
-                    factory: env.contract.address.clone(),
+                    factory: env.contract.address.to_string(),
                     cluster_token: None,
                     target: params.target,
                 })?,
@@ -293,7 +302,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
             })?;
             let asset_token = res.get_contract_address();
 
-            token_creation_hook(deps, env, asset_token)
+            token_creation_hook(deps, env, asset_token.to_string())
         }
         2 => {
             let cluster = read_tmp_cluster(deps.storage)?;
@@ -307,7 +316,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
             })?;
             let token = res.get_contract_address();
 
-            set_cluster_token_hook(deps, env, cluster, token)
+            set_cluster_token_hook(deps, env, cluster, token.to_string())
         }
         3 => {
             let token = read_tmp_asset(deps.storage)?;
@@ -323,7 +332,7 @@ TokenCreationHook
 2. Register asset and oracle feeder to oracle contract
 3. Create terraswap pair through terraswap factory with `TerraswapCreationHook`
 */
-pub fn token_creation_hook(deps: DepsMut, env: Env, cluster: String) -> StdResult<Response> {
+pub fn token_creation_hook(deps: DepsMut, _env: Env, cluster: String) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
 
     // If the param is not exists, it means there is no cluster registration process in progress
@@ -395,7 +404,7 @@ pub fn token_creation_hook(deps: DepsMut, env: Env, cluster: String) -> StdResul
 /// Set Token Hook
 pub fn set_cluster_token_hook(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     cluster: String,
     token: String,
 ) -> StdResult<Response> {
@@ -423,7 +432,7 @@ pub fn set_cluster_token_hook(
 
     // Remove params == clear flag
     remove_params(deps.storage);
-    store_tmp_asset(deps.storage, token.clone());
+    store_tmp_asset(deps.storage, &token)?;
     Ok(Response::new()
         .add_messages(vec![
             //Set cluster token
@@ -472,7 +481,7 @@ pub fn set_cluster_token_hook(
 /// 1. Register asset and liquidity(LP) token to staking contract
 pub fn terraswap_creation_hook(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     asset_token: String,
 ) -> StdResult<Response> {
     // Now terraswap contract is already created,
@@ -489,7 +498,11 @@ pub fn terraswap_creation_hook(
     ];
 
     // Load terraswap pair info
-    let pair_info: PairInfo = query_pair_info(&deps, &config.terraswap_factory, &asset_infos)?;
+    let pair_info: PairInfo = query_pair_info(
+        &deps.querier,
+        Addr::unchecked(config.terraswap_factory),
+        &asset_infos,
+    )?;
 
     // Execute staking contract to register staking token of newly created asset
     Ok(
@@ -539,7 +552,8 @@ pub fn distribute(deps: DepsMut, env: Env) -> StdResult<Response> {
     let staking_contract = config.staking_contract;
     let nebula_token = config.nebula_token;
 
-    let (rewards, distribution_amount) = _compute_rewards(&deps, target_distribution_amount)?;
+    let (rewards, distribution_amount) =
+        _compute_rewards(deps.as_ref(), target_distribution_amount)?;
 
     // store last distributed
     store_last_distributed(deps.storage, (env.block.time.nanos() / 1_000_000_000))?;
@@ -551,7 +565,7 @@ pub fn distribute(deps: DepsMut, env: Env) -> StdResult<Response> {
             msg: to_binary(&Cw20ExecuteMsg::Send {
                 contract: staking_contract,
                 amount: distribution_amount,
-                msg: Some(to_binary(&StakingCw20HookMsg::DepositReward { rewards })?),
+                msg: to_binary(&StakingCw20HookMsg::DepositReward { rewards })?,
             })?,
             funds: vec![],
         })])
@@ -587,12 +601,12 @@ pub fn _compute_rewards(
 
 pub fn decommission_cluster(
     deps: DepsMut,
-    env: Env,
+    info: MessageInfo,
     cluster_contract: String,
     cluster_token: String,
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
-    if config.owner != env.message.sender {
+    if config.owner != info.sender.to_string() {
         return Err(StdError::generic_err("unauthorized"));
     }
 

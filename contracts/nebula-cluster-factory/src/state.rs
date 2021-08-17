@@ -53,7 +53,10 @@ pub fn get_cluster_data(storage: &dyn Storage) -> StdResult<Vec<(String, bool)>>
         .range(None, None, Order::Ascending)
         .map(|item| {
             let (k, b) = item?;
-            Ok(((unsafe { std::str::from_utf8_unchecked(&k) }), b))
+            Ok((
+                (unsafe { std::str::from_utf8_unchecked(&k) }).to_string(),
+                b,
+            ))
         })
         .collect::<StdResult<Vec<(String, bool)>>>()
 }
@@ -147,7 +150,10 @@ pub fn read_all_weight(storage: &dyn Storage) -> StdResult<Vec<(String, u32)>> {
         .map(|item| {
             let (k, v) = item?;
 
-            Ok(((unsafe { std::str::from_utf8_unchecked(&k) }), v))
+            Ok((
+                (unsafe { std::str::from_utf8_unchecked(&k) }).to_string(),
+                v,
+            ))
         })
         .collect()
 }

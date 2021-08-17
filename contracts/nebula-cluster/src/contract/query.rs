@@ -1,6 +1,4 @@
-use cosmwasm_std::{
-    entry_point, to_binary, Binary, Deps, DepsMut, Env, StdError, StdResult, Uint128,
-};
+use cosmwasm_std::{entry_point, to_binary, Addr, Binary, Deps, Env, StdError, StdResult, Uint128};
 
 use crate::ext_query::{query_cw20_balance, query_cw20_token_supply, query_price};
 use crate::state::{read_config, read_target_asset_data};
@@ -54,7 +52,7 @@ pub fn query_cluster_state(
         .map(|x| x.info.clone())
         .collect::<Vec<_>>();
 
-    let penalty: String = (&cfg.penalty);
+    let penalty: String = cfg.penalty;
 
     let cluster_token = cfg
         .cluster_token

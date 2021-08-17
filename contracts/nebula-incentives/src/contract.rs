@@ -47,20 +47,28 @@ pub fn instantiate(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
-        ExecuteMsg::UpdateOwner { owner } => update_owner(deps, env, &owner),
-        ExecuteMsg::Receive(msg) => receive_cw20(deps, env, msg),
-        ExecuteMsg::Withdraw {} => withdraw_reward(deps, env),
-        ExecuteMsg::NewPenaltyPeriod {} => new_penalty_period(deps, env),
+        ExecuteMsg::UpdateOwner { owner } => update_owner(deps, info, &owner),
+        ExecuteMsg::Receive(msg) => receive_cw20(deps, info, msg),
+        ExecuteMsg::Withdraw {} => withdraw_reward(deps, info),
+        ExecuteMsg::NewPenaltyPeriod {} => new_penalty_period(deps, info),
         ExecuteMsg::_SwapAll {
             terraswap_pair,
             cluster_token,
             to_ust,
             min_return,
-        } => swap_all(deps, env, terraswap_pair, cluster_token, to_ust, min_return),
+        } => swap_all(
+            deps,
+            env,
+            info,
+            terraswap_pair,
+            cluster_token,
+            to_ust,
+            min_return,
+        ),
         ExecuteMsg::_SendAll {
             asset_infos,
             send_to,
-        } => send_all(deps, env, &asset_infos, send_to),
+        } => send_all(deps, env, info, &asset_infos, send_to),
         ExecuteMsg::_RecordTerraswapImpact {
             arbitrageur,
             terraswap_pair,
@@ -69,6 +77,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         } => record_terraswap_impact(
             deps,
             env,
+            info,
             arbitrageur,
             terraswap_pair,
             cluster_contract,
@@ -78,7 +87,14 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             rebalancer,
             cluster_contract,
             original_imbalance,
-        } => record_rebalancer_rewards(deps, env, rebalancer, cluster_contract, original_imbalance),
+        } => record_rebalancer_rewards(
+            deps,
+            env,
+            info,
+            rebalancer,
+            cluster_contract,
+            original_imbalance,
+        ),
         ExecuteMsg::_InternalRewardedMint {
             rebalancer,
             cluster_contract,
@@ -87,6 +103,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         } => internal_rewarded_mint(
             deps,
             env,
+            info,
             rebalancer,
             cluster_contract,
             &asset_amounts,
@@ -101,6 +118,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         } => internal_rewarded_redeem(
             deps,
             env,
+            info,
             rebalancer,
             cluster_contract,
             cluster_token,
@@ -111,29 +129,36 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             cluster_contract,
             assets,
             min_ust,
-        } => arb_cluster_mint(deps, env, cluster_contract, &assets, min_ust),
+        } => arb_cluster_mint(deps, env, info, cluster_contract, &assets, min_ust),
         ExecuteMsg::ArbClusterRedeem {
             cluster_contract,
             asset,
             min_cluster,
-        } => arb_cluster_redeem(deps, env, cluster_contract, asset, min_cluster),
+        } => arb_cluster_redeem(deps, env, info, cluster_contract, asset, min_cluster),
         ExecuteMsg::Mint {
             cluster_contract,
             asset_amounts,
             min_tokens,
-        } => mint(deps, env, cluster_contract, &asset_amounts, min_tokens),
+        } => mint(
+            deps,
+            env,
+            info,
+            cluster_contract,
+            &asset_amounts,
+            min_tokens,
+        ),
         ExecuteMsg::Redeem {
             cluster_contract,
             max_tokens,
             asset_amounts,
-        } => redeem(deps, env, cluster_contract, max_tokens, asset_amounts),
+        } => redeem(deps, env, info, cluster_contract, max_tokens, asset_amounts),
     }
 }
 
-pub fn update_owner(deps: DepsMut, env: Env, owner: &String) -> StdResult<Response> {
+pub fn update_owner(deps: DepsMut, info: MessageInfo, owner: &String) -> StdResult<Response> {
     let cfg = read_config(deps.storage)?;
 
-    if env.message.sender != cfg.owner {
+    if info.sender.to_string() != cfg.owner {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -144,38 +169,39 @@ pub fn update_owner(deps: DepsMut, env: Env, owner: &String) -> StdResult<Respon
     Ok(Response::new().add_attributes(vec![attr("action", "update_owner")]))
 }
 
-pub fn receive_cw20(deps: DepsMut, env: Env, cw20_msg: Cw20ReceiveMsg) -> StdResult<Response> {
-    if let Some(msg) = cw20_msg.msg {
-        let config: Config = read_config(deps.storage)?;
+pub fn receive_cw20(
+    deps: DepsMut,
+    info: MessageInfo,
+    cw20_msg: Cw20ReceiveMsg,
+) -> StdResult<Response> {
+    let msg = cw20_msg.msg;
+    let config: Config = read_config(deps.storage)?;
 
-        match from_binary(&msg)? {
-            Cw20HookMsg::DepositReward { rewards } => {
-                // only reward token contract can execute this message
-                if config.nebula_token != env.message.sender {
-                    return Err(StdError::generic_err("unauthorized"));
-                }
-
-                let mut rewards_amount = Uint128::zero();
-                for (_, _, amount) in rewards.iter() {
-                    rewards_amount += *amount;
-                }
-
-                if rewards_amount != cw20_msg.amount {
-                    return Err(StdError::generic_err("rewards amount miss matched"));
-                }
-
-                deposit_reward(deps, rewards, cw20_msg.amount)
+    match from_binary(&msg)? {
+        Cw20HookMsg::DepositReward { rewards } => {
+            // only reward token contract can execute this message
+            if config.nebula_token != info.sender.to_string() {
+                return Err(StdError::generic_err("unauthorized"));
             }
+
+            let mut rewards_amount = Uint128::zero();
+            for (_, _, amount) in rewards.iter() {
+                rewards_amount += *amount;
+            }
+
+            if rewards_amount != cw20_msg.amount {
+                return Err(StdError::generic_err("rewards amount miss matched"));
+            }
+
+            deposit_reward(deps, rewards, cw20_msg.amount)
         }
-    } else {
-        Err(StdError::generic_err("data should be given"))
     }
 }
 
-pub fn new_penalty_period(deps: DepsMut, env: Env) -> StdResult<Response> {
+pub fn new_penalty_period(deps: DepsMut, info: MessageInfo) -> StdResult<Response> {
     let cfg = read_config(deps.storage)?;
 
-    if env.message.sender != cfg.owner {
+    if info.sender.to_string() != cfg.owner {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -185,8 +211,8 @@ pub fn new_penalty_period(deps: DepsMut, env: Env) -> StdResult<Response> {
 
     Ok(Response::new().add_attributes(vec![
         attr("action", "new_penalty_period"),
-        attr("previous_n", n),
-        attr("current_n", new_n),
+        attr("previous_n", n.to_string()),
+        attr("current_n", new_n.to_string()),
     ]))
 }
 

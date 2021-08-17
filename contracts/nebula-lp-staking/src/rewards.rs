@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    attr, to_binary, CosmosMsg, Decimal, Deps, DepsMut, Env, Order, Response, StdResult, Storage,
-    Uint128, WasmMsg,
+    attr, to_binary, CosmosMsg, Decimal, Deps, DepsMut, MessageInfo, Order, Response, StdResult,
+    Storage, Uint128, WasmMsg,
 };
 
 use crate::state::{
@@ -43,11 +43,11 @@ pub fn deposit_reward(
 // withdraw all rewards or single reward depending on asset_token
 pub fn withdraw_reward(
     deps: DepsMut,
-    env: Env,
+    info: MessageInfo,
     asset_token: Option<String>,
 ) -> StdResult<Response> {
-    let staker_addr = env.message.sender;
-    let reward_amount = _withdraw_reward(deps.storage, &staker_addr, &asset_token)?;
+    let staker_addr = info.sender;
+    let reward_amount = _withdraw_reward(deps.storage, &staker_addr.to_string(), &asset_token)?;
 
     let config: Config = read_config(deps.storage)?;
     Ok(Response::new()
@@ -86,7 +86,10 @@ fn _withdraw_reward(
             .range(None, None, Order::Ascending)
             .map(|item| {
                 let (k, v) = item?;
-                Ok(((unsafe { std::str::from_utf8_unchecked(&k) }), v))
+                Ok((
+                    (unsafe { std::str::from_utf8_unchecked(&k) }).to_string(),
+                    v,
+                ))
             })
             .collect::<StdResult<Vec<(String, RewardInfo)>>>()?;
     }
@@ -165,7 +168,7 @@ fn _read_reward_infos(
             .range(None, None, Order::Ascending)
             .map(|item| {
                 let (k, v) = item?;
-                let asset_token = (unsafe { std::str::from_utf8_unchecked(&k) });
+                let asset_token = (unsafe { std::str::from_utf8_unchecked(&k) }).to_string();
                 let mut reward_info = v;
                 let pool_info = read_pool_info(storage, &asset_token)?;
                 before_share_change(&pool_info, &mut reward_info)?;

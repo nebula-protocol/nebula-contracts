@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use cluster_math::FPDecimal;
 
 use nebula_protocol::common::OrderBy;
-use nebula_protocol::gov::{PollExecuteMsg, PollStatus, VoterInfo};
+use nebula_protocol::gov::{PollStatus, VoterInfo};
 
 static KEY_CONFIG: &[u8] = b"config";
 static KEY_STATE: &[u8] = b"state";
@@ -63,7 +63,7 @@ pub struct Poll {
     pub title: String,
     pub description: String,
     pub link: Option<String>,
-    pub execute_data: Option<PollExecuteMsg>,
+    pub execute_data: Option<ExecuteData>,
     pub deposit_amount: Uint128,
     /// Total balance at the end poll
     pub total_balance_at_end_poll: Option<Uint128>,
@@ -102,11 +102,11 @@ pub fn state_read(storage: &dyn Storage) -> ReadonlySingleton<State> {
 }
 
 pub fn poll_store(storage: &mut dyn Storage) -> Bucket<Poll> {
-    bucket(PREFIX_POLL, storage)
+    bucket(storage, PREFIX_POLL)
 }
 
 pub fn poll_read(storage: &dyn Storage) -> ReadonlyBucket<Poll> {
-    bucket_read(PREFIX_POLL, storage)
+    bucket_read(storage, PREFIX_POLL)
 }
 
 pub fn total_voting_power_store(storage: &mut dyn Storage) -> Singleton<TotalVotingPower> {
@@ -117,7 +117,10 @@ pub fn total_voting_power_read(storage: &dyn Storage) -> ReadonlySingleton<Total
     singleton_read(storage, KEY_TOTAL_VOTING_POWER)
 }
 
-pub fn poll_indexer_store<'a>(storage: &'a mut Storage, status: &PollStatus) -> Bucket<'a, bool> {
+pub fn poll_indexer_store<'a>(
+    storage: &'a mut dyn Storage,
+    status: &PollStatus,
+) -> Bucket<'a, bool> {
     Bucket::multilevel(
         storage,
         &[PREFIX_POLL_INDEXER, status.to_string().as_bytes()],
@@ -133,7 +136,7 @@ pub fn poll_voter_read(storage: &dyn Storage, poll_id: u64) -> ReadonlyBucket<Vo
 }
 
 pub fn read_poll_voters<'a>(
-    storage: &'a Storage,
+    storage: &'a dyn Storage,
     poll_id: u64,
     start_after: Option<String>,
     limit: Option<u32>,
@@ -152,7 +155,10 @@ pub fn read_poll_voters<'a>(
         .take(limit)
         .map(|item| {
             let (k, v) = item?;
-            Ok(((unsafe { std::str::from_utf8_unchecked(&k) }), v))
+            Ok((
+                (unsafe { std::str::from_utf8_unchecked(&k) }).to_string(),
+                v,
+            ))
         })
         .collect()
 }
@@ -160,7 +166,7 @@ pub fn read_poll_voters<'a>(
 const MAX_LIMIT: u32 = 30;
 const DEFAULT_LIMIT: u32 = 10;
 pub fn read_polls<'a>(
-    storage: &'a Storage,
+    storage: &'a dyn Storage,
     filter: Option<PollStatus>,
     start_after: Option<u64>,
     limit: Option<u32>,
@@ -206,15 +212,15 @@ pub fn read_polls<'a>(
 }
 
 pub fn bank_store(storage: &mut dyn Storage) -> Bucket<TokenManager> {
-    bucket(PREFIX_BANK, storage)
+    bucket(storage, PREFIX_BANK)
 }
 
 pub fn bank_read(storage: &dyn Storage) -> ReadonlyBucket<TokenManager> {
-    bucket_read(PREFIX_BANK, storage)
+    bucket_read(storage, PREFIX_BANK)
 }
 
 pub fn read_bank_stakers<'a>(
-    storage: &'a Storage,
+    storage: &'a dyn Storage,
     start_after: Option<String>,
     limit: Option<u32>,
     order_by: Option<OrderBy>,
@@ -231,7 +237,10 @@ pub fn read_bank_stakers<'a>(
         .take(limit)
         .map(|item| {
             let (k, v) = item?;
-            Ok(((unsafe { std::str::from_utf8_unchecked(&k) }), v))
+            Ok((
+                (unsafe { std::str::from_utf8_unchecked(&k) }).to_string(),
+                v,
+            ))
         })
         .collect()
 }
