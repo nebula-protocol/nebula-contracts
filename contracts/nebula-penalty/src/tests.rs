@@ -16,7 +16,7 @@ use nebula_protocol::penalty::{
 
 const TEST_CREATOR: &str = "creator";
 
-fn mock_init(mut deps: DepsMut<MockStorage, MockApi, WasmMockQuerier>) {
+fn mock_init(mut deps: DepsMut) {
     let msg = InstantiateMsg {
         owner: (TEST_CREATOR),
         penalty_params: init_params(),

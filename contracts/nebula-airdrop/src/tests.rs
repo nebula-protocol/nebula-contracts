@@ -66,7 +66,7 @@
 
 //         let res = execute(deps.as_mut(), env, msg);
 //         match res {
-//             Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized")
+//             Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized"),
 //             _ => panic!("Must return unauthorized error"),
 //         }
 //     }

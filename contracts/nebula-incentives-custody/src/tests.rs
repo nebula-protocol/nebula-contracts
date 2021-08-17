@@ -50,14 +50,14 @@ fn test_request_neb() {
     let neb_amount = Uint128::new(1000u128);
     deps.querier.with_token_balances(&[(
         &h(NEB_TOKEN),
-        &[(&hMOCK_CONTRACT_ADDR.to_string(), &neb_amount)],
+        &[(&MOCK_CONTRACT_ADDR.to_string(), &neb_amount)],
     )]);
     let env = mock_info("random", &[]);
     let msg = ExecuteMsg::RequestNeb { amount: neb_amount };
     let res = execute(deps.as_mut(), env, msg);
 
     match res {
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized")
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized"),
         _ => panic!("Must return unauthorized error"),
     }
 
@@ -103,13 +103,11 @@ fn test_query() {
     let _res = instantiate(deps.as_mut(), env, msg)
         .expect("contract successfully executes InstantiateMsg");
     let amount = Uint128::new(1000u128);
-    deps.querier.with_token_balances(&[(
-        &h(NEB_TOKEN),
-        &[(&hMOCK_CONTRACT_ADDR.to_string(), &amount)],
-    )]);
+    deps.querier
+        .with_token_balances(&[(&h(NEB_TOKEN), &[(&MOCK_CONTRACT_ADDR.to_string(), &amount)])]);
 
     let msg = QueryMsg::Balance {
-        custody: hMOCK_CONTRACT_ADDR.to_string(),
+        custody: MOCK_CONTRACT_ADDR.to_string(),
     };
 
     let res = query(deps.as_ref(), msg).unwrap();
@@ -137,7 +135,7 @@ fn test_update_owner() {
     let res = execute(deps.as_mut(), env, msg);
 
     match res {
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized")
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized"),
         _ => panic!("Must return unauthorized error"),
     }
 

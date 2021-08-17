@@ -601,7 +601,7 @@
 //     }
 // }
 
-// pub fn mock_init() -> (Deps<MockStorage, MockApi, WasmMockQuerier>, Response) {
+// pub fn mock_init() -> (Deps, Response) {
 //     let mut deps = mock_dependencies(20, &[]);
 //     let msg = InstantiateMsg {
 //         name: consts::name().to_string(),
@@ -640,7 +640,7 @@
 // }
 
 // /// sets up mock queriers with basic setup
-// pub fn mock_querier_setup(deps: DepsMut<MockStorage, MockApi, WasmMockQuerier>) {
+// pub fn mock_querier_setup(deps: DepsMut) {
 //     deps.querier
 //         .reset_token_querier()
 //         .set_token(
@@ -704,7 +704,7 @@
 // }
 
 // /// sets up mock queriers with basic setup
-// pub fn mock_querier_setup_stage_native(deps: DepsMut<MockStorage, MockApi, WasmMockQuerier>) {
+// pub fn mock_querier_setup_stage_native(deps: DepsMut) {
 //     deps.querier
 //         .reset_token_querier()
 //         .set_token(

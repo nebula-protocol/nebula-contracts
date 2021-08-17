@@ -11,7 +11,7 @@
 // pub fn mock_dependencies(
 //     canonical_length: usize,
 //     contract_balance: &[Coin],
-// ) -> Deps<MockStorage, MockApi, WasmMockQuerier> {
+// ) -> Deps {
 //     let contract_addr = MOCK_CONTRACT_ADDR;
 //     let custom_querier: WasmMockQuerier =
 //         WasmMockQuerier::new(MockQuerier::new(&[(&contract_addr, contract_balance)]));

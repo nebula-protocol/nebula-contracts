@@ -32,7 +32,7 @@
 //     }
 // }
 
-// fn mock_init(mut deps: &mut Extern<MockStorage, MockApi, WasmMockQuerier>) {
+// fn mock_init(mut deps: DepsMut) {
 //     let msg = init_msg();
 //     let env = mock_info(TEST_CREATOR, &[]);
 //     let _res = instantiate(deps.as_mut(), env, msg)

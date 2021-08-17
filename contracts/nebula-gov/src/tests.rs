@@ -39,9 +39,9 @@ const DEFAULT_PROPOSAL_DEPOSIT: u128 = 10000000000u128;
 const DEFAULT_VOTER_WEIGHT: Decimal = Decimal::zero();
 const DEFAULT_SNAPSHOT_PERIOD: u64 = 10u64;
 
-fn mock_init(mut deps: &mut Extern<MockStorage, MockApi, WasmMockQuerier>) {
+fn mock_init(mut deps: DepsMut) {
     let msg = InstantiateMsg {
-        nebula_token: (VOTING_TOKEN),
+        nebula_token: VOTING_TOKEN.to_string(),
         quorum: Decimal::percent(DEFAULT_QUORUM),
         threshold: Decimal::percent(DEFAULT_THRESHOLD),
         voting_period: DEFAULT_VOTING_PERIOD,
@@ -66,7 +66,7 @@ fn mock_info_height(sender: &str, sent: &[Coin], height: u64, time: u64) -> Env 
 
 fn init_msg() -> InstantiateMsg {
     InstantiateMsg {
-        nebula_token: (VOTING_TOKEN),
+        nebula_token: VOTING_TOKEN.to_string(),
         quorum: Decimal::percent(DEFAULT_QUORUM),
         threshold: Decimal::percent(DEFAULT_THRESHOLD),
         voting_period: DEFAULT_VOTING_PERIOD,
@@ -91,7 +91,7 @@ fn proper_initialization() {
     assert_eq!(
         config,
         Config {
-            nebula_token: (VOTING_TOKEN),
+            nebula_token: VOTING_TOKEN.to_string(),
             owner: (TEST_CREATOR),
             quorum: Decimal::percent(DEFAULT_QUORUM),
             threshold: Decimal::percent(DEFAULT_THRESHOLD),
@@ -136,7 +136,7 @@ fn fails_create_poll_invalid_quorum() {
     let mut deps = mock_dependencies(20, &[]);
     let env = mock_info("voter", &coins(11, VOTING_TOKEN));
     let msg = InstantiateMsg {
-        nebula_token: (VOTING_TOKEN),
+        nebula_token: VOTING_TOKEN.to_string(),
         quorum: Decimal::percent(101),
         threshold: Decimal::percent(DEFAULT_THRESHOLD),
         voting_period: DEFAULT_VOTING_PERIOD,
@@ -161,7 +161,7 @@ fn fails_create_poll_invalid_threshold() {
     let mut deps = mock_dependencies(20, &[]);
     let env = mock_info("voter", &coins(11, VOTING_TOKEN));
     let msg = InstantiateMsg {
-        nebula_token: (VOTING_TOKEN),
+        nebula_token: VOTING_TOKEN.to_string(),
         quorum: Decimal::percent(DEFAULT_QUORUM),
         threshold: Decimal::percent(101),
         voting_period: DEFAULT_VOTING_PERIOD,
@@ -583,7 +583,7 @@ fn happy_days_end_poll() {
         "test".to_string(),
         None,
         Some(PollExecuteMsg {
-            contract: (VOTING_TOKEN),
+            contract: VOTING_TOKEN.to_string(),
             msg: exec_msg_bz.clone(),
         }),
     );
@@ -599,7 +599,7 @@ fn happy_days_end_poll() {
     );
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((stake_amount + DEFAULT_PROPOSAL_DEPOSIT) as u128),
@@ -679,7 +679,7 @@ fn happy_days_end_poll() {
     assert_eq!(
         execute_res.messages,
         vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: (VOTING_TOKEN),
+            contract_addr: VOTING_TOKEN.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: (TEST_CREATOR),
                 amount: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
@@ -691,7 +691,7 @@ fn happy_days_end_poll() {
 
     // End poll will withdraw deposit balance
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(stake_amount as u128),
@@ -718,7 +718,7 @@ fn happy_days_end_poll() {
     assert_eq!(
         execute_res.messages,
         vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: (VOTING_TOKEN),
+            contract_addr: VOTING_TOKEN.to_string(),
             msg: exec_msg_bz,
             funds: vec![],
         }),]
@@ -827,7 +827,7 @@ fn expire_poll() {
         "test".to_string(),
         None,
         Some(ExecuteMsg {
-            contract: (VOTING_TOKEN),
+            contract: VOTING_TOKEN.to_string(),
             msg: exec_msg_bz.clone(),
         }),
     );
@@ -843,7 +843,7 @@ fn expire_poll() {
     );
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((stake_amount + DEFAULT_PROPOSAL_DEPOSIT) as u128),
@@ -916,7 +916,7 @@ fn expire_poll() {
     assert_eq!(
         execute_res.messages,
         vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: (VOTING_TOKEN),
+            contract_addr: VOTING_TOKEN.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: (TEST_CREATOR),
                 amount: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
@@ -969,7 +969,7 @@ fn end_poll_zero_quorum() {
         "test".to_string(),
         None,
         Some(PollExecuteMsg {
-            contract: (VOTING_TOKEN),
+            contract: VOTING_TOKEN.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Burn {
                 amount: Uint128::new(123),
             })
@@ -987,7 +987,7 @@ fn end_poll_zero_quorum() {
     );
     let stake_amount = 100;
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(100u128 + DEFAULT_PROPOSAL_DEPOSIT),
@@ -1088,7 +1088,7 @@ fn end_poll_quorum_rejected() {
 
     let stake_amount = 100;
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(100u128 + DEFAULT_PROPOSAL_DEPOSIT),
@@ -1214,7 +1214,7 @@ fn end_poll_nay_rejected() {
     );
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((voter1_stake + DEFAULT_PROPOSAL_DEPOSIT) as u128),
@@ -1242,7 +1242,7 @@ fn end_poll_nay_rejected() {
     );
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((voter1_stake + voter2_stake + DEFAULT_PROPOSAL_DEPOSIT) as u128),
@@ -1315,7 +1315,7 @@ fn fails_cast_vote_not_enough_staked() {
     );
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(10u128 + DEFAULT_PROPOSAL_DEPOSIT),
@@ -1382,7 +1382,7 @@ fn happy_days_cast_vote() {
     );
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(11u128 + DEFAULT_PROPOSAL_DEPOSIT),
@@ -1428,7 +1428,7 @@ fn happy_days_cast_vote() {
 
     // balance be double
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(22u128 + DEFAULT_PROPOSAL_DEPOSIT),
@@ -1502,7 +1502,7 @@ fn happy_days_withdraw_voting_tokens() {
     mock_init(deps.as_mut());
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(11u128))],
     )]);
 
@@ -1533,7 +1533,7 @@ fn happy_days_withdraw_voting_tokens() {
 
     // double the balance, only half will be withdrawn
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(22u128))],
     )]);
 
@@ -1567,7 +1567,7 @@ fn happy_days_withdraw_voting_tokens() {
     assert_eq!(
         msg,
         &CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: (VOTING_TOKEN),
+            contract_addr: VOTING_TOKEN.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: TEST_VOTER.to_string(),
                 amount: Uint128::from(11u128),
@@ -1596,7 +1596,7 @@ fn happy_days_withdraw_voting_tokens_all() {
     mock_init(deps.as_mut());
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(11u128))],
     )]);
 
@@ -1627,7 +1627,7 @@ fn happy_days_withdraw_voting_tokens_all() {
 
     // double the balance, all balance withdrawn
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(22u128))],
     )]);
 
@@ -1643,7 +1643,7 @@ fn happy_days_withdraw_voting_tokens_all() {
     assert_eq!(
         msg,
         &CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: (VOTING_TOKEN),
+            contract_addr: VOTING_TOKEN.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: TEST_VOTER.to_string(),
                 amount: Uint128::from(22u128),
@@ -1672,7 +1672,7 @@ fn withdraw_voting_tokens() {
     mock_init(deps.as_mut());
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(11u128))],
     )]);
 
@@ -1843,7 +1843,7 @@ fn fails_withdraw_too_many_tokens() {
     mock_init(deps.as_mut());
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(10u128))],
     )]);
 
@@ -1896,7 +1896,7 @@ fn fails_cast_vote_twice() {
     );
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(11u128 + DEFAULT_PROPOSAL_DEPOSIT),
@@ -1974,7 +1974,7 @@ fn happy_days_stake_voting_tokens() {
     mock_init(deps.as_mut());
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(11u128))],
     )]);
 
@@ -2033,7 +2033,7 @@ fn fails_staking_wrong_token() {
     assert_eq!(0, init_res.messages.len());
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(11u128))],
     )]);
 
@@ -2052,7 +2052,7 @@ fn fails_staking_wrong_token() {
 
     match res {
         Ok(_) => panic!("Must return error"),
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized")
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized"),
         Err(e) => panic!("Unexpected error: {:?}", e),
     }
 }
@@ -2069,7 +2069,7 @@ fn share_calculation() {
 
     // create 100 share
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(100u128))],
     )]);
 
@@ -2087,7 +2087,7 @@ fn share_calculation() {
 
     // add more balance(100) to make share:balance = 1:2
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(200u128 + 100u128),
@@ -2132,7 +2132,7 @@ fn share_calculation() {
 
     // 100 tokens withdrawn
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(200u128))],
     )]);
 
@@ -2155,7 +2155,7 @@ fn share_calculation_with_voter_rewards() {
 
     // initialize the store
     let msg = InstantiateMsg {
-        nebula_token: (VOTING_TOKEN),
+        nebula_token: VOTING_TOKEN.to_string(),
         quorum: Decimal::percent(DEFAULT_QUORUM),
         threshold: Decimal::percent(DEFAULT_THRESHOLD),
         voting_period: DEFAULT_VOTING_PERIOD,
@@ -2183,7 +2183,7 @@ fn share_calculation_with_voter_rewards() {
 
     // create 100 share
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(DEFAULT_PROPOSAL_DEPOSIT + 100u128),
@@ -2212,7 +2212,7 @@ fn share_calculation_with_voter_rewards() {
 
     // add more balance through dept reward, 50% reserved for voters
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(DEFAULT_PROPOSAL_DEPOSIT + 400u128 + 100u128),
@@ -2227,7 +2227,7 @@ fn share_calculation_with_voter_rewards() {
     let _res = execute(deps.as_mut(), env, msg).unwrap();
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(DEFAULT_PROPOSAL_DEPOSIT + 400u128 + 100u128),
@@ -2271,7 +2271,7 @@ fn share_calculation_with_voter_rewards() {
 
     // 100 tokens withdrawn
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(DEFAULT_PROPOSAL_DEPOSIT + 400u128),
@@ -2297,7 +2297,7 @@ fn assert_create_poll_result(
     end_height: u64,
     creator: &str,
     execute_res: Response,
-    deps: DepsMut<MockStorage, MockApi, WasmMockQuerier>,
+    deps: DepsMut,
 ) {
     assert_eq!(
         execute_res.attributes,
@@ -2446,7 +2446,7 @@ fn update_config() {
 
     let res = execute(deps.as_mut(), env, msg);
     match res {
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized")
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized"),
         _ => panic!("Must return unauthorized error"),
     }
 }
@@ -2455,7 +2455,7 @@ fn update_config() {
 fn distribute_voting_rewards() {
     let mut deps = mock_dependencies(20, &[]);
     let msg = InstantiateMsg {
-        nebula_token: (VOTING_TOKEN),
+        nebula_token: VOTING_TOKEN.to_string(),
         quorum: Decimal::percent(DEFAULT_QUORUM),
         threshold: Decimal::percent(DEFAULT_THRESHOLD),
         voting_period: DEFAULT_VOTING_PERIOD,
@@ -2486,7 +2486,7 @@ fn distribute_voting_rewards() {
     let stake_amount = 100u128;
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((stake_amount + DEFAULT_PROPOSAL_DEPOSIT) as u128),
@@ -2514,7 +2514,7 @@ fn distribute_voting_rewards() {
     let _res = execute(deps.as_mut(), env, msg).unwrap();
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((stake_amount + DEFAULT_PROPOSAL_DEPOSIT + 100u128) as u128),
@@ -2558,7 +2558,7 @@ fn distribute_voting_rewards() {
     assert_eq!(
         res.messages,
         vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: (VOTING_TOKEN),
+            contract_addr: VOTING_TOKEN.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: TEST_VOTER.to_string(),
                 amount: Uint128::from(50u128),
@@ -2581,7 +2581,7 @@ fn distribute_voting_rewards() {
 fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
     let mut deps = mock_dependencies(20, &[]);
     let msg = InstantiateMsg {
-        nebula_token: (VOTING_TOKEN),
+        nebula_token: VOTING_TOKEN.to_string(),
         quorum: Decimal::percent(DEFAULT_QUORUM),
         threshold: Decimal::percent(DEFAULT_THRESHOLD),
         voting_period: DEFAULT_VOTING_PERIOD,
@@ -2613,7 +2613,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
     const CINDY_STAKE: u128 = 250_000_000u128;
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((ALICE_STAKE + DEFAULT_PROPOSAL_DEPOSIT * 2) as u128),
@@ -2631,7 +2631,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
     let env = mock_info(VOTING_TOKEN.to_string(), &[]);
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((ALICE_STAKE + BOB_STAKE + DEFAULT_PROPOSAL_DEPOSIT * 2) as u128),
@@ -2648,7 +2648,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
     });
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(
@@ -2699,7 +2699,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
     let _res = execute(deps.as_mut(), env, msg).unwrap();
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(
@@ -2771,7 +2771,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
 fn distribute_voting_rewards_only_to_polls_in_progress() {
     let mut deps = mock_dependencies(20, &[]);
     let msg = InstantiateMsg {
-        nebula_token: (VOTING_TOKEN),
+        nebula_token: VOTING_TOKEN.to_string(),
         quorum: Decimal::percent(DEFAULT_QUORUM),
         threshold: Decimal::percent(DEFAULT_THRESHOLD),
         voting_period: DEFAULT_VOTING_PERIOD,
@@ -2907,7 +2907,7 @@ fn distribute_voting_rewards_only_to_polls_in_progress() {
 fn test_staking_and_voting_rewards() {
     let mut deps = mock_dependencies(20, &[]);
     let msg = InstantiateMsg {
-        nebula_token: (VOTING_TOKEN),
+        nebula_token: VOTING_TOKEN.to_string(),
         quorum: Decimal::percent(DEFAULT_QUORUM),
         threshold: Decimal::percent(DEFAULT_THRESHOLD),
         voting_period: DEFAULT_VOTING_PERIOD,
@@ -2933,7 +2933,7 @@ fn test_staking_and_voting_rewards() {
     const BOB_STAKE: u128 = 250_000_000u128;
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((ALICE_STAKE + DEFAULT_PROPOSAL_DEPOSIT) as u128),
@@ -2951,7 +2951,7 @@ fn test_staking_and_voting_rewards() {
     let env = mock_info(VOTING_TOKEN.to_string(), &[]);
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((ALICE_STAKE + BOB_STAKE + DEFAULT_PROPOSAL_DEPOSIT) as u128),
@@ -2986,7 +2986,7 @@ fn test_staking_and_voting_rewards() {
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(
@@ -3012,7 +3012,7 @@ fn test_staking_and_voting_rewards() {
 
     // deposit is returned to creator and collector deposit is added
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((ALICE_STAKE + BOB_STAKE + 2_000_000_000) as u128),
@@ -3079,7 +3079,7 @@ fn test_staking_and_voting_rewards() {
     );
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((ALICE_STAKE + BOB_STAKE + 1_000_000_000) as u128),
@@ -3107,7 +3107,7 @@ fn test_staking_and_voting_rewards() {
         ]
     );
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((BOB_STAKE + 250_000_000) as u128),
@@ -3136,7 +3136,7 @@ fn test_staking_and_voting_rewards() {
 fn test_abstain_votes_theshold() {
     let mut deps = mock_dependencies(20, &[]);
     let msg = InstantiateMsg {
-        nebula_token: (VOTING_TOKEN),
+        nebula_token: VOTING_TOKEN.to_string(),
         quorum: Decimal::percent(DEFAULT_QUORUM),
         threshold: Decimal::percent(DEFAULT_THRESHOLD),
         voting_period: DEFAULT_VOTING_PERIOD,
@@ -3164,7 +3164,7 @@ fn test_abstain_votes_theshold() {
     const CINDY_STAKE: u128 = 260_000_000u128;
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((ALICE_STAKE + DEFAULT_PROPOSAL_DEPOSIT) as u128),
@@ -3182,7 +3182,7 @@ fn test_abstain_votes_theshold() {
     let env = mock_info(VOTING_TOKEN.to_string(), &[]);
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((ALICE_STAKE + BOB_STAKE + DEFAULT_PROPOSAL_DEPOSIT) as u128),
@@ -3199,7 +3199,7 @@ fn test_abstain_votes_theshold() {
     });
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(
@@ -3266,7 +3266,7 @@ fn test_abstain_votes_theshold() {
 fn test_abstain_votes_quorum() {
     let mut deps = mock_dependencies(20, &[]);
     let msg = InstantiateMsg {
-        nebula_token: (VOTING_TOKEN),
+        nebula_token: VOTING_TOKEN.to_string(),
         quorum: Decimal::percent(DEFAULT_QUORUM),
         threshold: Decimal::percent(DEFAULT_THRESHOLD),
         voting_period: DEFAULT_VOTING_PERIOD,
@@ -3294,7 +3294,7 @@ fn test_abstain_votes_quorum() {
     const CINDY_STAKE: u128 = 20_000_000u128;
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((ALICE_STAKE + DEFAULT_PROPOSAL_DEPOSIT) as u128),
@@ -3312,7 +3312,7 @@ fn test_abstain_votes_quorum() {
     let env = mock_info(VOTING_TOKEN.to_string(), &[]);
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((ALICE_STAKE + BOB_STAKE + DEFAULT_PROPOSAL_DEPOSIT) as u128),
@@ -3329,7 +3329,7 @@ fn test_abstain_votes_quorum() {
     });
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(
@@ -3616,7 +3616,7 @@ fn snapshot_poll() {
     creator_env.block.height = 22345 - 10;
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((stake_amount + DEFAULT_PROPOSAL_DEPOSIT) as u128),
@@ -3690,7 +3690,7 @@ fn happy_days_cast_vote_with_snapshot() {
     );
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(11u128 + DEFAULT_PROPOSAL_DEPOSIT),
@@ -3737,7 +3737,7 @@ fn happy_days_cast_vote_with_snapshot() {
 
     // balance be double
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(22u128 + DEFAULT_PROPOSAL_DEPOSIT),
@@ -3790,7 +3790,7 @@ fn happy_days_cast_vote_with_snapshot() {
 
     // balance be double
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(33u128 + DEFAULT_PROPOSAL_DEPOSIT),
@@ -3849,7 +3849,7 @@ fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
         "test".to_string(),
         None,
         Some(PollExecuteMsg {
-            contract: (VOTING_TOKEN),
+            contract: VOTING_TOKEN.to_string(),
             msg: exec_msg_bz.clone(),
         }),
     );
@@ -3865,7 +3865,7 @@ fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
     );
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((stake_amount + DEFAULT_PROPOSAL_DEPOSIT) as u128),
@@ -3917,7 +3917,7 @@ fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
 
     // staked amount get increased 10 times
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(((10 * stake_amount) + DEFAULT_PROPOSAL_DEPOSIT) as u128),
@@ -4016,7 +4016,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
         "test".to_string(),
         None,
         Some(ExecuteMsg {
-            contract: (VOTING_TOKEN),
+            contract: VOTING_TOKEN.to_string(),
             msg: exec_msg_bz.clone(),
         }),
     );
@@ -4032,7 +4032,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
     );
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((stake_amount + DEFAULT_PROPOSAL_DEPOSIT) as u128),
@@ -4100,7 +4100,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
 
     // staked amount get increased 10 times
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(((10 * stake_amount) + DEFAULT_PROPOSAL_DEPOSIT) as u128),
@@ -4166,7 +4166,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
     assert_eq!(
         execute_res.messages,
         vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: (VOTING_TOKEN),
+            contract_addr: VOTING_TOKEN.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: (TEST_CREATOR),
                 amount: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
@@ -4188,7 +4188,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
     // actual staked amount is 10 times bigger than staked amount
     let actual_staked_weight = (load_token_balance(
         deps.as_ref(),
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &MOCK_CONTRACT_ADDR.to_string(),
     )
     .unwrap()
@@ -4205,7 +4205,7 @@ fn increase_lock_time() {
 
     let stake_amount = 1000u128;
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(stake_amount))],
     )]);
 
@@ -4322,7 +4322,7 @@ fn stake_voting_tokens_multiple_lock_end_weeks() {
 
     let stake_amount = 1000u128;
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(stake_amount))],
     )]);
 
@@ -4405,7 +4405,7 @@ fn stake_voting_tokens_multiple_lock_end_weeks() {
     }
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(2 * stake_amount),
@@ -4441,7 +4441,7 @@ fn total_voting_power_calculation() {
 
     let stake_amount = 1000u128;
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(stake_amount))],
     )]);
 
@@ -4705,7 +4705,7 @@ fn total_voting_power_calculation() {
     );
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new(2 * stake_amount),
@@ -4859,7 +4859,7 @@ fn total_voting_power_calculation() {
 fn test_unstake_before_claiming_voting_rewards() {
     let mut deps = mock_dependencies(20, &[]);
     let msg = InstantiateMsg {
-        nebula_token: (VOTING_TOKEN),
+        nebula_token: VOTING_TOKEN.to_string(),
         quorum: Decimal::percent(DEFAULT_QUORUM),
         threshold: Decimal::percent(DEFAULT_THRESHOLD),
         voting_period: DEFAULT_VOTING_PERIOD,
@@ -4889,7 +4889,7 @@ fn test_unstake_before_claiming_voting_rewards() {
     let stake_amount = 100u128;
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((stake_amount + DEFAULT_PROPOSAL_DEPOSIT) as u128),
@@ -4922,7 +4922,7 @@ fn test_unstake_before_claiming_voting_rewards() {
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((stake_amount + DEFAULT_PROPOSAL_DEPOSIT + 100u128) as u128),
@@ -4954,7 +4954,7 @@ fn test_unstake_before_claiming_voting_rewards() {
     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
 
     deps.querier.with_token_balances(&[(
-        &(VOTING_TOKEN),
+        &VOTING_TOKEN.to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((stake_amount + 100u128) as u128),
