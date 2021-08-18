@@ -9,6 +9,7 @@ use cosmwasm_std::{
     CanonicalAddr, Coin, ContractResult, Decimal, OwnedDeps, Querier, QuerierResult, QueryRequest,
     SystemError, SystemResult, Uint128, WasmQuery,
 };
+use cw20::BalanceResponse as CW20BalanceResponse;
 use cosmwasm_storage::to_length_prefixed;
 
 use std::collections::HashMap;
@@ -166,6 +167,7 @@ pub enum QueryMsg {
     ClusterState { cluster_contract_address: String },
     ClusterExists {},
     Pool {},
+    Balance { address: String },
 }
 
 impl WasmMockQuerier {
@@ -216,7 +218,7 @@ impl WasmMockQuerier {
                 })))
             }
             QueryRequest::Wasm(WasmQuery::Smart {
-                contract_addr: _,
+                contract_addr: contract_addr,
                 msg,
             }) => match from_binary(&msg).unwrap() {
                 QueryMsg::Pair { asset_infos } => {
@@ -297,6 +299,37 @@ impl WasmMockQuerier {
                         ],
                         total_share: Uint128::new(10000),
                     })))
+                }
+                QueryMsg::Balance { address } => {
+                    let balances: &HashMap<String, Uint128> =
+                        match self.token_querier.balances.get(contract_addr) {
+                            Some(balances) => balances,
+                            None => {
+                                return SystemResult::Err(SystemError::InvalidRequest {
+                                    error: format!(
+                                        "No balance info exists for the contract {}",
+                                        contract_addr
+                                    ),
+                                    request: msg.as_slice().into(),
+                                })
+                            }
+                        };
+
+                    let balance = match balances.get(&address) {
+                        Some(v) => *v,
+                        None => {
+                            return SystemResult::Ok(ContractResult::Ok(
+                                to_binary(&CW20BalanceResponse {
+                                    balance: Uint128::zero(),
+                                })
+                                .unwrap(),
+                            ));
+                        }
+                    };
+
+                    SystemResult::Ok(ContractResult::Ok(
+                        to_binary(&CW20BalanceResponse { balance }).unwrap(),
+                    ))
                 }
             },
             QueryRequest::Wasm(WasmQuery::Raw { contract_addr, key }) => {
