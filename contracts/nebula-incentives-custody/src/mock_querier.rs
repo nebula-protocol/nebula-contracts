@@ -1,14 +1,16 @@
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_binary, from_slice, to_binary, Coin, OwnedDeps, Empty, QuerierResult, QueryRequest,
-    SystemError, Querier, Uint128, WasmQuery, SystemResult, ContractResult
+    from_binary, from_slice, to_binary, Coin, ContractResult, Empty, OwnedDeps, Querier,
+    QuerierResult, QueryRequest, SystemError, SystemResult, Uint128, WasmQuery,
 };
 use cw20::{BalanceResponse as Cw20BalanceResponse, Cw20QueryMsg, TokenInfoResponse};
 use std::collections::HashMap;
 
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies
 /// this uses our CustomQuerier.
-pub fn mock_dependencies(contract_balance: &[Coin]) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier> {
+pub fn mock_dependencies(
+    contract_balance: &[Coin],
+) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier> {
     let contract_addr = MOCK_CONTRACT_ADDR.to_string();
     let custom_querier: WasmMockQuerier =
         WasmMockQuerier::new(MockQuerier::new(&[(&contract_addr, contract_balance)]));
@@ -121,13 +123,17 @@ impl WasmMockQuerier {
                         let balance = match balances.get(&address) {
                             Some(v) => *v,
                             None => {
-                                return SystemResult::Ok(ContractResult::from(to_binary(&Cw20BalanceResponse {
-                                    balance: Uint128::zero(),
-                                })));
+                                return SystemResult::Ok(ContractResult::from(to_binary(
+                                    &Cw20BalanceResponse {
+                                        balance: Uint128::zero(),
+                                    },
+                                )));
                             }
                         };
 
-                        SystemResult::Ok(ContractResult::from(to_binary(&Cw20BalanceResponse { balance })))
+                        SystemResult::Ok(ContractResult::from(to_binary(&Cw20BalanceResponse {
+                            balance,
+                        })))
                     }
                     _ => panic!("DO NOT ENTER HERE"),
                 }

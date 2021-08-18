@@ -3,7 +3,9 @@ use crate::mock_querier::mock_dependencies;
 use crate::state::{read_neb, read_owner};
 
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
-use cosmwasm_std::{attr, from_binary, to_binary, Binary, CosmosMsg, StdError, Uint128, WasmMsg, SubMsg};
+use cosmwasm_std::{
+    attr, from_binary, to_binary, Binary, CosmosMsg, StdError, SubMsg, Uint128, WasmMsg,
+};
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::incentives_custody::{ExecuteMsg, InstantiateMsg, QueryMsg};
 

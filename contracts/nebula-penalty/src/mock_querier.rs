@@ -1,12 +1,14 @@
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_slice, Coin, OwnedDeps, Empty, Querier, QuerierResult, QueryRequest,
-    SystemError, SystemResult
+    from_slice, Coin, Empty, OwnedDeps, Querier, QuerierResult, QueryRequest, SystemError,
+    SystemResult,
 };
 
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies
 /// this uses our CustomQuerier.
-pub fn mock_dependencies(contract_balance: &[Coin]) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier> {
+pub fn mock_dependencies(
+    contract_balance: &[Coin],
+) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier> {
     let contract_addr = MOCK_CONTRACT_ADDR.to_string();
     let custom_querier: WasmMockQuerier =
         WasmMockQuerier::new(MockQuerier::new(&[(&contract_addr, contract_balance)]));

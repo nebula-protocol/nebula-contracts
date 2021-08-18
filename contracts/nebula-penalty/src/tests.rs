@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use crate::contract::{execute, instantiate, query};
 use crate::contract::{get_ema, notional_penalty, update_ema};
-use crate::mock_querier::{mock_dependencies};
+use crate::mock_querier::mock_dependencies;
 use crate::state::{read_config, PenaltyConfig};
 
 use cluster_math::{
@@ -211,10 +211,7 @@ fn test_mint_actions() {
     let response: MintResponse = from_binary(&res).unwrap();
     assert_eq!(response.mint_tokens, Uint128::new(999706));
     assert_eq!(response.penalty, Uint128::zero());
-    assert_eq!(
-        response.attributes,
-        vec![attr("penalty", "-4.2")]
-    );
+    assert_eq!(response.attributes, vec![attr("penalty", "-4.2")]);
 
     // Simulate target weights changing dramatically
     let weights = &[Uint128::new(200), Uint128::new(100), Uint128::new(100)];
@@ -238,13 +235,7 @@ fn test_mint_actions() {
 
     assert_eq!(response.mint_tokens, Uint128::new(2230596));
     assert_eq!(response.penalty, Uint128::new(197));
-    assert_eq!(
-        response.attributes,
-        vec![attr(
-            "penalty",
-            "197.5260869565"
-        )]
-    );
+    assert_eq!(response.attributes, vec![attr("penalty", "197.5260869565")]);
 
     let weights = &[Uint128::new(100), Uint128::new(100), Uint128::new(100)];
     let mint_asset_amounts = &[Uint128::new(1000), Uint128::new(1010), Uint128::new(994)];
@@ -257,8 +248,6 @@ fn test_mint_actions() {
         asset_prices: p_strs.to_vec(),
         target_weights: weights.to_vec(),
     };
-
-    
 
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
     for log in res.attributes.iter() {
@@ -311,10 +300,7 @@ fn test_redeem_actions() {
         vec![Uint128::new(100), Uint128::new(100), Uint128::new(100)]
     );
     assert_eq!(response.penalty, Uint128::zero());
-    assert_eq!(
-        response.attributes,
-        vec![attr("penalty", "0")]
-    );
+    assert_eq!(response.attributes, vec![attr("penalty", "0")]);
 
     let redeem_asset_amounts = &[];
 
