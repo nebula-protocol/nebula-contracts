@@ -1,10 +1,10 @@
 use crate::contract::{execute, instantiate, query, query_config, query_penalty_period};
-use crate::mock_querier::{mock_dependencies, WasmMockQuerier};
+use crate::mock_querier::{mock_dependencies};
 use crate::state::{contributions_read, read_from_contribution_bucket, record_contribution};
-use cosmwasm_std::testing::{mock_env, mock_info, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
+use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    attr, coins, from_binary, to_binary, BankMsg, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    QueryRequest, StdError, SubMsg, Timestamp, Uint128, WasmMsg, WasmQuery,
+    attr, coins, from_binary, to_binary, BankMsg, CosmosMsg, Decimal, DepsMut,
+    StdError, SubMsg, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use nebula_protocol::cluster::{
@@ -32,18 +32,11 @@ fn init_msg() -> InstantiateMsg {
     }
 }
 
-fn mock_init(mut deps: DepsMut) {
+fn mock_init(deps: DepsMut) {
     let msg = init_msg();
     let info = mock_info(TEST_CREATOR, &[]);
     let _res = instantiate(deps, mock_env(), info, msg)
         .expect("contract successfully executes InstantiateMsg");
-}
-
-fn mock_env_height(height: u64, time: u64) -> Env {
-    let mut env = mock_env();
-    env.block.height = height;
-    env.block.time = Timestamp::from_seconds(time);
-    env
 }
 
 #[test]

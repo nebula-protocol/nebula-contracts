@@ -1,5 +1,5 @@
 use crate::contract::{execute, instantiate, query};
-use crate::mock_querier::{mock_dependencies, WasmMockQuerier};
+use crate::mock_querier::{mock_dependencies};
 use crate::querier::load_token_balance;
 use crate::staking::SECONDS_PER_WEEK;
 use crate::state::{
@@ -10,9 +10,9 @@ use crate::state::{
 
 use cluster_math::FPDecimal;
 
-use cosmwasm_std::testing::{mock_env, mock_info, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
+use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    attr, coins, from_binary, to_binary, Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
+    attr, coins, from_binary, to_binary, Addr, CosmosMsg, Decimal, DepsMut, Env,
     Response, StdError, SubMsg, Timestamp, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
@@ -39,7 +39,7 @@ const DEFAULT_PROPOSAL_DEPOSIT: u128 = 10000000000u128;
 const DEFAULT_VOTER_WEIGHT: Decimal = Decimal::zero();
 const DEFAULT_SNAPSHOT_PERIOD: u64 = 10u64;
 
-fn mock_init(mut deps: DepsMut) {
+fn mock_init(deps: DepsMut) {
     let msg = InstantiateMsg {
         nebula_token: VOTING_TOKEN.to_string(),
         quorum: Decimal::percent(DEFAULT_QUORUM),
@@ -833,7 +833,7 @@ fn expire_poll() {
     mock_init(deps.as_mut());
     let mut creator_env = mock_env_height(POLL_START_HEIGHT, 10000);
 
-    let mut creator_info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
+    let creator_info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
 
     let exec_msg_bz = to_binary(&Cw20ExecuteMsg::Burn {
         amount: Uint128::new(123),
@@ -1011,7 +1011,7 @@ fn end_poll_zero_quorum() {
     let mut deps = mock_dependencies(&coins(1000, VOTING_TOKEN));
     mock_init(deps.as_mut());
     let mut creator_env = mock_env_height(1000, 10000);
-    let mut creator_info = mock_info(VOTING_TOKEN, &vec![]);
+    let creator_info = mock_info(VOTING_TOKEN, &vec![]);
 
     let msg = create_poll_msg(
         "test".to_string(),
@@ -1957,7 +1957,7 @@ fn fails_withdraw_too_many_tokens() {
     let execute_res = execute(deps.as_mut(), env.clone(), info, msg.clone()).unwrap();
     assert_stake_tokens_result(10, 0, 10, 0, execute_res, deps.as_mut());
 
-    let mut info = mock_info(TEST_VOTER, &[]);
+    let info = mock_info(TEST_VOTER, &[]);
     env.block.time = env.block.time.plus_seconds(104 * SECONDS_PER_WEEK);
     let msg = ExecuteMsg::WithdrawVotingTokens {
         amount: Some(Uint128::from(11u128)),
@@ -2220,7 +2220,7 @@ fn share_calculation() {
     let msg = ExecuteMsg::WithdrawVotingTokens {
         amount: Some(Uint128::new(100u128)),
     };
-    let mut info = mock_info(TEST_VOTER, &[]);
+    let info = mock_info(TEST_VOTER, &[]);
     env.block.time = env.block.time.plus_seconds(104 * SECONDS_PER_WEEK);
     let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
     assert_eq!(
@@ -2611,7 +2611,7 @@ fn distribute_voting_rewards() {
     });
 
     let info = mock_info(VOTING_TOKEN, &[]);
-    let mut env = mock_env();
+    let env = mock_env();
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
     let msg = ExecuteMsg::CastVote {
@@ -2685,7 +2685,7 @@ fn distribute_voting_rewards() {
     // voting info has been deleted
     assert_eq!(
         poll_voter_read(&deps.storage, 1u64)
-            .load(&(TEST_VOTER).to_string().as_str().as_bytes())
+            .load(&(TEST_VOTER).as_bytes())
             .is_err(),
         true
     );
@@ -2706,7 +2706,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
         snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
     };
     let info = mock_info(TEST_CREATOR, &[]);
-    let mut env = mock_env();
+    let env = mock_env();
     let _res = instantiate(deps.as_mut(), mock_env(), info, msg)
         .expect("contract successfully executes InstantiateMsg");
 
@@ -3284,7 +3284,7 @@ fn test_abstain_votes_theshold() {
     };
 
     let info = mock_info(TEST_CREATOR, &[]);
-    let mut env = mock_env();
+    let env = mock_env();
     let _res = instantiate(deps.as_mut(), env.clone(), info, msg)
         .expect("contract successfully executes InstantiateMsg");
 
@@ -3416,7 +3416,7 @@ fn test_abstain_votes_quorum() {
     };
 
     let info = mock_info(TEST_CREATOR, &[]);
-    let mut env = mock_env();
+    let env = mock_env();
     let _res = instantiate(deps.as_mut(), env.clone(), info, msg)
         .expect("contract successfully executes InstantiateMsg");
 
@@ -3733,9 +3733,15 @@ fn snapshot_poll() {
     mock_init(deps.as_mut());
 
     let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
-    let mut creator_info = mock_info(VOTING_TOKEN, &vec![]);
+    let creator_info = mock_info(VOTING_TOKEN, &vec![]);
     let mut creator_env = mock_env();
-    let execute_res = execute(deps.as_mut(), creator_env.clone(), creator_info.clone(), msg.clone()).unwrap();
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg.clone(),
+    )
+    .unwrap();
     assert_eq!(
         execute_res.attributes,
         vec![
@@ -3822,1349 +3828,1382 @@ fn snapshot_poll() {
     );
 }
 
-// #[test]
-// fn happy_days_cast_vote_with_snapshot() {
-//     let mut deps = mock_dependencies(&[]);
-//     mock_init(deps.as_mut());
-
-//     let info = mock_info_height(VOTING_TOKEN, &vec![], 0, 10000);
-//     let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
-
-//     let execute_res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
-//     assert_create_poll_result(
-//         1,
-//         DEFAULT_VOTING_PERIOD,
-//         TEST_CREATOR,
-//         execute_res,
-//         deps.as_mut(),
-//     );
-
-//     deps.querier.with_token_balances(&[(
-//         &VOTING_TOKEN.to_string(),
-//         &[(
-//             &MOCK_CONTRACT_ADDR.to_string(),
-//             &Uint128::new(11u128 + DEFAULT_PROPOSAL_DEPOSIT),
-//         )],
-//     )]);
-
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: TEST_VOTER.to_string(),
-//         amount: Uint128::from(11u128),
-//         msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
-//             lock_for_weeks: Some(104u64),
-//         })
-//         .unwrap(),
-//     });
-
-//     let info = mock_info(VOTING_TOKEN, &[]);
-//     let execute_res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
-//     assert_stake_tokens_result(
-//         11,
-//         DEFAULT_PROPOSAL_DEPOSIT,
-//         11,
-//         1,
-//         execute_res,
-//         deps.as_mut(),
-//     );
-
-//     //cast_vote without snapshot
-//     let info = mock_info_height(
-//         TEST_VOTER,
-//         &coins(11, VOTING_TOKEN),
-//         0,
-//         env.block.time.seconds(),
-//     );
-//     let amount = 10u128;
-
-//     let msg = ExecuteMsg::CastVote {
-//         poll_id: 1,
-//         vote: VoteOption::Yes,
-//         amount: Uint128::from(amount),
-//     };
-
-//     let execute_res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
-//     assert_cast_vote_success(TEST_VOTER, amount, 1, VoteOption::Yes, execute_res);
-
-//     // balance be double
-//     deps.querier.with_token_balances(&[(
-//         &VOTING_TOKEN.to_string(),
-//         &[(
-//             &MOCK_CONTRACT_ADDR.to_string(),
-//             &Uint128::new(22u128 + DEFAULT_PROPOSAL_DEPOSIT),
-//         )],
-//     )]);
-
-//     let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: 1 }).unwrap();
-//     let value: PollResponse = from_binary(&res).unwrap();
-//     assert_eq!(value.staked_amount, None);
-//     let end_height = value.end_height;
-
-//     //cast another vote
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: (TEST_VOTER_2),
-//         amount: Uint128::from(11u128),
-//         msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
-//             lock_for_weeks: Some(104u64),
-//         })
-//         .unwrap(),
-//     });
-
-//     let info = mock_info(VOTING_TOKEN, &[]);
-//     let _execute_res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
-
-//     // another voter cast a vote
-//     let msg = ExecuteMsg::CastVote {
-//         poll_id: 1,
-//         vote: VoteOption::Yes,
-//         amount: Uint128::from(10u128),
-//     };
-//     let info = mock_info_height(TEST_VOTER_2, &[], end_height - 9, env.block.time.seconds());
-//     let execute_res = execute(deps.as_mut(), env.clone(), msg).unwrap();
-//     assert_cast_vote_success(TEST_VOTER_2, amount, 1, VoteOption::Yes, execute_res);
-
-//     let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: 1 }).unwrap();
-//     let value: PollResponse = from_binary(&res).unwrap();
-//     assert_eq!(value.staked_amount, Some(Uint128::new(22)));
-
-//     // snanpshot poll will not go through
-//     let snap_error = execute(
-//         deps.as_mut(),
-//         env.clone(),
-//         ExecuteMsg::SnapshotPoll { poll_id: 1 },
-//     )
-//     .unwrap_err();
-//     assert_eq!(
-//         StdError::generic_err("Snapshot has already occurred"),
-//         snap_error
-//     );
-
-//     // balance be double
-//     deps.querier.with_token_balances(&[(
-//         &VOTING_TOKEN.to_string(),
-//         &[(
-//             &MOCK_CONTRACT_ADDR.to_string(),
-//             &Uint128::new(33u128 + DEFAULT_PROPOSAL_DEPOSIT),
-//         )],
-//     )]);
-
-//     // another voter cast a vote but the snapshot is already occurred
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: (TEST_VOTER_3),
-//         amount: Uint128::from(11u128),
-//         msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
-//             lock_for_weeks: Some(104u64),
-//         })
-//         .unwrap(),
-//     });
-
-//     let info = mock_info(VOTING_TOKEN, &[]);
-//     let _execute_res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
-//     let msg = ExecuteMsg::CastVote {
-//         poll_id: 1,
-//         vote: VoteOption::Yes,
-//         amount: Uint128::from(10u128),
-//     };
-//     let info = mock_info_height(TEST_VOTER_3, &[], end_height - 8, env.block.time.seconds());
-//     let execute_res = execute(deps.as_mut(), env.clone(), msg).unwrap();
-//     assert_cast_vote_success(TEST_VOTER_3, amount, 1, VoteOption::Yes, execute_res);
-
-//     let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: 1 }).unwrap();
-//     let value: PollResponse = from_binary(&res).unwrap();
-//     assert_eq!(value.staked_amount, Some(Uint128::new(22)));
-// }
-
-// #[test]
-// fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
-//     const POLL_START_HEIGHT: u64 = 1000;
-//     const POLL_ID: u64 = 1;
-//     let stake_amount = 1000;
-
-//     let mut deps = mock_dependencies(20, &coins(1000, VOTING_TOKEN));
-//     mock_init(deps.as_mut());
-
-//     let mut creator_info = mock_info_height(
-//         VOTING_TOKEN,
-//         &coins(2, VOTING_TOKEN),
-//         POLL_START_HEIGHT,
-//         10000,
-//     );
-
-//     let exec_msg_bz = to_binary(&Cw20ExecuteMsg::Burn {
-//         amount: Uint128::new(123),
-//     })
-//     .unwrap();
-
-//     let msg = create_poll_msg(
-//         "test".to_string(),
-//         "test".to_string(),
-//         None,
-//         Some(PollExecuteMsg {
-//             contract: VOTING_TOKEN.to_string(),
-//             msg: exec_msg_bz.clone(),
-//         }),
-//     );
-
-//     let execute_res = execute(deps.as_mut(), creator_env.clone(), msg).unwrap();
-
-//     assert_create_poll_result(
-//         1,
-//         creator_env.block.height + DEFAULT_VOTING_PERIOD,
-//         TEST_CREATOR,
-//         execute_res,
-//         deps.as_mut(),
-//     );
-
-//     deps.querier.with_token_balances(&[(
-//         &VOTING_TOKEN.to_string(),
-//         &[(
-//             &MOCK_CONTRACT_ADDR.to_string(),
-//             &Uint128::new((stake_amount + DEFAULT_PROPOSAL_DEPOSIT) as u128),
-//         )],
-//     )]);
-
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: TEST_VOTER.to_string(),
-//         amount: Uint128::from(stake_amount as u128),
-//         msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
-//             lock_for_weeks: Some(104u64),
-//         })
-//         .unwrap(),
-//     });
-
-//     let info = mock_info(VOTING_TOKEN, &[]);
-//     let execute_res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
-//     assert_stake_tokens_result(
-//         stake_amount,
-//         DEFAULT_PROPOSAL_DEPOSIT,
-//         stake_amount,
-//         1,
-//         execute_res,
-//         deps.as_mut(),
-//     );
-
-//     let msg = ExecuteMsg::CastVote {
-//         poll_id: 1,
-//         vote: VoteOption::Yes,
-//         amount: Uint128::from(stake_amount),
-//     };
-//     let info = mock_info_height(TEST_VOTER, &[], POLL_START_HEIGHT, env.block.time.seconds());
-//     let execute_res = execute(deps.as_mut(), env.clone(), msg).unwrap();
-
-//     assert_eq!(
-//         execute_res.attributes,
-//         vec![
-//             attr("action", "cast_vote"),
-//             attr("poll_id", POLL_ID),
-//             attr("amount", "1000"),
-//             attr("voter", TEST_VOTER),
-//             attr("vote_option", "yes"),
-//         ]
-//     );
-
-//     creator_env.block.height = &creator_env.block.height + DEFAULT_VOTING_PERIOD - 10;
-
-//     // did not SnapshotPoll
-
-//     // staked amount get increased 10 times
-//     deps.querier.with_token_balances(&[(
-//         &VOTING_TOKEN.to_string(),
-//         &[(
-//             &MOCK_CONTRACT_ADDR.to_string(),
-//             &Uint128::new(((10 * stake_amount) + DEFAULT_PROPOSAL_DEPOSIT) as u128),
-//         )],
-//     )]);
-
-//     //cast another vote
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: (TEST_VOTER_2),
-//         amount: Uint128::from(9 * stake_amount as u128),
-//         msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
-//             lock_for_weeks: Some(104u64),
-//         })
-//         .unwrap(),
-//     });
-
-//     let info = mock_info_height(VOTING_TOKEN, &[], 0, env.block.time.seconds());
-//     let _execute_res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
-
-//     // another voter cast a vote
-//     let msg = ExecuteMsg::CastVote {
-//         poll_id: 1,
-//         vote: VoteOption::Yes,
-//         amount: Uint128::from(stake_amount),
-//     };
-//     let info = mock_info_height(
-//         TEST_VOTER_2,
-//         &[],
-//         POLL_START_HEIGHT,
-//         env.block.time.seconds(),
-//     );
-//     let execute_res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-//     assert_eq!(
-//         execute_res.attributes,
-//         vec![
-//             attr("action", "cast_vote"),
-//             attr("poll_id", POLL_ID),
-//             attr("amount", "1000"),
-//             attr("voter", TEST_VOTER_2),
-//             attr("vote_option", "yes"),
-//         ]
-//     );
-
-//     creator_env.message.sender = TEST_CREATOR.to_string();
-//     creator_env.block.height += 10;
-
-//     // quorum must reach
-//     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
-//     let execute_res = execute(deps.as_mut(), creator_env.clone(), msg).unwrap();
-
-//     assert_eq!(
-//         execute_res.attributes,
-//         vec![
-//             attr("action", "end_poll"),
-//             attr("quorum", "0.2"),
-//             attr("tallied_weight", "2000"),
-//             attr("staked_weight", "10000"),
-//             attr("poll_id", "1"),
-//             attr("rejected_reason", "Quorum not reached"),
-//             attr("passed", "false"),
-//         ]
-//     );
-
-//     let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: 1 }).unwrap();
-//     let value: PollResponse = from_binary(&res).unwrap();
-//     assert_eq!(
-//         10 * stake_amount,
-//         value.total_balance_at_end_poll.unwrap().u128()
-//     );
-// }
-
-// #[test]
-// fn happy_days_end_poll_with_controlled_quorum() {
-//     const POLL_START_HEIGHT: u64 = 1000;
-//     const POLL_ID: u64 = 1;
-//     let stake_amount = 1000;
-
-//     let mut deps = mock_dependencies(20, &coins(1000, VOTING_TOKEN));
-//     mock_init(deps.as_mut());
-
-//     let mut creator_info = mock_info_height(
-//         VOTING_TOKEN,
-//         &coins(2, VOTING_TOKEN),
-//         POLL_START_HEIGHT,
-//         10000,
-//     );
-
-//     let exec_msg_bz = to_binary(&Cw20ExecuteMsg::Burn {
-//         amount: Uint128::new(123),
-//     })
-//     .unwrap();
-
-//     let msg = create_poll_msg(
-//         "test".to_string(),
-//         "test".to_string(),
-//         None,
-//         Some(ExecuteMsg {
-//             contract: VOTING_TOKEN.to_string(),
-//             msg: exec_msg_bz.clone(),
-//         }),
-//     );
-
-//     let execute_res = execute(deps.as_mut(), creator_env.clone(), msg).unwrap();
-
-//     assert_create_poll_result(
-//         1,
-//         creator_env.block.height + DEFAULT_VOTING_PERIOD,
-//         TEST_CREATOR,
-//         execute_res,
-//         deps.as_mut(),
-//     );
-
-//     deps.querier.with_token_balances(&[(
-//         &VOTING_TOKEN.to_string(),
-//         &[(
-//             &MOCK_CONTRACT_ADDR.to_string(),
-//             &Uint128::new((stake_amount + DEFAULT_PROPOSAL_DEPOSIT) as u128),
-//         )],
-//     )]);
-
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: TEST_VOTER.to_string(),
-//         amount: Uint128::from(stake_amount as u128),
-//         msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
-//             lock_for_weeks: Some(104u64),
-//         })
-//         .unwrap(),
-//     });
-
-//     let info = mock_info(VOTING_TOKEN, &[]);
-//     let execute_res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
-//     assert_stake_tokens_result(
-//         stake_amount,
-//         DEFAULT_PROPOSAL_DEPOSIT,
-//         stake_amount,
-//         1,
-//         execute_res,
-//         deps.as_mut(),
-//     );
-
-//     let msg = ExecuteMsg::CastVote {
-//         poll_id: 1,
-//         vote: VoteOption::Yes,
-//         amount: Uint128::from(stake_amount),
-//     };
-//     let info = mock_info_height(TEST_VOTER, &[], POLL_START_HEIGHT, env.block.time.seconds());
-//     let execute_res = execute(deps.as_mut(), env.clone(), msg).unwrap();
-
-//     assert_eq!(
-//         execute_res.attributes,
-//         vec![
-//             attr("action", "cast_vote"),
-//             attr("poll_id", POLL_ID),
-//             attr("amount", "1000"),
-//             attr("voter", TEST_VOTER),
-//             attr("vote_option", "yes"),
-//         ]
-//     );
-
-//     creator_env.block.height = &creator_env.block.height + DEFAULT_VOTING_PERIOD - 10;
-//     creator_env.block.time = env.block.time;
-
-//     // send SnapshotPoll
-//     let fix_res = execute(
-//         deps.as_mut(),
-//         creator_env.clone(),
-//         ExecuteMsg::SnapshotPoll { poll_id: 1 },
-//     )
-//     .unwrap();
-
-//     assert_eq!(
-//         fix_res.attributes,
-//         vec![
-//             attr("action", "snapshot_poll"),
-//             attr("poll_id", "1"),
-//             attr("staked_amount", stake_amount),
-//         ]
-//     );
-
-//     // staked amount get increased 10 times
-//     deps.querier.with_token_balances(&[(
-//         &VOTING_TOKEN.to_string(),
-//         &[(
-//             &MOCK_CONTRACT_ADDR.to_string(),
-//             &Uint128::new(((10 * stake_amount) + DEFAULT_PROPOSAL_DEPOSIT) as u128),
-//         )],
-//     )]);
-
-//     //cast another vote
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: (TEST_VOTER_2),
-//         amount: Uint128::from(9 * stake_amount as u128),
-//         msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
-//             lock_for_weeks: Some(104u64),
-//         })
-//         .unwrap(),
-//     });
-
-//     let info = mock_info(VOTING_TOKEN, &[]);
-//     let _execute_res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
-
-//     let msg = ExecuteMsg::CastVote {
-//         poll_id: 1,
-//         vote: VoteOption::Yes,
-//         amount: Uint128::from(9 * stake_amount),
-//     };
-//     let info = mock_info_height(
-//         TEST_VOTER_2,
-//         &[],
-//         creator_env.block.height,
-//         env.block.time.seconds(),
-//     );
-//     let execute_res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-//     assert_eq!(
-//         execute_res.attributes,
-//         vec![
-//             attr("action", "cast_vote"),
-//             attr("poll_id", POLL_ID),
-//             attr("amount", "9000"),
-//             attr("voter", TEST_VOTER_2),
-//             attr("vote_option", "yes"),
-//         ]
-//     );
-
-//     creator_env.message.sender = TEST_CREATOR.to_string();
-//     creator_env.block.height += 10;
-
-//     // quorum must reach
-//     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
-//     let execute_res = execute(deps.as_mut(), creator_env.clone(), msg).unwrap();
-
-//     assert_eq!(
-//         execute_res.attributes,
-//         vec![
-//             attr("action", "end_poll"),
-//             attr("quorum", "10"),
-//             attr("tallied_weight", "10000"),
-//             attr("staked_weight", "1000"),
-//             attr("poll_id", "1"),
-//             attr("rejected_reason", ""),
-//             attr("passed", "true"),
-//         ]
-//     );
-//     assert_eq!(
-//         execute_res.messages,
-//         vec![CosmosMsg::Wasm(WasmMsg::Execute {
-//             contract_addr: VOTING_TOKEN.to_string(),
-//             msg: to_binary(&Cw20ExecuteMsg::Transfer {
-//                 recipient: TEST_CREATOR.to_string(),
-//                 amount: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
-//             })
-//             .unwrap(),
-//             funds: vec![],
-//         })]
-//     );
-
-//     let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: 1 }).unwrap();
-//     let value: PollResponse = from_binary(&res).unwrap();
-//     assert_eq!(
-//         stake_amount,
-//         value.total_balance_at_end_poll.unwrap().u128()
-//     );
-
-//     assert_eq!(value.yes_votes.u128(), 10 * stake_amount);
-
-//     // actual staked amount is 10 times bigger than staked amount
-//     let actual_staked_weight = (load_token_balance(
-//         deps.as_ref(),
-//         &VOTING_TOKEN.to_string(),
-//         &MOCK_CONTRACT_ADDR.to_string(),
-//     )
-//     .unwrap()
-//         - Uint128::new(DEFAULT_PROPOSAL_DEPOSIT))
-//     .unwrap();
-
-//     assert_eq!(actual_staked_weight.u128(), (10 * stake_amount))
-// }
-
-// #[test]
-// fn increase_lock_time() {
-//     let mut deps = mock_dependencies(&[]);
-//     mock_init(deps.as_mut());
-
-//     let stake_amount = 1000u128;
-//     deps.querier.with_token_balances(&[(
-//         &VOTING_TOKEN.to_string(),
-//         &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(stake_amount))],
-//     )]);
-
-//     let initial_lock_period = 10u64;
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: TEST_VOTER.to_string(),
-//         amount: Uint128::from(stake_amount),
-//         msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
-//             lock_for_weeks: Some(initial_lock_period),
-//         })
-//         .unwrap(),
-//     });
-
-//     let info = mock_info(VOTING_TOKEN, &[]);
-//     let execute_res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
-//     assert_stake_tokens_result(stake_amount, 0, stake_amount, 0, execute_res, deps.as_mut());
-
-//     let state: State = state_read(&deps.storage).load().unwrap();
-//     assert_eq!(
-//         state,
-//         State {
-//             contract_addr: MOCK_CONTRACT_ADDR.to_string(),
-//             poll_count: 0,
-//             total_share: Uint128::from(stake_amount),
-//             total_deposit: Uint128::zero(),
-//             pending_voting_rewards: Uint128::zero(),
-//         }
-//     );
-
-//     let info = mock_info(TEST_VOTER, &[]);
-//     let msg = ExecuteMsg::IncreaseLockTime {
-//         increase_weeks: 95u64,
-//     };
-
-//     let execute_res = execute(deps.as_mut(), env.clone(), msg.clone());
-
-//     // Should not allow lock time exceeding 104 weeks.
-//     match execute_res {
-//         Ok(_) => panic!("Must return error"),
-//         Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Lock time exceeds the maximum."),
-//         Err(e) => panic!("Unexpected error: {:?}", e),
-//     }
-
-//     let increased_lock_period = 20u64;
-
-//     let info = mock_info(TEST_VOTER, &[]);
-//     let msg = ExecuteMsg::IncreaseLockTime {
-//         increase_weeks: increased_lock_period,
-//     };
-
-//     let execute_res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
-
-//     assert_eq!(
-//         execute_res.attributes,
-//         vec![
-//             attr("action", "increase_lock_time"),
-//             attr("sender", "voter1"),
-//             attr("previous_lock_end_week", "2608"),
-//             attr("new_lock_end_week", "2628"),
-//         ],
-//     );
-
-//     let mut info = mock_info(TEST_VOTER, &[]);
-
-//     env.block.time = env
-//         .block
-//         .time
-//         .plus_seconds(initial_lock_period * SECONDS_PER_WEEK);
-
-//     let msg = ExecuteMsg::WithdrawVotingTokens {
-//         amount: Some(Uint128::from(stake_amount)),
-//     };
-
-//     let execute_res = execute(deps.as_mut(), env.clone(), msg.clone());
-
-//     // Make sure increase_lock_time worked and tokens cannot be withdrawn before lock time expires
-//     match execute_res {
-//         Ok(_) => panic!("Must return error"),
-//         Err(StdError::GenericErr { msg, .. }) => {
-//             assert_eq!(msg, "User is trying to withdraw tokens before expiry.")
-//         }
-//         Err(e) => panic!("Unexpected error: {:?}", e),
-//     }
-
-//     env.block.time = env
-//         .block
-//         .time
-//         .plus_seconds(increased_lock_period * SECONDS_PER_WEEK);
-//     let msg = ExecuteMsg::WithdrawVotingTokens {
-//         amount: Some(Uint128::from(stake_amount)),
-//     };
-
-//     let execute_res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
-
-//     execute_res.messages.get(0).expect("no message");
-
-//     let state: State = state_read(&deps.storage).load().unwrap();
-//     assert_eq!(
-//         state,
-//         State {
-//             contract_addr: MOCK_CONTRACT_ADDR.to_string(),
-//             poll_count: 0,
-//             total_share: Uint128::from(0u128),
-//             total_deposit: Uint128::zero(),
-//             pending_voting_rewards: Uint128::zero(),
-//         }
-//     );
-// }
-
-// #[test]
-// fn stake_voting_tokens_multiple_lock_end_weeks() {
-//     let mut deps = mock_dependencies(&[]);
-//     mock_init(deps.as_mut());
-
-//     let stake_amount = 1000u128;
-//     deps.querier.with_token_balances(&[(
-//         &VOTING_TOKEN.to_string(),
-//         &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(stake_amount))],
-//     )]);
-
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: TEST_VOTER.to_string(),
-//         amount: Uint128::from(stake_amount),
-//         msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
-//             lock_for_weeks: None,
-//         })
-//         .unwrap(),
-//     });
-
-//     let info = mock_info(VOTING_TOKEN, &[]);
-//     let execute_res = execute(deps.as_mut(), mock_env(), info, msg.clone());
-
-//     // Must specify lock_for_weeks when user stakes for the first time
-//     match execute_res {
-//         Ok(_) => panic!("Must return error"),
-//         Err(StdError::GenericErr { msg, .. }) => {
-//             assert_eq!(msg, "Must specify lock_for_weeks if no tokens staked.")
-//         }
-//         Err(e) => panic!("Unexpected error: {:?}", e),
-//     }
-
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: TEST_VOTER.to_string(),
-//         amount: Uint128::from(stake_amount),
-//         msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
-//             lock_for_weeks: Some(1000u64),
-//         })
-//         .unwrap(),
-//     });
-
-//     let info = mock_info(VOTING_TOKEN, &[]);
-//     let execute_res = execute(deps.as_mut(), mock_env(), info, msg.clone());
-
-//     // Must specify lock_for_weeks when user stakes for the first time
-//     match execute_res {
-//         Ok(_) => panic!("Must return error"),
-//         Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Lock time exceeds the maximum."),
-//         Err(e) => panic!("Unexpected error: {:?}", e),
-//     }
-
-//     let lock_period = 10u64;
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: TEST_VOTER.to_string(),
-//         amount: Uint128::from(stake_amount),
-//         msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
-//             lock_for_weeks: Some(lock_period),
-//         })
-//         .unwrap(),
-//     });
-
-//     let info = mock_info(VOTING_TOKEN, &[]);
-//     let execute_res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
-//     assert_stake_tokens_result(stake_amount, 0, stake_amount, 0, execute_res, deps.as_mut());
-
-//     let new_lock_period = lock_period + 1;
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: TEST_VOTER.to_string(),
-//         amount: Uint128::from(stake_amount),
-//         msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
-//             lock_for_weeks: Some(new_lock_period),
-//         })
-//         .unwrap(),
-//     });
-
-//     let info = mock_info(VOTING_TOKEN, &[]);
-//     let execute_res = execute(deps.as_mut(), env.clone(), msg.clone());
-
-//     // Cannot specify lock for weeks when staking tokens again
-//     match execute_res {
-//         Ok(_) => panic!("Must return error"),
-//         Err(StdError::GenericErr { msg, .. }) =>
-//             assert_eq!(
-//                 msg,
-//                 "Cannot specify lock_for_weeks if tokens already staked. To change the lock time, use increase_lock_time"
-//             ),
-//         Err(e) => panic!("Unexpected error: {:?}", e),
-//     }
-
-//     deps.querier.with_token_balances(&[(
-//         &VOTING_TOKEN.to_string(),
-//         &[(
-//             &MOCK_CONTRACT_ADDR.to_string(),
-//             &Uint128::new(2 * stake_amount),
-//         )],
-//     )]);
-
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: TEST_VOTER.to_string(),
-//         amount: Uint128::from(stake_amount),
-//         msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
-//             lock_for_weeks: None,
-//         })
-//         .unwrap(),
-//     });
-
-//     let info = mock_info(VOTING_TOKEN, &[]);
-//     let execute_res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
-
-//     assert_stake_tokens_result(
-//         2 * stake_amount,
-//         0,
-//         stake_amount,
-//         0,
-//         execute_res,
-//         deps.as_mut(),
-//     );
-// }
-
-// #[test]
-// fn total_voting_power_calculation() {
-//     let mut deps = mock_dependencies(&[]);
-//     mock_init(deps.as_mut());
-
-//     let stake_amount = 1000u128;
-//     deps.querier.with_token_balances(&[(
-//         &VOTING_TOKEN.to_string(),
-//         &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(stake_amount))],
-//     )]);
-
-//     let lock_period = 10u64;
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: TEST_VOTER.to_string(),
-//         amount: Uint128::from(stake_amount),
-//         msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
-//             lock_for_weeks: Some(lock_period),
-//         })
-//         .unwrap(),
-//     });
-
-//     let info = mock_info(VOTING_TOKEN, &[]);
-//     let execute_res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
-//     assert_stake_tokens_result(stake_amount, 0, stake_amount, 0, execute_res, deps.as_mut());
-
-//     let total_voting_power = total_voting_power_read(deps.storage).load().unwrap();
-//     let current_week = env.block.time.seconds() / SECONDS_PER_WEEK;
-
-//     assert_eq!(
-//         total_voting_power,
-//         TotalVotingPower {
-//             voting_power: [
-//                 FPDecimal::from_str("76.923076923076923076").unwrap(),
-//                 FPDecimal::from_str("67.307692307692307692").unwrap(),
-//                 FPDecimal::from_str("57.692307692307692307").unwrap(),
-//                 FPDecimal::from_str("48.076923076923076923").unwrap(),
-//                 FPDecimal::from_str("38.461538461538461538").unwrap(),
-//                 FPDecimal::from_str("28.846153846153846153").unwrap(),
-//                 FPDecimal::from_str("19.230769230769230769").unwrap(),
-//                 FPDecimal::from_str("9.615384615384615384").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("96.153846153846153846").unwrap(),
-//                 FPDecimal::from_str("86.538461538461538461").unwrap(),
-//             ]
-//             .to_vec(),
-//             last_upd: current_week
-//         }
-//     );
-
-//     let msg = ExecuteMsg::IncreaseLockTime {
-//         increase_weeks: 30u64,
-//     };
-
-//     let mut info = mock_info(TEST_VOTER, &[]);
-
-//     // Make 5 weeks pass by
-//     env.block.time = env.block.time.plus_seconds(5 * SECONDS_PER_WEEK);
-
-//     let _execute_res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
-
-//     let total_voting_power = total_voting_power_read(deps.storage).load().unwrap();
-//     let current_week = env.block.time.seconds() / SECONDS_PER_WEEK;
-
-//     assert_eq!(
-//         total_voting_power,
-//         TotalVotingPower {
-//             voting_power: [
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("336.538461538461538461").unwrap(),
-//                 FPDecimal::from_str("326.923076923076923076").unwrap(),
-//                 FPDecimal::from_str("317.307692307692307692").unwrap(),
-//                 FPDecimal::from_str("307.692307692307692307").unwrap(),
-//                 FPDecimal::from_str("298.076923076923076923").unwrap(),
-//                 FPDecimal::from_str("288.461538461538461538").unwrap(),
-//                 FPDecimal::from_str("278.846153846153846153").unwrap(),
-//                 FPDecimal::from_str("269.230769230769230769").unwrap(),
-//                 FPDecimal::from_str("259.615384615384615384").unwrap(),
-//                 FPDecimal::from_str("250").unwrap(),
-//                 FPDecimal::from_str("240.384615384615384615").unwrap(),
-//                 FPDecimal::from_str("230.76923076923076923").unwrap(),
-//                 FPDecimal::from_str("221.153846153846153846").unwrap(),
-//                 FPDecimal::from_str("211.538461538461538461").unwrap(),
-//                 FPDecimal::from_str("201.923076923076923076").unwrap(),
-//                 FPDecimal::from_str("192.307692307692307692").unwrap(),
-//                 FPDecimal::from_str("182.692307692307692307").unwrap(),
-//                 FPDecimal::from_str("173.076923076923076923").unwrap(),
-//                 FPDecimal::from_str("163.461538461538461538").unwrap(),
-//                 FPDecimal::from_str("153.846153846153846153").unwrap(),
-//                 FPDecimal::from_str("144.230769230769230769").unwrap(),
-//                 FPDecimal::from_str("134.615384615384615384").unwrap(),
-//                 FPDecimal::from_str("125").unwrap(),
-//                 FPDecimal::from_str("115.384615384615384615").unwrap(),
-//                 FPDecimal::from_str("105.76923076923076923").unwrap(),
-//                 FPDecimal::from_str("96.153846153846153846").unwrap(),
-//                 FPDecimal::from_str("86.538461538461538461").unwrap(),
-//                 FPDecimal::from_str("76.923076923076923076").unwrap(),
-//                 FPDecimal::from_str("67.307692307692307692").unwrap(),
-//                 FPDecimal::from_str("57.692307692307692307").unwrap(),
-//                 FPDecimal::from_str("48.076923076923076923").unwrap(),
-//                 FPDecimal::from_str("38.461538461538461538").unwrap(),
-//                 FPDecimal::from_str("28.846153846153846153").unwrap(),
-//                 FPDecimal::from_str("19.230769230769230769").unwrap(),
-//                 FPDecimal::from_str("9.615384615384615384").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//             ]
-//             .to_vec(),
-//             last_upd: current_week
-//         }
-//     );
-
-//     deps.querier.with_token_balances(&[(
-//         &VOTING_TOKEN.to_string(),
-//         &[(
-//             &MOCK_CONTRACT_ADDR.to_string(),
-//             &Uint128::new(2 * stake_amount),
-//         )],
-//     )]);
-
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: (TEST_VOTER_2),
-//         amount: Uint128::from(stake_amount),
-//         msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
-//             lock_for_weeks: Some(52u64),
-//         })
-//         .unwrap(),
-//     });
-
-//     let info = mock_info_height(
-//         VOTING_TOKEN,
-//         &[],
-//         env.block.height,
-//         env.block.time.seconds(),
-//     );
-//     let execute_res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
-//     assert_stake_tokens_result(
-//         2 * stake_amount,
-//         0,
-//         stake_amount,
-//         0,
-//         execute_res,
-//         deps.as_mut(),
-//     );
-
-//     let total_voting_power = total_voting_power_read(deps.storage).load().unwrap();
-//     let current_week = env.block.time.seconds() / SECONDS_PER_WEEK;
-
-//     assert_eq!(
-//         total_voting_power,
-//         TotalVotingPower {
-//             voting_power: vec![
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("836.538461538461538461").unwrap(),
-//                 FPDecimal::from_str("817.307692307692307691").unwrap(),
-//                 FPDecimal::from_str("798.076923076923076922").unwrap(),
-//                 FPDecimal::from_str("778.846153846153846153").unwrap(),
-//                 FPDecimal::from_str("759.615384615384615384").unwrap(),
-//                 FPDecimal::from_str("740.384615384615384614").unwrap(),
-//                 FPDecimal::from_str("721.153846153846153845").unwrap(),
-//                 FPDecimal::from_str("701.923076923076923076").unwrap(),
-//                 FPDecimal::from_str("682.692307692307692307").unwrap(),
-//                 FPDecimal::from_str("663.461538461538461538").unwrap(),
-//                 FPDecimal::from_str("644.230769230769230768").unwrap(),
-//                 FPDecimal::from_str("624.999999999999999999").unwrap(),
-//                 FPDecimal::from_str("605.76923076923076923").unwrap(),
-//                 FPDecimal::from_str("586.538461538461538461").unwrap(),
-//                 FPDecimal::from_str("567.307692307692307691").unwrap(),
-//                 FPDecimal::from_str("548.076923076923076922").unwrap(),
-//                 FPDecimal::from_str("528.846153846153846153").unwrap(),
-//                 FPDecimal::from_str("509.615384615384615384").unwrap(),
-//                 FPDecimal::from_str("490.384615384615384614").unwrap(),
-//                 FPDecimal::from_str("471.153846153846153845").unwrap(),
-//                 FPDecimal::from_str("451.923076923076923076").unwrap(),
-//                 FPDecimal::from_str("432.692307692307692307").unwrap(),
-//                 FPDecimal::from_str("413.461538461538461538").unwrap(),
-//                 FPDecimal::from_str("394.230769230769230768").unwrap(),
-//                 FPDecimal::from_str("374.999999999999999999").unwrap(),
-//                 FPDecimal::from_str("355.76923076923076923").unwrap(),
-//                 FPDecimal::from_str("336.538461538461538461").unwrap(),
-//                 FPDecimal::from_str("317.307692307692307691").unwrap(),
-//                 FPDecimal::from_str("298.076923076923076922").unwrap(),
-//                 FPDecimal::from_str("278.846153846153846153").unwrap(),
-//                 FPDecimal::from_str("259.615384615384615384").unwrap(),
-//                 FPDecimal::from_str("240.384615384615384614").unwrap(),
-//                 FPDecimal::from_str("221.153846153846153845").unwrap(),
-//                 FPDecimal::from_str("201.923076923076923076").unwrap(),
-//                 FPDecimal::from_str("182.692307692307692307").unwrap(),
-//                 FPDecimal::from_str("163.461538461538461538").unwrap(),
-//                 FPDecimal::from_str("153.846153846153846153").unwrap(),
-//                 FPDecimal::from_str("144.230769230769230769").unwrap(),
-//                 FPDecimal::from_str("134.615384615384615384").unwrap(),
-//                 FPDecimal::from_str("125").unwrap(),
-//                 FPDecimal::from_str("115.384615384615384615").unwrap(),
-//                 FPDecimal::from_str("105.76923076923076923").unwrap(),
-//                 FPDecimal::from_str("96.153846153846153846").unwrap(),
-//                 FPDecimal::from_str("86.538461538461538461").unwrap(),
-//                 FPDecimal::from_str("76.923076923076923076").unwrap(),
-//                 FPDecimal::from_str("67.307692307692307692").unwrap(),
-//                 FPDecimal::from_str("57.692307692307692307").unwrap(),
-//                 FPDecimal::from_str("48.076923076923076923").unwrap(),
-//                 FPDecimal::from_str("38.461538461538461538").unwrap(),
-//                 FPDecimal::from_str("28.846153846153846153").unwrap(),
-//                 FPDecimal::from_str("19.230769230769230769").unwrap(),
-//                 FPDecimal::from_str("9.615384615384615384").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//                 FPDecimal::from_str("0").unwrap(),
-//             ]
-//             .to_vec(),
-//             last_upd: current_week
-//         }
-//     );
-// }
-
-// #[test]
-// fn test_unstake_before_claiming_voting_rewards() {
-//     let mut deps = mock_dependencies(&[]);
-//     let msg = InstantiateMsg {
-//         nebula_token: VOTING_TOKEN.to_string(),
-//         quorum: Decimal::percent(DEFAULT_QUORUM),
-//         threshold: Decimal::percent(DEFAULT_THRESHOLD),
-//         voting_period: DEFAULT_VOTING_PERIOD,
-//         effective_delay: DEFAULT_EFFECTIVE_DELAY,
-//         expiration_period: DEFAULT_EXPIRATION_PERIOD,
-//         proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
-//         voter_weight: Decimal::percent(50), // distribute 50% rewards to voters
-//         snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
-//     };
-
-//     let info = mock_info(TEST_CREATOR, &[]);
-//     let _res = instantiate(deps.as_mut(), mock_env(), info, msg)
-//         .expect("contract successfully executes InstantiateMsg");
-
-//     let info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
-//     let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
-//     let execute_res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
-
-//     assert_create_poll_result(
-//         1,
-//         env.block.height + DEFAULT_VOTING_PERIOD,
-//         TEST_CREATOR,
-//         execute_res,
-//         deps.as_mut(),
-//     );
-
-//     let stake_amount = 100u128;
-
-//     deps.querier.with_token_balances(&[(
-//         &VOTING_TOKEN.to_string(),
-//         &[(
-//             &MOCK_CONTRACT_ADDR.to_string(),
-//             &Uint128::new((stake_amount + DEFAULT_PROPOSAL_DEPOSIT) as u128),
-//         )],
-//     )]);
-
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: TEST_VOTER.to_string(),
-//         amount: Uint128::from(stake_amount),
-//         msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
-//             lock_for_weeks: Some(104u64),
-//         })
-//         .unwrap(),
-//     });
-
-//     let info = mock_info_height(
-//         VOTING_TOKEN,
-//         &[],
-//         env.block.height,
-//         env.block.time.seconds(),
-//     );
-//     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
-
-//     let msg = ExecuteMsg::CastVote {
-//         poll_id: 1,
-//         vote: VoteOption::Yes,
-//         amount: Uint128::from(stake_amount),
-//     };
-//     let info = mock_info_height(TEST_VOTER, &[], env.block.height, env.block.time.seconds());
-//     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
-
-//     deps.querier.with_token_balances(&[(
-//         &VOTING_TOKEN.to_string(),
-//         &[(
-//             &MOCK_CONTRACT_ADDR.to_string(),
-//             &Uint128::new((stake_amount + DEFAULT_PROPOSAL_DEPOSIT + 100u128) as u128),
-//         )],
-//     )]);
-
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: TEST_COLLECTOR.to_string(),
-//         amount: Uint128::from(100u128),
-//         msg: to_binary(&Cw20HookMsg::DepositReward {}).unwrap(),
-//     });
-
-//     let info = mock_info_height(
-//         VOTING_TOKEN,
-//         &[],
-//         env.block.height,
-//         env.block.time.seconds(),
-//     );
-//     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
-
-//     // END POLL
-//     let info = mock_info_height(
-//         TEST_VOTER,
-//         &[],
-//         env.block.height + DEFAULT_VOTING_PERIOD,
-//         env.block.time.seconds(),
-//     );
-//     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
-//     let _res = execute(deps.as_mut(), env.clone(), msg).unwrap();
-
-//     deps.querier.with_token_balances(&[(
-//         &VOTING_TOKEN.to_string(),
-//         &[(
-//             &MOCK_CONTRACT_ADDR.to_string(),
-//             &Uint128::new((stake_amount + 100u128) as u128),
-//         )],
-//     )]);
-
-//     // UNSTAKE VOTING TOKENS
-//     let msg = ExecuteMsg::WithdrawVotingTokens { amount: None };
-//     let mut info = mock_info_height(TEST_VOTER, &[], env.block.height, env.block.time.seconds());
-
-//     //Make 2 years pass by so lock expires
-//     env.block.time = env.block.time.plus_seconds(104 * SECONDS_PER_WEEK);
-//     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-//     assert_eq!(
-//         res.attributes,
-//         vec![
-//             attr("action", "withdraw"),
-//             attr("recipient", TEST_VOTER),
-//             attr("amount", (stake_amount + 50u128).to_string()), // 100 + 50% of 100
-//         ]
-//     );
-
-//     let token_manager = bank_read(&deps.storage)
-//         .load(&(TEST_VOTER).as_str().as_bytes())
-//         .unwrap();
-//     assert_eq!(
-//         token_manager.locked_balance,
-//         vec![(
-//             1u64,
-//             VoterInfo {
-//                 vote: VoteOption::Yes,
-//                 balance: Uint128::from(stake_amount),
-//             }
-//         )]
-//     );
-
-//     // SUCCESS
-//     let msg = ExecuteMsg::WithdrawVotingRewards {};
-//     let info = mock_info_height(TEST_VOTER, &[], 0, 10000);
-//     let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-
-//     // user can withdraw 50% of total staked (weight = 50% poll share = 100%)
-//     assert_eq!(
-//         res.attributes,
-//         vec![
-//             attr("action", "withdraw_voting_rewards"),
-//             attr("recipient", TEST_VOTER),
-//             attr("amount", String::from("50")),
-//         ]
-//     );
-
-//     // make sure now the state is clean
-//     let token_manager = bank_read(&deps.storage)
-//         .load(&(TEST_VOTER).as_bytes())
-//         .unwrap();
-
-//     assert_eq!(token_manager.locked_balance, vec![]);
-
-//     // expect err
-//     poll_voter_read(&deps.storage, 1u64)
-//         .load(&(TEST_VOTER).as_bytes())
-//         .unwrap_err();
-// }
+#[test]
+fn happy_days_cast_vote_with_snapshot() {
+    let mut deps = mock_dependencies(&[]);
+    mock_init(deps.as_mut());
+
+    let env = mock_env_height(0, 10000);
+    let info = mock_info(VOTING_TOKEN, &vec![]);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+
+    let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
+    assert_create_poll_result(
+        1,
+        DEFAULT_VOTING_PERIOD,
+        TEST_CREATOR,
+        execute_res,
+        deps.as_mut(),
+    );
+
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new(11u128 + DEFAULT_PROPOSAL_DEPOSIT),
+        )],
+    )]);
+
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER.to_string(),
+        amount: Uint128::from(11u128),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: Some(104u64),
+        })
+        .unwrap(),
+    });
+
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let env = mock_env();
+    let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
+    assert_stake_tokens_result(
+        11,
+        DEFAULT_PROPOSAL_DEPOSIT,
+        11,
+        1,
+        execute_res,
+        deps.as_mut(),
+    );
+
+    //cast_vote without snapshot
+    let env = mock_env_height(0, env.block.time.seconds());
+    let info = mock_info(TEST_VOTER, &coins(11, VOTING_TOKEN));
+    let amount = 10u128;
+
+    let msg = ExecuteMsg::CastVote {
+        poll_id: 1,
+        vote: VoteOption::Yes,
+        amount: Uint128::from(amount),
+    };
+
+    let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
+    assert_cast_vote_success(TEST_VOTER, amount, 1, VoteOption::Yes, execute_res);
+
+    // balance be double
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new(22u128 + DEFAULT_PROPOSAL_DEPOSIT),
+        )],
+    )]);
+
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: 1 }).unwrap();
+    let value: PollResponse = from_binary(&res).unwrap();
+    assert_eq!(value.staked_amount, None);
+    let end_height = value.end_height;
+
+    //cast another vote
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER_2.to_string(),
+        amount: Uint128::from(11u128),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: Some(104u64),
+        })
+        .unwrap(),
+    });
+
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let env = mock_env();
+    let _execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
+
+    // another voter cast a vote
+    let msg = ExecuteMsg::CastVote {
+        poll_id: 1,
+        vote: VoteOption::Yes,
+        amount: Uint128::from(10u128),
+    };
+    let env = mock_env_height(end_height - 9, env.block.time.seconds());
+    let info = mock_info(TEST_VOTER_2, &[]);
+    let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+    assert_cast_vote_success(TEST_VOTER_2, amount, 1, VoteOption::Yes, execute_res);
+
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: 1 }).unwrap();
+    let value: PollResponse = from_binary(&res).unwrap();
+    assert_eq!(value.staked_amount, Some(Uint128::new(22)));
+
+    // snanpshot poll will not go through
+    let snap_error = execute(
+        deps.as_mut(),
+        env.clone(),
+        info.clone(),
+        ExecuteMsg::SnapshotPoll { poll_id: 1 },
+    )
+    .unwrap_err();
+    assert_eq!(
+        StdError::generic_err("Snapshot has already occurred"),
+        snap_error
+    );
+
+    // balance be double
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new(33u128 + DEFAULT_PROPOSAL_DEPOSIT),
+        )],
+    )]);
+
+    // another voter cast a vote but the snapshot is already occurred
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER_3.to_string(),
+        amount: Uint128::from(11u128),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: Some(104u64),
+        })
+        .unwrap(),
+    });
+
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let env = mock_env();
+    let _execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
+    let msg = ExecuteMsg::CastVote {
+        poll_id: 1,
+        vote: VoteOption::Yes,
+        amount: Uint128::from(10u128),
+    };
+    let env = mock_env_height(end_height - 8, env.block.time.seconds());
+    let info = mock_info(TEST_VOTER_3, &[]);
+    let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+    assert_cast_vote_success(TEST_VOTER_3, amount, 1, VoteOption::Yes, execute_res);
+
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: 1 }).unwrap();
+    let value: PollResponse = from_binary(&res).unwrap();
+    assert_eq!(value.staked_amount, Some(Uint128::new(22)));
+}
+
+#[test]
+fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
+    const POLL_START_HEIGHT: u64 = 1000;
+    const POLL_ID: u64 = 1;
+    let stake_amount = 1000;
+
+    let mut deps = mock_dependencies(&coins(1000, VOTING_TOKEN));
+    mock_init(deps.as_mut());
+
+    let mut creator_env = mock_env_height(POLL_START_HEIGHT, 10000);
+
+    let mut creator_info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
+
+    let exec_msg_bz = to_binary(&Cw20ExecuteMsg::Burn {
+        amount: Uint128::new(123),
+    })
+    .unwrap();
+
+    let msg = create_poll_msg(
+        "test".to_string(),
+        "test".to_string(),
+        None,
+        Some(PollExecuteMsg {
+            contract: VOTING_TOKEN.to_string(),
+            msg: exec_msg_bz.clone(),
+        }),
+    );
+
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg,
+    )
+    .unwrap();
+
+    assert_create_poll_result(
+        1,
+        creator_env.block.height + DEFAULT_VOTING_PERIOD,
+        TEST_CREATOR,
+        execute_res,
+        deps.as_mut(),
+    );
+
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new((stake_amount + DEFAULT_PROPOSAL_DEPOSIT) as u128),
+        )],
+    )]);
+
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER.to_string(),
+        amount: Uint128::from(stake_amount as u128),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: Some(104u64),
+        })
+        .unwrap(),
+    });
+
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let env = mock_env();
+    let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
+    assert_stake_tokens_result(
+        stake_amount,
+        DEFAULT_PROPOSAL_DEPOSIT,
+        stake_amount,
+        1,
+        execute_res,
+        deps.as_mut(),
+    );
+
+    let msg = ExecuteMsg::CastVote {
+        poll_id: 1,
+        vote: VoteOption::Yes,
+        amount: Uint128::from(stake_amount),
+    };
+    let env = mock_env_height(POLL_START_HEIGHT, env.block.time.seconds());
+    let info = mock_info(TEST_VOTER, &[]);
+    let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "cast_vote"),
+            attr("poll_id", POLL_ID.to_string()),
+            attr("amount", "1000"),
+            attr("voter", TEST_VOTER),
+            attr("vote_option", "yes"),
+        ]
+    );
+
+    creator_env.block.height = &creator_env.block.height + DEFAULT_VOTING_PERIOD - 10;
+
+    // did not SnapshotPoll
+
+    // staked amount get increased 10 times
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new(((10 * stake_amount) + DEFAULT_PROPOSAL_DEPOSIT) as u128),
+        )],
+    )]);
+
+    //cast another vote
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER_2.to_string(),
+        amount: Uint128::from(9 * stake_amount as u128),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: Some(104u64),
+        })
+        .unwrap(),
+    });
+
+    let env = mock_env_height(0, env.block.time.seconds());
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let _execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
+
+    // another voter cast a vote
+    let msg = ExecuteMsg::CastVote {
+        poll_id: 1,
+        vote: VoteOption::Yes,
+        amount: Uint128::from(stake_amount),
+    };
+    let env = mock_env_height(POLL_START_HEIGHT, env.block.time.seconds());
+    let info = mock_info(TEST_VOTER_2, &[]);
+    let execute_res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "cast_vote"),
+            attr("poll_id", POLL_ID.to_string()),
+            attr("amount", "1000"),
+            attr("voter", TEST_VOTER_2),
+            attr("vote_option", "yes"),
+        ]
+    );
+
+    creator_info.sender = Addr::unchecked(TEST_CREATOR);
+    creator_env.block.height += 10;
+
+    // quorum must reach
+    let msg = ExecuteMsg::EndPoll { poll_id: 1 };
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg,
+    )
+    .unwrap();
+
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "end_poll"),
+            attr("quorum", "0.2"),
+            attr("tallied_weight", "2000"),
+            attr("staked_weight", "10000"),
+            attr("poll_id", "1"),
+            attr("rejected_reason", "Quorum not reached"),
+            attr("passed", "false"),
+        ]
+    );
+
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: 1 }).unwrap();
+    let value: PollResponse = from_binary(&res).unwrap();
+    assert_eq!(
+        10 * stake_amount,
+        value.total_balance_at_end_poll.unwrap().u128()
+    );
+}
+
+#[test]
+fn happy_days_end_poll_with_controlled_quorum() {
+    const POLL_START_HEIGHT: u64 = 1000;
+    const POLL_ID: u64 = 1;
+    let stake_amount = 1000;
+
+    let mut deps = mock_dependencies(&coins(1000, VOTING_TOKEN));
+    mock_init(deps.as_mut());
+
+    let mut creator_env = mock_env_height(POLL_START_HEIGHT, 10000);
+    let mut creator_info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
+
+    let exec_msg_bz = to_binary(&Cw20ExecuteMsg::Burn {
+        amount: Uint128::new(123),
+    })
+    .unwrap();
+
+    let msg = create_poll_msg(
+        "test".to_string(),
+        "test".to_string(),
+        None,
+        Some(PollExecuteMsg {
+            contract: VOTING_TOKEN.to_string(),
+            msg: exec_msg_bz.clone(),
+        }),
+    );
+
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg,
+    )
+    .unwrap();
+
+    assert_create_poll_result(
+        1,
+        creator_env.block.height + DEFAULT_VOTING_PERIOD,
+        TEST_CREATOR,
+        execute_res,
+        deps.as_mut(),
+    );
+
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new((stake_amount + DEFAULT_PROPOSAL_DEPOSIT) as u128),
+        )],
+    )]);
+
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER.to_string(),
+        amount: Uint128::from(stake_amount as u128),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: Some(104u64),
+        })
+        .unwrap(),
+    });
+
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let env = mock_env();
+    let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
+    assert_stake_tokens_result(
+        stake_amount,
+        DEFAULT_PROPOSAL_DEPOSIT,
+        stake_amount,
+        1,
+        execute_res,
+        deps.as_mut(),
+    );
+
+    let msg = ExecuteMsg::CastVote {
+        poll_id: 1,
+        vote: VoteOption::Yes,
+        amount: Uint128::from(stake_amount),
+    };
+    let env = mock_env_height(POLL_START_HEIGHT, env.block.time.seconds());
+    let info = mock_info(TEST_VOTER, &[]);
+    let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "cast_vote"),
+            attr("poll_id", POLL_ID.to_string()),
+            attr("amount", "1000"),
+            attr("voter", TEST_VOTER),
+            attr("vote_option", "yes"),
+        ]
+    );
+
+    creator_env.block.height = &creator_env.block.height + DEFAULT_VOTING_PERIOD - 10;
+    creator_env.block.time = env.block.time;
+
+    // send SnapshotPoll
+    let fix_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        ExecuteMsg::SnapshotPoll { poll_id: 1 },
+    )
+    .unwrap();
+
+    assert_eq!(
+        fix_res.attributes,
+        vec![
+            attr("action", "snapshot_poll"),
+            attr("poll_id", "1"),
+            attr("staked_amount", stake_amount.to_string()),
+        ]
+    );
+
+    // staked amount get increased 10 times
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new(((10 * stake_amount) + DEFAULT_PROPOSAL_DEPOSIT) as u128),
+        )],
+    )]);
+
+    //cast another vote
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER_2.to_string(),
+        amount: Uint128::from(9 * stake_amount as u128),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: Some(104u64),
+        })
+        .unwrap(),
+    });
+
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let env = mock_env();
+    let _execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
+
+    let msg = ExecuteMsg::CastVote {
+        poll_id: 1,
+        vote: VoteOption::Yes,
+        amount: Uint128::from(9 * stake_amount),
+    };
+    let env = mock_env_height(
+        creator_env.block.height,
+        env.block.time.seconds(),
+    );
+    let info = mock_info(TEST_VOTER_2,
+        &[]);
+    let execute_res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "cast_vote"),
+            attr("poll_id", POLL_ID.to_string()),
+            attr("amount", "9000"),
+            attr("voter", TEST_VOTER_2),
+            attr("vote_option", "yes"),
+        ]
+    );
+
+    creator_info.sender = Addr::unchecked(TEST_CREATOR);
+    creator_env.block.height += 10;
+
+    // quorum must reach
+    let msg = ExecuteMsg::EndPoll { poll_id: 1 };
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg,
+    )
+    .unwrap();
+
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "end_poll"),
+            attr("quorum", "10"),
+            attr("tallied_weight", "10000"),
+            attr("staked_weight", "1000"),
+            attr("poll_id", "1"),
+            attr("rejected_reason", ""),
+            attr("passed", "true"),
+        ]
+    );
+    assert_eq!(
+        execute_res.messages,
+        vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: VOTING_TOKEN.to_string(),
+            msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                recipient: TEST_CREATOR.to_string(),
+                amount: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
+            })
+            .unwrap(),
+            funds: vec![],
+        }))]
+    );
+
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: 1 }).unwrap();
+    let value: PollResponse = from_binary(&res).unwrap();
+    assert_eq!(
+        stake_amount,
+        value.total_balance_at_end_poll.unwrap().u128()
+    );
+
+    assert_eq!(value.yes_votes.u128(), 10 * stake_amount);
+
+    // actual staked amount is 10 times bigger than staked amount
+    let actual_staked_weight = load_token_balance(
+        deps.as_ref(),
+        &VOTING_TOKEN.to_string(),
+        &MOCK_CONTRACT_ADDR.to_string(),
+    )
+    .unwrap()
+    .checked_sub(Uint128::from(DEFAULT_PROPOSAL_DEPOSIT))
+    .unwrap();
+
+    assert_eq!(actual_staked_weight.u128(), (10 * stake_amount));
+}
+
+#[test]
+fn increase_lock_time() {
+    let mut deps = mock_dependencies(&[]);
+    mock_init(deps.as_mut());
+
+    let stake_amount = 1000u128;
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(stake_amount))],
+    )]);
+
+    let initial_lock_period = 10u64;
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER.to_string(),
+        amount: Uint128::from(stake_amount),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: Some(initial_lock_period),
+        })
+        .unwrap(),
+    });
+
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let env = mock_env();
+    let execute_res = execute(deps.as_mut(), env.clone(), info, msg.clone()).unwrap();
+    assert_stake_tokens_result(stake_amount, 0, stake_amount, 0, execute_res, deps.as_mut());
+
+    let state: State = state_read(&deps.storage).load().unwrap();
+    assert_eq!(
+        state,
+        State {
+            contract_addr: MOCK_CONTRACT_ADDR.to_string(),
+            poll_count: 0,
+            total_share: Uint128::from(stake_amount),
+            total_deposit: Uint128::zero(),
+            pending_voting_rewards: Uint128::zero(),
+        }
+    );
+
+    let info = mock_info(TEST_VOTER, &[]);
+    let env = mock_env();
+    let msg = ExecuteMsg::IncreaseLockTime {
+        increase_weeks: 95u64,
+    };
+
+    let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
+
+    // Should not allow lock time exceeding 104 weeks.
+    match execute_res {
+        Ok(_) => panic!("Must return error"),
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Lock time exceeds the maximum."),
+        Err(e) => panic!("Unexpected error: {:?}", e),
+    }
+
+    let increased_lock_period = 20u64;
+
+    let info = mock_info(TEST_VOTER, &[]);
+    let msg = ExecuteMsg::IncreaseLockTime {
+        increase_weeks: increased_lock_period,
+    };
+
+    let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
+
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "increase_lock_time"),
+            attr("sender", "voter1"),
+            attr("previous_lock_end_week", "2608"),
+            attr("new_lock_end_week", "2628"),
+        ],
+    );
+
+    let info = mock_info(TEST_VOTER, &[]);
+    let mut env = mock_env();
+
+    env.block.time = env
+        .block
+        .time
+        .plus_seconds(initial_lock_period * SECONDS_PER_WEEK);
+
+    let msg = ExecuteMsg::WithdrawVotingTokens {
+        amount: Some(Uint128::from(stake_amount)),
+    };
+
+    let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
+
+    // Make sure increase_lock_time worked and tokens cannot be withdrawn before lock time expires
+    match execute_res {
+        Ok(_) => panic!("Must return error"),
+        Err(StdError::GenericErr { msg, .. }) => {
+            assert_eq!(msg, "User is trying to withdraw tokens before expiry.")
+        }
+        Err(e) => panic!("Unexpected error: {:?}", e),
+    }
+
+    env.block.time = env
+        .block
+        .time
+        .plus_seconds(increased_lock_period * SECONDS_PER_WEEK);
+    let msg = ExecuteMsg::WithdrawVotingTokens {
+        amount: Some(Uint128::from(stake_amount)),
+    };
+
+    let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
+
+    execute_res.messages.get(0).expect("no message");
+
+    let state: State = state_read(&deps.storage).load().unwrap();
+    assert_eq!(
+        state,
+        State {
+            contract_addr: MOCK_CONTRACT_ADDR.to_string(),
+            poll_count: 0,
+            total_share: Uint128::from(0u128),
+            total_deposit: Uint128::zero(),
+            pending_voting_rewards: Uint128::zero(),
+        }
+    );
+}
+
+#[test]
+fn stake_voting_tokens_multiple_lock_end_weeks() {
+    let mut deps = mock_dependencies(&[]);
+    mock_init(deps.as_mut());
+
+    let stake_amount = 1000u128;
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(stake_amount))],
+    )]);
+
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER.to_string(),
+        amount: Uint128::from(stake_amount),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: None,
+        })
+        .unwrap(),
+    });
+
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let execute_res = execute(deps.as_mut(), mock_env(), info, msg.clone());
+
+    // Must specify lock_for_weeks when user stakes for the first time
+    match execute_res {
+        Ok(_) => panic!("Must return error"),
+        Err(StdError::GenericErr { msg, .. }) => {
+            assert_eq!(msg, "Must specify lock_for_weeks if no tokens staked.")
+        }
+        Err(e) => panic!("Unexpected error: {:?}", e),
+    }
+
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER.to_string(),
+        amount: Uint128::from(stake_amount),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: Some(1000u64),
+        })
+        .unwrap(),
+    });
+
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let execute_res = execute(deps.as_mut(), mock_env(), info, msg.clone());
+
+    // Must specify lock_for_weeks when user stakes for the first time
+    match execute_res {
+        Ok(_) => panic!("Must return error"),
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Lock time exceeds the maximum."),
+        Err(e) => panic!("Unexpected error: {:?}", e),
+    }
+
+    let lock_period = 10u64;
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER.to_string(),
+        amount: Uint128::from(stake_amount),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: Some(lock_period),
+        })
+        .unwrap(),
+    });
+
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let execute_res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+    assert_stake_tokens_result(stake_amount, 0, stake_amount, 0, execute_res, deps.as_mut());
+
+    let new_lock_period = lock_period + 1;
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER.to_string(),
+        amount: Uint128::from(stake_amount),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: Some(new_lock_period),
+        })
+        .unwrap(),
+    });
+
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let env = mock_env();
+    let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
+
+    // Cannot specify lock for weeks when staking tokens again
+    match execute_res {
+        Ok(_) => panic!("Must return error"),
+        Err(StdError::GenericErr { msg, .. }) =>
+            assert_eq!(
+                msg,
+                "Cannot specify lock_for_weeks if tokens already staked. To change the lock time, use increase_lock_time"
+            ),
+        Err(e) => panic!("Unexpected error: {:?}", e),
+    }
+
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new(2 * stake_amount),
+        )],
+    )]);
+
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER.to_string(),
+        amount: Uint128::from(stake_amount),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: None,
+        })
+        .unwrap(),
+    });
+
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let env = mock_env();
+    let execute_res = execute(deps.as_mut(), env.clone(), info, msg.clone()).unwrap();
+
+    assert_stake_tokens_result(
+        2 * stake_amount,
+        0,
+        stake_amount,
+        0,
+        execute_res,
+        deps.as_mut(),
+    );
+}
+
+#[test]
+fn total_voting_power_calculation() {
+    let mut deps = mock_dependencies(&[]);
+    mock_init(deps.as_mut());
+
+    let stake_amount = 1000u128;
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(stake_amount))],
+    )]);
+
+    let lock_period = 10u64;
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER.to_string(),
+        amount: Uint128::from(stake_amount),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: Some(lock_period),
+        })
+        .unwrap(),
+    });
+
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let mut env = mock_env();
+    let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
+    assert_stake_tokens_result(stake_amount, 0, stake_amount, 0, execute_res, deps.as_mut());
+
+    let total_voting_power = total_voting_power_read(&deps.storage).load().unwrap();
+    let current_week = env.block.time.seconds() / SECONDS_PER_WEEK;
+
+    assert_eq!(
+        total_voting_power,
+        TotalVotingPower {
+            voting_power: [
+                FPDecimal::from_str("76.923076923076923076").unwrap(),
+                FPDecimal::from_str("67.307692307692307692").unwrap(),
+                FPDecimal::from_str("57.692307692307692307").unwrap(),
+                FPDecimal::from_str("48.076923076923076923").unwrap(),
+                FPDecimal::from_str("38.461538461538461538").unwrap(),
+                FPDecimal::from_str("28.846153846153846153").unwrap(),
+                FPDecimal::from_str("19.230769230769230769").unwrap(),
+                FPDecimal::from_str("9.615384615384615384").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("96.153846153846153846").unwrap(),
+                FPDecimal::from_str("86.538461538461538461").unwrap(),
+            ]
+            .to_vec(),
+            last_upd: current_week
+        }
+    );
+
+    let msg = ExecuteMsg::IncreaseLockTime {
+        increase_weeks: 30u64,
+    };
+
+    let info = mock_info(TEST_VOTER, &[]);
+
+    // Make 5 weeks pass by
+    env.block.time = env.block.time.plus_seconds(5 * SECONDS_PER_WEEK);
+
+    let _execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
+
+    let total_voting_power = total_voting_power_read(&deps.storage).load().unwrap();
+    let current_week = env.block.time.seconds() / SECONDS_PER_WEEK;
+
+    assert_eq!(
+        total_voting_power,
+        TotalVotingPower {
+            voting_power: [
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("336.538461538461538461").unwrap(),
+                FPDecimal::from_str("326.923076923076923076").unwrap(),
+                FPDecimal::from_str("317.307692307692307692").unwrap(),
+                FPDecimal::from_str("307.692307692307692307").unwrap(),
+                FPDecimal::from_str("298.076923076923076923").unwrap(),
+                FPDecimal::from_str("288.461538461538461538").unwrap(),
+                FPDecimal::from_str("278.846153846153846153").unwrap(),
+                FPDecimal::from_str("269.230769230769230769").unwrap(),
+                FPDecimal::from_str("259.615384615384615384").unwrap(),
+                FPDecimal::from_str("250").unwrap(),
+                FPDecimal::from_str("240.384615384615384615").unwrap(),
+                FPDecimal::from_str("230.76923076923076923").unwrap(),
+                FPDecimal::from_str("221.153846153846153846").unwrap(),
+                FPDecimal::from_str("211.538461538461538461").unwrap(),
+                FPDecimal::from_str("201.923076923076923076").unwrap(),
+                FPDecimal::from_str("192.307692307692307692").unwrap(),
+                FPDecimal::from_str("182.692307692307692307").unwrap(),
+                FPDecimal::from_str("173.076923076923076923").unwrap(),
+                FPDecimal::from_str("163.461538461538461538").unwrap(),
+                FPDecimal::from_str("153.846153846153846153").unwrap(),
+                FPDecimal::from_str("144.230769230769230769").unwrap(),
+                FPDecimal::from_str("134.615384615384615384").unwrap(),
+                FPDecimal::from_str("125").unwrap(),
+                FPDecimal::from_str("115.384615384615384615").unwrap(),
+                FPDecimal::from_str("105.76923076923076923").unwrap(),
+                FPDecimal::from_str("96.153846153846153846").unwrap(),
+                FPDecimal::from_str("86.538461538461538461").unwrap(),
+                FPDecimal::from_str("76.923076923076923076").unwrap(),
+                FPDecimal::from_str("67.307692307692307692").unwrap(),
+                FPDecimal::from_str("57.692307692307692307").unwrap(),
+                FPDecimal::from_str("48.076923076923076923").unwrap(),
+                FPDecimal::from_str("38.461538461538461538").unwrap(),
+                FPDecimal::from_str("28.846153846153846153").unwrap(),
+                FPDecimal::from_str("19.230769230769230769").unwrap(),
+                FPDecimal::from_str("9.615384615384615384").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+            ]
+            .to_vec(),
+            last_upd: current_week
+        }
+    );
+
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new(2 * stake_amount),
+        )],
+    )]);
+
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER_2.to_string(),
+        amount: Uint128::from(stake_amount),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: Some(52u64),
+        })
+        .unwrap(),
+    });
+
+    let env = mock_env_height(
+        env.block.height,
+        env.block.time.seconds(),
+    );
+    let info = mock_info(VOTING_TOKEN,
+        &[]);
+    let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
+    assert_stake_tokens_result(
+        2 * stake_amount,
+        0,
+        stake_amount,
+        0,
+        execute_res,
+        deps.as_mut(),
+    );
+
+    let total_voting_power = total_voting_power_read(&deps.storage).load().unwrap();
+    let current_week = env.block.time.seconds() / SECONDS_PER_WEEK;
+
+    assert_eq!(
+        total_voting_power,
+        TotalVotingPower {
+            voting_power: vec![
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("836.538461538461538461").unwrap(),
+                FPDecimal::from_str("817.307692307692307691").unwrap(),
+                FPDecimal::from_str("798.076923076923076922").unwrap(),
+                FPDecimal::from_str("778.846153846153846153").unwrap(),
+                FPDecimal::from_str("759.615384615384615384").unwrap(),
+                FPDecimal::from_str("740.384615384615384614").unwrap(),
+                FPDecimal::from_str("721.153846153846153845").unwrap(),
+                FPDecimal::from_str("701.923076923076923076").unwrap(),
+                FPDecimal::from_str("682.692307692307692307").unwrap(),
+                FPDecimal::from_str("663.461538461538461538").unwrap(),
+                FPDecimal::from_str("644.230769230769230768").unwrap(),
+                FPDecimal::from_str("624.999999999999999999").unwrap(),
+                FPDecimal::from_str("605.76923076923076923").unwrap(),
+                FPDecimal::from_str("586.538461538461538461").unwrap(),
+                FPDecimal::from_str("567.307692307692307691").unwrap(),
+                FPDecimal::from_str("548.076923076923076922").unwrap(),
+                FPDecimal::from_str("528.846153846153846153").unwrap(),
+                FPDecimal::from_str("509.615384615384615384").unwrap(),
+                FPDecimal::from_str("490.384615384615384614").unwrap(),
+                FPDecimal::from_str("471.153846153846153845").unwrap(),
+                FPDecimal::from_str("451.923076923076923076").unwrap(),
+                FPDecimal::from_str("432.692307692307692307").unwrap(),
+                FPDecimal::from_str("413.461538461538461538").unwrap(),
+                FPDecimal::from_str("394.230769230769230768").unwrap(),
+                FPDecimal::from_str("374.999999999999999999").unwrap(),
+                FPDecimal::from_str("355.76923076923076923").unwrap(),
+                FPDecimal::from_str("336.538461538461538461").unwrap(),
+                FPDecimal::from_str("317.307692307692307691").unwrap(),
+                FPDecimal::from_str("298.076923076923076922").unwrap(),
+                FPDecimal::from_str("278.846153846153846153").unwrap(),
+                FPDecimal::from_str("259.615384615384615384").unwrap(),
+                FPDecimal::from_str("240.384615384615384614").unwrap(),
+                FPDecimal::from_str("221.153846153846153845").unwrap(),
+                FPDecimal::from_str("201.923076923076923076").unwrap(),
+                FPDecimal::from_str("182.692307692307692307").unwrap(),
+                FPDecimal::from_str("163.461538461538461538").unwrap(),
+                FPDecimal::from_str("153.846153846153846153").unwrap(),
+                FPDecimal::from_str("144.230769230769230769").unwrap(),
+                FPDecimal::from_str("134.615384615384615384").unwrap(),
+                FPDecimal::from_str("125").unwrap(),
+                FPDecimal::from_str("115.384615384615384615").unwrap(),
+                FPDecimal::from_str("105.76923076923076923").unwrap(),
+                FPDecimal::from_str("96.153846153846153846").unwrap(),
+                FPDecimal::from_str("86.538461538461538461").unwrap(),
+                FPDecimal::from_str("76.923076923076923076").unwrap(),
+                FPDecimal::from_str("67.307692307692307692").unwrap(),
+                FPDecimal::from_str("57.692307692307692307").unwrap(),
+                FPDecimal::from_str("48.076923076923076923").unwrap(),
+                FPDecimal::from_str("38.461538461538461538").unwrap(),
+                FPDecimal::from_str("28.846153846153846153").unwrap(),
+                FPDecimal::from_str("19.230769230769230769").unwrap(),
+                FPDecimal::from_str("9.615384615384615384").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+                FPDecimal::from_str("0").unwrap(),
+            ]
+            .to_vec(),
+            last_upd: current_week
+        }
+    );
+}
+
+#[test]
+fn test_unstake_before_claiming_voting_rewards() {
+    let mut deps = mock_dependencies(&[]);
+    let msg = InstantiateMsg {
+        nebula_token: VOTING_TOKEN.to_string(),
+        quorum: Decimal::percent(DEFAULT_QUORUM),
+        threshold: Decimal::percent(DEFAULT_THRESHOLD),
+        voting_period: DEFAULT_VOTING_PERIOD,
+        effective_delay: DEFAULT_EFFECTIVE_DELAY,
+        expiration_period: DEFAULT_EXPIRATION_PERIOD,
+        proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
+        voter_weight: Decimal::percent(50), // distribute 50% rewards to voters
+        snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
+    };
+
+    let info = mock_info(TEST_CREATOR, &[]);
+    let _res = instantiate(deps.as_mut(), mock_env(), info, msg)
+        .expect("contract successfully executes InstantiateMsg");
+
+    let info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
+    let env = mock_env();
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
+
+    assert_create_poll_result(
+        1,
+        env.block.height + DEFAULT_VOTING_PERIOD,
+        TEST_CREATOR,
+        execute_res,
+        deps.as_mut(),
+    );
+
+    let stake_amount = 100u128;
+
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new((stake_amount + DEFAULT_PROPOSAL_DEPOSIT) as u128),
+        )],
+    )]);
+
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER.to_string(),
+        amount: Uint128::from(stake_amount),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: Some(104u64),
+        })
+        .unwrap(),
+    });
+
+    let env = mock_env_height(
+        env.block.height,
+        env.block.time.seconds(),
+    );
+    let info = mock_info(VOTING_TOKEN,
+        &[]);
+    let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+    let msg = ExecuteMsg::CastVote {
+        poll_id: 1,
+        vote: VoteOption::Yes,
+        amount: Uint128::from(stake_amount),
+    };
+    let env = mock_env_height(env.block.height, env.block.time.seconds());
+    let info = mock_info(TEST_VOTER, &[]);
+    let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new((stake_amount + DEFAULT_PROPOSAL_DEPOSIT + 100u128) as u128),
+        )],
+    )]);
+
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_COLLECTOR.to_string(),
+        amount: Uint128::from(100u128),
+        msg: to_binary(&Cw20HookMsg::DepositReward {}).unwrap(),
+    });
+
+    let env = mock_env_height(
+        env.block.height,
+        env.block.time.seconds(),
+    );
+    let info = mock_info(VOTING_TOKEN,
+        &[]);
+    let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+    // END POLL
+    let env = mock_env_height(
+        env.block.height + DEFAULT_VOTING_PERIOD,
+        env.block.time.seconds(),
+    );
+    let info = mock_info(TEST_VOTER,
+        &[]);
+    let msg = ExecuteMsg::EndPoll { poll_id: 1 };
+    let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
+
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new((stake_amount + 100u128) as u128),
+        )],
+    )]);
+
+    // UNSTAKE VOTING TOKENS
+    let msg = ExecuteMsg::WithdrawVotingTokens { amount: None };
+    let mut env = mock_env_height(env.block.height, env.block.time.seconds());
+    let info = mock_info(TEST_VOTER, &[]);
+
+    //Make 2 years pass by so lock expires
+    env.block.time = env.block.time.plus_seconds(104 * SECONDS_PER_WEEK);
+    let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+    assert_eq!(
+        res.attributes,
+        vec![
+            attr("action", "withdraw"),
+            attr("recipient", TEST_VOTER),
+            attr("amount", (stake_amount + 50u128).to_string()), // 100 + 50% of 100
+        ]
+    );
+
+    let token_manager = bank_read(&deps.storage)
+        .load(&(TEST_VOTER).as_bytes())
+        .unwrap();
+    assert_eq!(
+        token_manager.locked_balance,
+        vec![(
+            1u64,
+            VoterInfo {
+                vote: VoteOption::Yes,
+                balance: Uint128::from(stake_amount),
+            }
+        )]
+    );
+
+    // SUCCESS
+    let msg = ExecuteMsg::WithdrawVotingRewards {};
+    let env = mock_env_height(0, 10000);
+    let info = mock_info(TEST_VOTER, &[]);
+    let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+
+    // user can withdraw 50% of total staked (weight = 50% poll share = 100%)
+    assert_eq!(
+        res.attributes,
+        vec![
+            attr("action", "withdraw_voting_rewards"),
+            attr("recipient", TEST_VOTER),
+            attr("amount", String::from("50")),
+        ]
+    );
+
+    // make sure now the state is clean
+    let token_manager = bank_read(&deps.storage)
+        .load(&(TEST_VOTER).as_bytes())
+        .unwrap();
+
+    assert_eq!(token_manager.locked_balance, vec![]);
+
+    // expect err
+    poll_voter_read(&deps.storage, 1u64)
+        .load(&(TEST_VOTER).as_bytes())
+        .unwrap_err();
+}
