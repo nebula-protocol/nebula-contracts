@@ -939,7 +939,7 @@ fn test_distribute() {
     };
 
     let _res = reply(deps.as_mut(), mock_env(), reply_msg3).unwrap();
-   
+
     // create second cluter with weight 30
     let mut input_params: Params = get_input_params();
     input_params.weight = Some(30u32);
@@ -1038,7 +1038,11 @@ fn test_distribute() {
     assert_eq!(
         distribution_info,
         DistributionInfoResponse {
-            weights: vec![(h("cluster_token0000"), 100), (h("cluster_token0001"), 30), (h("nebula0000"), 300)],
+            weights: vec![
+                (h("cluster_token0000"), 100),
+                (h("cluster_token0001"), 30),
+                (h("nebula0000"), 300)
+            ],
             last_distributed: 1_571_802_819,
         }
     );

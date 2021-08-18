@@ -3,7 +3,9 @@ pub use crate::contract::*;
 pub use crate::ext_query::*;
 pub use crate::state::*;
 pub use cluster_math::*;
-pub use cosmwasm_std::testing::{mock_info, mock_env, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
+pub use cosmwasm_std::testing::{
+    mock_env, mock_info, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR,
+};
 pub use cosmwasm_std::*;
 pub use cw20::BalanceResponse as Cw20BalanceResponse;
 use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, TokenInfoResponse};
@@ -96,11 +98,13 @@ impl WasmMockQuerier {
                         quote_asset,
                     }) => match self.oracle_querier.assets.get(&base_asset) {
                         Some(base_price) => match self.oracle_querier.assets.get(&quote_asset) {
-                            Some(quote_price) => SystemResult::Ok(ContractResult::from(to_binary(&PriceResponse {
-                                rate: decimal_division(*base_price, *quote_price),
-                                last_updated_base: u64::MAX,
-                                last_updated_quote: u64::MAX,
-                            }))),
+                            Some(quote_price) => {
+                                SystemResult::Ok(ContractResult::from(to_binary(&PriceResponse {
+                                    rate: decimal_division(*base_price, *quote_price),
+                                    last_updated_base: u64::MAX,
+                                    last_updated_quote: u64::MAX,
+                                })))
+                            }
                             None => SystemResult::Err(SystemError::InvalidRequest {
                                 error: "No oracle price exists".to_string(),
                                 request: msg.as_slice().into(),
@@ -134,7 +138,9 @@ impl WasmMockQuerier {
                                     })
                                 }
                             };
-                            SystemResult::Ok(ContractResult::from(to_binary(&Cw20BalanceResponse { balance: *balance })))
+                            SystemResult::Ok(ContractResult::from(to_binary(
+                                &Cw20BalanceResponse { balance: *balance },
+                            )))
                         }
                         Ok(Cw20QueryMsg::TokenInfo {}) => {
                             let token_data = match self.token_querier.tokens.get(contract_addr) {
@@ -298,9 +304,7 @@ impl OracleQuerier {
 }
 
 impl WasmMockQuerier {
-    pub fn new(
-        base: MockQuerier<TerraQueryWrapper>,
-    ) -> Self {
+    pub fn new(base: MockQuerier<TerraQueryWrapper>) -> Self {
         WasmMockQuerier {
             base,
             token_querier: TokenQuerier::default(),
@@ -416,11 +420,12 @@ impl WasmMockQuerier {
 
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies
 /// this uses our CustomQuerier.
-pub fn mock_dependencies(contract_balance: &[Coin]) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier> {
+pub fn mock_dependencies(
+    contract_balance: &[Coin],
+) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier> {
     let contract_addr = MOCK_CONTRACT_ADDR.to_string();
-    let custom_querier: WasmMockQuerier = WasmMockQuerier::new(
-        MockQuerier::new(&[(&contract_addr, contract_balance)]),
-    );
+    let custom_querier: WasmMockQuerier =
+        WasmMockQuerier::new(MockQuerier::new(&[(&contract_addr, contract_balance)]));
 
     OwnedDeps {
         storage: MockStorage::default(),
@@ -634,7 +639,9 @@ pub fn mock_init_native_stage() -> (OwnedDeps<MockStorage, MockApi, WasmMockQuer
 }
 
 /// sets up mock queriers with basic setup
-pub fn mock_querier_setup(mut deps: OwnedDeps<MockStorage, MockApi, WasmMockQuerier>) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier>{
+pub fn mock_querier_setup(
+    mut deps: OwnedDeps<MockStorage, MockApi, WasmMockQuerier>,
+) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier> {
     deps.querier
         .set_token(
             consts::cluster_token(),
@@ -699,7 +706,9 @@ pub fn mock_querier_setup(mut deps: OwnedDeps<MockStorage, MockApi, WasmMockQuer
 }
 
 /// sets up mock queriers with basic setup
-pub fn mock_querier_setup_stage_native(mut deps: OwnedDeps<MockStorage, MockApi, WasmMockQuerier>) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier>{
+pub fn mock_querier_setup_stage_native(
+    mut deps: OwnedDeps<MockStorage, MockApi, WasmMockQuerier>,
+) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier> {
     deps.querier
         .set_token(
             consts::cluster_token(),
@@ -738,7 +747,12 @@ fn proper_initialization() {
     assert_eq!(0, init_res.messages.len());
 
     // make sure target was saved
-    let value = q!(deps.as_ref(), TargetResponse, mock_env(), ClusterQueryMsg::Target {});
+    let value = q!(
+        deps.as_ref(),
+        TargetResponse,
+        mock_env(),
+        ClusterQueryMsg::Target {}
+    );
     assert_eq!(
         vec![
             Asset {

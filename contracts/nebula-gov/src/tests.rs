@@ -10,10 +10,10 @@ use crate::state::{
 
 use cluster_math::FPDecimal;
 
-use cosmwasm_std::testing::{mock_info, mock_env, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
+use cosmwasm_std::testing::{mock_env, mock_info, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    attr, coins, from_binary, to_binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, Response,
-    StdError, Timestamp, Uint128, WasmMsg, SubMsg, Addr
+    attr, coins, from_binary, to_binary, Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
+    Response, StdError, SubMsg, Timestamp, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use nebula_protocol::common::OrderBy;
@@ -577,15 +577,9 @@ fn happy_days_end_poll() {
 
     let mut deps = mock_dependencies(&coins(1000, VOTING_TOKEN));
     mock_init(deps.as_mut());
-    let mut creator_env = mock_env_height(
-        POLL_START_HEIGHT,
-        10000,
-    );
+    let mut creator_env = mock_env_height(POLL_START_HEIGHT, 10000);
 
-    let mut creator_info = mock_info(
-        VOTING_TOKEN,
-        &coins(2, VOTING_TOKEN
-    ));
+    let mut creator_info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
 
     let exec_msg_bz = to_binary(&Cw20ExecuteMsg::Burn {
         amount: Uint128::new(123),
@@ -601,7 +595,13 @@ fn happy_days_end_poll() {
         }),
     );
 
-    let execute_res = execute(deps.as_mut(), creator_env.clone(), creator_info.clone(), msg).unwrap();
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg,
+    )
+    .unwrap();
 
     assert_create_poll_result(
         1,
@@ -823,499 +823,576 @@ fn happy_days_end_poll() {
     );
 }
 
-// #[test]
-// fn expire_poll() {
-//     const POLL_START_HEIGHT: u64 = 1000;
-//     const POLL_ID: u64 = 1;
-//     let stake_amount = 1000;
+#[test]
+fn expire_poll() {
+    const POLL_START_HEIGHT: u64 = 1000;
+    const POLL_ID: u64 = 1;
+    let stake_amount = 1000;
 
-//     let mut deps = mock_dependencies(20, &coins(1000, VOTING_TOKEN));
-//     mock_init(deps.as_mut());
-//     let mut creator_info = mock_info_height(
-//         VOTING_TOKEN,
-//         &coins(2, VOTING_TOKEN),
-//         POLL_START_HEIGHT,
-//         10000,
-//     );
+    let mut deps = mock_dependencies(&coins(1000, VOTING_TOKEN));
+    mock_init(deps.as_mut());
+    let mut creator_env = mock_env_height(POLL_START_HEIGHT, 10000);
 
-//     let exec_msg_bz = to_binary(&Cw20ExecuteMsg::Burn {
-//         amount: Uint128::new(123),
-//     })
-//     .unwrap();
-//     let msg = create_poll_msg(
-//         "test".to_string(),
-//         "test".to_string(),
-//         None,
-//         Some(ExecuteMsg {
-//             contract: VOTING_TOKEN.to_string(),
-//             msg: exec_msg_bz.clone(),
-//         }),
-//     );
+    let mut creator_info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
 
-//     let execute_res = execute(deps.as_mut(), creator_env.clone(), msg).unwrap();
+    let exec_msg_bz = to_binary(&Cw20ExecuteMsg::Burn {
+        amount: Uint128::new(123),
+    })
+    .unwrap();
+    let msg = create_poll_msg(
+        "test".to_string(),
+        "test".to_string(),
+        None,
+        Some(PollExecuteMsg {
+            contract: VOTING_TOKEN.to_string(),
+            msg: exec_msg_bz.clone(),
+        }),
+    );
 
-//     assert_create_poll_result(
-//         1,
-//         creator_env.block.height + DEFAULT_VOTING_PERIOD,
-//         TEST_CREATOR,
-//         execute_res,
-//         deps.as_mut(),
-//     );
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg,
+    )
+    .unwrap();
 
-//     deps.querier.with_token_balances(&[(
-//         &VOTING_TOKEN.to_string(),
-//         &[(
-//             &MOCK_CONTRACT_ADDR.to_string(),
-//             &Uint128::new((stake_amount + DEFAULT_PROPOSAL_DEPOSIT) as u128),
-//         )],
-//     )]);
+    assert_create_poll_result(
+        1,
+        creator_env.block.height + DEFAULT_VOTING_PERIOD,
+        TEST_CREATOR,
+        execute_res,
+        deps.as_mut(),
+    );
 
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: TEST_VOTER.to_string(),
-//         amount: Uint128::from(stake_amount as u128),
-//         msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
-//             lock_for_weeks: Some(104u64),
-//         })
-//         .unwrap(),
-//     });
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new((stake_amount + DEFAULT_PROPOSAL_DEPOSIT) as u128),
+        )],
+    )]);
 
-//     let info = mock_info(VOTING_TOKEN, &[]);
-//     let execute_res = execute(deps.as_mut(), env.clone(), msg.clone()).unwrap();
-//     assert_stake_tokens_result(
-//         stake_amount,
-//         DEFAULT_PROPOSAL_DEPOSIT,
-//         stake_amount,
-//         1,
-//         execute_res,
-//         deps.as_mut(),
-//     );
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER.to_string(),
+        amount: Uint128::from(stake_amount as u128),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: Some(104u64),
+        })
+        .unwrap(),
+    });
 
-//     let msg = ExecuteMsg::CastVote {
-//         poll_id: 1,
-//         vote: VoteOption::Yes,
-//         amount: Uint128::from(stake_amount),
-//     };
-//     let info = mock_info_height(TEST_VOTER, &[], POLL_START_HEIGHT, env.block.time.seconds());
-//     let execute_res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let env = mock_env();
+    let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
+    assert_stake_tokens_result(
+        stake_amount,
+        DEFAULT_PROPOSAL_DEPOSIT,
+        stake_amount,
+        1,
+        execute_res,
+        deps.as_mut(),
+    );
 
-//     assert_eq!(
-//         execute_res.attributes,
-//         vec![
-//             attr("action", "cast_vote"),
-//             attr("poll_id", POLL_ID),
-//             attr("amount", "1000"),
-//             attr("voter", TEST_VOTER),
-//             attr("vote_option", "yes"),
-//         ]
-//     );
+    let msg = ExecuteMsg::CastVote {
+        poll_id: 1,
+        vote: VoteOption::Yes,
+        amount: Uint128::from(stake_amount),
+    };
+    let env = mock_env_height(POLL_START_HEIGHT, env.block.time.seconds());
+    let info = mock_info(TEST_VOTER, &[]);
+    let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
 
-//     // Poll is not in passed status
-//     creator_env.block.height = &creator_env.block.height + DEFAULT_EFFECTIVE_DELAY;
-//     let msg = ExecuteMsg::ExpirePoll { poll_id: 1 };
-//     let execute_res = execute(deps.as_mut(), creator_env.clone(), msg);
-//     match execute_res {
-//         Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Poll is not in passed status"),
-//         _ => panic!("DO NOT ENTER HERE"),
-//     }
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "cast_vote"),
+            attr("poll_id", POLL_ID.to_string()),
+            attr("amount", "1000"),
+            attr("voter", TEST_VOTER),
+            attr("vote_option", "yes"),
+        ]
+    );
 
-//     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
-//     let execute_res = execute(deps.as_mut(), creator_env.clone(), msg).unwrap();
+    // Poll is not in passed status
+    creator_env.block.height = &creator_env.block.height + DEFAULT_EFFECTIVE_DELAY;
+    let msg = ExecuteMsg::ExpirePoll { poll_id: 1 };
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg,
+    );
+    match execute_res {
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Poll is not in passed status"),
+        _ => panic!("DO NOT ENTER HERE"),
+    }
 
-//     assert_eq!(
-//         execute_res.attributes,
-//         vec![
-//             attr("action", "end_poll"),
-//             attr("quorum", "1"),
-//             attr("tallied_weight", "1000"),
-//             attr("staked_weight", "1000"),
-//             attr("poll_id", "1"),
-//             attr("rejected_reason", ""),
-//             attr("passed", "true"),
-//         ]
-//     );
-//     assert_eq!(
-//         execute_res.messages,
-//         vec![CosmosMsg::Wasm(WasmMsg::Execute {
-//             contract_addr: VOTING_TOKEN.to_string(),
-//             msg: to_binary(&Cw20ExecuteMsg::Transfer {
-//                 recipient: TEST_CREATOR.to_string(),
-//                 amount: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
-//             })
-//             .unwrap(),
-//             funds: vec![],
-//         })]
-//     );
+    let msg = ExecuteMsg::EndPoll { poll_id: 1 };
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg,
+    )
+    .unwrap();
 
-//     // Expiration period has not been passed
-//     let msg = ExecuteMsg::ExpirePoll { poll_id: 1 };
-//     let execute_res = execute(deps.as_mut(), creator_env.clone(), msg);
-//     match execute_res {
-//         Err(StdError::GenericErr { msg, .. }) => {
-//             assert_eq!(msg, "Expire height has not been reached")
-//         }
-//         _ => panic!("DO NOT ENTER HERE"),
-//     }
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "end_poll"),
+            attr("quorum", "1"),
+            attr("tallied_weight", "1000"),
+            attr("staked_weight", "1000"),
+            attr("poll_id", "1"),
+            attr("rejected_reason", ""),
+            attr("passed", "true"),
+        ]
+    );
+    assert_eq!(
+        execute_res.messages,
+        vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: VOTING_TOKEN.to_string(),
+            msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                recipient: TEST_CREATOR.to_string(),
+                amount: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
+            })
+            .unwrap(),
+            funds: vec![],
+        }))]
+    );
 
-//     creator_env.block.height = &creator_env.block.height + DEFAULT_EXPIRATION_PERIOD;
-//     let msg = ExecuteMsg::ExpirePoll { poll_id: 1 };
-//     let _execute_res = execute(deps.as_mut(), creator_env.clone(), msg).unwrap();
+    // Expiration period has not been passed
+    let msg = ExecuteMsg::ExpirePoll { poll_id: 1 };
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg,
+    );
+    match execute_res {
+        Err(StdError::GenericErr { msg, .. }) => {
+            assert_eq!(msg, "Expire height has not been reached")
+        }
+        _ => panic!("DO NOT ENTER HERE"),
+    }
 
-//     let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: 1 }).unwrap();
-//     let poll_res: PollResponse = from_binary(&res).unwrap();
-//     assert_eq!(poll_res.status, PollStatus::Expired);
+    creator_env.block.height = &creator_env.block.height + DEFAULT_EXPIRATION_PERIOD;
+    let msg = ExecuteMsg::ExpirePoll { poll_id: 1 };
+    let _execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg,
+    )
+    .unwrap();
 
-//     let res = query(
-//         deps.as_ref(),
-//         QueryMsg::Polls {
-//             filter: Some(PollStatus::Expired),
-//             start_after: None,
-//             limit: None,
-//             order_by: Some(OrderBy::Desc),
-//         },
-//     )
-//     .unwrap();
-//     let polls_res: PollsResponse = from_binary(&res).unwrap();
-//     assert_eq!(polls_res.polls[0], poll_res);
-// }
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: 1 }).unwrap();
+    let poll_res: PollResponse = from_binary(&res).unwrap();
+    assert_eq!(poll_res.status, PollStatus::Expired);
 
-// #[test]
-// fn end_poll_zero_quorum() {
-//     let mut deps = mock_dependencies(20, &coins(1000, VOTING_TOKEN));
-//     mock_init(deps.as_mut());
-//     let mut creator_info = mock_info_height(VOTING_TOKEN, &vec![], 1000, 10000);
+    let res = query(
+        deps.as_ref(),
+        mock_env(),
+        QueryMsg::Polls {
+            filter: Some(PollStatus::Expired),
+            start_after: None,
+            limit: None,
+            order_by: Some(OrderBy::Desc),
+        },
+    )
+    .unwrap();
+    let polls_res: PollsResponse = from_binary(&res).unwrap();
+    assert_eq!(polls_res.polls[0], poll_res);
+}
 
-//     let msg = create_poll_msg(
-//         "test".to_string(),
-//         "test".to_string(),
-//         None,
-//         Some(PollExecuteMsg {
-//             contract: VOTING_TOKEN.to_string(),
-//             msg: to_binary(&Cw20ExecuteMsg::Burn {
-//                 amount: Uint128::new(123),
-//             })
-//             .unwrap(),
-//         }),
-//     );
+#[test]
+fn end_poll_zero_quorum() {
+    let mut deps = mock_dependencies(&coins(1000, VOTING_TOKEN));
+    mock_init(deps.as_mut());
+    let mut creator_env = mock_env_height(1000, 10000);
+    let mut creator_info = mock_info(VOTING_TOKEN, &vec![]);
 
-//     let execute_res = execute(deps.as_mut(), creator_env.clone(), msg).unwrap();
-//     assert_create_poll_result(
-//         1,
-//         creator_env.block.height + DEFAULT_VOTING_PERIOD,
-//         TEST_CREATOR,
-//         execute_res,
-//         deps.as_mut(),
-//     );
-//     let stake_amount = 100;
-//     deps.querier.with_token_balances(&[(
-//         &VOTING_TOKEN.to_string(),
-//         &[(
-//             &MOCK_CONTRACT_ADDR.to_string(),
-//             &Uint128::new(100u128 + DEFAULT_PROPOSAL_DEPOSIT),
-//         )],
-//     )]);
+    let msg = create_poll_msg(
+        "test".to_string(),
+        "test".to_string(),
+        None,
+        Some(PollExecuteMsg {
+            contract: VOTING_TOKEN.to_string(),
+            msg: to_binary(&Cw20ExecuteMsg::Burn {
+                amount: Uint128::new(123),
+            })
+            .unwrap(),
+        }),
+    );
 
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: TEST_VOTER.to_string(),
-//         amount: Uint128::from(stake_amount as u128),
-//         msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
-//             lock_for_weeks: Some(104u64),
-//         })
-//         .unwrap(),
-//     });
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg,
+    )
+    .unwrap();
+    assert_create_poll_result(
+        1,
+        creator_env.block.height + DEFAULT_VOTING_PERIOD,
+        TEST_CREATOR,
+        execute_res,
+        deps.as_mut(),
+    );
+    let stake_amount = 100;
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new(100u128 + DEFAULT_PROPOSAL_DEPOSIT),
+        )],
+    )]);
 
-//     let info = mock_info(VOTING_TOKEN, &[]);
-//     execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER.to_string(),
+        amount: Uint128::from(stake_amount as u128),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: Some(104u64),
+        })
+        .unwrap(),
+    });
 
-//     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
-//     creator_env.message.sender = TEST_CREATOR.to_string();
-//     creator_env.block.height = &creator_env.block.height + DEFAULT_VOTING_PERIOD;
+    let mut info = mock_info(VOTING_TOKEN, &[]);
+    execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
 
-//     let execute_res = execute(deps.as_mut(), creator_env.clone(), msg).unwrap();
+    let msg = ExecuteMsg::EndPoll { poll_id: 1 };
+    info.sender = Addr::unchecked(TEST_CREATOR.to_string());
+    creator_env.block.height = &creator_env.block.height + DEFAULT_VOTING_PERIOD;
 
-//     assert_eq!(
-//         execute_res.attributes,
-//         vec![
-//             attr("action", "end_poll"),
-//             attr("quorum", "0"),
-//             attr("tallied_weight", "0"),
-//             attr("staked_weight", "0"),
-//             attr("poll_id", "1"),
-//             attr("rejected_reason", "Quorum not reached"),
-//             attr("passed", "false"),
-//         ]
-//     );
+    let execute_res = execute(deps.as_mut(), creator_env.clone(), info.clone(), msg).unwrap();
 
-//     assert_eq!(execute_res.messages.len(), 0usize);
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "end_poll"),
+            attr("quorum", "0"),
+            attr("tallied_weight", "0"),
+            attr("staked_weight", "0"),
+            attr("poll_id", "1"),
+            attr("rejected_reason", "Quorum not reached"),
+            attr("passed", "false"),
+        ]
+    );
 
-//     // Query rejected polls
-//     let res = query(
-//         deps.as_ref(),
-//         QueryMsg::Polls {
-//             filter: Some(PollStatus::Rejected),
-//             start_after: None,
-//             limit: None,
-//             order_by: Some(OrderBy::Desc),
-//         },
-//     )
-//     .unwrap();
-//     let response: PollsResponse = from_binary(&res).unwrap();
-//     assert_eq!(response.polls.len(), 1);
+    assert_eq!(execute_res.messages.len(), 0usize);
 
-//     let res = query(
-//         deps.as_ref(),
-//         QueryMsg::Polls {
-//             filter: Some(PollStatus::InProgress),
-//             start_after: None,
-//             limit: None,
-//             order_by: None,
-//         },
-//     )
-//     .unwrap();
-//     let response: PollsResponse = from_binary(&res).unwrap();
-//     assert_eq!(response.polls.len(), 0);
+    // Query rejected polls
+    let res = query(
+        deps.as_ref(),
+        mock_env(),
+        QueryMsg::Polls {
+            filter: Some(PollStatus::Rejected),
+            start_after: None,
+            limit: None,
+            order_by: Some(OrderBy::Desc),
+        },
+    )
+    .unwrap();
+    let response: PollsResponse = from_binary(&res).unwrap();
+    assert_eq!(response.polls.len(), 1);
 
-//     let res = query(
-//         deps.as_ref(),
-//         QueryMsg::Polls {
-//             filter: Some(PollStatus::Passed),
-//             start_after: None,
-//             limit: None,
-//             order_by: None,
-//         },
-//     )
-//     .unwrap();
-//     let response: PollsResponse = from_binary(&res).unwrap();
-//     assert_eq!(response.polls.len(), 0);
-// }
+    let res = query(
+        deps.as_ref(),
+        mock_env(),
+        QueryMsg::Polls {
+            filter: Some(PollStatus::InProgress),
+            start_after: None,
+            limit: None,
+            order_by: None,
+        },
+    )
+    .unwrap();
+    let response: PollsResponse = from_binary(&res).unwrap();
+    assert_eq!(response.polls.len(), 0);
 
-// #[test]
-// fn end_poll_quorum_rejected() {
-//     let mut deps = mock_dependencies(20, &coins(100, VOTING_TOKEN));
-//     mock_init(deps.as_mut());
+    let res = query(
+        deps.as_ref(),
+        mock_env(),
+        QueryMsg::Polls {
+            filter: Some(PollStatus::Passed),
+            start_after: None,
+            limit: None,
+            order_by: None,
+        },
+    )
+    .unwrap();
+    let response: PollsResponse = from_binary(&res).unwrap();
+    assert_eq!(response.polls.len(), 0);
+}
 
-//     let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
-//     let mut creator_info = mock_info(VOTING_TOKEN, &vec![]);
-//     let execute_res = execute(deps.as_mut(), creator_env.clone(), msg.clone()).unwrap();
-//     assert_eq!(
-//         execute_res.attributes,
-//         vec![
-//             attr("action", "create_poll"),
-//             attr("creator", TEST_CREATOR),
-//             attr("poll_id", "1"),
-//             attr("end_height", "22345"),
-//         ]
-//     );
+#[test]
+fn end_poll_quorum_rejected() {
+    let mut deps = mock_dependencies(&coins(100, VOTING_TOKEN));
+    mock_init(deps.as_mut());
 
-//     let stake_amount = 100;
-//     deps.querier.with_token_balances(&[(
-//         &VOTING_TOKEN.to_string(),
-//         &[(
-//             &MOCK_CONTRACT_ADDR.to_string(),
-//             &Uint128::new(100u128 + DEFAULT_PROPOSAL_DEPOSIT),
-//         )],
-//     )]);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let mut creator_info = mock_info(VOTING_TOKEN, &vec![]);
+    let mut creator_env = mock_env();
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg.clone(),
+    )
+    .unwrap();
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "create_poll"),
+            attr("creator", TEST_CREATOR),
+            attr("poll_id", "1"),
+            attr("end_height", "22345"),
+        ]
+    );
 
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: TEST_VOTER.to_string(),
-//         amount: Uint128::from(stake_amount as u128),
-//         msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
-//             lock_for_weeks: Some(104u64),
-//         })
-//         .unwrap(),
-//     });
+    let stake_amount = 100;
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new(100u128 + DEFAULT_PROPOSAL_DEPOSIT),
+        )],
+    )]);
 
-//     let info = mock_info(VOTING_TOKEN, &[]);
-//     let execute_res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
-//     assert_stake_tokens_result(
-//         stake_amount,
-//         DEFAULT_PROPOSAL_DEPOSIT,
-//         stake_amount,
-//         1,
-//         execute_res,
-//         deps.as_mut(),
-//     );
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER.to_string(),
+        amount: Uint128::from(stake_amount as u128),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: Some(104u64),
+        })
+        .unwrap(),
+    });
 
-//     let msg = ExecuteMsg::CastVote {
-//         poll_id: 1,
-//         vote: VoteOption::Yes,
-//         amount: Uint128::from(10u128),
-//     };
-//     let info = mock_info(TEST_VOTER, &[]);
-//     let execute_res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let execute_res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+    assert_stake_tokens_result(
+        stake_amount,
+        DEFAULT_PROPOSAL_DEPOSIT,
+        stake_amount,
+        1,
+        execute_res,
+        deps.as_mut(),
+    );
 
-//     assert_eq!(
-//         execute_res.attributes,
-//         vec![
-//             attr("action", "cast_vote"),
-//             attr("poll_id", "1"),
-//             attr("amount", "10"),
-//             attr("voter", TEST_VOTER),
-//             attr("vote_option", "yes"),
-//         ]
-//     );
+    let msg = ExecuteMsg::CastVote {
+        poll_id: 1,
+        vote: VoteOption::Yes,
+        amount: Uint128::from(10u128),
+    };
+    let info = mock_info(TEST_VOTER, &[]);
+    let execute_res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-//     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "cast_vote"),
+            attr("poll_id", "1"),
+            attr("amount", "10"),
+            attr("voter", TEST_VOTER),
+            attr("vote_option", "yes"),
+        ]
+    );
 
-//     creator_env.message.sender = TEST_CREATOR.to_string();
-//     creator_env.block.height = &creator_env.block.height + DEFAULT_VOTING_PERIOD;
+    let msg = ExecuteMsg::EndPoll { poll_id: 1 };
 
-//     let execute_res = execute(deps.as_mut(), creator_env.clone(), msg.clone()).unwrap();
-//     assert_eq!(
-//         execute_res.attributes,
-//         vec![
-//             attr("action", "end_poll"),
-//             attr("quorum", "0.1"),
-//             attr("tallied_weight", "10"),
-//             attr("staked_weight", "100"),
-//             attr("poll_id", "1"),
-//             attr("rejected_reason", "Quorum not reached"),
-//             attr("passed", "false"),
-//         ]
-//     );
-// }
+    creator_info.sender = Addr::unchecked(TEST_CREATOR.to_string());
+    creator_env.block.height = &creator_env.block.height + DEFAULT_VOTING_PERIOD;
 
-// #[test]
-// fn end_poll_quorum_rejected_noting_staked() {
-//     let mut deps = mock_dependencies(20, &coins(100, VOTING_TOKEN));
-//     mock_init(deps.as_mut());
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg.clone(),
+    )
+    .unwrap();
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "end_poll"),
+            attr("quorum", "0.1"),
+            attr("tallied_weight", "10"),
+            attr("staked_weight", "100"),
+            attr("poll_id", "1"),
+            attr("rejected_reason", "Quorum not reached"),
+            attr("passed", "false"),
+        ]
+    );
+}
 
-//     let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
-//     let mut creator_info = mock_info(VOTING_TOKEN, &vec![]);
-//     let execute_res = execute(deps.as_mut(), creator_env.clone(), msg.clone()).unwrap();
-//     assert_eq!(
-//         execute_res.attributes,
-//         vec![
-//             attr("action", "create_poll"),
-//             attr("creator", TEST_CREATOR),
-//             attr("poll_id", "1"),
-//             attr("end_height", "22345"),
-//         ]
-//     );
+#[test]
+fn end_poll_quorum_rejected_noting_staked() {
+    let mut deps = mock_dependencies(&coins(100, VOTING_TOKEN));
+    mock_init(deps.as_mut());
 
-//     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let mut creator_info = mock_info(VOTING_TOKEN, &vec![]);
+    let mut creator_env = mock_env();
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg.clone(),
+    )
+    .unwrap();
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "create_poll"),
+            attr("creator", TEST_CREATOR),
+            attr("poll_id", "1"),
+            attr("end_height", "22345"),
+        ]
+    );
 
-//     creator_env.message.sender = TEST_CREATOR.to_string();
-//     creator_env.block.height = &creator_env.block.height + DEFAULT_VOTING_PERIOD;
+    let msg = ExecuteMsg::EndPoll { poll_id: 1 };
 
-//     let execute_res = execute(deps.as_mut(), creator_env.clone(), msg.clone()).unwrap();
-//     assert_eq!(
-//         execute_res.attributes,
-//         vec![
-//             attr("action", "end_poll"),
-//             attr("quorum", "0"),
-//             attr("tallied_weight", "0"),
-//             attr("staked_weight", "0"),
-//             attr("poll_id", "1"),
-//             attr("rejected_reason", "Quorum not reached"),
-//             attr("passed", "false"),
-//         ]
-//     );
-// }
+    creator_info.sender = Addr::unchecked(TEST_CREATOR.to_string());
+    creator_env.block.height = &creator_env.block.height + DEFAULT_VOTING_PERIOD;
 
-// #[test]
-// fn end_poll_nay_rejected() {
-//     let voter1_stake = 100;
-//     let voter2_stake = 1000;
-//     let mut deps = mock_dependencies(&[]);
-//     mock_init(deps.as_mut());
-//     let mut creator_info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg.clone(),
+    )
+    .unwrap();
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "end_poll"),
+            attr("quorum", "0"),
+            attr("tallied_weight", "0"),
+            attr("staked_weight", "0"),
+            attr("poll_id", "1"),
+            attr("rejected_reason", "Quorum not reached"),
+            attr("passed", "false"),
+        ]
+    );
+}
 
-//     let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+#[test]
+fn end_poll_nay_rejected() {
+    let voter1_stake = 100;
+    let voter2_stake = 1000;
+    let mut deps = mock_dependencies(&[]);
+    mock_init(deps.as_mut());
+    let mut creator_info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
+    let mut creator_env = mock_env();
 
-//     let execute_res = execute(deps.as_mut(), creator_env.clone(), msg.clone()).unwrap();
-//     assert_eq!(
-//         execute_res.attributes,
-//         vec![
-//             attr("action", "create_poll"),
-//             attr("creator", TEST_CREATOR),
-//             attr("poll_id", "1"),
-//             attr("end_height", "22345"),
-//         ]
-//     );
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
 
-//     deps.querier.with_token_balances(&[(
-//         &VOTING_TOKEN.to_string(),
-//         &[(
-//             &MOCK_CONTRACT_ADDR.to_string(),
-//             &Uint128::new((voter1_stake + DEFAULT_PROPOSAL_DEPOSIT) as u128),
-//         )],
-//     )]);
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg.clone(),
+    )
+    .unwrap();
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "create_poll"),
+            attr("creator", TEST_CREATOR),
+            attr("poll_id", "1"),
+            attr("end_height", "22345"),
+        ]
+    );
 
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: TEST_VOTER.to_string(),
-//         amount: Uint128::from(voter1_stake as u128),
-//         msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
-//             lock_for_weeks: Some(104u64),
-//         })
-//         .unwrap(),
-//     });
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new((voter1_stake + DEFAULT_PROPOSAL_DEPOSIT) as u128),
+        )],
+    )]);
 
-//     let info = mock_info(VOTING_TOKEN, &[]);
-//     let execute_res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-//     assert_stake_tokens_result(
-//         voter1_stake,
-//         DEFAULT_PROPOSAL_DEPOSIT,
-//         voter1_stake,
-//         1,
-//         execute_res,
-//         deps.as_mut(),
-//     );
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER.to_string(),
+        amount: Uint128::from(voter1_stake as u128),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: Some(104u64),
+        })
+        .unwrap(),
+    });
 
-//     deps.querier.with_token_balances(&[(
-//         &VOTING_TOKEN.to_string(),
-//         &[(
-//             &MOCK_CONTRACT_ADDR.to_string(),
-//             &Uint128::new((voter1_stake + voter2_stake + DEFAULT_PROPOSAL_DEPOSIT) as u128),
-//         )],
-//     )]);
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let execute_res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    assert_stake_tokens_result(
+        voter1_stake,
+        DEFAULT_PROPOSAL_DEPOSIT,
+        voter1_stake,
+        1,
+        execute_res,
+        deps.as_mut(),
+    );
 
-//     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
-//         sender: (TEST_VOTER_2),
-//         amount: Uint128::from(voter2_stake as u128),
-//         msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
-//             lock_for_weeks: Some(104u64),
-//         })
-//         .unwrap(),
-//     });
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new((voter1_stake + voter2_stake + DEFAULT_PROPOSAL_DEPOSIT) as u128),
+        )],
+    )]);
 
-//     let info = mock_info(VOTING_TOKEN, &[]);
-//     let execute_res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-//     assert_stake_tokens_result(
-//         voter1_stake + voter2_stake,
-//         DEFAULT_PROPOSAL_DEPOSIT,
-//         voter2_stake,
-//         1,
-//         execute_res,
-//         deps.as_mut(),
-//     );
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER_2.to_string(),
+        amount: Uint128::from(voter2_stake as u128),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: Some(104u64),
+        })
+        .unwrap(),
+    });
 
-//     let info = mock_info(TEST_VOTER_2, &[]);
-//     let msg = ExecuteMsg::CastVote {
-//         poll_id: 1,
-//         vote: VoteOption::No,
-//         amount: Uint128::from(voter2_stake),
-//     };
-//     let execute_res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-//     assert_cast_vote_success(TEST_VOTER_2, voter2_stake, 1, VoteOption::No, execute_res);
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let execute_res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    assert_stake_tokens_result(
+        voter1_stake + voter2_stake,
+        DEFAULT_PROPOSAL_DEPOSIT,
+        voter2_stake,
+        1,
+        execute_res,
+        deps.as_mut(),
+    );
 
-//     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
+    let info = mock_info(TEST_VOTER_2, &[]);
+    let msg = ExecuteMsg::CastVote {
+        poll_id: 1,
+        vote: VoteOption::No,
+        amount: Uint128::from(voter2_stake),
+    };
+    let execute_res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    assert_cast_vote_success(TEST_VOTER_2, voter2_stake, 1, VoteOption::No, execute_res);
 
-//     creator_env.message.sender = TEST_CREATOR.to_string();
-//     creator_env.block.height = &creator_env.block.height + DEFAULT_VOTING_PERIOD;
-//     let execute_res = execute(deps.as_mut(), creator_env.clone(), msg.clone()).unwrap();
-//     assert_eq!(
-//         execute_res.attributes,
-//         vec![
-//             attr("action", "end_poll"),
-//             attr("quorum", "0.90909090909090909"),
-//             attr("tallied_weight", "1000"),
-//             attr("staked_weight", "1100"),
-//             attr("poll_id", "1"),
-//             attr("rejected_reason", "Threshold not reached"),
-//             attr("passed", "false"),
-//         ]
-//     );
-// }
+    let msg = ExecuteMsg::EndPoll { poll_id: 1 };
+
+    creator_info.sender = Addr::unchecked(TEST_CREATOR.to_string());
+    creator_env.block.height = &creator_env.block.height + DEFAULT_VOTING_PERIOD;
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg.clone(),
+    )
+    .unwrap();
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "end_poll"),
+            attr("quorum", "0.90909090909090909"),
+            attr("tallied_weight", "1000"),
+            attr("staked_weight", "1100"),
+            attr("poll_id", "1"),
+            attr("rejected_reason", "Threshold not reached"),
+            attr("passed", "false"),
+        ]
+    );
+}
 
 // #[test]
 // fn fails_cast_vote_not_enough_staked() {
