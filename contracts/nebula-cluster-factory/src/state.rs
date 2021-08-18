@@ -62,7 +62,7 @@ pub fn get_cluster_data(storage: &dyn Storage) -> StdResult<Vec<(String, bool)>>
 }
 
 pub fn store_tmp_cluster(storage: &mut dyn Storage, contract_addr: &String) -> StdResult<()> {
-    singleton(storage, PREFIX_TMP_ASSET).save(contract_addr)
+    singleton(storage, PREFIX_TMP_CLUSTER).save(contract_addr)
 }
 
 pub fn read_tmp_asset(storage: &dyn Storage) -> StdResult<String> {
@@ -70,7 +70,7 @@ pub fn read_tmp_asset(storage: &dyn Storage) -> StdResult<String> {
 }
 
 pub fn store_tmp_asset(storage: &mut dyn Storage, contract_addr: &String) -> StdResult<()> {
-    singleton(storage, PREFIX_TMP_CLUSTER).save(contract_addr)
+    singleton(storage, PREFIX_TMP_ASSET).save(contract_addr)
 }
 
 pub fn read_tmp_cluster(storage: &dyn Storage) -> StdResult<String> {
