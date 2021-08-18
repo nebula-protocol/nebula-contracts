@@ -19,7 +19,9 @@ use terraswap::pair::PoolResponse as TerraswapPoolResponse;
 
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies
 /// this uses our CustomQuerier.
-pub fn mock_dependencies(contract_balance: &[Coin]) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier> {
+pub fn mock_dependencies(
+    contract_balance: &[Coin],
+) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier> {
     let contract_addr = MOCK_CONTRACT_ADDR.to_string();
     let custom_querier: WasmMockQuerier =
         WasmMockQuerier::new(MockQuerier::new(&[(&contract_addr, contract_balance)]));
@@ -277,23 +279,25 @@ impl WasmMockQuerier {
                         exists: true,
                     })))
                 }
-                QueryMsg::Pool {} => SystemResult::Ok(ContractResult::from(to_binary(&TerraswapPoolResponse {
-                    assets: [
-                        Asset {
-                            info: AssetInfo::Token {
-                                contract_addr: "cluster_token".to_string(),
+                QueryMsg::Pool {} => {
+                    SystemResult::Ok(ContractResult::from(to_binary(&TerraswapPoolResponse {
+                        assets: [
+                            Asset {
+                                info: AssetInfo::Token {
+                                    contract_addr: "cluster_token".to_string(),
+                                },
+                                amount: Uint128::new(100),
                             },
-                            amount: Uint128::new(100),
-                        },
-                        Asset {
-                            info: AssetInfo::NativeToken {
-                                denom: "uusd".to_string(),
+                            Asset {
+                                info: AssetInfo::NativeToken {
+                                    denom: "uusd".to_string(),
+                                },
+                                amount: Uint128::new(100),
                             },
-                            amount: Uint128::new(100),
-                        },
-                    ],
-                    total_share: Uint128::new(10000),
-                }))),
+                        ],
+                        total_share: Uint128::new(10000),
+                    })))
+                }
             },
             QueryRequest::Wasm(WasmQuery::Raw { contract_addr, key }) => {
                 let key: &[u8] = key.as_slice();

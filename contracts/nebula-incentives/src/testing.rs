@@ -1,10 +1,10 @@
 use crate::contract::{execute, instantiate, query, query_config, query_penalty_period};
 use crate::mock_querier::{mock_dependencies, WasmMockQuerier};
 use crate::state::{contributions_read, read_from_contribution_bucket, record_contribution};
-use cosmwasm_std::testing::{mock_info, mock_env, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
+use cosmwasm_std::testing::{mock_env, mock_info, MockApi, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    coins, from_binary, to_binary, BankMsg, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    QueryRequest, StdError, Uint128, WasmMsg, WasmQuery, Timestamp, attr, SubMsg
+    attr, coins, from_binary, to_binary, BankMsg, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env,
+    QueryRequest, StdError, SubMsg, Timestamp, Uint128, WasmMsg, WasmQuery,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use nebula_protocol::cluster::{
@@ -72,7 +72,7 @@ fn proper_initialization() {
     );
 
     let msg = ExecuteMsg::UpdateOwner {
-        owner:"owner0001".to_string(),
+        owner: "owner0001".to_string(),
     };
 
     let info = mock_info("owner0001", &[]);
@@ -119,14 +119,13 @@ fn test_deposit_reward() {
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: TEST_CREATOR.to_string(),
         amount: total_rewards_amount,
-        msg:
-            to_binary(&Cw20HookMsg::DepositReward {
-                rewards: vec![
-                    (PoolType::REBALANCE, "cluster".to_string(), rewards_amount),
-                    (PoolType::ARBITRAGE, "cluster".to_string(), rewards_amount),
-                ],
-            })
-            .unwrap(),
+        msg: to_binary(&Cw20HookMsg::DepositReward {
+            rewards: vec![
+                (PoolType::REBALANCE, "cluster".to_string(), rewards_amount),
+                (PoolType::ARBITRAGE, "cluster".to_string(), rewards_amount),
+            ],
+        })
+        .unwrap(),
     });
     let info = mock_info("nebula_token", &[]);
     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
@@ -182,14 +181,13 @@ fn test_withdraw_reward() {
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: TEST_CREATOR.to_string(),
         amount: total_rewards_amount,
-        msg:
-            to_binary(&Cw20HookMsg::DepositReward {
-                rewards: vec![
-                    (PoolType::REBALANCE, "cluster".to_string(), rewards_amount),
-                    (PoolType::ARBITRAGE, "cluster".to_string(), rewards_amount),
-                ],
-            })
-            .unwrap(),
+        msg: to_binary(&Cw20HookMsg::DepositReward {
+            rewards: vec![
+                (PoolType::REBALANCE, "cluster".to_string(), rewards_amount),
+                (PoolType::ARBITRAGE, "cluster".to_string(), rewards_amount),
+            ],
+        })
+        .unwrap(),
     });
     let info = mock_info("nebula_token", &[]);
     let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
@@ -360,7 +358,6 @@ fn test_incentives_redeem() {
         &"cluster_token".to_string(),
         &[(&"owner0000".to_string(), &Uint128::new((1000) as u128))],
     )]);
-    
 
     let asset_amounts = vec![
         Asset {
@@ -451,8 +448,10 @@ fn test_incentives_arb_cluster_mint() {
 
     mock_init(deps.as_mut());
 
-    deps.querier
-        .with_terraswap_pairs(&[(&"uusdcluster_token".to_string(), &"uusd_cluster_pair".to_string())]);
+    deps.querier.with_terraswap_pairs(&[(
+        &"uusdcluster_token".to_string(),
+        &"uusd_cluster_pair".to_string(),
+    )]);
 
     let asset_amounts = vec![
         Asset {
@@ -578,8 +577,10 @@ fn test_incentives_arb_cluster_redeem() {
 
     mock_init(deps.as_mut());
 
-    deps.querier
-        .with_terraswap_pairs(&[(&"uusdcluster_token".to_string(), &"uusd_cluster_pair".to_string())]);
+    deps.querier.with_terraswap_pairs(&[(
+        &"uusdcluster_token".to_string(),
+        &"uusd_cluster_pair".to_string(),
+    )]);
 
     let msg = ExecuteMsg::ArbClusterRedeem {
         cluster_contract: "cluster".to_string(),
@@ -701,12 +702,18 @@ fn test_send_all() {
 
     deps.querier.with_token_balances(&[(
         &"asset0000".to_string(),
-        &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new((1000) as u128))],
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new((1000) as u128),
+        )],
     )]);
 
     deps.querier.with_native_balances(&[(
         &"native_asset0000".to_string(),
-        &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new((1000) as u128))],
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new((1000) as u128),
+        )],
     )]);
 
     deps.querier.with_tax(
@@ -761,12 +768,18 @@ fn test_swap_all() {
 
     deps.querier.with_token_balances(&[(
         &"cluster_token".to_string(),
-        &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new((1000) as u128))],
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new((1000) as u128),
+        )],
     )]);
 
     deps.querier.with_native_balances(&[(
         &"uusd".to_string(),
-        &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new((1000) as u128))],
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new((1000) as u128),
+        )],
     )]);
 
     deps.querier.with_tax(
@@ -793,13 +806,12 @@ fn test_swap_all() {
             msg: to_binary(&Cw20ExecuteMsg::Send {
                 contract: "terraswap_pair".to_string(),
                 amount: Uint128::new(1000),
-                msg:
-                    to_binary(&TerraswapCw20HookMsg::Swap {
-                        max_spread: Some(Decimal::zero()),
-                        belief_price: Some(Decimal::zero()),
-                        to: None,
-                    })
-                    .unwrap()
+                msg: to_binary(&TerraswapCw20HookMsg::Swap {
+                    max_spread: Some(Decimal::zero()),
+                    belief_price: Some(Decimal::zero()),
+                    to: None,
+                })
+                .unwrap()
             })
             .unwrap(),
             funds: vec![],
@@ -958,7 +970,10 @@ fn test_incentives_internal_rewarded_redeem() {
 
     deps.querier.with_token_balances(&[(
         &"cluster_token".to_string(),
-        &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new((1000) as u128))],
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new((1000) as u128),
+        )],
     )]);
 
     let asset_amounts = vec![
@@ -1070,8 +1085,11 @@ fn test_record_rebalancer_rewards() {
     );
 
     // See if stateful changes actually happens
-    let contribution_bucket =
-        contributions_read(&deps.storage, &"rebalancer".to_string(), PoolType::REBALANCE);
+    let contribution_bucket = contributions_read(
+        &deps.storage,
+        &"rebalancer".to_string(),
+        PoolType::REBALANCE,
+    );
     let contribution = read_from_contribution_bucket(&contribution_bucket, &"cluster".to_string());
 
     assert_eq!(contribution.n, 1);
@@ -1084,8 +1102,10 @@ fn test_record_terraswap_impact() {
 
     mock_init(deps.as_mut());
 
-    deps.querier
-        .with_terraswap_pairs(&[(&"uusdcluster_token".to_string(), &"uusd_cluster_pair".to_string())]);
+    deps.querier.with_terraswap_pairs(&[(
+        &"uusdcluster_token".to_string(),
+        &"uusd_cluster_pair".to_string(),
+    )]);
 
     let msg = ExecuteMsg::NewPenaltyPeriod {};
     let info = mock_info("owner0000", &[]);
@@ -1129,8 +1149,11 @@ fn test_record_terraswap_impact() {
     );
 
     // See if stateful changes actually happens
-    let contribution_bucket =
-        contributions_read(&deps.storage, &"arbitrageur".to_string(), PoolType::ARBITRAGE);
+    let contribution_bucket = contributions_read(
+        &deps.storage,
+        &"arbitrageur".to_string(),
+        PoolType::ARBITRAGE,
+    );
     let contribution = read_from_contribution_bucket(&contribution_bucket, &"cluster".to_string());
 
     assert_eq!(contribution.n, 1);
