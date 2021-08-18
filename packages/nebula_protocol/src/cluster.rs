@@ -47,7 +47,7 @@ pub enum ExecuteMsg {
         penalty: Option<String>,
         target: Option<Vec<Asset>>, // recomp oracle
     },
-    /// Called by recomposition oracle
+    /// Called by target oracle
     UpdateTarget { target: Vec<Asset> },
 
     /// Called by factory only and sets active to false
