@@ -1,8 +1,11 @@
-import keccak256 from 'keccak256';
-import { MerkleTree } from 'merkletreejs';
+// import keccak256 from 'keccak256';
+// import { MerkleTree } from 'merkletreejs';
+const keccak256 = require('keccak256')
+const { MerkleTree } = require('merkletreejs')
+
 
 export class Airdrop {
-  private tree: MerkleTree;
+  private tree: typeof MerkleTree;
 
   constructor(accounts: Array<{ address: string; amount: string }>) {
     const leaves = accounts.map((a) => keccak256(a.address + a.amount));
@@ -19,7 +22,7 @@ export class Airdrop {
   }): string[] {
     return this.tree
       .getHexProof(keccak256(account.address + account.amount))
-      .map((v) => v.replace('0x', ''));
+      .map((v: string) => v.replace('0x', ''));
   }
 
   public verify(

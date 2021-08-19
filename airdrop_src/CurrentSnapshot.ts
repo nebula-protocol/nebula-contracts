@@ -1,4 +1,6 @@
-import * as request from 'request-promise';
+// import * as request from 'request-promise';
+const request = require('request-promise');
+// const request = require('request');
 
 export class CurrentSnapshot {
   URL: string;
@@ -9,11 +11,16 @@ export class CurrentSnapshot {
 
   async takeSnapshot(): Promise<{ [delegator: string]: bigint }> {
     const delegationSnapshot: { [delegator: string]: bigint } = {};
+    console.log('Inside taking snapshot')
     const validators = JSON.parse(
       await request.get(`${this.URL}/staking/validators`, {
         timeout: 10000000
       })
     )['result'];
+
+    // FILTER OUT VALIDATORS?
+
+    console.log("Found " + validators.length + " validators")
 
     for (let i = 0; i < validators.length; i++) {
       const operator_addr = validators[i]['operator_address'];
@@ -41,7 +48,7 @@ export class CurrentSnapshot {
         );
       });
     }
-
+    
     return delegationSnapshot;
   }
 }
