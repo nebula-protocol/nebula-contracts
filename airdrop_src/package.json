@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@terra-money/terra.js": "^1",
+    "keccak256": "^1.0.3",
+    "merkletreejs": "^0.2.24",
+    "request": "^2.88.2",
+    "request-promise": "^4.2.6"
+  }
+}

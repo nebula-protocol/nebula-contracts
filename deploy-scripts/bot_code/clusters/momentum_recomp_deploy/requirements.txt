@@ -1,0 +1,3 @@
+requests==2.25.1
+pandas==1.2.5
+terra_sdk==0.14.0

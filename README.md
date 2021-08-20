@@ -1,103 +1,39 @@
-# Basket Protocol
+# Nebula Protocol Contracts
 
-This monorepository organizes the various components of Basket protocol on Terra.
+This repository contains the full source code for Nebula Protocol on Terra.
 
-| Name                                              | Type         | Description                                            |
-| ------------------------------------------------- | ------------ | ------------------------------------------------------ |
-| [`basket-factory`](#)                             | Contract     | Protocol-level controller contract across many Baskets |
-| [`basket-contract`](contracts/basket-contract/)   | Contract     | Contract containing individual Basket logic            |
-| [`basket-token`](contracts/basket-token/)         | Contract     | CW20 Token used for representing ownership of a Basket |
-| [`basket-math`](libraries/basket-math/)           | Rust Library | Math utility library for Basket protocol               |
-| [`terra-wasm-utils`](libraries/terra-wasm-utils/) | Rust Library | Generic Terra WASM smart contract utilities            |
-| [`basket-webapp`](basket-web-app/)                | Web App      | Rudimentary frontend for Basket protocol               |
+## Contracts
 
-## Roadmap
+### Nebula Core
 
-- [ ] penalty function
-- [ ] Mirror Protocol integration
-- [ ] Terraswap integration
+These contracts hold the core logic of the base protocol.
 
-## Development
+| Contract                 | Description                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------ |
+| `nebula-airdrop`         | Logic for NEB airdrops to LUNA stakers                                         |
+| `nebula-cluster`         | Logic for mechanisms of individual clusters                                    |
+| `nebula-cluster-factory` | Defines procedure for creating new Clusters                                    |
+| `nebula-collector`       | Collects protocol fees and distributes it as rewards to NEB governance stakers |
+| `nebula-community`       | Controls the funds in the governance-controlled community pool                 |
+| `nebula-gov`             | Manages the decentralized governance functions of Nebula protocol              |
+| `nebula-lp-staking`      | Manages NEB rewards for Cluster Token liquidity providers (LP)                 |
 
-**Requirements for contracts**
+### Auxiliary
 
-- Rust 1.44+
+Some parts of Nebula such as a Cluster's penalty function or NEB incentive campaigns are also implemented using contracts but are not considered part of the protocol.
+Nebula ships with a couple default ones, and their code is here.
 
-  Make sure the target `wasm32-unknown-unknown` is installed.
-
-  ```bash
-  $ rustup default stable
-  $ rustup target add wasm32-unknown-unknown
-  ```
-
-- Docker
-
-**Requirements for web app**
-
-- Node v12+
-- NPM / Yarn
-
-### Building
-
-Run the script provided while in the root of the directory.
-
-```bash
-$ ./build.sh
-```
+| Contract                    | Description                                                      |
+| --------------------------- | ---------------------------------------------------------------- |
+| `nebula-penalty`            | Implementation of a Cluster Penalty Function, used by default    |
+| `nebula-incentives`         | Implementation of a NEB incentive scheme for Terraswap arbitrage |
+| `nebula-incentives-custody` | Custody contract for NEB incentive scheme                        |
 
 ### Testing
 
-To run all tests:
+These contracts are solely used for testing purposes.
 
-```bash
-$ ./test.sh
-```
-
-### Unit test
-
-To run unit tests for individual contracts, navigate to the contract root directory and run `cargo unit-test`.
-
-```bash
-$ cd contracts/basket-contract
-$ cargo unit-test
-```
-
-### Integration test
-
-To run integration tests, run `cargo integration-test`.
-
-```bash
-$ cargo integration-test
-```
-
-### End-to-end test
-
-A simple end-to-end test is provided to validate the results of the integration test within a real blockchain environment via LocalTerra.
-
-Make sure LocalTerra is installed and running, then:
-
-```bash
-$ ./e2e-test.sh
-```
-
-## Deployment
-
-### Upload contract codes
-
-```bash
-
-```
-
-### Instantiate contracts
-
-```bash
-
-```
-
-### Configure web app
-
-The web app is designed to work
-
-```bash
-
-```
+| Contract              | Description                                                     |
+| --------------------- | --------------------------------------------------------------- |
+| `nebula-dummy-oracle` | Cluster Oracle feeder that can be controlled during testing     |
+| `terraswap-oracle`    | Oracle feeder that uses liquidity from Terraswap to feed prices |
