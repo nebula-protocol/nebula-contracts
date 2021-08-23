@@ -283,7 +283,7 @@ fn test_incentives_mint() {
         },
     ];
 
-    let msg = ExecuteMsg::Mint {
+    let msg = ExecuteMsg::IncentivesCreate {
         cluster_contract: "cluster".to_string(),
         asset_amounts: asset_amounts.clone(),
         min_tokens: None,
@@ -317,7 +317,7 @@ fn test_incentives_mint() {
             })),
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.to_string(),
-                msg: to_binary(&ExecuteMsg::_InternalRewardedMint {
+                msg: to_binary(&ExecuteMsg::_InternalRewardedCreate {
                     rebalancer: info.sender.to_string(),
                     cluster_contract: "cluster".to_string(),
                     asset_amounts: asset_amounts,
@@ -385,7 +385,7 @@ fn test_incentives_redeem() {
         },
     ];
 
-    let msg = ExecuteMsg::Redeem {
+    let msg = ExecuteMsg::IncentivesRedeem {
         cluster_contract: "cluster".to_string(),
         asset_amounts: Some(asset_amounts.clone()),
         max_tokens: Uint128::new(1000),
@@ -467,7 +467,7 @@ fn test_incentives_arb_cluster_mint() {
         },
     ];
 
-    let msg = ExecuteMsg::ArbClusterMint {
+    let msg = ExecuteMsg::ArbClusterCreate {
         cluster_contract: "cluster".to_string(),
         assets: asset_amounts.clone(),
         min_ust: None,
@@ -502,7 +502,7 @@ fn test_incentives_arb_cluster_mint() {
             })),
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.to_string(),
-                msg: to_binary(&ExecuteMsg::_InternalRewardedMint {
+                msg: to_binary(&ExecuteMsg::_InternalRewardedCreate {
                     rebalancer: info.sender.to_string(),
                     cluster_contract: "cluster".to_string(),
                     asset_amounts: asset_amounts,
@@ -875,7 +875,7 @@ fn test_incentives_internal_rewarded_mint() {
         },
     ];
 
-    let msg = ExecuteMsg::_InternalRewardedMint {
+    let msg = ExecuteMsg::_InternalRewardedCreate {
         cluster_contract: "cluster".to_string(),
         asset_amounts: asset_amounts.clone(),
         min_tokens: None,

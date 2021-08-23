@@ -100,7 +100,7 @@ pub fn arb_cluster_mint(
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.to_string(),
-        msg: to_binary(&ExecuteMsg::_InternalRewardedMint {
+        msg: to_binary(&ExecuteMsg::_InternalRewardedCreate {
             rebalancer: info.sender.to_string(),
             cluster_contract: cluster_contract.clone(),
             asset_amounts: assets.to_vec(),

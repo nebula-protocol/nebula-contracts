@@ -48,7 +48,7 @@ pub enum ExecuteMsg {
     },
 
     /// USER-CALLABLE
-    ArbClusterMint {
+    ArbClusterCreate {
         cluster_contract: String,
         assets: Vec<Asset>,
         min_ust: Option<Uint128>,
@@ -60,19 +60,19 @@ pub enum ExecuteMsg {
         min_cluster: Option<Uint128>,
     },
 
-    Mint {
+    IncentivesCreate {
         cluster_contract: String,
         asset_amounts: Vec<Asset>,
         min_tokens: Option<Uint128>,
     },
 
-    Redeem {
+    IncentivesRedeem {
         cluster_contract: String,
         max_tokens: Uint128,
         asset_amounts: Option<Vec<Asset>>,
     },
 
-    _InternalRewardedMint {
+    _InternalRewardedCreate {
         rebalancer: String,
         cluster_contract: String,
         asset_amounts: Vec<Asset>,

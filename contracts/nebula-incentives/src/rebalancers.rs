@@ -91,7 +91,7 @@ pub fn record_rebalancer_rewards(
     ]))
 }
 
-pub fn internal_rewarded_mint(
+pub fn internal_rewarded_create(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -269,7 +269,7 @@ pub fn mint(
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: env.contract.address.to_string(),
-        msg: to_binary(&ExecuteMsg::_InternalRewardedMint {
+        msg: to_binary(&ExecuteMsg::_InternalRewardedCreate {
             rebalancer: info.sender.to_string(),
             cluster_contract,
             asset_amounts: asset_amounts.to_vec(),

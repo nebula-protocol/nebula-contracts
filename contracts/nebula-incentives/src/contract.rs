@@ -7,7 +7,7 @@ use crate::arbitrageurs::{
     arb_cluster_mint, arb_cluster_redeem, record_terraswap_impact, send_all, swap_all,
 };
 use crate::rebalancers::{
-    internal_rewarded_mint, internal_rewarded_redeem, mint, record_rebalancer_rewards, redeem,
+    internal_rewarded_create, internal_rewarded_redeem, mint, record_rebalancer_rewards, redeem,
 };
 use crate::rewards::{deposit_reward, increment_n, withdraw_reward};
 use crate::state::{
@@ -95,12 +95,12 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             cluster_contract,
             original_imbalance,
         ),
-        ExecuteMsg::_InternalRewardedMint {
+        ExecuteMsg::_InternalRewardedCreate {
             rebalancer,
             cluster_contract,
             asset_amounts,
             min_tokens,
-        } => internal_rewarded_mint(
+        } => internal_rewarded_create(
             deps,
             env,
             info,
@@ -125,7 +125,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             max_tokens,
             asset_amounts,
         ),
-        ExecuteMsg::ArbClusterMint {
+        ExecuteMsg::ArbClusterCreate {
             cluster_contract,
             assets,
             min_ust,
@@ -135,7 +135,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             asset,
             min_cluster,
         } => arb_cluster_redeem(deps, env, info, cluster_contract, asset, min_cluster),
-        ExecuteMsg::Mint {
+        ExecuteMsg::IncentivesCreate {
             cluster_contract,
             asset_amounts,
             min_tokens,
@@ -147,7 +147,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             &asset_amounts,
             min_tokens,
         ),
-        ExecuteMsg::Redeem {
+        ExecuteMsg::IncentivesRedeem {
             cluster_contract,
             max_tokens,
             asset_amounts,
