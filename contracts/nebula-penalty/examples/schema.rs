@@ -4,7 +4,7 @@ use std::fs::create_dir_all;
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
 use nebula_protocol::penalty::{
-    ExecuteMsg, InstantiateMsg, PenaltyParams, QueryMsg, RedeemResponse,
+    ExecuteMsg, InstantiateMsg, PenaltyParams, QueryMsg, PenaltyRedeemResponse,
 };
 // use cluster_dummy_oracle::state::State;
 
@@ -16,6 +16,6 @@ fn main() {
     export_schema(&schema_for!(InstantiateMsg), &out_dir);
     export_schema(&schema_for!(ExecuteMsg), &out_dir);
     export_schema(&schema_for!(QueryMsg), &out_dir);
-    export_schema(&schema_for!(RedeemResponse), &out_dir);
+    export_schema(&schema_for!(PenaltyRedeemResponse), &out_dir);
     export_schema(&schema_for!(PenaltyParams), &out_dir);
 }

@@ -7,8 +7,8 @@ use cw20::{BalanceResponse as Cw20BalanceResponse, TokenInfoResponse as Cw20Toke
 use nebula_protocol::{
     cluster_factory::ConfigResponse as FactoryConfigResponse,
     cluster_factory::QueryMsg as FactoryQueryMsg, oracle::PriceResponse,
-    oracle::QueryMsg as OracleQueryMsg, penalty::MintResponse,
-    penalty::QueryMsg as PenaltyQueryMsg, penalty::RedeemResponse,
+    oracle::QueryMsg as OracleQueryMsg, penalty::PenaltyCreateResponse,
+    penalty::QueryMsg as PenaltyQueryMsg, penalty::PenaltyRedeemResponse,
 };
 use terraswap::asset::AssetInfo;
 
@@ -123,8 +123,8 @@ pub fn query_mint_amount(
     mint_asset_amounts: Vec<Uint128>,
     asset_prices: Vec<String>,
     target_weights: Vec<Uint128>,
-) -> StdResult<MintResponse> {
-    let res: MintResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+) -> StdResult<PenaltyCreateResponse> {
+    let res: PenaltyCreateResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: penalty_address.clone().to_string(),
         msg: to_binary(&PenaltyQueryMsg::PenaltyQueryCreate {
             block_height,
@@ -151,8 +151,8 @@ pub fn query_redeem_amount(
     redeem_asset_amounts: Vec<Uint128>,
     asset_prices: Vec<String>,
     target_weights: Vec<Uint128>,
-) -> StdResult<RedeemResponse> {
-    let res: RedeemResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+) -> StdResult<PenaltyRedeemResponse> {
+    let res: PenaltyRedeemResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: penalty_address.clone().to_string(),
         msg: to_binary(&PenaltyQueryMsg::PenaltyQueryRedeem {
             block_height,

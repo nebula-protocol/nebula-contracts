@@ -8,8 +8,8 @@ use cluster_math::{
     add, div_const, dot, imbalance, int_vec_to_fpdec, mul_const, str_vec_to_fpdec, sub, FPDecimal,
 };
 use nebula_protocol::penalty::{
-    ExecuteMsg, InstantiateMsg, MintResponse, ParamsResponse, PenaltyParams, QueryMsg,
-    RedeemResponse,
+    ExecuteMsg, InstantiateMsg, PenaltyCreateResponse, ParamsResponse, PenaltyParams, QueryMsg,
+    PenaltyRedeemResponse,
 };
 use std::cmp::{max, min};
 
@@ -129,7 +129,7 @@ pub fn compute_mint(
     mint_asset_amounts: &[Uint128],
     asset_prices: &[String],
     target_weights: &[Uint128],
-) -> StdResult<MintResponse> {
+) -> StdResult<PenaltyCreateResponse> {
     let n = FPDecimal::from(cluster_token_supply.u128());
     let i0 = int_vec_to_fpdec(inventory);
     let c = int_vec_to_fpdec(mint_asset_amounts);
@@ -143,7 +143,7 @@ pub fn compute_mint(
 
     let mint_subtotal = n * notional_value / dot(&i0, &p);
 
-    Ok(MintResponse {
+    Ok(PenaltyCreateResponse {
         mint_tokens: Uint128::new(mint_subtotal.into()),
         penalty: Uint128::new(
             (if penalty.sign == 1 {
@@ -167,7 +167,7 @@ pub fn compute_redeem(
     redeem_asset_amounts: &[Uint128],
     asset_prices: &[String],
     target_weights: &[Uint128],
-) -> StdResult<RedeemResponse> {
+) -> StdResult<PenaltyRedeemResponse> {
     let n = FPDecimal::from(cluster_token_supply.u128());
     let i0 = int_vec_to_fpdec(inventory);
     let m = FPDecimal::from(max_tokens.u128());
@@ -180,7 +180,7 @@ pub fn compute_redeem(
         // let redeem_arr = div_const(&mul_const(&w, m * dot(&i0, &p)), n * dot(&w, &p));
         // pro-rata redeem for inventory
         let redeem_arr = div_const(&mul_const(&i0, m), n);
-        Ok(RedeemResponse {
+        Ok(PenaltyRedeemResponse {
             token_cost: Uint128::new(m.into()),
             penalty: Uint128::zero(),
             redeem_assets: redeem_arr
@@ -202,7 +202,7 @@ pub fn compute_redeem(
             token_cost += 1;
         }
 
-        Ok(RedeemResponse {
+        Ok(PenaltyRedeemResponse {
             token_cost: Uint128::new(token_cost),
             penalty: Uint128::new(
                 (if penalty.sign == 1 {

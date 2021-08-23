@@ -11,7 +11,7 @@ use cluster_math::{
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{attr, from_binary, DepsMut, Env, StdError, Timestamp, Uint128};
 use nebula_protocol::penalty::{
-    ExecuteMsg, InstantiateMsg, MintResponse, PenaltyParams, QueryMsg, RedeemResponse,
+    ExecuteMsg, InstantiateMsg, PenaltyCreateResponse, PenaltyParams, QueryMsg, PenaltyRedeemResponse,
 };
 
 const TEST_CREATOR: &str = "creator";
@@ -208,7 +208,7 @@ fn test_mint_actions() {
     )
     .unwrap();
 
-    let response: MintResponse = from_binary(&res).unwrap();
+    let response: PenaltyCreateResponse = from_binary(&res).unwrap();
     assert_eq!(response.mint_tokens, Uint128::new(999706));
     assert_eq!(response.penalty, Uint128::zero());
     assert_eq!(response.attributes, vec![attr("penalty", "-4.2")]);
@@ -231,7 +231,7 @@ fn test_mint_actions() {
     )
     .unwrap();
 
-    let response: MintResponse = from_binary(&res).unwrap();
+    let response: PenaltyCreateResponse = from_binary(&res).unwrap();
 
     assert_eq!(response.mint_tokens, Uint128::new(2230596));
     assert_eq!(response.penalty, Uint128::new(197));
@@ -293,7 +293,7 @@ fn test_redeem_actions() {
     )
     .unwrap();
 
-    let response: RedeemResponse = from_binary(&res).unwrap();
+    let response: PenaltyRedeemResponse = from_binary(&res).unwrap();
     assert_eq!(response.token_cost, Uint128::new(100000));
     assert_eq!(
         response.redeem_assets,
@@ -319,7 +319,7 @@ fn test_redeem_actions() {
     )
     .unwrap();
 
-    let response: RedeemResponse = from_binary(&res).unwrap();
+    let response: PenaltyRedeemResponse = from_binary(&res).unwrap();
     assert_eq!(response.token_cost, Uint128::new(100000));
     assert_eq!(
         response.redeem_assets,

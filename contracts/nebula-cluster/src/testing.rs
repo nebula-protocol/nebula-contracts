@@ -14,7 +14,7 @@ use nebula_protocol::{
     cluster::{ExecuteMsg, InstantiateMsg, QueryMsg as ClusterQueryMsg, TargetResponse},
     cluster_factory::ConfigResponse as FactoryConfigResponse,
     oracle::{PriceResponse, QueryMsg as OracleQueryMsg},
-    penalty::{MintResponse, QueryMsg as PenaltyQueryMsg, RedeemResponse},
+    penalty::{PenaltyCreateResponse, QueryMsg as PenaltyQueryMsg, PenaltyRedeemResponse},
 };
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
@@ -183,7 +183,7 @@ impl WasmMockQuerier {
                                     target_weights: _,
                                     redeem_asset_amounts: _,
                                 }) => {
-                                    let response = RedeemResponse {
+                                    let response = PenaltyRedeemResponse {
                                         redeem_assets: vec![
                                             Uint128::new(99),
                                             Uint128::new(98),
@@ -562,8 +562,8 @@ pub mod consts {
         }
     }
 
-    pub fn mint_response() -> MintResponse {
-        MintResponse {
+    pub fn mint_response() -> PenaltyCreateResponse {
+        PenaltyCreateResponse {
             mint_tokens: Uint128::new(99),
             penalty: Uint128::new(1234),
             attributes: vec![attr("penalty", "1234")],
