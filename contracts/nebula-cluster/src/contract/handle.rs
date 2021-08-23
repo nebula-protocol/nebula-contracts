@@ -8,7 +8,7 @@ use cw20::Cw20ExecuteMsg;
 use crate::contract::{query_cluster_state, validate_targets};
 use crate::error;
 use crate::ext_query::{
-    query_asset_balance, query_collector_contract_address, query_mint_amount, query_redeem_amount,
+    query_asset_balance, query_collector_contract_address, query_create_amount, query_redeem_amount,
 };
 use crate::state::{config_store, read_config};
 use crate::state::{read_target_asset_data, save_target_asset_data};
@@ -360,7 +360,7 @@ pub fn create(
     // do a regular mint
     let mut extra_logs = vec![];
     if !cluster_token_supply.is_zero() {
-        let mint_response = query_mint_amount(
+        let mint_response = query_create_amount(
             &deps.querier,
             &cfg.penalty.clone(),
             env.block.height,
@@ -370,7 +370,7 @@ pub fn create(
             prices.clone(),
             target_weights.clone(),
         )?;
-        let mint_total = mint_response.mint_tokens;
+        let mint_total = mint_response.create_tokens;
 
         let (collector_address, fee_rate) =
             query_collector_contract_address(&deps.querier, &cfg.factory)?;
@@ -391,7 +391,7 @@ pub fn create(
                 block_height: env.block.height,
                 cluster_token_supply,
                 inventory: inv,
-                mint_asset_amounts: c,
+                create_asset_amounts: c,
                 asset_prices: prices,
                 target_weights: target_weights,
             })?,

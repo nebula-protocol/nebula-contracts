@@ -126,13 +126,13 @@ pub fn compute_mint(
     block_height: u64,
     cluster_token_supply: &Uint128,
     inventory: &[Uint128],
-    mint_asset_amounts: &[Uint128],
+    create_asset_amounts: &[Uint128],
     asset_prices: &[String],
     target_weights: &[Uint128],
 ) -> StdResult<PenaltyCreateResponse> {
     let n = FPDecimal::from(cluster_token_supply.u128());
     let i0 = int_vec_to_fpdec(inventory);
-    let c = int_vec_to_fpdec(mint_asset_amounts);
+    let c = int_vec_to_fpdec(create_asset_amounts);
     let p = str_vec_to_fpdec(asset_prices)?;
     let w = int_vec_to_fpdec(target_weights);
 
@@ -144,7 +144,7 @@ pub fn compute_mint(
     let mint_subtotal = n * notional_value / dot(&i0, &p);
 
     Ok(PenaltyCreateResponse {
-        mint_tokens: Uint128::new(mint_subtotal.into()),
+        create_tokens: Uint128::new(mint_subtotal.into()),
         penalty: Uint128::new(
             (if penalty.sign == 1 {
                 penalty
@@ -237,7 +237,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             block_height,
             cluster_token_supply,
             inventory,
-            mint_asset_amounts,
+            create_asset_amounts,
             asset_prices,
             target_weights,
         } => to_binary(&compute_mint(
@@ -245,7 +245,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             block_height,
             &cluster_token_supply,
             &inventory,
-            &mint_asset_amounts,
+            &create_asset_amounts,
             &asset_prices,
             &target_weights,
         )?),
@@ -308,7 +308,7 @@ pub fn execute_mint(
     block_height: u64,
     _cluster_token_supply: &Uint128,
     inventory: &Vec<Uint128>,
-    _mint_asset_amounts: &Vec<Uint128>,
+    _create_asset_amounts: &Vec<Uint128>,
     asset_prices: &Vec<String>,
     _target_weights: &Vec<Uint128>,
 ) -> StdResult<Response> {
@@ -356,7 +356,7 @@ pub fn execute(
             block_height,
             cluster_token_supply,
             inventory,
-            mint_asset_amounts,
+            create_asset_amounts,
             asset_prices,
             target_weights,
         } => execute_mint(
@@ -364,7 +364,7 @@ pub fn execute(
             block_height,
             &cluster_token_supply,
             &inventory,
-            &mint_asset_amounts,
+            &create_asset_amounts,
             &asset_prices,
             &target_weights,
         ),

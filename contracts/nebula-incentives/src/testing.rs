@@ -888,7 +888,7 @@ fn test_incentives_internal_rewarded_mint() {
     let env = mock_env();
     let res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
 
-    let mint_asset_amounts_after_tax = vec![
+    let create_asset_amounts_after_tax = vec![
         Asset {
             info: AssetInfo::Token {
                 contract_addr: "asset0000".to_string(),
@@ -936,7 +936,7 @@ fn test_incentives_internal_rewarded_mint() {
                 contract_addr: "cluster".to_string(),
                 msg: to_binary(&ClusterExecuteMsg::RebalanceCreate {
                     min_tokens: None,
-                    asset_amounts: mint_asset_amounts_after_tax,
+                    asset_amounts: create_asset_amounts_after_tax,
                 })
                 .unwrap(),
                 funds: coins(99, &"native_asset0000".to_string()),

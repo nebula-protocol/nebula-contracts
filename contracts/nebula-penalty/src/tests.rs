@@ -192,7 +192,7 @@ fn test_mint_actions() {
     let nav = dot(&int_vec_to_fpdec(curr_inv), &p);
     update_ema(deps.as_mut(), 60, nav).unwrap();
 
-    let mint_asset_amounts = &[Uint128::new(1000), Uint128::new(1010), Uint128::new(994)];
+    let create_asset_amounts = &[Uint128::new(1000), Uint128::new(1010), Uint128::new(994)];
 
     let res = query(
         deps.as_ref(),
@@ -201,7 +201,7 @@ fn test_mint_actions() {
             block_height: 120,
             cluster_token_supply: Uint128::new(1000000),
             inventory: curr_inv.to_vec(),
-            mint_asset_amounts: mint_asset_amounts.to_vec(),
+            create_asset_amounts: create_asset_amounts.to_vec(),
             asset_prices: p_strs.to_vec(),
             target_weights: weights.to_vec(),
         },
@@ -209,13 +209,13 @@ fn test_mint_actions() {
     .unwrap();
 
     let response: PenaltyCreateResponse = from_binary(&res).unwrap();
-    assert_eq!(response.mint_tokens, Uint128::new(999706));
+    assert_eq!(response.create_tokens, Uint128::new(999706));
     assert_eq!(response.penalty, Uint128::zero());
     assert_eq!(response.attributes, vec![attr("penalty", "-4.2")]);
 
     // Simulate target weights changing dramatically
     let weights = &[Uint128::new(200), Uint128::new(100), Uint128::new(100)];
-    let mint_asset_amounts = &[Uint128::new(3000), Uint128::new(990), Uint128::new(1006)];
+    let create_asset_amounts = &[Uint128::new(3000), Uint128::new(990), Uint128::new(1006)];
 
     let res = query(
         deps.as_ref(),
@@ -224,7 +224,7 @@ fn test_mint_actions() {
             block_height: 120,
             cluster_token_supply: Uint128::new(1000000),
             inventory: curr_inv.to_vec(),
-            mint_asset_amounts: mint_asset_amounts.to_vec(),
+            create_asset_amounts: create_asset_amounts.to_vec(),
             asset_prices: p_strs.to_vec(),
             target_weights: weights.to_vec(),
         },
@@ -233,18 +233,18 @@ fn test_mint_actions() {
 
     let response: PenaltyCreateResponse = from_binary(&res).unwrap();
 
-    assert_eq!(response.mint_tokens, Uint128::new(2230596));
+    assert_eq!(response.create_tokens, Uint128::new(2230596));
     assert_eq!(response.penalty, Uint128::new(197));
     assert_eq!(response.attributes, vec![attr("penalty", "197.5260869565")]);
 
     let weights = &[Uint128::new(100), Uint128::new(100), Uint128::new(100)];
-    let mint_asset_amounts = &[Uint128::new(1000), Uint128::new(1010), Uint128::new(994)];
+    let create_asset_amounts = &[Uint128::new(1000), Uint128::new(1010), Uint128::new(994)];
     let curr_inv = &[Uint128::new(2000), Uint128::new(2020), Uint128::new(1988)];
     let msg = ExecuteMsg::PenaltyCreate {
         block_height: 120,
         cluster_token_supply: Uint128::new(1000000),
         inventory: curr_inv.to_vec(),
-        mint_asset_amounts: mint_asset_amounts.to_vec(),
+        create_asset_amounts: create_asset_amounts.to_vec(),
         asset_prices: p_strs.to_vec(),
         target_weights: weights.to_vec(),
     };
@@ -329,13 +329,13 @@ fn test_redeem_actions() {
     assert_eq!(response.attributes.len(), 0usize);
 
     let weights = &[Uint128::new(100), Uint128::new(100), Uint128::new(100)];
-    let mint_asset_amounts = &[Uint128::new(1000), Uint128::new(1010), Uint128::new(994)];
+    let create_asset_amounts = &[Uint128::new(1000), Uint128::new(1010), Uint128::new(994)];
     let curr_inv = &[Uint128::new(900), Uint128::new(910), Uint128::new(904)];
     let msg = ExecuteMsg::PenaltyRedeem {
         block_height: 120,
         cluster_token_supply: Uint128::new(1000000),
         inventory: curr_inv.to_vec(),
-        redeem_asset_amounts: mint_asset_amounts.to_vec(),
+        redeem_asset_amounts: create_asset_amounts.to_vec(),
         max_tokens: Uint128::new(10000),
         asset_prices: p_strs.to_vec(),
         target_weights: weights.to_vec(),

@@ -167,7 +167,7 @@ impl WasmMockQuerier {
                                     block_height: _,
                                     cluster_token_supply: _,
                                     inventory: _,
-                                    mint_asset_amounts: _,
+                                    create_asset_amounts: _,
                                     asset_prices: _,
                                     target_weights: _,
                                 }) => {
@@ -258,7 +258,7 @@ impl TokenQuerier {
 
 #[derive(Default)]
 pub struct PenaltyQuerier {
-    pub mint_tokens: Uint128,
+    pub create_tokens: Uint128,
     pub token_cost: Uint128,
     pub redeem_assets: Vec<Uint128>,
 }
@@ -266,7 +266,7 @@ pub struct PenaltyQuerier {
 impl PenaltyQuerier {
     pub fn new() -> Self {
         PenaltyQuerier {
-            mint_tokens: Uint128::zero(),
+            create_tokens: Uint128::zero(),
             token_cost: Uint128::zero(),
             redeem_assets: vec![],
         }
@@ -402,8 +402,8 @@ impl WasmMockQuerier {
         self
     }
 
-    pub fn set_mint_amount(&mut self, mint_tokens: Uint128) -> &mut Self {
-        self.penalty_querier.mint_tokens = mint_tokens;
+    pub fn set_mint_amount(&mut self, create_tokens: Uint128) -> &mut Self {
+        self.penalty_querier.create_tokens = create_tokens;
         self
     }
 
@@ -564,7 +564,7 @@ pub mod consts {
 
     pub fn mint_response() -> PenaltyCreateResponse {
         PenaltyCreateResponse {
-            mint_tokens: Uint128::new(99),
+            create_tokens: Uint128::new(99),
             penalty: Uint128::new(1234),
             attributes: vec![attr("penalty", "1234")],
         }
@@ -887,7 +887,7 @@ fn mint() {
                         Uint128::new(14_219_281_228u128),
                         Uint128::new(224_212_221u128)
                     ],
-                    mint_asset_amounts: vec![
+                    create_asset_amounts: vec![
                         Uint128::new(125_000_000),
                         Uint128::zero(),
                         Uint128::new(149_000_000),

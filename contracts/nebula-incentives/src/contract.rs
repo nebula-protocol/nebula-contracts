@@ -4,10 +4,10 @@ use cosmwasm_std::{
 };
 
 use crate::arbitrageurs::{
-    arb_cluster_mint, arb_cluster_redeem, record_terraswap_impact, send_all, swap_all,
+    arb_cluster_create, arb_cluster_redeem, record_terraswap_impact, send_all, swap_all,
 };
 use crate::rebalancers::{
-    internal_rewarded_create, internal_rewarded_redeem, mint, record_rebalancer_rewards, redeem,
+    internal_rewarded_create, internal_rewarded_redeem, create, record_rebalancer_rewards, redeem,
 };
 use crate::rewards::{deposit_reward, increment_n, withdraw_reward};
 use crate::state::{
@@ -129,7 +129,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             cluster_contract,
             assets,
             min_ust,
-        } => arb_cluster_mint(deps, env, info, cluster_contract, &assets, min_ust),
+        } => arb_cluster_create(deps, env, info, cluster_contract, &assets, min_ust),
         ExecuteMsg::ArbClusterRedeem {
             cluster_contract,
             asset,
@@ -139,7 +139,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             cluster_contract,
             asset_amounts,
             min_tokens,
-        } => mint(
+        } => create(
             deps,
             env,
             info,

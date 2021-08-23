@@ -114,13 +114,13 @@ pub fn query_collector_contract_address(
 
 /// EXTERNAL QUERY
 /// -- Queries the penalty contract for the amount to mint
-pub fn query_mint_amount(
+pub fn query_create_amount(
     querier: &QuerierWrapper,
     penalty_address: &String,
     block_height: u64,
     cluster_token_supply: Uint128,
     inventory: Vec<Uint128>,
-    mint_asset_amounts: Vec<Uint128>,
+    create_asset_amounts: Vec<Uint128>,
     asset_prices: Vec<String>,
     target_weights: Vec<Uint128>,
 ) -> StdResult<PenaltyCreateResponse> {
@@ -130,7 +130,7 @@ pub fn query_mint_amount(
             block_height,
             cluster_token_supply,
             inventory,
-            mint_asset_amounts,
+            create_asset_amounts,
             asset_prices,
             target_weights,
         })?,

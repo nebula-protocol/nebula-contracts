@@ -56,7 +56,7 @@ pub fn get_pair_info(deps: Deps, cluster_token: &String) -> StdResult<PairInfo> 
 // 3. record difference
 // 4. send_all
 
-pub fn arb_cluster_mint(
+pub fn arb_cluster_create(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,

@@ -23,7 +23,7 @@ pub enum ExecuteMsg {
         block_height: u64,
         cluster_token_supply: Uint128,
         inventory: Vec<Uint128>,
-        mint_asset_amounts: Vec<Uint128>,
+        create_asset_amounts: Vec<Uint128>,
         asset_prices: Vec<String>,
         target_weights: Vec<Uint128>,
     },
@@ -46,7 +46,7 @@ pub enum QueryMsg {
         block_height: u64,
         cluster_token_supply: Uint128,
         inventory: Vec<Uint128>,
-        mint_asset_amounts: Vec<Uint128>,
+        create_asset_amounts: Vec<Uint128>,
         asset_prices: Vec<String>,
         target_weights: Vec<Uint128>,
     },
@@ -66,7 +66,7 @@ pub enum QueryMsg {
 
 #[derive(Serialize, Deserialize)]
 pub struct PenaltyCreateResponse {
-    pub mint_tokens: Uint128,
+    pub create_tokens: Uint128,
     pub penalty: Uint128,
     pub attributes: Vec<Attribute>,
 }

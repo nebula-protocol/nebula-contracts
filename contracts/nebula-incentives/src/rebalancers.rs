@@ -106,7 +106,7 @@ pub fn internal_rewarded_create(
 
     let original_imbalance = cluster_imbalance(deps.as_ref(), &cluster_contract)?;
     let mut funds = vec![];
-    let mut mint_asset_amounts = vec![];
+    let mut create_asset_amounts = vec![];
     let mut messages = vec![];
     for asset in asset_amounts {
         match asset.clone().info {
@@ -118,14 +118,14 @@ pub fn internal_rewarded_create(
                     ..asset.clone()
                 };
 
-                mint_asset_amounts.push(new_asset);
+                create_asset_amounts.push(new_asset);
                 funds.push(Coin {
                     denom: denom.clone(),
                     amount,
                 });
             }
             AssetInfo::Token { contract_addr } => {
-                mint_asset_amounts.push(asset.clone());
+                create_asset_amounts.push(asset.clone());
                 messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: contract_addr.clone(),
                     msg: to_binary(&Cw20ExecuteMsg::IncreaseAllowance {
@@ -144,7 +144,7 @@ pub fn internal_rewarded_create(
         contract_addr: cluster_contract.clone(),
         msg: to_binary(&ClusterExecuteMsg::RebalanceCreate {
             min_tokens,
-            asset_amounts: mint_asset_amounts,
+            asset_amounts: create_asset_amounts,
         })?,
         funds,
     }));
@@ -230,7 +230,7 @@ pub fn internal_rewarded_redeem(
         .add_attributes(vec![attr("action", "internal_rewarded_redeem")]))
 }
 
-pub fn mint(
+pub fn create(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
