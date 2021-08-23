@@ -1,4 +1,4 @@
-use crate::contract::{execute, instantiate, query, query_config, query_penalty_period};
+use crate::contract::{execute, instantiate, query, query_config};
 use crate::mock_querier::{mock_dependencies};
 use crate::state::{contributions_read, read_from_contribution_bucket, record_contribution};
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
@@ -8,7 +8,7 @@ use cosmwasm_std::{
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use nebula_protocol::cluster::{
-    ClusterStateResponse, ExecuteMsg as ClusterExecuteMsg, QueryMsg as ClusterQueryMsg,
+    ExecuteMsg as ClusterExecuteMsg,
 };
 use terraswap::pair::PoolResponse as TerraswapPoolResponse;
 

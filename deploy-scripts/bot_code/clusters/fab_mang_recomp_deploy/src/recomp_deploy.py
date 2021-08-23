@@ -66,21 +66,21 @@ class FABMANGRecomposer:
         print("Updated Cluster State: ", cluster_state)
         return target
 
-async def run_recomposition_periodically(cluster_contract, interval):
+async def run_retarget_periodically(cluster_contract, interval):
     start_time = time.time()
     
-    recomposition_bot = FABMANGRecomposer(cluster_contract)
+    retarget_bot = FABMANGRecomposer(cluster_contract)
 
     while True:
         await asyncio.gather(
             asyncio.sleep(interval),
-            recomposition_bot.recompose(),
+            retarget_bot.recompose(),
         )
 
 if __name__ == "__main__":
     cluster_contract = Contract("terra1hpx6dtjt6lxq46t3trwqnlsvhusslmuu84z57m")
     interval = SECONDS_PER_DAY
-    asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))
+    asyncio.get_event_loop().run_until_complete(run_retarget_periodically(cluster_contract, interval))
 
 SYM_TO_CONTRACT_TOKEN_TEQ = {
     'ANC': "terra15tecrcm27fenchxaqde9f8ws8krfgjnqf2hhcv",

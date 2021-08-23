@@ -62,7 +62,7 @@ async def deploy_cluster(ct_symbol, recomp_oracle):
             "penalty": penalty_contract,
             "target": assets,
             "pricing_oracle": oracle, # Generic pricing oracle
-            "composition_oracle": recomp_oracle,
+            "target_oracle": recomp_oracle,
         },
     )
 

@@ -1,6 +1,6 @@
 from ecosystem import Ecosystem
 import asyncio
-from recomposition_bot import RecompositionBot
+from retarget_bot import RetargetBot
 from api import Asset
 
 import time
@@ -28,7 +28,7 @@ async def main():
             },
             asset_names=tvl_assets
         )
-        rec_bot = RecompositionBot('tvl-locked', tvl_assets, ecosystem)
+        rec_bot = RetargetBot('tvl-locked', tvl_assets, ecosystem)
     elif bot == 'bullish-cross':
         asset_names = ['mFB', 'mTSLA', 'mGOOGL']
         asset_addresses = [
@@ -51,7 +51,7 @@ async def main():
             },
             asset_names=asset_names
         )
-        rec_bot = RecompositionBot('bullish-cross', asset_addresses, ecosystem)
+        rec_bot = RetargetBot('bullish-cross', asset_addresses, ecosystem)
     elif bot == 'terra-ecosystem':
         asset_names = ['LUNA', 'ANC', 'MIR']
         await ecosystem.create_cluster(
@@ -69,7 +69,7 @@ async def main():
             },
             asset_names=asset_names
         )
-        rec_bot = RecompositionBot('terra-ecosystem', asset_names, ecosystem)
+        rec_bot = RetargetBot('terra-ecosystem', asset_names, ecosystem)
     elif bot == 'terra-ecosystem':
         asset_names = ['LUNA']
         await ecosystem.create_cluster(
@@ -87,11 +87,11 @@ async def main():
             },
             asset_names=asset_names
         )
-        rec_bot = RecompositionBot('terra-ecosystem', asset_names, ecosystem)
+        rec_bot = RetargetBot('terra-ecosystem', asset_names, ecosystem)
     else:
         raise NotImplementedError
     
-    await rec_bot.run_recomposition_periodically(5)
+    await rec_bot.run_retarget_periodically(5)
 
 
 if __name__ == "__main__":

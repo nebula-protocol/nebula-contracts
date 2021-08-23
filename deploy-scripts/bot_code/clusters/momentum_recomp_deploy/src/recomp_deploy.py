@@ -93,18 +93,18 @@ class MomentumTradingRecomposer:
         print("Updated Cluster State: ", cluster_state)
         return target
 
-async def run_recomposition_periodically(cluster_contract, interval):
+async def run_retarget_periodically(cluster_contract, interval):
     start_time = time.time()
     
-    recomposition_bot = MomentumTradingRecomposer(cluster_contract)
+    retarget_bot = MomentumTradingRecomposer(cluster_contract)
 
     while True:
         await asyncio.gather(
             asyncio.sleep(interval),
-            recomposition_bot.recompose(),
+            retarget_bot.recompose(),
         )
 
 if __name__ == "__main__":
     cluster_contract = Contract("terra1tj6p0aknfcdgcsrt5kxy529p2hngejmnasjm4s")
     interval = SECONDS_PER_DAY
-    asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))
+    asyncio.get_event_loop().run_until_complete(run_retarget_periodically(cluster_contract, interval))

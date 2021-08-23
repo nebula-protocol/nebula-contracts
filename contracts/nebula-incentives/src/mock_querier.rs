@@ -218,7 +218,7 @@ impl WasmMockQuerier {
                 })))
             }
             QueryRequest::Wasm(WasmQuery::Smart {
-                contract_addr: contract_addr,
+                contract_addr,
                 msg,
             }) => match from_binary(&msg).unwrap() {
                 QueryMsg::Pair { asset_infos } => {

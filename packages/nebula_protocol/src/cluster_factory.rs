@@ -121,7 +121,7 @@ pub struct Params {
     pub pricing_oracle: String,
 
     /// Composition oracle address
-    pub composition_oracle: String,
+    pub target_oracle: String,
 
     /// Target assets and weights
     pub target: Vec<Asset>,

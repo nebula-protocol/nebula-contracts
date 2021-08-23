@@ -23,8 +23,8 @@ pub struct InstantiateMsg {
     /// Pricing oracle address
     pub pricing_oracle: String,
 
-    /// Target composition oracle address
-    pub composition_oracle: String,
+    /// Target target oracle address
+    pub target_oracle: String,
 
     /// Asset addresses and target weights
     pub target: Vec<Asset>,
@@ -43,7 +43,7 @@ pub enum ExecuteMsg {
         description: Option<String>,
         cluster_token: Option<String>,
         pricing_oracle: Option<String>,
-        composition_oracle: Option<String>,
+        target_oracle: Option<String>,
         penalty: Option<String>,
         target: Option<Vec<Asset>>, // recomp oracle
     },
@@ -123,7 +123,7 @@ pub struct ClusterConfig {
     pub cluster_token: Option<String>,
     pub factory: String,
     pub pricing_oracle: String,
-    pub composition_oracle: String,
+    pub target_oracle: String,
     pub penalty: String,
     pub active: bool,
 }

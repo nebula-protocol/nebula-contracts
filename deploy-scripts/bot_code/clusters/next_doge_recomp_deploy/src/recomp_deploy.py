@@ -201,16 +201,16 @@ class NextDogeRecomposer:
 
         return target
 
-async def run_recomposition_periodically(cluster_contract, interval):
-    recomposition_bot = NextDogeRecomposer(cluster_contract)
+async def run_retarget_periodically(cluster_contract, interval):
+    retarget_bot = NextDogeRecomposer(cluster_contract)
 
     while True:
         await asyncio.gather(
             asyncio.sleep(interval),
-            recomposition_bot.recompose(),
+            retarget_bot.recompose(),
         )
 
 if __name__ == "__main__":
     cluster_contract = Contract("terra1dsqtuf79093unny85pv53230rzcwehlwxyd5hc")
     interval = SECONDS_PER_DAY
-    asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))
+    asyncio.get_event_loop().run_until_complete(run_retarget_periodically(cluster_contract, interval))

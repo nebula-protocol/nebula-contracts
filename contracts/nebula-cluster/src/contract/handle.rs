@@ -45,7 +45,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             description,
             cluster_token,
             pricing_oracle,
-            composition_oracle,
+            target_oracle,
             penalty,
             target,
         } => update_config(
@@ -57,7 +57,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             description,
             cluster_token,
             pricing_oracle,
-            composition_oracle,
+            target_oracle,
             penalty,
             target,
         ),
@@ -76,7 +76,7 @@ pub fn update_config(
     description: Option<String>,
     cluster_token: Option<String>,
     pricing_oracle: Option<String>,
-    composition_oracle: Option<String>,
+    target_oracle: Option<String>,
     penalty: Option<String>,
     target: Option<Vec<Asset>>,
 ) -> StdResult<Response> {
@@ -107,8 +107,8 @@ pub fn update_config(
             config.pricing_oracle = pricing_oracle;
         }
 
-        if let Some(composition_oracle) = composition_oracle {
-            config.composition_oracle = composition_oracle;
+        if let Some(target_oracle) = target_oracle {
+            config.target_oracle = target_oracle;
         }
 
         if let Some(penalty) = penalty {
@@ -144,7 +144,7 @@ pub fn update_target(
         return Err(error::cluster_token_not_set());
     }
     // check permission
-    if (info.sender.to_string() != cfg.owner) && (info.sender.to_string() != cfg.composition_oracle)
+    if (info.sender.to_string() != cfg.owner) && (info.sender.to_string() != cfg.target_oracle)
     {
         return Err(StdError::generic_err("unauthorized"));
     }

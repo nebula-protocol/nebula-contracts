@@ -108,20 +108,20 @@ async def get_terra_ecosystem_info():
 
     return assets, asset_token_supply
 
-async def run_recomposition_periodically(cluster_contract, interval):
+async def run_retarget_periodically(cluster_contract, interval):
     start_time = time.time()
 
     assets, asset_token_supply = get_terra_ecosystem_info()
     
-    recomposition_bot = TerraFullDilutedMcapRecomposer(cluster_contract, assets, asset_token_supply)
+    retarget_bot = TerraFullDilutedMcapRecomposer(cluster_contract, assets, asset_token_supply)
 
     while True:
         await asyncio.gather(
             asyncio.sleep(interval),
-            recomposition_bot.recompose(),
+            retarget_bot.recompose(),
         )
 
 if __name__ == "__main__":
     cluster_contract = Contract("terra1pk8069vrxm0lzqdqy6zq46np8e4jy3r7j0a5k9")
     interval = SECONDS_PER_DAY
-    asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))
+    asyncio.get_event_loop().run_until_complete(run_retarget_periodically(cluster_contract, interval))

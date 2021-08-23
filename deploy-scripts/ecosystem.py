@@ -274,7 +274,7 @@ class Ecosystem:
                 "penalty": penalty_contract,
                 "target": target,
                 "pricing_oracle": oracle,
-                "composition_oracle": deployer.key.acc_address,
+                "target_oracle": deployer.key.acc_address,
             },
         )
 

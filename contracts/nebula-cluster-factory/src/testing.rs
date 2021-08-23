@@ -49,7 +49,7 @@ pub fn get_input_params() -> Params {
         weight: Some(100u32),
         penalty: h("penalty0000"),
         pricing_oracle: h("pricing_oracle0000"),
-        composition_oracle: h("comp_oracle0000"),
+        target_oracle: h("comp_oracle0000"),
         target: vec![
             Asset {
                 info: AssetInfo::Token {
@@ -359,7 +359,7 @@ fn test_create_cluster() {
                     owner: MOCK_CONTRACT_ADDR.to_string(),
                     factory: MOCK_CONTRACT_ADDR.to_string(),
                     pricing_oracle: input_params.pricing_oracle.clone(),
-                    composition_oracle: input_params.composition_oracle.clone(),
+                    target_oracle: input_params.target_oracle.clone(),
                     penalty: input_params.penalty.clone(),
                     cluster_token: None,
                     target: input_params.target.clone(),
@@ -463,7 +463,7 @@ fn test_token_creation_hook() {
                     description: None,
                     cluster_token: None,
                     pricing_oracle: None,
-                    composition_oracle: None,
+                    target_oracle: None,
                     penalty: None,
                     target: None,
                 })
@@ -582,7 +582,7 @@ fn test_set_cluster_token_hook() {
                     description: None,
                     cluster_token: Some(h("cluster_token0000")),
                     pricing_oracle: None,
-                    composition_oracle: None,
+                    target_oracle: None,
                     penalty: None,
                     target: None,
                 })
@@ -715,7 +715,7 @@ fn test_set_cluster_token_hook_without_weight() {
                     description: None,
                     cluster_token: Some(h("cluster_token0000")),
                     pricing_oracle: None,
-                    composition_oracle: None,
+                    target_oracle: None,
                     penalty: None,
                     target: None,
                 })

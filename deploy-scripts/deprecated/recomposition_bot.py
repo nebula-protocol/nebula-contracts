@@ -7,7 +7,7 @@ from api import Asset
 import time
 import asyncio
 
-class RecompositionBot:
+class RetargetBot:
     def __init__(self, bot_name, assets, ecosystem):
         self.ecosystem = ecosystem
         if bot_name == 'bullish-cross':
@@ -32,11 +32,11 @@ class RecompositionBot:
 
         return new_assets, new_target
     
-    async def run_recomposition_periodically(self, interval):
+    async def run_retarget_periodically(self, interval):
         start_time = time.time()
 
         while True:
-            print(round(time.time() - start_time, 1), "Recomposition")
+            print(round(time.time() - start_time, 1), "Retarget")
             await asyncio.gather(
                 asyncio.sleep(interval),
                 self.recompose(),
