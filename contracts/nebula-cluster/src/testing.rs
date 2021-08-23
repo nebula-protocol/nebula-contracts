@@ -1032,7 +1032,7 @@ fn burn() {
             })),
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: consts::penalty(),
-                msg: to_binary(&PenaltyQueryMsg::PenaltyQueryRedeem {
+                msg: to_binary(&PenaltyExecuteMsg::PenaltyRedeem {
                     block_height: env.block.height,
                     cluster_token_supply: Uint128::new(100_000_000u128),
                     inventory: vec![
