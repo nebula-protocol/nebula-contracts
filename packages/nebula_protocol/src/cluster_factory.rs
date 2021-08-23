@@ -131,7 +131,7 @@ pub struct Params {
     pub pricing_oracle: HumanAddr,
 
     /// Composition oracle address
-    pub composition_oracle: HumanAddr,
+    pub target_oracle: HumanAddr,
 
     /// Target assets and weights
     pub target: Vec<Asset>,

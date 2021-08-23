@@ -94,16 +94,16 @@ class FutureOfFranceRecomposer:
         print("Updated Cluster State: ", cluster_state)
         return target
 
-async def run_recomposition_periodically(cluster_contract, interval):
-    recomposition_bot = FutureOfFranceRecomposer(cluster_contract)
+async def run_retarget_periodically(cluster_contract, interval):
+    retarget_bot = FutureOfFranceRecomposer(cluster_contract)
 
     while True:
         await asyncio.gather(
             asyncio.sleep(interval),
-            recomposition_bot.recompose(),
+            retarget_bot.recompose(),
         )
 
 if __name__ == "__main__":
     cluster_contract = Contract("terra1fx9m968gn53cu92qf8ye9s4v0nznllkg9w79vp") #TODO: Update
     interval = SECONDS_PER_DAY
-    asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))
+    asyncio.get_event_loop().run_until_complete(run_retarget_periodically(cluster_contract, interval))

@@ -47,7 +47,7 @@ async def main():
             "target": target_weights,
             "assets": [Asset.native_asset_info(i) for i in asset_tokens],
             "pricing_oracle": oracle,
-            "composition_oracle": oracle,
+            "target_oracle": oracle,
         },
     )
 

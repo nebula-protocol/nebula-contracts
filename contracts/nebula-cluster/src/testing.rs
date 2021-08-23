@@ -464,8 +464,8 @@ pub mod consts {
     pub fn pricing_oracle() -> HumanAddr {
         h("pricing_oracle")
     }
-    pub fn composition_oracle() -> HumanAddr {
-        h("composition_oracle")
+    pub fn target_oracle() -> HumanAddr {
+        h("target_oracle")
     }
     pub fn target_assets_stage() -> Vec<Asset> {
         vec![
@@ -608,7 +608,7 @@ pub fn mock_init() -> (Extern<MockStorage, MockApi, WasmMockQuerier>, InitRespon
         cluster_token: Some(consts::cluster_token()),
         target: consts::target_assets_stage(),
         pricing_oracle: consts::pricing_oracle(),
-        composition_oracle: consts::composition_oracle(),
+        target_oracle: consts::target_oracle(),
         penalty: consts::penalty(),
         factory: consts::factory(),
         init_hook: None,
@@ -628,7 +628,7 @@ pub fn mock_init_native_stage() -> (Extern<MockStorage, MockApi, WasmMockQuerier
         cluster_token: Some(consts::cluster_token()),
         target: consts::target_assets_native_stage(),
         pricing_oracle: consts::pricing_oracle(),
-        composition_oracle: consts::composition_oracle(),
+        target_oracle: consts::target_oracle(),
         penalty: consts::penalty(),
         factory: consts::factory(),
         init_hook: None,

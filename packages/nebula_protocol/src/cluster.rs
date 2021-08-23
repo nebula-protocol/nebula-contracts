@@ -24,8 +24,8 @@ pub struct InitMsg {
     /// Pricing oracle address
     pub pricing_oracle: HumanAddr,
 
-    /// Target composition oracle address
-    pub composition_oracle: HumanAddr,
+    /// Target target oracle address
+    pub target_oracle: HumanAddr,
 
     /// Asset addresses and target weights
     pub target: Vec<Asset>,
@@ -46,11 +46,11 @@ pub enum HandleMsg {
         description: Option<String>,
         cluster_token: Option<HumanAddr>,
         pricing_oracle: Option<HumanAddr>,
-        composition_oracle: Option<HumanAddr>,
+        target_oracle: Option<HumanAddr>,
         penalty: Option<HumanAddr>,
         target: Option<Vec<Asset>>, // recomp oracle
     },
-    /// Called by recomposition oracle
+    /// Called by retarget oracle
     UpdateTarget { target: Vec<Asset> },
 
     /// Called by factory only and sets active to false
@@ -126,7 +126,7 @@ pub struct ClusterConfig {
     pub cluster_token: Option<HumanAddr>,
     pub factory: HumanAddr,
     pub pricing_oracle: HumanAddr,
-    pub composition_oracle: HumanAddr,
+    pub target_oracle: HumanAddr,
     pub penalty: HumanAddr,
     pub active: bool,
 }

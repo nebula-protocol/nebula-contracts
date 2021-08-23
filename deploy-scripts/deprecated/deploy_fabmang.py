@@ -65,7 +65,7 @@ async def deploy_fabmang():
             "target": target_weights,
             "assets": [Asset.cw20_asset_info(i.address) for i in asset_tokens],
             "pricing_oracle": oracle,
-            "composition_oracle": 'terra14ew659y4fn4dytu832k9f6l2u94668uclrywfg',
+            "target_oracle": 'terra14ew659y4fn4dytu832k9f6l2u94668uclrywfg',
         },
     )
 

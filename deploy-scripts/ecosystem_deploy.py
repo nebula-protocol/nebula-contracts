@@ -260,8 +260,8 @@ class Ecosystem:
                 "penalty": penalty_contract,
                 "target": target,
                 "pricing_oracle": oracle, # Generic pricing oracle
-                "composition_oracle": recomp_oracle,
-                # "composition_oracle": deployer.key.acc_address,
+                "target_oracle": recomp_oracle,
+                # "target_oracle": deployer.key.acc_address,
             },
         )
 

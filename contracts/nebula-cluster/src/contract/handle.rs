@@ -48,7 +48,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             description,
             cluster_token,
             pricing_oracle,
-            composition_oracle,
+            target_oracle,
             penalty,
             target,
         } => update_config(
@@ -59,7 +59,7 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             description,
             cluster_token,
             pricing_oracle,
-            composition_oracle,
+            target_oracle,
             penalty,
             target,
         ),
@@ -77,7 +77,7 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
     description: Option<String>,
     cluster_token: Option<HumanAddr>,
     pricing_oracle: Option<HumanAddr>,
-    composition_oracle: Option<HumanAddr>,
+    target_oracle: Option<HumanAddr>,
     penalty: Option<HumanAddr>,
     target: Option<Vec<Asset>>,
 ) -> HandleResult {
@@ -108,8 +108,8 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
             config.pricing_oracle = pricing_oracle;
         }
 
-        if let Some(composition_oracle) = composition_oracle {
-            config.composition_oracle = composition_oracle;
+        if let Some(target_oracle) = target_oracle {
+            config.target_oracle = target_oracle;
         }
 
         if let Some(penalty) = penalty {
@@ -148,7 +148,7 @@ pub fn update_target<S: Storage, A: Api, Q: Querier>(
         return Err(error::cluster_token_not_set());
     }
     // check permission
-    if (env.message.sender != cfg.owner) && (env.message.sender != cfg.composition_oracle) {
+    if (env.message.sender != cfg.owner) && (env.message.sender != cfg.target_oracle) {
         return Err(StdError::unauthorized());
     }
 
