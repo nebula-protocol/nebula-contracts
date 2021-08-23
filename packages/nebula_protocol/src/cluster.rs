@@ -54,7 +54,7 @@ pub enum ExecuteMsg {
     Decommission {},
 
     /// USER-CALLABLE
-    Mint {
+    RebalanceCreate {
         /// Asset amounts deposited for minting (cluster must be granted allowance or
         /// sent native assets within the MsgExecuteContract)
         asset_amounts: Vec<Asset>,
@@ -62,7 +62,7 @@ pub enum ExecuteMsg {
         min_tokens: Option<Uint128>,
     },
     /// Burns assets
-    Burn {
+    RebalanceRedeem {
         /// optional proposed set of weights to use
         max_tokens: Uint128,
         asset_amounts: Option<Vec<Asset>>,

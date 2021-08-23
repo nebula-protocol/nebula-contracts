@@ -31,14 +31,14 @@ const FRESH_TIMESPAN: u64 = 30;
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
-        ExecuteMsg::Mint {
+        ExecuteMsg::RebalanceCreate {
             asset_amounts,
             min_tokens,
-        } => mint(deps, env, info, &asset_amounts, &min_tokens),
-        ExecuteMsg::Burn {
+        } => create(deps, env, info, &asset_amounts, &min_tokens),
+        ExecuteMsg::RebalanceRedeem {
             max_tokens,
             asset_amounts,
-        } => receive_burn(deps, env, info, max_tokens, asset_amounts),
+        } => receive_redeem(deps, env, info, max_tokens, asset_amounts),
         ExecuteMsg::UpdateConfig {
             owner,
             name,
@@ -241,7 +241,7 @@ pub fn decommission(deps: DepsMut, info: MessageInfo) -> StdResult<Response> {
     Mint cluster tokens from the asset amounts given.
     Throws error if there can only be less than 'min_tokens' minted from the assets.
 */
-pub fn mint(
+pub fn create(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -483,7 +483,7 @@ pub fn mint(
     along with any rewards based on whether the assets are moved towards/away
     from the target.
 */
-pub fn receive_burn(
+pub fn receive_redeem(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,

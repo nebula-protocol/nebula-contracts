@@ -934,7 +934,7 @@ fn test_incentives_internal_rewarded_mint() {
             })),
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: "cluster".to_string(),
-                msg: to_binary(&ClusterExecuteMsg::Mint {
+                msg: to_binary(&ClusterExecuteMsg::RebalanceCreate {
                     min_tokens: None,
                     asset_amounts: mint_asset_amounts_after_tax,
                 })
@@ -1019,7 +1019,7 @@ fn test_incentives_internal_rewarded_redeem() {
             })),
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: "cluster".to_string(),
-                msg: to_binary(&ClusterExecuteMsg::Burn {
+                msg: to_binary(&ClusterExecuteMsg::RebalanceRedeem {
                     max_tokens: Uint128::new(1000),
                     asset_amounts: Some(asset_amounts),
                 })

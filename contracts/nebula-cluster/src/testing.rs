@@ -812,7 +812,7 @@ fn mint() {
 
     deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
 
-    let mint_msg = ExecuteMsg::Mint {
+    let mint_msg = ExecuteMsg::RebalanceCreate {
         asset_amounts: asset_amounts.clone(),
         min_tokens: None,
     };
@@ -950,7 +950,7 @@ fn burn() {
             ("mNFLX", Decimal::from_str("540.82").unwrap()),
         ]);
 
-    let msg = ExecuteMsg::Burn {
+    let msg = ExecuteMsg::RebalanceRedeem {
         max_tokens: Uint128::new(20_000_000),
         asset_amounts: None,
     };
@@ -1162,7 +1162,7 @@ fn decommission_cluster() {
     let asset_amounts = consts::asset_amounts();
     deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
 
-    let msg = ExecuteMsg::Mint {
+    let msg = ExecuteMsg::RebalanceCreate {
         asset_amounts: asset_amounts.clone(),
         min_tokens: None,
     };
@@ -1175,7 +1175,7 @@ fn decommission_cluster() {
         _ => panic!("DO NOT ENTER HERE"),
     }
 
-    let msg = ExecuteMsg::Burn {
+    let msg = ExecuteMsg::RebalanceRedeem {
         max_tokens: Uint128::new(20_000_000),
         asset_amounts: Some(asset_amounts),
     };
@@ -1191,7 +1191,7 @@ fn decommission_cluster() {
         _ => panic!("DO NOT ENTER HERE"),
     }
 
-    let msg = ExecuteMsg::Burn {
+    let msg = ExecuteMsg::RebalanceRedeem {
         max_tokens: Uint128::new(20_000_000),
         asset_amounts: None,
     };

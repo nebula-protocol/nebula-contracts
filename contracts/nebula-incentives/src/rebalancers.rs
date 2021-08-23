@@ -142,7 +142,7 @@ pub fn internal_rewarded_mint(
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: cluster_contract.clone(),
-        msg: to_binary(&ClusterExecuteMsg::Mint {
+        msg: to_binary(&ClusterExecuteMsg::RebalanceCreate {
             min_tokens,
             asset_amounts: mint_asset_amounts,
         })?,
@@ -201,7 +201,7 @@ pub fn internal_rewarded_redeem(
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: cluster_contract.clone(),
-                msg: to_binary(&ClusterExecuteMsg::Burn {
+                msg: to_binary(&ClusterExecuteMsg::RebalanceRedeem {
                     max_tokens,
                     asset_amounts,
                 })?,
