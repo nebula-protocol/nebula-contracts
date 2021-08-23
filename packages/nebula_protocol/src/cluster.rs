@@ -79,9 +79,6 @@ pub enum QueryMsg {
     Config {},
     Target {},
     ClusterState {
-        /// we need to pass in address of cluster we want to fetch state on
-        /// query in CosmWasm v0.10 does not have env.contract_address
-        /// NOTE: remove for col-5
         cluster_contract_address: String,
     },
     ClusterInfo {},
