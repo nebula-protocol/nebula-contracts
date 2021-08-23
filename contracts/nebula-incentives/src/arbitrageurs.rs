@@ -263,9 +263,7 @@ pub fn record_terraswap_impact(
     let contract_state: ClusterStateResponse =
         deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
             contract_addr: cluster_contract.clone(),
-            msg: to_binary(&ClusterQueryMsg::ClusterState {
-                cluster_contract_address: cluster_contract.clone(),
-            })?,
+            msg: to_binary(&ClusterQueryMsg::ClusterState {})?,
         }))?;
 
     // here we compute the "fair" value of a cluster token

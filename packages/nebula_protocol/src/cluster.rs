@@ -78,9 +78,7 @@ pub enum Cw20HookMsg {}
 pub enum QueryMsg {
     Config {},
     Target {},
-    ClusterState {
-        cluster_contract_address: String,
-    },
+    ClusterState {},
     ClusterInfo {},
 }
 

@@ -22,9 +22,7 @@ use std::cmp::min;
 pub fn get_cluster_state(deps: Deps, cluster: &String) -> StdResult<ClusterStateResponse> {
     deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: cluster.clone(),
-        msg: to_binary(&ClusterQueryMsg::ClusterState {
-            cluster_contract_address: cluster.clone(),
-        })?,
+        msg: to_binary(&ClusterQueryMsg::ClusterState {})?,
     }))
 }
 

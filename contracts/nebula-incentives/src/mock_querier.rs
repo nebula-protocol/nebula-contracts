@@ -164,7 +164,7 @@ impl Querier for WasmMockQuerier {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     Pair { asset_infos: [AssetInfo; 2] },
-    ClusterState { cluster_contract_address: String },
+    ClusterState { },
     ClusterExists {},
     Pool {},
     Balance { address: String },
@@ -242,9 +242,7 @@ impl WasmMockQuerier {
                         }),
                     }
                 }
-                QueryMsg::ClusterState {
-                    cluster_contract_address,
-                } => {
+                QueryMsg::ClusterState {} => {
                     let response = ClusterStateResponse {
                         outstanding_balance_tokens: Uint128::new(1000),
                         prices: vec!["11.85".to_string(), "3.31".to_string()],
@@ -271,7 +269,7 @@ impl WasmMockQuerier {
                                 amount: Uint128::new(100),
                             },
                         ],
-                        cluster_contract_address: cluster_contract_address,
+                        cluster_contract_address: "cluster".to_string(),
                         active: true,
                     };
                     SystemResult::Ok(ContractResult::from(to_binary(&response)))

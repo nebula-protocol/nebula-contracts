@@ -14,13 +14,11 @@ pub fn h(s: &str) -> String {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Target {} => to_binary(&query_target(deps)?),
         QueryMsg::Config {} => to_binary(&query_config(deps)?),
-        QueryMsg::ClusterState {
-            cluster_contract_address,
-        } => to_binary(&query_cluster_state(deps, &cluster_contract_address, 0)?),
+        QueryMsg::ClusterState {} => to_binary(&query_cluster_state(deps, &env.contract.address.to_string(), 0)?),
         QueryMsg::ClusterInfo {} => to_binary(&query_cluster_info(deps)?),
     }
 }
