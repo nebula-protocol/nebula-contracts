@@ -19,7 +19,7 @@ pub enum ExecuteMsg {
     },
 
     /// USER-CALLABLE
-    Mint {
+    PenaltyCreate {
         block_height: u64,
         cluster_token_supply: Uint128,
         inventory: Vec<Uint128>,
@@ -28,7 +28,7 @@ pub enum ExecuteMsg {
         target_weights: Vec<Uint128>,
     },
 
-    Redeem {
+    PenaltyRedeem {
         block_height: u64,
         cluster_token_supply: Uint128,
         inventory: Vec<Uint128>,
@@ -42,7 +42,7 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    Mint {
+    PenaltyQueryCreate {
         block_height: u64,
         cluster_token_supply: Uint128,
         inventory: Vec<Uint128>,
@@ -51,7 +51,7 @@ pub enum QueryMsg {
         target_weights: Vec<Uint128>,
     },
 
-    Redeem {
+    PenaltyQueryRedeem {
         block_height: u64,
         cluster_token_supply: Uint128,
         inventory: Vec<Uint128>,

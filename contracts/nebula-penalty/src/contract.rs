@@ -233,7 +233,7 @@ pub fn get_params(deps: Deps) -> StdResult<ParamsResponse> {
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Mint {
+        QueryMsg::PenaltyQueryCreate {
             block_height,
             cluster_token_supply,
             inventory,
@@ -249,7 +249,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             &asset_prices,
             &target_weights,
         )?),
-        QueryMsg::Redeem {
+        QueryMsg::PenaltyQueryRedeem {
             block_height,
             cluster_token_supply,
             inventory,
@@ -352,7 +352,7 @@ pub fn execute(
             owner,
             penalty_params,
         } => update_config(deps, owner, penalty_params),
-        ExecuteMsg::Mint {
+        ExecuteMsg::PenaltyCreate {
             block_height,
             cluster_token_supply,
             inventory,
@@ -368,7 +368,7 @@ pub fn execute(
             &asset_prices,
             &target_weights,
         ),
-        ExecuteMsg::Redeem {
+        ExecuteMsg::PenaltyRedeem {
             block_height,
             cluster_token_supply,
             inventory,

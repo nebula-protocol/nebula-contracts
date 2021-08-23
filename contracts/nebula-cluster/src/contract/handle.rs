@@ -387,7 +387,7 @@ pub fn create(
         // it can make stateful updates...
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: cfg.penalty.clone().to_string(),
-            msg: to_binary(&PenaltyExecuteMsg::Mint {
+            msg: to_binary(&PenaltyExecuteMsg::PenaltyCreate {
                 block_height: env.block.height,
                 cluster_token_supply,
                 inventory: inv,
@@ -630,7 +630,7 @@ pub fn receive_redeem(
     // it can make stateful updates...
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: cfg.penalty.clone().to_string(),
-        msg: to_binary(&PenaltyExecuteMsg::Redeem {
+        msg: to_binary(&PenaltyExecuteMsg::PenaltyRedeem {
             block_height: env.block.height,
             cluster_token_supply,
             inventory: inv,

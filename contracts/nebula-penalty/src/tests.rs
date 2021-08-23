@@ -197,7 +197,7 @@ fn test_mint_actions() {
     let res = query(
         deps.as_ref(),
         env.clone(),
-        QueryMsg::Mint {
+        QueryMsg::PenaltyQueryCreate {
             block_height: 120,
             cluster_token_supply: Uint128::new(1000000),
             inventory: curr_inv.to_vec(),
@@ -220,7 +220,7 @@ fn test_mint_actions() {
     let res = query(
         deps.as_ref(),
         env.clone(),
-        QueryMsg::Mint {
+        QueryMsg::PenaltyQueryCreate {
             block_height: 120,
             cluster_token_supply: Uint128::new(1000000),
             inventory: curr_inv.to_vec(),
@@ -240,7 +240,7 @@ fn test_mint_actions() {
     let weights = &[Uint128::new(100), Uint128::new(100), Uint128::new(100)];
     let mint_asset_amounts = &[Uint128::new(1000), Uint128::new(1010), Uint128::new(994)];
     let curr_inv = &[Uint128::new(2000), Uint128::new(2020), Uint128::new(1988)];
-    let msg = ExecuteMsg::Mint {
+    let msg = ExecuteMsg::PenaltyCreate {
         block_height: 120,
         cluster_token_supply: Uint128::new(1000000),
         inventory: curr_inv.to_vec(),
@@ -281,7 +281,7 @@ fn test_redeem_actions() {
     let res = query(
         deps.as_ref(),
         env.clone(),
-        QueryMsg::Redeem {
+        QueryMsg::PenaltyQueryRedeem {
             block_height: 120,
             cluster_token_supply: Uint128::new(1000000),
             inventory: curr_inv.to_vec(),
@@ -307,7 +307,7 @@ fn test_redeem_actions() {
     let res = query(
         deps.as_ref(),
         env.clone(),
-        QueryMsg::Redeem {
+        QueryMsg::PenaltyQueryRedeem {
             block_height: 120,
             cluster_token_supply: Uint128::new(1000000),
             inventory: curr_inv.to_vec(),
@@ -331,7 +331,7 @@ fn test_redeem_actions() {
     let weights = &[Uint128::new(100), Uint128::new(100), Uint128::new(100)];
     let mint_asset_amounts = &[Uint128::new(1000), Uint128::new(1010), Uint128::new(994)];
     let curr_inv = &[Uint128::new(900), Uint128::new(910), Uint128::new(904)];
-    let msg = ExecuteMsg::Redeem {
+    let msg = ExecuteMsg::PenaltyRedeem {
         block_height: 120,
         cluster_token_supply: Uint128::new(1000000),
         inventory: curr_inv.to_vec(),

@@ -126,7 +126,7 @@ pub fn query_mint_amount(
 ) -> StdResult<MintResponse> {
     let res: MintResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: penalty_address.clone().to_string(),
-        msg: to_binary(&PenaltyQueryMsg::Mint {
+        msg: to_binary(&PenaltyQueryMsg::PenaltyQueryCreate {
             block_height,
             cluster_token_supply,
             inventory,
@@ -154,7 +154,7 @@ pub fn query_redeem_amount(
 ) -> StdResult<RedeemResponse> {
     let res: RedeemResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: penalty_address.clone().to_string(),
-        msg: to_binary(&PenaltyQueryMsg::Redeem {
+        msg: to_binary(&PenaltyQueryMsg::PenaltyQueryRedeem {
             block_height,
             cluster_token_supply,
             inventory,

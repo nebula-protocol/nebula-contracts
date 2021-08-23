@@ -163,7 +163,7 @@ impl WasmMockQuerier {
                                 SystemResult::Ok(ContractResult::from(to_binary(&config)))
                             }
                             _ => match from_binary(&msg) {
-                                Ok(PenaltyQueryMsg::Mint {
+                                Ok(PenaltyQueryMsg::PenaltyQueryCreate {
                                     block_height: _,
                                     cluster_token_supply: _,
                                     inventory: _,
@@ -174,7 +174,7 @@ impl WasmMockQuerier {
                                     let response = consts::mint_response();
                                     SystemResult::Ok(ContractResult::from(to_binary(&response)))
                                 }
-                                Ok(PenaltyQueryMsg::Redeem {
+                                Ok(PenaltyQueryMsg::PenaltyQueryRedeem {
                                     block_height: _,
                                     cluster_token_supply: _,
                                     inventory: _,
@@ -878,7 +878,7 @@ fn mint() {
             })),
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: consts::penalty(),
-                msg: to_binary(&PenaltyExecuteMsg::Mint {
+                msg: to_binary(&PenaltyExecuteMsg::PenaltyCreate {
                     block_height: env.block.height,
                     cluster_token_supply: Uint128::new(1_000_000_000),
                     inventory: vec![
@@ -1032,7 +1032,7 @@ fn burn() {
             })),
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: consts::penalty(),
-                msg: to_binary(&PenaltyQueryMsg::Redeem {
+                msg: to_binary(&PenaltyQueryMsg::PenaltyQueryRedeem {
                     block_height: env.block.height,
                     cluster_token_supply: Uint128::new(100_000_000u128),
                     inventory: vec![
