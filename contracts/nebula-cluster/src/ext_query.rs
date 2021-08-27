@@ -8,7 +8,7 @@ use nebula_protocol::{
     cluster_factory::ConfigResponse as FactoryConfigResponse,
     cluster_factory::QueryMsg as FactoryQueryMsg, oracle::PriceResponse,
     oracle::QueryMsg as OracleQueryMsg, penalty::PenaltyCreateResponse,
-    penalty::QueryMsg as PenaltyQueryMsg, penalty::PenaltyRedeemResponse,
+    penalty::PenaltyRedeemResponse, penalty::QueryMsg as PenaltyQueryMsg,
 };
 use terraswap::asset::AssetInfo;
 
@@ -24,7 +24,7 @@ pub fn query_price(
 ) -> StdResult<String> {
     // perform query
     let res: PriceResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: pricing_oracle_address.clone().to_string(),
+        contract_addr: pricing_oracle_address.to_string(),
         msg: to_binary(&OracleQueryMsg::Price {
             base_asset: asset_info.to_string(),
             quote_asset: "uusd".to_string(),
@@ -75,9 +75,9 @@ pub fn query_cw20_balance(
     account_address: &String,
 ) -> StdResult<Uint128> {
     let res: Cw20BalanceResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: asset_address.clone().to_string(),
+        contract_addr: asset_address.to_string(),
         msg: to_binary(&Cw20QueryMsg::Balance {
-            address: account_address.clone().to_string(),
+            address: account_address.to_string(),
         })?,
     }))?;
 
@@ -91,7 +91,7 @@ pub fn query_cw20_token_supply(
     asset_address: &String,
 ) -> StdResult<Uint128> {
     let res: Cw20TokenInfoResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: asset_address.clone().to_string(),
+        contract_addr: asset_address.to_string(),
         msg: to_binary(&Cw20QueryMsg::TokenInfo {})?,
     }))?;
 
@@ -105,7 +105,7 @@ pub fn query_collector_contract_address(
     factory_address: &String,
 ) -> StdResult<(String, String)> {
     let res: FactoryConfigResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: factory_address.clone().to_string(),
+        contract_addr: factory_address.to_string(),
         msg: to_binary(&FactoryQueryMsg::Config {})?,
     }))?;
 
@@ -125,7 +125,7 @@ pub fn query_create_amount(
     target_weights: Vec<Uint128>,
 ) -> StdResult<PenaltyCreateResponse> {
     let res: PenaltyCreateResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: penalty_address.clone().to_string(),
+        contract_addr: penalty_address.to_string(),
         msg: to_binary(&PenaltyQueryMsg::PenaltyQueryCreate {
             block_height,
             cluster_token_supply,
@@ -153,7 +153,7 @@ pub fn query_redeem_amount(
     target_weights: Vec<Uint128>,
 ) -> StdResult<PenaltyRedeemResponse> {
     let res: PenaltyRedeemResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: penalty_address.clone().to_string(),
+        contract_addr: penalty_address.to_string(),
         msg: to_binary(&PenaltyQueryMsg::PenaltyQueryRedeem {
             block_height,
             cluster_token_supply,

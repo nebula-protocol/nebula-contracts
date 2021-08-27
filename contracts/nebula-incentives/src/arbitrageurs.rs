@@ -361,7 +361,7 @@ pub fn swap_all(
         let amount = query_token_balance(
             &deps.querier,
             Addr::unchecked(cluster_token.to_string()),
-            Addr::unchecked(env.contract.address.to_string()),
+            env.contract.address,
         )?;
         let belief_price = if min_return == Uint128::zero() {
             Decimal::zero()
@@ -387,7 +387,7 @@ pub fn swap_all(
     } else {
         let amount = query_balance(
             &deps.querier,
-            Addr::unchecked(env.contract.address.to_string()),
+            env.contract.address,
             config.base_denom.to_string(),
         )?;
         let belief_price = if min_return == Uint128::zero() {
@@ -445,13 +445,11 @@ pub fn send_all(
                 AssetInfo::Token { contract_addr } => query_token_balance(
                     &deps.querier,
                     Addr::unchecked(contract_addr.to_string()),
-                    Addr::unchecked(env.contract.address.to_string()),
+                    env.contract.address.clone(),
                 )?,
-                AssetInfo::NativeToken { denom } => query_balance(
-                    &deps.querier,
-                    Addr::unchecked(env.contract.address.to_string()),
-                    denom.clone(),
-                )?,
+                AssetInfo::NativeToken { denom } => {
+                    query_balance(&deps.querier, env.contract.address.clone(), denom.clone())?
+                }
             },
         };
         if asset.amount > Uint128::zero() {

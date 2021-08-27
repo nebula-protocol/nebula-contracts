@@ -1,25 +1,27 @@
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
+
 use crate::ext_query::query_asset_balance;
 use crate::{
     state::{save_config, save_target_asset_data},
     util::vec_to_string,
 };
 use cosmwasm_std::{
-    attr, entry_point, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
+    attr, DepsMut, Env, MessageInfo, QuerierWrapper, Response, StdError, StdResult,
 };
 use nebula_protocol::cluster::{ClusterConfig, InstantiateMsg};
 use terraswap::asset::AssetInfo;
 
 pub fn validate_targets(
-    deps: Deps,
+    querier: QuerierWrapper,
     env: &Env,
     target_assets: Vec<AssetInfo>,
-    query: Option<bool>,
+    to_query: bool,
 ) -> StdResult<bool> {
     for i in 0..target_assets.len() - 1 {
-        let to_query = query.unwrap_or(true);
         if to_query {
             query_asset_balance(
-                &deps.querier,
+                &querier,
                 &env.contract.address.to_string(),
                 &target_assets[i],
             )?;
@@ -58,7 +60,7 @@ pub fn instantiate(
         .map(|x| x.info.clone())
         .collect::<Vec<_>>();
 
-    if validate_targets(deps.as_ref(), &env, asset_infos.clone(), Some(false)).is_err() {
+    if validate_targets(deps.querier, &env, asset_infos.clone(), false).is_err() {
         return Err(StdError::generic_err(
             "Cluster must contain valid assets and cannot contain duplicate assets",
         ));

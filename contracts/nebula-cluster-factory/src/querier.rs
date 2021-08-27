@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    from_binary, Binary, CanonicalAddr, Decimal, Deps, QueryRequest, StdError, StdResult, WasmQuery,
+    Binary, CanonicalAddr, Decimal, Deps, QueryRequest, StdError, StdResult, WasmQuery,
 };
 
 use cosmwasm_storage::to_length_prefixed;
@@ -10,22 +10,15 @@ pub fn load_oracle_feeder(
     contract_addr: &String,
     asset_token: &CanonicalAddr,
 ) -> StdResult<CanonicalAddr> {
-    let res: StdResult<Binary> = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Raw {
-        contract_addr: contract_addr.to_string(),
-        key: Binary::from(concat(
-            &to_length_prefixed(b"feeder"),
-            asset_token.as_slice(),
-        )),
-    }));
+    let feeder: StdResult<CanonicalAddr> =
+        deps.querier.query(&QueryRequest::Wasm(WasmQuery::Raw {
+            contract_addr: contract_addr.to_string(),
+            key: Binary::from(concat(
+                &to_length_prefixed(b"feeder"),
+                asset_token.as_slice(),
+            )),
+        }));
 
-    let res = match res {
-        Ok(v) => v,
-        Err(_) => {
-            return Err(StdError::generic_err("Falied to fetch the oracle feeder"));
-        }
-    };
-
-    let feeder: StdResult<CanonicalAddr> = from_binary(&res);
     let feeder: CanonicalAddr = match feeder {
         Ok(v) => v,
         Err(_) => {
@@ -49,24 +42,15 @@ pub fn load_mint_asset_config(
     contract_addr: &String,
     asset_token: &CanonicalAddr,
 ) -> StdResult<(Decimal, Decimal, Option<Decimal>)> {
-    let res: StdResult<Binary> = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Raw {
-        contract_addr: contract_addr.to_string(),
-        key: Binary::from(concat(
-            &to_length_prefixed(b"asset_config"),
-            asset_token.as_slice(),
-        )),
-    }));
+    let asset_config: StdResult<MintAssetConfig> =
+        deps.querier.query(&QueryRequest::Wasm(WasmQuery::Raw {
+            contract_addr: contract_addr.to_string(),
+            key: Binary::from(concat(
+                &to_length_prefixed(b"asset_config"),
+                asset_token.as_slice(),
+            )),
+        }));
 
-    let res = match res {
-        Ok(v) => v,
-        Err(_) => {
-            return Err(StdError::generic_err(
-                "Falied to fetch the mint asset config",
-            ));
-        }
-    };
-
-    let asset_config: StdResult<MintAssetConfig> = from_binary(&res);
     let asset_config: MintAssetConfig = match asset_config {
         Ok(v) => v,
         Err(_) => {

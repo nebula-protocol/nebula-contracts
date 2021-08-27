@@ -14,7 +14,7 @@ use nebula_protocol::{
     cluster::{ExecuteMsg, InstantiateMsg, QueryMsg as ClusterQueryMsg, TargetResponse},
     cluster_factory::ConfigResponse as FactoryConfigResponse,
     oracle::{PriceResponse, QueryMsg as OracleQueryMsg},
-    penalty::{PenaltyCreateResponse, QueryMsg as PenaltyQueryMsg, PenaltyRedeemResponse},
+    penalty::{PenaltyCreateResponse, PenaltyRedeemResponse, QueryMsg as PenaltyQueryMsg},
 };
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;

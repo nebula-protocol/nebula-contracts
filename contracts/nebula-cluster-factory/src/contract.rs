@@ -1,6 +1,9 @@
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
+
 use cosmwasm_std::{
-    attr, entry_point, to_binary, Addr, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    MessageInfo, Reply, ReplyOn, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
+    attr, to_binary, Addr, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Reply,
+    ReplyOn, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg,
 };
 
 use crate::response::MsgInstantiateContractResponse;
@@ -553,7 +556,7 @@ pub fn distribute(deps: DepsMut, env: Env) -> StdResult<Response> {
     let nebula_token = config.nebula_token;
 
     let (rewards, distribution_amount) =
-        _compute_rewards(deps.as_ref(), target_distribution_amount)?;
+        _compute_rewards(deps.storage, target_distribution_amount)?;
 
     // store last distributed
     store_last_distributed(deps.storage, env.block.time.seconds())?;
@@ -576,12 +579,12 @@ pub fn distribute(deps: DepsMut, env: Env) -> StdResult<Response> {
 }
 
 pub fn _compute_rewards(
-    deps: Deps,
+    storage: &dyn Storage,
     target_distribution_amount: Uint128,
 ) -> StdResult<(Vec<(String, Uint128)>, Uint128)> {
-    let total_weight: u32 = read_total_weight(deps.storage)?;
+    let total_weight: u32 = read_total_weight(storage)?;
     let mut distribution_amount: FPDecimal = FPDecimal::zero();
-    let weights: Vec<(String, u32)> = read_all_weight(deps.storage)?;
+    let weights: Vec<(String, u32)> = read_all_weight(storage)?;
     let rewards: Vec<(String, Uint128)> = weights
         .iter()
         .map(|w| {

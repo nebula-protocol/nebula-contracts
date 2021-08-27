@@ -62,7 +62,9 @@ pub fn withdraw_reward(deps: DepsMut, info: MessageInfo) -> StdResult<Response> 
         for kv in contribution_bucket.range(None, None, Order::Ascending) {
             let (k, _) = kv?;
 
-            let asset_address = (unsafe { std::str::from_utf8_unchecked(&k) }).to_string();
+            let asset_address = std::str::from_utf8(&k)
+                .map_err(|_| StdError::invalid_utf8("invalid asset address"))?
+                .to_string();
             contribution_tuples.push((i, asset_address));
         }
     }

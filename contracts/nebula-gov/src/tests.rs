@@ -1,5 +1,5 @@
-use crate::contract::{execute, instantiate, query};
-use crate::mock_querier::{mock_dependencies};
+use crate::contract::{execute, instantiate, query, reply};
+use crate::mock_querier::mock_dependencies;
 use crate::querier::load_token_balance;
 use crate::staking::SECONDS_PER_WEEK;
 use crate::state::{
@@ -12,8 +12,8 @@ use cluster_math::FPDecimal;
 
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    attr, coins, from_binary, to_binary, Addr, CosmosMsg, Decimal, DepsMut, Env,
-    Response, StdError, SubMsg, Timestamp, Uint128, WasmMsg,
+    attr, coins, from_binary, to_binary, Addr, ContractResult, CosmosMsg, Decimal, DepsMut, Env,
+    Reply, ReplyOn, Response, StdError, SubMsg, Timestamp, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use nebula_protocol::common::OrderBy;
@@ -34,7 +34,6 @@ const DEFAULT_QUORUM: u64 = 30u64;
 const DEFAULT_THRESHOLD: u64 = 50u64;
 const DEFAULT_VOTING_PERIOD: u64 = 10000u64;
 const DEFAULT_EFFECTIVE_DELAY: u64 = 10000u64;
-const DEFAULT_EXPIRATION_PERIOD: u64 = 20000u64;
 const DEFAULT_PROPOSAL_DEPOSIT: u128 = 10000000000u128;
 const DEFAULT_VOTER_WEIGHT: Decimal = Decimal::zero();
 const DEFAULT_SNAPSHOT_PERIOD: u64 = 10u64;
@@ -46,7 +45,6 @@ fn mock_init(deps: DepsMut) {
         threshold: Decimal::percent(DEFAULT_THRESHOLD),
         voting_period: DEFAULT_VOTING_PERIOD,
         effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        expiration_period: DEFAULT_EXPIRATION_PERIOD,
         proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
         voter_weight: DEFAULT_VOTER_WEIGHT,
         snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
@@ -71,7 +69,6 @@ fn init_msg() -> InstantiateMsg {
         threshold: Decimal::percent(DEFAULT_THRESHOLD),
         voting_period: DEFAULT_VOTING_PERIOD,
         effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        expiration_period: DEFAULT_EXPIRATION_PERIOD,
         proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
         voter_weight: DEFAULT_VOTER_WEIGHT,
         snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
@@ -97,7 +94,7 @@ fn proper_initialization() {
             threshold: Decimal::percent(DEFAULT_THRESHOLD),
             voting_period: DEFAULT_VOTING_PERIOD,
             effective_delay: DEFAULT_EFFECTIVE_DELAY,
-            expiration_period: DEFAULT_EXPIRATION_PERIOD,
+
             proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
             voter_weight: DEFAULT_VOTER_WEIGHT,
             snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
@@ -141,7 +138,7 @@ fn fails_create_poll_invalid_quorum() {
         threshold: Decimal::percent(DEFAULT_THRESHOLD),
         voting_period: DEFAULT_VOTING_PERIOD,
         effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        expiration_period: DEFAULT_EXPIRATION_PERIOD,
+
         proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
         voter_weight: DEFAULT_VOTER_WEIGHT,
         snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
@@ -166,7 +163,7 @@ fn fails_create_poll_invalid_threshold() {
         threshold: Decimal::percent(101),
         voting_period: DEFAULT_VOTING_PERIOD,
         effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        expiration_period: DEFAULT_EXPIRATION_PERIOD,
+
         proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
         voter_weight: DEFAULT_VOTER_WEIGHT,
         snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
@@ -732,11 +729,16 @@ fn happy_days_end_poll() {
     let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
     assert_eq!(
         execute_res.messages,
-        vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: VOTING_TOKEN.to_string(),
-            msg: exec_msg_bz,
-            funds: vec![],
-        })),]
+        vec![SubMsg {
+            msg: CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: VOTING_TOKEN.to_string(),
+                msg: exec_msg_bz,
+                funds: vec![],
+            }),
+            gas_limit: None,
+            id: 1u64,
+            reply_on: ReplyOn::Error,
+        }]
     );
     assert_eq!(
         execute_res.attributes,
@@ -824,7 +826,7 @@ fn happy_days_end_poll() {
 }
 
 #[test]
-fn expire_poll() {
+fn failed_execute_poll() {
     const POLL_START_HEIGHT: u64 = 1000;
     const POLL_ID: u64 = 1;
     let stake_amount = 1000;
@@ -915,18 +917,7 @@ fn expire_poll() {
     );
 
     // Poll is not in passed status
-    creator_env.block.height = &creator_env.block.height + DEFAULT_EFFECTIVE_DELAY;
-    let msg = ExecuteMsg::ExpirePoll { poll_id: 1 };
-    let execute_res = execute(
-        deps.as_mut(),
-        creator_env.clone(),
-        creator_info.clone(),
-        msg,
-    );
-    match execute_res {
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Poll is not in passed status"),
-        _ => panic!("DO NOT ENTER HERE"),
-    }
+    creator_env.block.height = &creator_env.block.height + DEFAULT_VOTING_PERIOD;
 
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
     let execute_res = execute(
@@ -962,40 +953,44 @@ fn expire_poll() {
         }))]
     );
 
-    // Expiration period has not been passed
-    let msg = ExecuteMsg::ExpirePoll { poll_id: 1 };
-    let execute_res = execute(
-        deps.as_mut(),
-        creator_env.clone(),
-        creator_info.clone(),
-        msg,
+    // Try to execute the poll
+    creator_env.block.height = creator_env.block.height + DEFAULT_EFFECTIVE_DELAY;
+    let msg = ExecuteMsg::ExecutePoll { poll_id: 1 };
+    let execute_res = execute(deps.as_mut(), creator_env, creator_info, msg).unwrap();
+    assert_eq!(
+        execute_res.messages,
+        vec![SubMsg {
+            msg: CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: VOTING_TOKEN.to_string(),
+                msg: exec_msg_bz,
+                funds: vec![],
+            }),
+            gas_limit: None,
+            id: 1u64,
+            reply_on: ReplyOn::Error,
+        }]
     );
-    match execute_res {
-        Err(StdError::GenericErr { msg, .. }) => {
-            assert_eq!(msg, "Expire height has not been reached")
-        }
-        _ => panic!("DO NOT ENTER HERE"),
-    }
+    assert_eq!(
+        execute_res.attributes,
+        vec![attr("action", "execute_poll"), attr("poll_id", "1")]
+    );
 
-    creator_env.block.height = &creator_env.block.height + DEFAULT_EXPIRATION_PERIOD;
-    let msg = ExecuteMsg::ExpirePoll { poll_id: 1 };
-    let _execute_res = execute(
-        deps.as_mut(),
-        creator_env.clone(),
-        creator_info.clone(),
-        msg,
-    )
-    .unwrap();
+    let reply_msg = Reply {
+        id: 1,
+        result: ContractResult::Err("Error".to_string()),
+    };
+    let res = reply(deps.as_mut(), mock_env(), reply_msg).unwrap();
+    assert_eq!(res.attributes, vec![attr("action", "failed_poll")]);
 
     let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: 1 }).unwrap();
     let poll_res: PollResponse = from_binary(&res).unwrap();
-    assert_eq!(poll_res.status, PollStatus::Expired);
+    assert_eq!(poll_res.status, PollStatus::Failed);
 
     let res = query(
         deps.as_ref(),
         mock_env(),
         QueryMsg::Polls {
-            filter: Some(PollStatus::Expired),
+            filter: Some(PollStatus::Failed),
             start_after: None,
             limit: None,
             order_by: Some(OrderBy::Desc),
@@ -2263,7 +2258,7 @@ fn share_calculation_with_voter_rewards() {
         threshold: Decimal::percent(DEFAULT_THRESHOLD),
         voting_period: DEFAULT_VOTING_PERIOD,
         effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        expiration_period: DEFAULT_EXPIRATION_PERIOD,
+
         proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
         voter_weight: Decimal::percent(50), // distribute 50% rewards to voters
         snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
@@ -2488,7 +2483,6 @@ fn update_config() {
         threshold: None,
         voting_period: None,
         effective_delay: None,
-        expiration_period: None,
         proposal_deposit: None,
         voter_weight: None,
         snapshot_period: None,
@@ -2515,7 +2509,6 @@ fn update_config() {
         threshold: Some(Decimal::percent(75)),
         voting_period: Some(20000u64),
         effective_delay: Some(20000u64),
-        expiration_period: Some(30000u64),
         proposal_deposit: Some(Uint128::new(123u128)),
         voter_weight: Some(Decimal::percent(1)),
         snapshot_period: Some(60u64),
@@ -2532,7 +2525,6 @@ fn update_config() {
     assert_eq!(Decimal::percent(75), config.threshold);
     assert_eq!(20000u64, config.voting_period);
     assert_eq!(20000u64, config.effective_delay);
-    assert_eq!(30000u64, config.expiration_period);
     assert_eq!(123u128, config.proposal_deposit.u128());
     assert_eq!(Decimal::percent(1), config.voter_weight);
     assert_eq!(60u64, config.snapshot_period);
@@ -2545,7 +2537,6 @@ fn update_config() {
         threshold: None,
         voting_period: None,
         effective_delay: None,
-        expiration_period: None,
         proposal_deposit: None,
         voter_weight: None,
         snapshot_period: None,
@@ -2567,7 +2558,7 @@ fn distribute_voting_rewards() {
         threshold: Decimal::percent(DEFAULT_THRESHOLD),
         voting_period: DEFAULT_VOTING_PERIOD,
         effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        expiration_period: DEFAULT_EXPIRATION_PERIOD,
+
         proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
         voter_weight: Decimal::percent(50), // distribute 50% rewards to voters
         snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
@@ -2700,7 +2691,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
         threshold: Decimal::percent(DEFAULT_THRESHOLD),
         voting_period: DEFAULT_VOTING_PERIOD,
         effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        expiration_period: DEFAULT_EXPIRATION_PERIOD,
+
         proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
         voter_weight: Decimal::percent(50), // distribute 50% rewards to voters
         snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
@@ -2896,7 +2887,7 @@ fn distribute_voting_rewards_only_to_polls_in_progress() {
         threshold: Decimal::percent(DEFAULT_THRESHOLD),
         voting_period: DEFAULT_VOTING_PERIOD,
         effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        expiration_period: DEFAULT_EXPIRATION_PERIOD,
+
         proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
         voter_weight: Decimal::percent(50), // distribute 50% rewards to voters
         snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
@@ -3033,7 +3024,7 @@ fn test_staking_and_voting_rewards() {
         threshold: Decimal::percent(DEFAULT_THRESHOLD),
         voting_period: DEFAULT_VOTING_PERIOD,
         effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        expiration_period: DEFAULT_EXPIRATION_PERIOD,
+
         proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
         voter_weight: Decimal::percent(50), // distribute 50% rewards to voters
         snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
@@ -3277,7 +3268,7 @@ fn test_abstain_votes_theshold() {
         threshold: Decimal::percent(DEFAULT_THRESHOLD),
         voting_period: DEFAULT_VOTING_PERIOD,
         effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        expiration_period: DEFAULT_EXPIRATION_PERIOD,
+
         proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
         voter_weight: Decimal::percent(50), // distribute 50% rewards to voters
         snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
@@ -3409,7 +3400,7 @@ fn test_abstain_votes_quorum() {
         threshold: Decimal::percent(DEFAULT_THRESHOLD),
         voting_period: DEFAULT_VOTING_PERIOD,
         effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        expiration_period: DEFAULT_EXPIRATION_PERIOD,
+
         proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
         voter_weight: Decimal::percent(50), // distribute 50% rewards to voters
         snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
@@ -4298,12 +4289,8 @@ fn happy_days_end_poll_with_controlled_quorum() {
         vote: VoteOption::Yes,
         amount: Uint128::from(9 * stake_amount),
     };
-    let env = mock_env_height(
-        creator_env.block.height,
-        env.block.time.seconds(),
-    );
-    let info = mock_info(TEST_VOTER_2,
-        &[]);
+    let env = mock_env_height(creator_env.block.height, env.block.time.seconds());
+    let info = mock_info(TEST_VOTER_2, &[]);
     let execute_res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
     assert_eq!(
@@ -4906,12 +4893,8 @@ fn total_voting_power_calculation() {
         .unwrap(),
     });
 
-    let env = mock_env_height(
-        env.block.height,
-        env.block.time.seconds(),
-    );
-    let info = mock_info(VOTING_TOKEN,
-        &[]);
+    let env = mock_env_height(env.block.height, env.block.time.seconds());
+    let info = mock_info(VOTING_TOKEN, &[]);
     let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
     assert_stake_tokens_result(
         2 * stake_amount,
@@ -5049,7 +5032,7 @@ fn test_unstake_before_claiming_voting_rewards() {
         threshold: Decimal::percent(DEFAULT_THRESHOLD),
         voting_period: DEFAULT_VOTING_PERIOD,
         effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        expiration_period: DEFAULT_EXPIRATION_PERIOD,
+
         proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
         voter_weight: Decimal::percent(50), // distribute 50% rewards to voters
         snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
@@ -5091,12 +5074,8 @@ fn test_unstake_before_claiming_voting_rewards() {
         .unwrap(),
     });
 
-    let env = mock_env_height(
-        env.block.height,
-        env.block.time.seconds(),
-    );
-    let info = mock_info(VOTING_TOKEN,
-        &[]);
+    let env = mock_env_height(env.block.height, env.block.time.seconds());
+    let info = mock_info(VOTING_TOKEN, &[]);
     let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
 
     let msg = ExecuteMsg::CastVote {
@@ -5122,12 +5101,8 @@ fn test_unstake_before_claiming_voting_rewards() {
         msg: to_binary(&Cw20HookMsg::DepositReward {}).unwrap(),
     });
 
-    let env = mock_env_height(
-        env.block.height,
-        env.block.time.seconds(),
-    );
-    let info = mock_info(VOTING_TOKEN,
-        &[]);
+    let env = mock_env_height(env.block.height, env.block.time.seconds());
+    let info = mock_info(VOTING_TOKEN, &[]);
     let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
 
     // END POLL
@@ -5135,8 +5110,7 @@ fn test_unstake_before_claiming_voting_rewards() {
         env.block.height + DEFAULT_VOTING_PERIOD,
         env.block.time.seconds(),
     );
-    let info = mock_info(TEST_VOTER,
-        &[]);
+    let info = mock_info(TEST_VOTER, &[]);
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
     let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
 

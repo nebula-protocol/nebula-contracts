@@ -1,6 +1,9 @@
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
+
 use cosmwasm_std::{
-    attr, entry_point, to_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo,
-    Response, StdResult, WasmMsg,
+    attr, to_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response,
+    StdResult, WasmMsg,
 };
 
 use crate::state::{read_config, store_config, Config};
@@ -64,7 +67,7 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> StdResult<Respon
                 denom: config.base_denom.to_string(),
             },
             AssetInfo::Token {
-                contract_addr: asset_token.clone().to_string(),
+                contract_addr: asset_token.to_string(),
             },
         ],
     )?;
@@ -74,7 +77,7 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> StdResult<Respon
         // collateral token => nebula token
         let amount = query_balance(
             &deps.querier,
-            Addr::unchecked(env.contract.address.to_string()),
+            env.contract.address,
             config.base_denom.to_string(),
         )?;
         let swap_asset = Asset {
@@ -111,7 +114,7 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> StdResult<Respon
         )?;
 
         messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: asset_token.clone().to_string(),
+            contract_addr: asset_token.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Send {
                 contract: pair_info.contract_addr,
                 amount,
@@ -137,7 +140,7 @@ pub fn distribute(deps: DepsMut, env: Env) -> StdResult<Response> {
     let amount = query_token_balance(
         &deps.querier,
         Addr::unchecked(config.nebula_token.to_string()),
-        Addr::unchecked(env.contract.address.to_string()),
+        env.contract.address,
     )?;
 
     Ok(Response::new()

@@ -46,7 +46,7 @@ pub fn unbond(
         .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: staking_token.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: staker_addr.clone().to_string(),
+                recipient: staker_addr.to_string(),
                 amount,
             })?,
             funds: vec![],
@@ -125,7 +125,7 @@ pub fn auto_stake(
     Ok(Response::new()
         .add_messages(vec![
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: token_addr.clone().to_string(),
+                contract_addr: token_addr.to_string(),
                 msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
                     owner: info.sender.to_string(),
                     recipient: env.contract.address.to_string(),
@@ -134,7 +134,7 @@ pub fn auto_stake(
                 funds: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: token_addr.clone().to_string(),
+                contract_addr: token_addr.to_string(),
                 msg: to_binary(&Cw20ExecuteMsg::IncreaseAllowance {
                     spender: terraswap_pair.contract_addr.clone(),
                     amount: token_amount,
@@ -153,7 +153,7 @@ pub fn auto_stake(
                         Asset {
                             amount: token_amount,
                             info: AssetInfo::Token {
-                                contract_addr: token_addr.clone().to_string(),
+                                contract_addr: token_addr.to_string(),
                             },
                         },
                     ],

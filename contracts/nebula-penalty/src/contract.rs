@@ -1,6 +1,9 @@
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
+
 use cosmwasm_std::{
-    attr, entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, Uint128,
+    attr, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
+    Uint128,
 };
 
 use crate::state::{config_store, read_config, save_config, PenaltyConfig};
@@ -8,8 +11,8 @@ use cluster_math::{
     add, div_const, dot, imbalance, int_vec_to_fpdec, mul_const, str_vec_to_fpdec, sub, FPDecimal,
 };
 use nebula_protocol::penalty::{
-    ExecuteMsg, InstantiateMsg, PenaltyCreateResponse, ParamsResponse, PenaltyParams, QueryMsg,
-    PenaltyRedeemResponse,
+    ExecuteMsg, InstantiateMsg, ParamsResponse, PenaltyCreateResponse, PenaltyParams,
+    PenaltyRedeemResponse, QueryMsg,
 };
 use std::cmp::{max, min};
 
