@@ -2,8 +2,8 @@ from terra_sdk.core.wasm import (
     MsgStoreCode,
     MsgInstantiateContract,
     MsgExecuteContract,
-    dict_to_b64,
 )
+from terra_sdk.util.json import dict_to_data
 from terra_sdk.util.contract import get_code_id, get_contract_address, read_file_as_b64
 from base import (
     deployer,
@@ -102,7 +102,7 @@ class Contract:
     @staticmethod
     async def create(code_id, **kwargs):
         kwargs = custom_objs_to_json(kwargs)
-        instantiate = MsgInstantiateContract(deployer.key.acc_address, code_id, kwargs)
+        instantiate = MsgInstantiateContract(deployer.key.acc_address, deployer.key.acc_address, code_id, kwargs)
         result = await sign_and_broadcast(instantiate)
         return Contract(get_contract_address(result))
 
@@ -169,5 +169,6 @@ def custom_objs_to_json(obj):
     if issubclass(type(obj), Contract):
         return obj.address
     if type(obj) == ExecuteMessage:
-        return dict_to_b64(obj.json)
+        return obj.json
+        # return dict_to_data(obj.json)
     return obj
