@@ -11,7 +11,8 @@ use cluster_math::{
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{attr, from_binary, DepsMut, Env, StdError, Timestamp, Uint128};
 use nebula_protocol::penalty::{
-    ExecuteMsg, InstantiateMsg, PenaltyCreateResponse, PenaltyParams, QueryMsg, PenaltyRedeemResponse,
+    ExecuteMsg, InstantiateMsg, PenaltyCreateResponse, PenaltyParams, PenaltyRedeemResponse,
+    QueryMsg,
 };
 
 const TEST_CREATOR: &str = "creator";

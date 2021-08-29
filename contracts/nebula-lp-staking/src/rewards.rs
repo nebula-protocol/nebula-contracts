@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    attr, to_binary, CosmosMsg, Decimal, Deps, DepsMut, MessageInfo, Order, Response, StdResult,
-    Storage, Uint128, WasmMsg,
+    attr, to_binary, CosmosMsg, Decimal, Deps, DepsMut, MessageInfo, Order, Response, StdError,
+    StdResult, Storage, Uint128, WasmMsg,
 };
 
 use crate::state::{
@@ -87,7 +87,9 @@ fn _withdraw_reward(
             .map(|item| {
                 let (k, v) = item?;
                 Ok((
-                    (unsafe { std::str::from_utf8_unchecked(&k) }).to_string(),
+                    std::str::from_utf8(&k)
+                        .map_err(|_| StdError::invalid_utf8("invalid reward pair address"))?
+                        .to_string(),
                     v,
                 ))
             })
@@ -168,7 +170,9 @@ fn _read_reward_infos(
             .range(None, None, Order::Ascending)
             .map(|item| {
                 let (k, v) = item?;
-                let asset_token = (unsafe { std::str::from_utf8_unchecked(&k) }).to_string();
+                let asset_token = std::str::from_utf8(&k)
+                    .map_err(|_| StdError::invalid_utf8("invalid asset token address"))?
+                    .to_string();
                 let mut reward_info = v;
                 let pool_info = read_pool_info(storage, &asset_token)?;
                 before_share_change(&pool_info, &mut reward_info)?;

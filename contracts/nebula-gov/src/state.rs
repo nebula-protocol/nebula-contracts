@@ -1,4 +1,4 @@
-use cosmwasm_std::{Binary, Decimal, StdResult, Storage, Uint128};
+use cosmwasm_std::{Binary, Decimal, StdError, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -14,6 +14,7 @@ use nebula_protocol::gov::{PollStatus, VoterInfo};
 static KEY_CONFIG: &[u8] = b"config";
 static KEY_STATE: &[u8] = b"state";
 static KEY_TOTAL_VOTING_POWER: &[u8] = b"total_voting_power";
+static KEY_TMP_POLL_ID: &[u8] = b"tmp_poll_id";
 
 static PREFIX_POLL_INDEXER: &[u8] = b"poll_indexer";
 static PREFIX_POLL_VOTER: &[u8] = b"poll_voter";
@@ -28,7 +29,6 @@ pub struct Config {
     pub threshold: Decimal,
     pub voting_period: u64,
     pub effective_delay: u64,
-    pub expiration_period: u64,
     pub proposal_deposit: Uint128,
     pub voter_weight: Decimal,
     pub snapshot_period: u64,
@@ -83,6 +83,14 @@ pub struct ExecuteData {
 pub struct TotalVotingPower {
     pub voting_power: Vec<FPDecimal>,
     pub last_upd: u64,
+}
+
+pub fn store_tmp_poll_id(storage: &mut dyn Storage, tmp_poll_id: u64) -> StdResult<()> {
+    singleton(storage, KEY_TMP_POLL_ID).save(&tmp_poll_id)
+}
+
+pub fn read_tmp_poll_id(storage: &dyn Storage) -> StdResult<u64> {
+    singleton_read(storage, KEY_TMP_POLL_ID).load()
 }
 
 pub fn config_store(storage: &mut dyn Storage) -> Singleton<Config> {
@@ -156,7 +164,9 @@ pub fn read_poll_voters<'a>(
         .map(|item| {
             let (k, v) = item?;
             Ok((
-                (unsafe { std::str::from_utf8_unchecked(&k) }).to_string(),
+                std::str::from_utf8(&k)
+                    .map_err(|_| StdError::invalid_utf8("invalid poll voter address"))?
+                    .to_string(),
                 v,
             ))
         })
@@ -238,7 +248,9 @@ pub fn read_bank_stakers<'a>(
         .map(|item| {
             let (k, v) = item?;
             Ok((
-                (unsafe { std::str::from_utf8_unchecked(&k) }).to_string(),
+                std::str::from_utf8(&k)
+                    .map_err(|_| StdError::invalid_utf8("invalid bank staker address"))?
+                    .to_string(),
                 v,
             ))
         })

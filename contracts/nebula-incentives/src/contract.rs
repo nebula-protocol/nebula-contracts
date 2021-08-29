@@ -1,13 +1,16 @@
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
+
 use cosmwasm_std::{
-    attr, entry_point, from_binary, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
-    StdError, StdResult, Uint128,
+    attr, from_binary, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult, Uint128,
 };
 
 use crate::arbitrageurs::{
     arb_cluster_create, arb_cluster_redeem, record_terraswap_impact, send_all, swap_all,
 };
 use crate::rebalancers::{
-    internal_rewarded_create, internal_rewarded_redeem, create, record_rebalancer_rewards, redeem,
+    create, internal_rewarded_create, internal_rewarded_redeem, record_rebalancer_rewards, redeem,
 };
 use crate::rewards::{deposit_reward, increment_n, withdraw_reward};
 use crate::state::{

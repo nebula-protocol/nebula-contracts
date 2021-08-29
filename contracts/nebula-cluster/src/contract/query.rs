@@ -1,4 +1,7 @@
-use cosmwasm_std::{entry_point, to_binary, Addr, Binary, Deps, Env, StdError, StdResult, Uint128};
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
+
+use cosmwasm_std::{to_binary, Addr, Binary, Deps, Env, StdError, StdResult, Uint128};
 
 use crate::ext_query::{query_cw20_balance, query_cw20_token_supply, query_price};
 use crate::state::{read_config, read_target_asset_data};
@@ -18,7 +21,11 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Target {} => to_binary(&query_target(deps)?),
         QueryMsg::Config {} => to_binary(&query_config(deps)?),
-        QueryMsg::ClusterState {} => to_binary(&query_cluster_state(deps, &env.contract.address.to_string(), 0)?),
+        QueryMsg::ClusterState {} => to_binary(&query_cluster_state(
+            deps,
+            &env.contract.address.to_string(),
+            0,
+        )?),
         QueryMsg::ClusterInfo {} => to_binary(&query_cluster_info(deps)?),
     }
 }

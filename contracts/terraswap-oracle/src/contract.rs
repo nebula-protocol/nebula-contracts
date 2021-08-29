@@ -1,6 +1,9 @@
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
+
 use cosmwasm_std::{
     to_binary, Binary, Decimal, Env, Deps, DepsMut, Response, 
-    QueryRequest, StdResult, WasmQuery, MessageInfo, entry_point
+    QueryRequest, StdResult, WasmQuery, MessageInfo
 };
 
 use terraswap::asset::{AssetInfo, PairInfo};

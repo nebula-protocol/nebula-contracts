@@ -9,8 +9,8 @@ use cosmwasm_std::{
     CanonicalAddr, Coin, ContractResult, Decimal, OwnedDeps, Querier, QuerierResult, QueryRequest,
     SystemError, SystemResult, Uint128, WasmQuery,
 };
-use cw20::BalanceResponse as CW20BalanceResponse;
 use cosmwasm_storage::to_length_prefixed;
+use cw20::BalanceResponse as CW20BalanceResponse;
 
 use std::collections::HashMap;
 
@@ -164,7 +164,7 @@ impl Querier for WasmMockQuerier {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     Pair { asset_infos: [AssetInfo; 2] },
-    ClusterState { },
+    ClusterState {},
     ClusterExists {},
     Pool {},
     Balance { address: String },
@@ -217,10 +217,9 @@ impl WasmMockQuerier {
                     amount: coin(balance.u128(), denom),
                 })))
             }
-            QueryRequest::Wasm(WasmQuery::Smart {
-                contract_addr,
-                msg,
-            }) => match from_binary(&msg).unwrap() {
+            QueryRequest::Wasm(WasmQuery::Smart { contract_addr, msg }) => match from_binary(&msg)
+                .unwrap()
+            {
                 QueryMsg::Pair { asset_infos } => {
                     let key = asset_infos[0].to_string() + asset_infos[1].to_string().as_str();
                     match self.terraswap_factory_querier.pairs.get(&key) {
@@ -373,9 +372,7 @@ impl WasmMockQuerier {
                         }
                     };
 
-                    SystemResult::Ok(ContractResult::from(to_binary(
-                        &to_binary(&balance).unwrap(),
-                    )))
+                    SystemResult::Ok(ContractResult::from(to_binary(&balance)))
                 } else {
                     panic!("DO NOT ENTER HERE")
                 }

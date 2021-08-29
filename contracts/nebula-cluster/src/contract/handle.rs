@@ -1,6 +1,9 @@
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
+
 use cosmwasm_std::{
-    attr, entry_point, to_binary, Addr, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, Uint128, WasmMsg,
+    attr, to_binary, Addr, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
+    Uint128, WasmMsg,
 };
 
 use cw20::Cw20ExecuteMsg;
@@ -118,10 +121,9 @@ pub fn update_config(
         Ok(config)
     })?;
 
-    match target {
-        None => Response::default(),
-        Some(target) => update_target(deps, env, info, &target)?,
-    };
+    if let Some(target) = target {
+        update_target(deps, env, info, &target)?;
+    }
 
     Ok(Response::new().add_attributes(vec![attr("action", "update_config")]))
 }
@@ -144,8 +146,7 @@ pub fn update_target(
         return Err(error::cluster_token_not_set());
     }
     // check permission
-    if (info.sender.to_string() != cfg.owner) && (info.sender.to_string() != cfg.target_oracle)
-    {
+    if (info.sender.to_string() != cfg.owner) && (info.sender.to_string() != cfg.target_oracle) {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -162,7 +163,7 @@ pub fn update_target(
         .map(|x| x.amount.clone())
         .collect::<Vec<_>>();
 
-    if validate_targets(deps.as_ref(), &env, updated_asset_infos.clone(), None).is_err() {
+    if validate_targets(deps.querier, &env, updated_asset_infos.clone(), true).is_err() {
         return Err(StdError::generic_err(
             "Cluster must contain valid assets and cannot contain duplicate assets",
         ));
@@ -250,10 +251,10 @@ pub fn create(
 ) -> StdResult<Response> {
     // duplication check for the given asset_amounts
     if validate_targets(
-        deps.as_ref(),
+        deps.querier,
         &env,
         asset_amounts.iter().map(|a| a.info.clone()).collect(),
-        None,
+        true,
     )
     .is_err()
     {
@@ -386,7 +387,7 @@ pub fn create(
         // afterwards, notify the penalty contract that this update happened so
         // it can make stateful updates...
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: cfg.penalty.clone().to_string(),
+            contract_addr: cfg.penalty.to_string(),
             msg: to_binary(&PenaltyExecuteMsg::PenaltyCreate {
                 block_height: env.block.height,
                 cluster_token_supply,
@@ -401,10 +402,10 @@ pub fn create(
         // actually mint the tokens
         if !protocol_fee.is_zero() {
             messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: cluster_token.clone().to_string(),
+                contract_addr: cluster_token.to_string(),
                 msg: to_binary(&Cw20ExecuteMsg::Mint {
                     amount: protocol_fee,
-                    recipient: collector_address.clone().to_string(),
+                    recipient: collector_address.to_string(),
                 })?,
                 funds: vec![],
             }));
@@ -457,7 +458,7 @@ pub fn create(
     }
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: cluster_token.clone().to_string(),
+        contract_addr: cluster_token.to_string(),
         msg: to_binary(&Cw20ExecuteMsg::Mint {
             amount: mint_to_sender,
             recipient: info.sender.to_string(),
@@ -606,11 +607,11 @@ pub fn receive_redeem(
     let fee_amt: Uint128 = Uint128::from(fee_amt);
     if !fee_amt.is_zero() {
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: cluster_token.clone().to_string(),
+            contract_addr: cluster_token.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
                 owner: sender.clone(),
                 amount: fee_amt,
-                recipient: collector_address.clone().to_string(),
+                recipient: collector_address.to_string(),
             })?,
             funds: vec![],
         }));
@@ -618,7 +619,7 @@ pub fn receive_redeem(
 
     // burn the rest from allowance
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: cluster_token.clone().to_string(),
+        contract_addr: cluster_token.to_string(),
         msg: to_binary(&Cw20ExecuteMsg::BurnFrom {
             owner: sender.clone(),
             amount: token_cost.checked_sub(fee_amt)?,
@@ -629,7 +630,7 @@ pub fn receive_redeem(
     // afterwards, notify the penalty contract that this update happened so
     // it can make stateful updates...
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: cfg.penalty.clone().to_string(),
+        contract_addr: cfg.penalty.to_string(),
         msg: to_binary(&PenaltyExecuteMsg::PenaltyRedeem {
             block_height: env.block.height,
             cluster_token_supply,

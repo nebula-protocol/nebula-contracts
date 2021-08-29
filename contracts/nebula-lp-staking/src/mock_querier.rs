@@ -122,9 +122,7 @@ impl WasmMockQuerier {
                 let key: &[u8] = key.as_slice();
                 let prefix_balance = to_length_prefixed(b"balance").to_vec();
                 if key[..prefix_balance.len()].to_vec() == prefix_balance {
-                    SystemResult::Ok(ContractResult::from(to_binary(
-                        &to_binary(&self.token_balance).unwrap(),
-                    )))
+                    SystemResult::Ok(ContractResult::from(to_binary(&self.token_balance)))
                 } else {
                     panic!("DO NOT ENTER HERE")
                 }

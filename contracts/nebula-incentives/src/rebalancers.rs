@@ -181,7 +181,7 @@ pub fn internal_rewarded_redeem(
         None => query_token_balance(
             &deps.querier,
             Addr::unchecked(cluster_token.to_string()),
-            Addr::unchecked(env.contract.address.to_string()),
+            env.contract.address.clone(),
         )?,
         Some(tokens) => tokens,
     };

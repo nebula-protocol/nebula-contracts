@@ -10,11 +10,11 @@ static KEY_CONFIG: &[u8] = b"config";
 static KEY_PARAMS: &[u8] = b"params";
 static KEY_TOTAL_WEIGHT: &[u8] = b"total_weight";
 static KEY_LAST_DISTRIBUTED: &[u8] = b"last_distributed";
+static KEY_TMP_CLUSTER: &[u8] = b"tmp_clusters";
+static KEY_TMP_ASSET: &[u8] = b"tmp_asset";
 
 static PREFIX_WEIGHT: &[u8] = b"weight";
 static PREFIX_CLUSTERS: &[u8] = b"clusters";
-static PREFIX_TMP_CLUSTER: &[u8] = b"tmp_clusters";
-static PREFIX_TMP_ASSET: &[u8] = b"tmp_asset";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
@@ -54,7 +54,9 @@ pub fn get_cluster_data(storage: &dyn Storage) -> StdResult<Vec<(String, bool)>>
         .map(|item| {
             let (k, b) = item?;
             Ok((
-                (unsafe { std::str::from_utf8_unchecked(&k) }).to_string(),
+                std::str::from_utf8(&k)
+                    .map_err(|_| StdError::invalid_utf8("invalid cluster address"))?
+                    .to_string(),
                 b,
             ))
         })
@@ -62,19 +64,19 @@ pub fn get_cluster_data(storage: &dyn Storage) -> StdResult<Vec<(String, bool)>>
 }
 
 pub fn store_tmp_cluster(storage: &mut dyn Storage, contract_addr: &String) -> StdResult<()> {
-    singleton(storage, PREFIX_TMP_CLUSTER).save(contract_addr)
+    singleton(storage, KEY_TMP_CLUSTER).save(contract_addr)
 }
 
 pub fn read_tmp_asset(storage: &dyn Storage) -> StdResult<String> {
-    singleton_read(storage, PREFIX_TMP_ASSET).load()
+    singleton_read(storage, KEY_TMP_ASSET).load()
 }
 
 pub fn store_tmp_asset(storage: &mut dyn Storage, contract_addr: &String) -> StdResult<()> {
-    singleton(storage, PREFIX_TMP_ASSET).save(contract_addr)
+    singleton(storage, KEY_TMP_ASSET).save(contract_addr)
 }
 
 pub fn read_tmp_cluster(storage: &dyn Storage) -> StdResult<String> {
-    singleton_read(storage, PREFIX_TMP_CLUSTER).load()
+    singleton_read(storage, KEY_TMP_CLUSTER).load()
 }
 
 pub fn record_cluster(storage: &mut dyn Storage, contract_addr: &String) -> StdResult<()> {
@@ -151,7 +153,9 @@ pub fn read_all_weight(storage: &dyn Storage) -> StdResult<Vec<(String, u32)>> {
             let (k, v) = item?;
 
             Ok((
-                (unsafe { std::str::from_utf8_unchecked(&k) }).to_string(),
+                std::str::from_utf8(&k)
+                    .map_err(|_| StdError::invalid_utf8("invalid weight asset address"))?
+                    .to_string(),
                 v,
             ))
         })

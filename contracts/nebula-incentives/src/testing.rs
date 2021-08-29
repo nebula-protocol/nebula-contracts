@@ -1,15 +1,13 @@
 use crate::contract::{execute, instantiate, query, query_config};
-use crate::mock_querier::{mock_dependencies};
+use crate::mock_querier::mock_dependencies;
 use crate::state::{contributions_read, read_from_contribution_bucket, record_contribution};
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    attr, coins, from_binary, to_binary, BankMsg, CosmosMsg, Decimal, DepsMut,
-    StdError, SubMsg, Uint128, WasmMsg,
+    attr, coins, from_binary, to_binary, BankMsg, CosmosMsg, Decimal, DepsMut, StdError, SubMsg,
+    Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
-use nebula_protocol::cluster::{
-    ExecuteMsg as ClusterExecuteMsg,
-};
+use nebula_protocol::cluster::ExecuteMsg as ClusterExecuteMsg;
 use terraswap::pair::PoolResponse as TerraswapPoolResponse;
 
 use nebula_protocol::incentives::{
