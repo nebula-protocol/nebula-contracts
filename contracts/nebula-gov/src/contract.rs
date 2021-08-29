@@ -37,6 +37,7 @@ const MAX_POLLS_IN_PROGRESS: usize = 50;
 
 const POLL_EXECUTE_REPLY_ID: u64 = 1;
 
+#[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
     env: Env,
