@@ -52,7 +52,6 @@ sequence = asyncio.get_event_loop().run_until_complete(deployer.sequence())
 
 print(deployer.key.acc_address)
 async def sign_and_broadcast(*msgs):
-    print(type(msgs))
     global sequence
     try:
         tx = await deployer.create_and_sign_tx(

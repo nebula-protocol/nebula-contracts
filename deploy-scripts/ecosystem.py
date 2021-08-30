@@ -49,6 +49,7 @@ class Ecosystem:
     async def initialize_base_contracts(self):
         print("Initializing base contracts...")
         code_ids = self.code_ids = await store_contracts()
+        print(code_ids)
 
         if self.terraswap_factory is None:
             self.terraswap_factory = await Contract.create(
