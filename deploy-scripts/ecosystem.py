@@ -1,4 +1,11 @@
 from contract_helpers import ClusterContract, Contract, store_contracts, deployer
+from terra_sdk.core.wasm import (
+    MsgStoreCode,
+    MsgInstantiateContract,
+    MsgExecuteContract,
+)
+from terra_sdk.util.json import dict_to_data
+
 from api import Asset
 import pprint
 import asyncio
@@ -115,14 +122,6 @@ class Ecosystem:
             owner=self.factory,
         )
 
-        await self.factory.post_initialize(
-            owner=deployer.key.acc_address,
-            nebula_token=self.neb_token,
-            terraswap_factory=self.terraswap_factory,
-            staking_contract=self.staking,
-            commission_collector=self.collector,
-        )
-        
         self.neb_pair = Contract(
             (
                 await self.terraswap_factory.create_pair(
@@ -136,8 +135,14 @@ class Ecosystem:
             .events_by_type["from_contract"]["pair_contract_addr"][0]
         )
 
-        
-        await self.factory.terraswap_creation_hook(asset_token=self.neb_token)
+        await self.factory.post_initialize(
+            owner=deployer.key.acc_address,
+            nebula_token=self.neb_token,
+            terraswap_factory=self.terraswap_factory,
+            staking_contract=self.staking,
+            commission_collector=self.collector,
+        )
+
 
         if self.require_gov:
             # Update factory owner as gov
@@ -277,13 +282,22 @@ class Ecosystem:
             },
         )
 
+        print('hello')
         if self.require_gov:
 
+            msg = MsgExecuteContract(
+                deployer.key.acc_address, self.gov.address, dict_to_data({'stake_voting_tokens': {'lock_for_weeks': 104}})
+            ).to_data() # Convert to binary
+
+            print('message after to_data and gov address', msg, self.gov.address)
+            
             await self.neb_token.send(
                 contract=self.gov,
                 amount="600000000000",
-                msg=self.gov.stake_voting_tokens(lock_for_weeks=104),
+                msg=msg,
             )
+
+            print('yo')
 
             resp = await self.create_and_execute_poll(
                 {"contract": self.factory, "msg": create_cluster}

@@ -115,7 +115,6 @@ class Contract:
     def __getattr__(self, item):
         def result_fxn(_send=None, **kwargs):
             return ExecuteMessage(contract=self, json={item: kwargs}, send=_send)
-
         return result_fxn
 
     @property
