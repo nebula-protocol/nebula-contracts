@@ -80,6 +80,8 @@ class Ecosystem:
             distribution_schedule=[[0, 100000, "1000000"]],
         )
 
+        print('factory', self.factory)
+
         self.neb_token = await Contract.create(
             code_ids["terraswap_token"],
             name="Nebula Token",
@@ -118,6 +120,8 @@ class Ecosystem:
             voter_weight=DEFAULT_VOTER_WEIGHT,
             snapshot_period=DEFAULT_SNAPSHOT_PERIOD,
         )
+
+        print('gov', self.gov)
 
         self.collector = await Contract.create(
             code_ids["nebula_collector"],

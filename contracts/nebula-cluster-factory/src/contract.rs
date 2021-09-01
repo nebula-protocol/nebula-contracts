@@ -135,7 +135,7 @@ pub fn post_initialize(
 ) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
     if config.owner != String::default() {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(StdError::generic_err("unauthorized post initialize"));
     }
 
     config.owner = owner;
@@ -163,7 +163,7 @@ pub fn update_config(
 ) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
     if config.owner != info.sender.to_string() {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(StdError::generic_err("unauthorized update config"));
     }
 
     if let Some(owner) = owner {
@@ -195,7 +195,7 @@ pub fn update_weight(
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
     if config.owner != info.sender.to_string() {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(StdError::generic_err("unauthorized update weight"));
     }
 
     let origin_weight = read_weight(deps.storage, &asset_token)?;
@@ -220,7 +220,7 @@ pub fn pass_command(
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
     if config.owner != info.sender.to_string() {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(StdError::generic_err("unauthorized pass command"));
     }
 
     Ok(
@@ -250,7 +250,7 @@ pub fn create_cluster(
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
     if config.owner != info.sender.to_string() {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(StdError::generic_err("unauthorized in create cluster"));
     }
 
     if read_params(deps.storage).is_ok() {
