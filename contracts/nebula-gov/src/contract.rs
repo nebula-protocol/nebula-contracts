@@ -1,5 +1,6 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
+use snafu::Error;
 
 use crate::querier::load_token_balance;
 use crate::staking::{
@@ -166,8 +167,13 @@ pub fn receive_cw20(
 pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> StdResult<Response> {
     match msg.id {
         POLL_EXECUTE_REPLY_ID => {
-            let poll_id: u64 = read_tmp_poll_id(deps.storage)?;
-            failed_poll(deps, poll_id)
+            if let cosmwasm_std::ContractResult::Err(err) = msg.result {
+                let poll_id: u64 = read_tmp_poll_id(deps.storage)?;
+                failed_poll(deps, poll_id, Some(err))
+            } else {
+                let poll_id: u64 = read_tmp_poll_id(deps.storage)?;
+                failed_poll(deps, poll_id, None)
+            }
         }
         _ => Err(StdError::generic_err("reply id is invalid")),
     }
@@ -527,7 +533,7 @@ pub fn execute_poll(deps: DepsMut, env: Env, poll_id: u64) -> StdResult<Response
 /*
  * If the executed message of a passed poll fails, it is marked as failed
  */
-pub fn failed_poll(deps: DepsMut, poll_id: u64) -> StdResult<Response> {
+pub fn failed_poll(deps: DepsMut, poll_id: u64, err: Option<String>) -> StdResult<Response> {
     let mut a_poll: Poll = poll_store(deps.storage).load(&poll_id.to_be_bytes())?;
 
     poll_indexer_store(deps.storage, &PollStatus::Executed).remove(&poll_id.to_be_bytes());
@@ -536,7 +542,8 @@ pub fn failed_poll(deps: DepsMut, poll_id: u64) -> StdResult<Response> {
     a_poll.status = PollStatus::Failed;
     poll_store(deps.storage).save(&poll_id.to_be_bytes(), &a_poll)?;
 
-    Ok(Response::new().add_attribute("action", "failed_poll"))
+    Ok(Response::new().add_attribute("action", "failed_poll")
+        .add_attribute("error", err.unwrap()))
 }
 
 pub fn cast_vote(

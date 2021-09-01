@@ -9,16 +9,22 @@ from terra_sdk.util.json import dict_to_data
 from api import Asset
 import pprint
 import asyncio
+import base64
+import json
 
 DEFAULT_POLL_ID = 1
 DEFAULT_QUORUM = "0.3"
 DEFAULT_THRESHOLD = "0.5"
-DEFAULT_VOTING_PERIOD = 4
-DEFAULT_EFFECTIVE_DELAY = 4
+DEFAULT_VOTING_PERIOD = 2
+DEFAULT_EFFECTIVE_DELAY = 2
 DEFAULT_PROPOSAL_DEPOSIT = "10000000000"
 DEFAULT_SNAPSHOT_PERIOD = 0
 DEFAULT_VOTER_WEIGHT = "0.1"
 
+def dict_to_b64(data: dict) -> str:
+    """Converts dict to ASCII-encoded base64 encoded string."""
+    return base64.b64encode(bytes(json.dumps(data), "ascii")).decode()
+    
 
 class Ecosystem:
     def __init__(self, require_gov=False):
@@ -285,28 +291,50 @@ class Ecosystem:
         print('hello')
         if self.require_gov:
 
-            msg = MsgExecuteContract(
-                deployer.key.acc_address, self.gov.address, dict_to_data({'stake_voting_tokens': {'lock_for_weeks': 104}})
-            ).to_data() # Convert to binary
+            # msg = dict_to_b64(
+            #     MsgExecuteContract(
+            #         deployer.key.acc_address, self.gov.address, dict_to_data({'stake_voting_tokens': {'lock_for_weeks': 104}})
+            #     )
+            # ) # Convert to binary
 
-            print('message after to_data and gov address', msg, self.gov.address)
+            # print('message after to_data and gov address', msg, self.gov.address)
             
             await self.neb_token.send(
                 contract=self.gov,
                 amount="600000000000",
-                msg=msg,
+                msg=dict_to_b64({'stake_voting_tokens': {'lock_for_weeks': 104}}),
             )
 
             print('yo')
+            
+            string_target = [Asset.asset(info.address, amount) for info, amount in zip(assets, target_weights)]
+            print(string_target)
+            create_dict = {
+                "create_cluster": {
+                    # "name": "CLUSTER",
+                    # "symbol": "BSK",
+                    "params": {
+                        "name": "CLUSTER",
+                        "symbol": "BSK",
+                        "description": "Test cluster",
+                        "penalty": penalty_contract.address,
+                        "target": string_target,
+                        "pricing_oracle": oracle.address,
+                        "target_oracle": deployer.key.acc_address,
+                    },
+                }
+            }
 
             resp = await self.create_and_execute_poll(
-                {"contract": self.factory, "msg": create_cluster}
+                {"contract": self.factory.address, "msg": dict_to_b64(create_dict)}
             )
         else:
-
             resp = await create_cluster
 
         logs = resp.logs[0].events_by_type
+        print(logs)
+
+        import pdb; pdb.set_trace()
 
         instantiation_logs = logs["instantiate_contract"]
         addresses = instantiation_logs["contract_address"]
@@ -344,15 +372,18 @@ class Ecosystem:
     async def create_and_execute_poll(
         self, execute_msg, distribute_collector=False, sleep_time=2
     ):
+        create_msg = {
+            'create_poll': {
+                "title": "A new poll!",
+                "description": "Wow, I love polls!",
+                # "link":"See more at https://nebulaprotocol.org",
+                "execute_msg": execute_msg,
+            }
+        }
         resp = await self.neb_token.send(
             contract=self.gov,
             amount=DEFAULT_PROPOSAL_DEPOSIT,
-            msg=self.gov.create_poll(
-                title="A new poll!",
-                description="Wow, I love polls!",
-                link="See more at https://nebulaprotocol.org",
-                execute_msg=execute_msg,
-            ),
+            msg=dict_to_b64(create_msg),
         )
 
         poll_id = int(resp.logs[0].events_by_type["from_contract"]["poll_id"][0])
