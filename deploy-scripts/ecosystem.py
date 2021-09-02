@@ -1,4 +1,4 @@
-from contract_helpers import ClusterContract, Contract, store_contracts, deployer
+from contract_helpers import ClusterContract, Contract, store_contracts, deployer, dict_to_b64
 from terra_sdk.core.wasm import (
     MsgStoreCode,
     MsgInstantiateContract,
@@ -9,8 +9,6 @@ from terra_sdk.util.json import dict_to_data
 from api import Asset
 import pprint
 import asyncio
-import base64
-import json
 
 DEFAULT_POLL_ID = 1
 DEFAULT_QUORUM = "0.3"
@@ -20,10 +18,6 @@ DEFAULT_EFFECTIVE_DELAY = 2
 DEFAULT_PROPOSAL_DEPOSIT = "10000000000"
 DEFAULT_SNAPSHOT_PERIOD = 0
 DEFAULT_VOTER_WEIGHT = "0.1"
-
-def dict_to_b64(data: dict) -> str:
-    """Converts dict to ASCII-encoded base64 encoded string."""
-    return base64.b64encode(bytes(json.dumps(data), "ascii")).decode()
     
 
 class Ecosystem:
@@ -336,20 +330,27 @@ class Ecosystem:
             resp = await create_cluster
 
         logs = resp.logs[0].events_by_type
-        print(logs)
-
-        import pdb; pdb.set_trace()
 
         instantiation_logs = logs["instantiate_contract"]
         addresses = instantiation_logs["contract_address"]
 
-        self.cluster_token = Contract(addresses[2])
-        self.cluster_pair = Contract(addresses[1])
-        self.lp_token = Contract(addresses[0])
         self.asset_tokens = assets
         self.asset_prices = asset_prices
+
+        # self.cluster_token = Contract(addresses[2])
+        # self.cluster_pair = Contract(addresses[1])
+        # self.lp_token = Contract(addresses[0])
+        # self.cluster = ClusterContract(
+        #     addresses[3],
+        #     self.cluster_token,
+        #     self.asset_tokens,
+        # )
+
+        self.cluster_token = Contract(addresses[1])
+        self.cluster_pair = Contract(addresses[2])
+        self.lp_token = Contract(addresses[3])
         self.cluster = ClusterContract(
-            addresses[3],
+            addresses[0],
             self.cluster_token,
             self.asset_tokens,
         )

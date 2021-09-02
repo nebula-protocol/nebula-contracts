@@ -542,7 +542,8 @@ pub fn failed_poll(deps: DepsMut, poll_id: u64, err: Option<String>) -> StdResul
     a_poll.status = PollStatus::Failed;
     poll_store(deps.storage).save(&poll_id.to_be_bytes(), &a_poll)?;
 
-    Ok(Response::new().add_attribute("action", "failed_poll")
+    Ok(Response::new()
+        .add_attribute("action", "failed_poll")
         .add_attribute("error", err.unwrap()))
 }
 

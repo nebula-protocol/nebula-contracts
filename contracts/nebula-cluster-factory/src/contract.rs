@@ -363,21 +363,6 @@ pub fn token_creation_hook(deps: DepsMut, _env: Env, cluster: String) -> StdResu
                     penalty_params: None,
                 })?,
             }),
-            // Set cluster owner (should end up being governance)
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: cluster.clone(),
-                funds: vec![],
-                msg: to_binary(&ClusterExecuteMsg::UpdateConfig {
-                    owner: Some(config.owner),
-                    name: None,
-                    description: None,
-                    cluster_token: None,
-                    pricing_oracle: None,
-                    target_oracle: None,
-                    penalty: None,
-                    target: None,
-                })?,
-            }),
         ])
         .add_submessages(vec![SubMsg {
             msg: WasmMsg::Instantiate {
@@ -438,12 +423,12 @@ pub fn set_cluster_token_hook(
     store_tmp_asset(deps.storage, &token)?;
     Ok(Response::new()
         .add_messages(vec![
-            //Set cluster token
+            //Set cluster token and also cluster owner to governance
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: cluster.clone(),
                 funds: vec![],
                 msg: to_binary(&ClusterExecuteMsg::UpdateConfig {
-                    owner: None,
+                    owner: Some(config.owner),
                     name: None,
                     description: None,
                     cluster_token: Some(token.clone()),

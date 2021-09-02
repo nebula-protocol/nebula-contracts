@@ -1,5 +1,5 @@
 from ecosystem import Ecosystem
-from contract_helpers import chain, deployer
+from contract_helpers import chain, deployer, dict_to_b64
 from api import Asset
 import asyncio
 
@@ -25,10 +25,16 @@ async def test_provide_liquidity_and_staking(eco: Ecosystem):
         await eco.neb_token.query.balance(address=deployer.key.acc_address)
     )["balance"]
 
+    bond_msg = {
+        "bond": {
+            "asset_token": eco.cluster_token.address
+        }
+    }
+
     await eco.lp_token.send(
         amount=n_lp_tokens,
         contract=eco.staking,
-        msg=eco.staking.bond(asset_token=eco.cluster_token),
+        msg=dict_to_b64(bond_msg),
     )
 
     await asyncio.sleep(1)

@@ -86,7 +86,15 @@ pub fn update_config(
     // First, update cluster config
     config_store(deps.storage).update(|mut config| {
         if config.owner != info.sender.to_string() {
-            return Err(StdError::generic_err(format!("unauthorized cluster update config {} {}", config.owner, info.sender.to_string())));
+            return Err(StdError::generic_err(format!(
+                "unauthorized cluster update config owner {} factory {} sender {} contract address {} updating to owner {:?} ct {:?}",
+                config.owner,
+                config.factory,
+                info.sender.to_string(),
+                env.contract.address,
+                owner,
+                cluster_token
+            )));
         }
 
         if let Some(owner) = owner {

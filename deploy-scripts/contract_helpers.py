@@ -16,6 +16,8 @@ from base import (
 from api import Asset
 import shelve
 import os
+import base64
+import json
 
 shelf = shelve.open(f"{os.path.dirname(__file__)}/cache.dat")
 
@@ -138,8 +140,11 @@ class ClusterContract(Contract):
             msgs.append(asset.increase_allowance(spender=self, amount=amt))
             mint_assets.append(Asset.asset(asset, amt))
 
+        await chain(*msgs)
+        msgs = []
+
         msgs.append(
-            self.__getattr__("mint")(asset_amounts=mint_assets, min_tokens=min_tokens)
+            self.__getattr__("rebalance_create")(asset_amounts=mint_assets, min_tokens=min_tokens)
         )
         return await chain(*msgs)
 
@@ -152,7 +157,7 @@ class ClusterContract(Contract):
             ]
 
         msgs.append(
-            self.burn(
+            self.rebalance_redeem(
                 max_tokens=max_tokens,
                 asset_amounts=asset_amounts,
             )
@@ -171,3 +176,7 @@ def custom_objs_to_json(obj):
         return obj.json
         # return dict_to_data(obj.json)
     return obj
+
+def dict_to_b64(data: dict) -> str:
+    """Converts dict to ASCII-encoded base64 encoded string."""
+    return base64.b64encode(bytes(json.dumps(data), "ascii")).decode()

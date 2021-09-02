@@ -37,15 +37,20 @@ async def test_community_and_airdrop(eco: Ecosystem):
 
     spend_amt = "10000"
 
-    result = await eco.create_and_execute_poll(
-        {
-            "contract": eco.community,
-            "msg": eco.community.spend(
-                recipient=deployer.key.acc_address, amount=spend_amt
-            ),
-        }
-    )
+    if eco.require_gov:
+        resp = await eco.create_and_execute_poll(
+            {"contract": eco.factory, "msg": decommission_cluster}
+        )
 
-    res = result.logs[0].events_by_type
-    assert res["from_contract"]["recipient"][0] == deployer.key.acc_address
-    assert res["from_contract"]["amount"][0] == spend_amt
+        result = await eco.create_and_execute_poll(
+            {
+                "contract": eco.community,
+                "msg": eco.community.spend(
+                    recipient=deployer.key.acc_address, amount=spend_amt
+                ),
+            }
+        )
+
+        res = result.logs[0].events_by_type
+        assert res["from_contract"]["recipient"][0] == deployer.key.acc_address
+        assert res["from_contract"]["amount"][0] == spend_amt
