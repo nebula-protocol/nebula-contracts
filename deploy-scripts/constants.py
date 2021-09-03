@@ -1,10 +1,10 @@
 from contract_helpers import Contract, ClusterContract
-from bot_code.bullish_cross_recomp_deploy.src.recomp_deploy import BullishCrossRecomposer
-from bot_code.next_doge_recomp_deploy.src.recomp_deploy import NextDogeRecomposer
-from bot_code.momentum_recomp_deploy.src.recomp_deploy import MomentumTradingRecomposer
-from bot_code.terra_ecosystem_recomp_deploy.src.recomp_deploy import TerraFullDilutedMcapRecomposer, get_terra_ecosystem_info
-from bot_code.fab_mang_recomp_deploy.src.recomp_deploy import FABMANGRecomposer
-from bot_code.future_of_france_recomp_deploy.src.recomp_deploy import FutureOfFranceRecomposer
+from bot_code.clusters.bullish_cross_recomp_deploy.src.recomp_deploy import BullishCrossRecomposer
+from bot_code.clusters.next_doge_recomp_deploy.src.recomp_deploy import NextDogeRecomposer
+from bot_code.clusters.momentum_recomp_deploy.src.recomp_deploy import MomentumTradingRecomposer
+from bot_code.clusters.terra_ecosystem_recomp_deploy.src.recomp_deploy import TerraFullDilutedMcapRecomposer, get_terra_ecosystem_info
+from bot_code.clusters.fab_mang_recomp_deploy.src.recomp_deploy import FABMANGRecomposer
+from bot_code.clusters.future_of_france_recomp_deploy.src.recomp_deploy import FutureOfFranceRecomposer
 
 terraswap_factory_teq = Contract("terra18qpjm4zkvqnpjpw0zn0tdr8gdzvt8au35v45xf")
 

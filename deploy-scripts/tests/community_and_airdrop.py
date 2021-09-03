@@ -1,5 +1,5 @@
 from ecosystem import Ecosystem, deployer
-
+from contract_helpers import dict_to_b64
 
 async def test_community_and_airdrop(eco: Ecosystem):
     print("Testing community and airdrop")
@@ -37,17 +37,18 @@ async def test_community_and_airdrop(eco: Ecosystem):
 
     spend_amt = "10000"
 
-    if eco.require_gov:
-        resp = await eco.create_and_execute_poll(
-            {"contract": eco.factory, "msg": decommission_cluster}
-        )
+    spend_msg = {
+        'spend': {
+            'recipient': deployer.key.acc_address,
+            'amount': spend_amt
+        }
+    }
 
+    if eco.require_gov:
         result = await eco.create_and_execute_poll(
             {
-                "contract": eco.community,
-                "msg": eco.community.spend(
-                    recipient=deployer.key.acc_address, amount=spend_amt
-                ),
+                "contract": eco.community.address,
+                "msg": dict_to_b64(spend_msg),
             }
         )
 

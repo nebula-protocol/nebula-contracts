@@ -1,6 +1,6 @@
 from api import Asset
 import os
-os.environ["USE_TEQUILA"] = "1"
+os.environ["USE_BOMBAY"] = "1"
 os.environ["MNEMONIC"] = 'museum resist wealth require renew punch jeans smooth old color neutral cactus baby retreat guitar web average piano excess next strike drive game romance'
 
 from ecosystem_deploy import Ecosystem

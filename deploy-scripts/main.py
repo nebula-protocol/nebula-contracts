@@ -8,7 +8,7 @@ from tests.incentives_ops import test_incentives_ops
 
 
 async def main():
-    require_gov=False
+    require_gov=True
     ecosystem = Ecosystem(require_gov=require_gov)
     await ecosystem.initialize_base_contracts()
     await ecosystem.initialize_extraneous_contracts()

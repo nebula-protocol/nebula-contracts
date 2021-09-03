@@ -7,7 +7,7 @@ import asyncio
 import os
 
 
-USE_TEQUILA = bool(os.environ.get("USE_TEQUILA"))
+USE_BOMBAY = bool(os.environ.get("USE_BOMBAY"))
 USE_MNEMONIC = bool(os.environ.get("MNEMONIC"))
 
 CACHE_INITIALIZATION = True
@@ -22,7 +22,7 @@ if USE_MNEMONIC:
 else:
     key = lt.wallets["test1"].key
 
-if USE_TEQUILA:
+if USE_BOMBAY:
     gas_prices = {
         "uluna": "0.15",
         "usdr": "0.1018",
@@ -41,7 +41,7 @@ if USE_TEQUILA:
     }
 
     terra = AsyncLCDClient(
-        "https://tequila-fcd.terra.dev", "tequila-0004", gas_prices=gas_prices
+        "https://bombay-fcd.terra.dev", "bombay-10", gas_prices=gas_prices
     )
     deployer = terra.wallet(key)
 else:
@@ -55,8 +55,8 @@ async def sign_and_broadcast(*msgs):
     global sequence
     try:
         tx = await deployer.create_and_sign_tx(
-            # msgs=msgs, gas_prices={"uusd": "0.15"}, gas_adjustment=1.5, sequence=sequence
-            msgs=msgs, fee=StdFee(30000000, "20000000uusd"), sequence=sequence
+            msgs=msgs, gas_prices={"uusd": "0.15"}, gas_adjustment=1.5, sequence=sequence
+            # msgs=msgs, fee=StdFee(30000000, "20000000uusd"), sequence=sequence
         )
         result = await terra.tx.broadcast(tx)
         sequence += 1

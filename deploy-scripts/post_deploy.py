@@ -87,9 +87,6 @@ async def mint_and_provide(cluster):
     cluster_state = await cluster.query.cluster_state(cluster_contract_address=cluster, stale_threshold="0")
     cluster_info = await cluster.query.cluster_info()
     print(cluster_info)
-
-    if cluster_info['name'] != 'Top 5 30-Day Momentum':
-        return
     print(cluster_state)
     
     if cluster_state['outstanding_balance_tokens'] == '0':

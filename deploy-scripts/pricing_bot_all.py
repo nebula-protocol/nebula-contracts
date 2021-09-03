@@ -88,6 +88,7 @@ async def get_query_info():
         query_info.append([native, False])
 
     for addr in list(CONTRACT_TOKEN_TO_SYM_TEQ.keys()):
+        print(addr)
         token_info = await Contract(addr).query.token_info()
         symbol = token_info["symbol"]
         contract_addrs.append(addr)

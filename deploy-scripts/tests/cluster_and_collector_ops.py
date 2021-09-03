@@ -1,4 +1,5 @@
 from ecosystem import Ecosystem, deployer
+from contract_helpers import dict_to_b64
 
 
 async def test_cluster_and_collector_ops(eco: Ecosystem):
@@ -16,6 +17,10 @@ async def test_cluster_and_collector_ops(eco: Ecosystem):
     ]
     print('Balance after mint', balance)
 
+    balance = (await eco.cluster_token.query.balance(address=eco.collector))[
+        "balance"
+    ]
+    
     await eco.cluster.redeem("5000")
     balance = (await eco.cluster_token.query.balance(address=deployer.key.acc_address))[
         "balance"
@@ -50,9 +55,16 @@ async def test_decommission_cluster(eco: Ecosystem):
         cluster_token=eco.cluster_token,
     )
 
+    decommission_cluster_msg = {
+        'decommission_cluster': {
+            'cluster_contract': eco.cluster.address,
+            'cluster_token': eco.cluster_token.address
+        }
+    }
+
     if eco.require_gov:
         resp = await eco.create_and_execute_poll(
-            {"contract": eco.factory, "msg": decommission_cluster}
+            {"contract": eco.factory.address, "msg": dict_to_b64(decommission_cluster_msg)}
         )
     else:
         resp = await decommission_cluster

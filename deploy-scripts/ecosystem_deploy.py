@@ -55,6 +55,9 @@ class Ecosystem:
 
     # background contracts needed to create cluster contracts
     async def initialize_contracts(self):
+        contract_addrs, symbols, query_info = await get_query_info()
+
+        return
         print("Initializing base contracts...")
         code_ids = self.code_ids = await store_contracts()
 
@@ -128,14 +131,6 @@ class Ecosystem:
             owner=self.factory,
         )
 
-        print("Post initialize factory including resetting the owner")
-        await self.factory.post_initialize(
-            owner=deployer.key.acc_address,
-            nebula_token=self.neb_token,
-            terraswap_factory=self.terraswap_factory,
-            staking_contract=self.staking,
-            commission_collector=self.collector,
-        )
 
         print("Create Terraswap pair for NEB-UST")
         self.neb_pair = Contract(
@@ -151,8 +146,15 @@ class Ecosystem:
             .events_by_type["from_contract"]["pair_contract_addr"][0]
         )
 
-        print("Set NEB-UST weight in factory")
-        await self.factory.terraswap_creation_hook(asset_token=self.neb_token)
+
+        print("Post initialize factory including resetting the owner")
+        await self.factory.post_initialize(
+            owner=deployer.key.acc_address,
+            nebula_token=self.neb_token,
+            terraswap_factory=self.terraswap_factory,
+            staking_contract=self.staking,
+            commission_collector=self.collector,
+        )
 
         print("Try to initialize all clusters")
         self.dummy_oracle = await Contract.create(code_ids["nebula_dummy_oracle"])
@@ -229,7 +231,6 @@ class Ecosystem:
 
         # TODO: Call recomp deploy here somehow
         recomposer_func = CT_SYM_TO_RECOMPOSER[ct_symbol]
-
         if ct_symbol == 'TER':
             assets, asset_token_supply = await get_terra_ecosystem_info()
             recomposer = recomposer_func("", assets, asset_token_supply)
@@ -238,7 +239,7 @@ class Ecosystem:
 
         target = await recomposer.weighting()
 
-        # target = [Asset.asset("uluna", "1", native=True)]
+        target = [Asset.asset("uluna", "1", native=True)]
 
         penalty_contract = await Contract.create(
             code_ids["nebula_penalty"],
@@ -270,13 +271,22 @@ class Ecosystem:
         instantiation_logs = logs["instantiate_contract"]
         addresses = instantiation_logs["contract_address"]
 
-        cluster_token = Contract(addresses[2])
+        # cluster_token = Contract(addresses[2])
+        cluster_token = Contract(addresses[1])
 
         # Use this because cw20
         cluster = ClusterContract(
-            addresses[3],
+            addresses[0],
+            # addresses[3],
             cluster_token,
             None,
         )
+
+        info = await cluster.query.cluster_info()
+        print(info)
+
+        token_info = await cluster_token.query.token_info()
+        print(token_info)
+
 
         return cluster

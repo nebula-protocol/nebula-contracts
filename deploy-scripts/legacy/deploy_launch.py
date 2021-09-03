@@ -1,6 +1,6 @@
 import os
 
-os.environ["USE_TEQUILA"] = "1"
+os.environ["USE_BOMBAY"] = "1"
 os.environ["MNEMONIC"] = 'museum resist wealth require renew punch jeans smooth old color neutral cactus baby retreat guitar web average piano excess next strike drive game romance'
 # os.environ["MNEMONIC"] = "canal tip borrow fly skirt auction volume scene great wrap wise album feature toast lawsuit ginger sweet cat reunion garlic early inspire napkin salt"
 from api import Asset
