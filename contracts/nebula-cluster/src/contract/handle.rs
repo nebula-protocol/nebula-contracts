@@ -86,15 +86,7 @@ pub fn update_config(
     // First, update cluster config
     config_store(deps.storage).update(|mut config| {
         if config.owner != info.sender.to_string() {
-            return Err(StdError::generic_err(format!(
-                "unauthorized cluster update config owner {} factory {} sender {} contract address {} updating to owner {:?} ct {:?}",
-                config.owner,
-                config.factory,
-                info.sender.to_string(),
-                env.contract.address,
-                owner,
-                cluster_token
-            )));
+            return Err(StdError::generic_err("unauthorized"));
         }
 
         if let Some(owner) = owner {
@@ -155,7 +147,7 @@ pub fn update_target(
     }
     // check permission
     if (info.sender.to_string() != cfg.owner) && (info.sender.to_string() != cfg.target_oracle) {
-        return Err(StdError::generic_err("unauthorized update target"));
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     let mut asset_data = target.clone();
