@@ -158,6 +158,41 @@ class Ecosystem:
 
         # First initialize clusters here without governance
 
+        # self.__dict__ = {'airdrop': None,
+        #     'asset_prices': None,
+        #     'asset_tokens': None,
+        #     'cluster': None,
+        #     'cluster_pair': None,
+        #     'cluster_token': None,
+        #     'code_ids': {'nebula_airdrop': '9273',
+        #                 'nebula_cluster': '9259',
+        #                 'nebula_cluster_factory': '9266',
+        #                 'nebula_collector': '9268',
+        #                 'nebula_community': '9272',
+        #                 'nebula_dummy_oracle': '9267',
+        #                 'nebula_gov': '9261',
+        #                 'nebula_incentives': '9270',
+        #                 'nebula_incentives_custody': '9269',
+        #                 'nebula_lp_staking': '9263',
+        #                 'nebula_penalty': '9262',
+        #                 'terraswap_factory': '9260',
+        #                 'terraswap_pair': '9264',
+        #                 'terraswap_router': '9271',
+        #                 'terraswap_token': '9265'},
+        #     'collector': Contract("terra14cse6uuusvanh2mqyqfzc66p7a9zgg8s5drxkk"),
+        #     'community': None,
+        #     'dummy_oracle': Contract("terra1qnxhd9rsg9s99lpfcm6xgfdvkcfa6pe9k7k3c9"),
+        #     'factory': Contract("terra1qkxc2m8gw42s8z2uq0rpceuhzcsq3vd6uq85f5"),
+        #     'gov': Contract("terra1aym2qeclcgt0zurwp8lful76wa0tfq328n2dkr"),
+        #     'incentives': None,
+        #     'incentives_custody': None,
+        #     'lp_token': None,
+        #     'neb_pair': Contract("terra1lv6d3t7stn7nl2p5n67zne5eq3sj4pmnflu957"),
+        #     'neb_token': Contract("terra13anczlaetvwhnl6udy8r3py8ujaf2vurpl933q"),
+        #     'require_gov': True,
+        #     'staking': Contract("terra1ea4j6q2un70w8fnj5le3c7jtwjwy6c6uzzxs4w"),
+        #     'terraswap_factory': Contract("terra18qpjm4zkvqnpjpw0zn0tdr8gdzvt8au35v45xf")}
+
         pprint.pprint(self.__dict__)
 
         contract_addrs, symbols, query_info = await get_query_info()

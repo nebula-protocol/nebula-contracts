@@ -55,30 +55,31 @@ async def get_all_mirror_assets():
 
     return addresses
 
+# Dummy contract on tequila to symbol
 CONTRACT_TOKEN_TO_SYM_BOMBAY = {
-  'terra10x0h5r0t9hdwamdxehapjnj67p4f8nx38pxuzx': 'mABNB',
-  'terra14js9dgr87dxepx2gczkudxj69xudf2npnw87f9': 'mBTC',
-  'terra159nvmamkrj0hw5e0e0lp4vzh6py0ev765jgl58': 'MIR',
-  'terra1a4jtyzta9zr3df8w2f5d8zr44ws0dm58cznsca': 'mTWTR',
-  'terra1et7mmctaffrg0sczfaxkqwksd43wt5fvjhyffd': 'mGLXY',
-  'terra1fczn32j5zt0p9u9eytxa7cdzvhu7yll06lzvl3': 'mBABA',
-  'terra1gua38jnfldhrqw6xgshwe4phkdyuasfnv5jfyu': 'mAMZN',
-  'terra1gytrpc5972ed3gthmupmc6wxyayx4wtvmzq8cy': 'mSLV',
-  'terra1kqqqhtqsu9h4c93rlmteg2zuhc0z53ewlwt8vq': 'mMSFT',
-  'terra1kvjetgk5arnsyn4t4cer8ppttdlymcn35awdc7': 'mAMC',
-  'terra1lj8x2s06vmfherel08qptvv22wqld0z3ytmzcf': 'mGS',
-  'terra1lrtvldvfkxx47releuk266numcg2k29y7t8t2n': 'mTSLA',
-  'terra1ml4dh06egs4ezjhq5r50ku3zc8086yfsvtreyl': 'mCOIN',
-  'terra1p8qzs0glqkfx6e08alr5c66vnlscl09df2wmwa': 'mETH',
-  'terra1qkk30fyqn27fz0a0h7alx6h73pjhur0afxlamy': 'mAAPL',
-  'terra1r27h7zpchq40r54x64568yep3x8j93lr5u2g24': 'mNFLX',
-  'terra1tpsls0lzyh2fkznhjyes56upgk5g4z0sw3hgdn': 'mUSO',
-  'terra1ucsa089wnu7u6qe05ujp4vzvf73u9aq3u89ytn': 'mFB',
-  'terra1ud984ssduc53q6z90raydwe4akch98q0ksr5ry': 'mGME',
-  'terra1wxjq2lsxvhq90z0muv4nkcddjt23t89vh4s4d6': 'mQQQ',
-  'terra1xx5ndkhe477sa267fc6mryq7jekk6aczep6mqh': 'mIAU',
-  'terra1ym8kp806plgum787fxpukj6z8tg90eslklppfq': 'mGOOGL',
-  'terra1yvplcammukw0d5583jw4payn0veqtgfumqvjk0': 'mVIXY',
+    'terra10x0h5r0t9hdwamdxehapjnj67p4f8nx38pxuzx': 'mABNB',
+    'terra14js9dgr87dxepx2gczkudxj69xudf2npnw87f9': 'mBTC',
+    'terra159nvmamkrj0hw5e0e0lp4vzh6py0ev765jgl58': 'MIR',
+    'terra1a4jtyzta9zr3df8w2f5d8zr44ws0dm58cznsca': 'mTWTR',
+    'terra1et7mmctaffrg0sczfaxkqwksd43wt5fvjhyffd': 'mGLXY',
+    'terra1fczn32j5zt0p9u9eytxa7cdzvhu7yll06lzvl3': 'mBABA',
+    'terra1gua38jnfldhrqw6xgshwe4phkdyuasfnv5jfyu': 'mAMZN',
+    'terra1gytrpc5972ed3gthmupmc6wxyayx4wtvmzq8cy': 'mSLV',
+    'terra1kqqqhtqsu9h4c93rlmteg2zuhc0z53ewlwt8vq': 'mMSFT',
+    'terra1kvjetgk5arnsyn4t4cer8ppttdlymcn35awdc7': 'mAMC',
+    'terra1lj8x2s06vmfherel08qptvv22wqld0z3ytmzcf': 'mGS',
+    'terra1lrtvldvfkxx47releuk266numcg2k29y7t8t2n': 'mTSLA',
+    'terra1ml4dh06egs4ezjhq5r50ku3zc8086yfsvtreyl': 'mCOIN',
+    'terra1p8qzs0glqkfx6e08alr5c66vnlscl09df2wmwa': 'mETH',
+    'terra1qkk30fyqn27fz0a0h7alx6h73pjhur0afxlamy': 'mAAPL',
+    'terra1r27h7zpchq40r54x64568yep3x8j93lr5u2g24': 'mNFLX',
+    'terra1tpsls0lzyh2fkznhjyes56upgk5g4z0sw3hgdn': 'mUSO',
+    'terra1ucsa089wnu7u6qe05ujp4vzvf73u9aq3u89ytn': 'mFB',
+    'terra1ud984ssduc53q6z90raydwe4akch98q0ksr5ry': 'mGME',
+    'terra1wxjq2lsxvhq90z0muv4nkcddjt23t89vh4s4d6': 'mQQQ',
+    'terra1xx5ndkhe477sa267fc6mryq7jekk6aczep6mqh': 'mIAU',
+    'terra1ym8kp806plgum787fxpukj6z8tg90eslklppfq': 'mGOOGL',
+    'terra1yvplcammukw0d5583jw4payn0veqtgfumqvjk0': 'mVIXY',
 }
 
 # Symbol to mAsset address on Columbus
@@ -122,43 +123,48 @@ SYM_TO_COINGECKO_ID = {
     'DOGE': 'dogecoin',
     'ERCTWENTY': 'erc20',
     'CUMMIES': 'cumrocket',
-    'MEME': 'degenerator'
+    'MEME': 'degenerator',
+    'AXS': 'axie-infinity',
+    'SAND': 'the-sandbox',
+    'MANA': 'decentraland',
+    'ENJ': 'enjincoin',
+    'AUDIO': 'audius'
 }
 
-SYM_TO_CONTRACT_TOKEN_TEQ = {
-    'MIR': "terra1gkjll5uwqlwa8mrmtvzv435732tffpjql494fd",
-    'mAAPL': "terra1pwd9etdemugqdt92t5d3g98069z0axpz9plnsk",
-    'mABNB': "terra1jm4j6k0e2dpug7z0glc87lwvyqh40z74f40n52",
-    'mAMC': "terra1wa87zjty4y983yyt604hdnyr8rm9mwz7let8uz",
-    'mAMZN': "terra18mjauk9ug8y29q678c2qlee6rkd9aunrpe9q97",
-    'mBABA': "terra1uvzz9fchferxpg64pdshnrc49zkxjcj66uppq8",
-    'mBTC': "terra13uya9kcnan6aevfgqxxngfpclqegvht6tfan5p",
-    'mCOIN': "terra16e3xu8ly6a622tjykfuwuv80czexece8rz0gs5",
-    'mETH': "terra1rxyctpwzqvldalafvry787thslne6asjlwqjhn",
-    'mFB': "terra1xl2tf5sjzz9phm4veh5ty5jzqrjykkqw33yt63",
-    'mGLXY': "terra17sm265sez3qle769ef4hscx540wem5hvxztpxg",
-    'mGME': "terra19y6tdnps3dsd7qc230tk3jplwl9jm27mpcx9af",
-    'mGOOGL': "terra1504y0r6pqjn3yep6njukehpqtxn0xdnruye524",
-    'mGS': "terra199yfqa5092v2udw0k0h9rau9dzel0jkf5kk3km",
-    'mIAU': "terra1n7pd3ssr9sqacwx5hekxsmdy86lwlm0fsdvnwe",
-    'mMSFT': "terra18aztjeacdfc5s30ms0558cy8lygvam3s4v69jg",
-    'mNFLX': "terra1smu8dc2xpa9rfj525n3a3ttgwnacnjgr59smu7",
-    'mQQQ': "terra1r20nvsd08yujq29uukva8fek6g32p848kzlkfc",
-    'mSLV': "terra1re6mcpu4hgzs5wc77gffsluqauanhpa8g7nmjc",
-    'mSPY': "terra1j3l2ul7s8fkaadwdan67hejt7k5nylmxfkwg0w",
-    'mTSLA': "terra1k44gg67rnc6av8sn0602876w8we5lu3jp30yec",
-    'mTWTR': "terra1897xd8jqjkfpr5496ur8n896gd8fud3shq3t4q",
-    'mUSO': "terra1c3nyehgvukzrt5k9lxzzw64d68el6cejyxjqde",
-    'mVIXY': "terra12kt7yf3r7k92dmch97u6cu2fggsewaj3kp0yq9",
-    'AAVE': 'terra1rw388r5ptypzzeyqr2swc44drju3zu2j5qlaw2',
-    'ANC': 'terra16z5t7cr0ueg47tuqmwlp6ymgm2w43dyv4xnt4g',
-    'COMP': 'terra1hmuuk7230na78mgp67kf4f0qenyw9xhfjzhaay',
-    'CREAM': 'terra1dvx9np7ajmky66kz8r4dvze9e6gwsxwz5h6x4d',
-    'CUMMIES': 'terra1kf9qa5f3uu7nq3flg2dva8c9d9lh8h5cyuextt',
-    'DOGE': 'terra1wpa2978x6n9c6xdvfzk4uhkzvphmq5fhdnvrym',
-    'ERCTWENTY': 'terra1p0rp8he7jfnevha3k5anhd0als7azjmfhxrvjv',
-    'MEME': 'terra1u08z2c9r3s3avrn9l0r3m30xhcmssunvv5d0rx',
-    'MKR': 'terra13rkv7zdg4huwe0z9c0k8t7gc3hxhy58c3zghec'
+SYM_TO_CONTRACT_TOKEN_BOMBAY = {
+    'AAVE': 'terra1exw6sae4wyq8rt56hxdggzmgmqsuukr26u4aj8',
+    'ANC': 'terra1mst8t7guwkku9rqhre4lxtkfkz3epr45wt8h0m',
+    'AUDIO': 'terra1t89u7cfrp9r4a8msmxz4z3esn5g5z8ga2qsec6',
+    'AXS': 'terra1w07h8u34an2jcfsegjc80edunngf3ey6xdz456',
+    'COMP': 'terra10af2zy62wanc6cs3n66cplmpepvf6qnetuydz2',
+    'CREAM': 'terra1a7g946jyjhn8h7gscda7sd68kn9k4whkxq0ddn',
+    'ENJ': 'terra14vxe68djqpmzspvkaj9fjxc8fu6qmt34wmm6xc',
+    'MANA': 'terra1lc6czeag9zaaqk04y5ynfkxu723n7t56kg2a9r',
+    'MKR': 'terra1lflvesvarcfu53gd9cgkv3juyrz79cnk7yw6am',
+    'SAND': 'terra1q3smy9j5qjplyas4l3tgyj72qtq9fvysff4msa',
+    'MIR': 'terra159nvmamkrj0hw5e0e0lp4vzh6py0ev765jgl58',
+    'mAAPL': 'terra1qkk30fyqn27fz0a0h7alx6h73pjhur0afxlamy',
+    'mABNB': 'terra10x0h5r0t9hdwamdxehapjnj67p4f8nx38pxuzx',
+    'mAMC': 'terra1kvjetgk5arnsyn4t4cer8ppttdlymcn35awdc7',
+    'mAMZN': 'terra1gua38jnfldhrqw6xgshwe4phkdyuasfnv5jfyu',
+    'mBABA': 'terra1fczn32j5zt0p9u9eytxa7cdzvhu7yll06lzvl3',
+    'mBTC': 'terra14js9dgr87dxepx2gczkudxj69xudf2npnw87f9',
+    'mCOIN': 'terra1ml4dh06egs4ezjhq5r50ku3zc8086yfsvtreyl',
+    'mETH': 'terra1p8qzs0glqkfx6e08alr5c66vnlscl09df2wmwa',
+    'mFB': 'terra1ucsa089wnu7u6qe05ujp4vzvf73u9aq3u89ytn',
+    'mGLXY': 'terra1et7mmctaffrg0sczfaxkqwksd43wt5fvjhyffd',
+    'mGME': 'terra1ud984ssduc53q6z90raydwe4akch98q0ksr5ry',
+    'mGOOGL': 'terra1ym8kp806plgum787fxpukj6z8tg90eslklppfq',
+    'mGS': 'terra1lj8x2s06vmfherel08qptvv22wqld0z3ytmzcf',
+    'mIAU': 'terra1xx5ndkhe477sa267fc6mryq7jekk6aczep6mqh',
+    'mMSFT': 'terra1kqqqhtqsu9h4c93rlmteg2zuhc0z53ewlwt8vq',
+    'mNFLX': 'terra1r27h7zpchq40r54x64568yep3x8j93lr5u2g24',
+    'mQQQ': 'terra1wxjq2lsxvhq90z0muv4nkcddjt23t89vh4s4d6',
+    'mSLV': 'terra1gytrpc5972ed3gthmupmc6wxyayx4wtvmzq8cy',
+    'mTSLA': 'terra1lrtvldvfkxx47releuk266numcg2k29y7t8t2n',
+    'mTWTR': 'terra1a4jtyzta9zr3df8w2f5d8zr44ws0dm58cznsca',
+    'mUSO': 'terra1tpsls0lzyh2fkznhjyes56upgk5g4z0sw3hgdn',
+    'mVIXY': 'terra1yvplcammukw0d5583jw4payn0veqtgfumqvjk0'
  }
 
 async def mirror_history_query_test(address, tick, from_stamp, to_stamp):
@@ -167,7 +173,7 @@ async def mirror_history_query_test(address, tick, from_stamp, to_stamp):
     """
 
     try:
-        sym = CONTRACT_TOKEN_TO_SYM_TEQ[address]
+        sym = CONTRACT_TOKEN_TO_SYM_BOMBAY[address]
         col_address = SYM_TO_MASSET_COL[sym]
     except:
         raise NameError
@@ -207,4 +213,4 @@ async def mirror_history_query_test(address, tick, from_stamp, to_stamp):
     
 
 async def get_all_mirror_assets_test():
-   return [k for k, v in CONTRACT_TOKEN_TO_SYM_TEQ.items() if (v[0] == 'm' or v == 'MIR')]
+   return [k for k, v in CONTRACT_TOKEN_TO_SYM_BOMBAY.items() if (v[0] == 'm' or v == 'MIR')]

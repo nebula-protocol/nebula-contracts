@@ -5,7 +5,7 @@ os.environ["MNEMONIC"] = 'museum resist wealth require renew punch jeans smooth 
 
 from ecosystem_deploy import Ecosystem
 
-from contract_helpers import Contract, ClusterContract
+from contract_helpers import Contract, ClusterContract, terra
 import asyncio
 from base import deployer
 import pprint
@@ -14,6 +14,8 @@ REQUIRE_GOV = True
 
 
 async def deploy_contracts():
+    # coins_total_supply = await terra.bank.total()
+    # print(coins_total_supply )
     print('Initializing all base contracts and such onto Tequila')
     ecosystem = Ecosystem(require_gov=REQUIRE_GOV)
     ecosystem.terraswap_factory = Contract(

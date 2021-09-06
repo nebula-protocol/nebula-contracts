@@ -12,7 +12,7 @@ os.environ["USE_TEQUILA"] = "1"
 from api import Asset
 from contract_helpers import Contract, ClusterContract, terra
 
-from pricing import get_query_info, get_prices
+from .pricing import get_query_info, get_prices
 
 ONE_MILLION = 1000000.0
 SECONDS_PER_DAY = 24 * 60 * 60

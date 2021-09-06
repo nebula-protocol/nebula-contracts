@@ -9,11 +9,11 @@ from graphql_querier import mirror_history_query_test, get_all_mirror_assets_tes
 import time
 import pandas as pd
 
-from pricing import get_query_info, get_prices
+from .pricing import get_query_info, get_prices
 
 os.environ["MNEMONIC"] = mnemonic = 'know ice noble near track exercise present lawsuit cabbage pull proof recipe bridge dirt wealth useful oxygen stool lounge source sponsor elephant obvious mirror'
 
-os.environ["USE_TEQUILA"] = "1"
+os.environ["USE_BOMBAY"] = "1"
 
 from api import Asset
 from contract_helpers import Contract, ClusterContract, terra

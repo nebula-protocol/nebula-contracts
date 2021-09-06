@@ -11,7 +11,7 @@ os.environ["USE_TEQUILA"] = "1"
 from api import Asset
 from contract_helpers import Contract, ClusterContract, terra
 
-from pricing import get_query_info, get_prices
+from .pricing import get_query_info, get_prices
 
 ONE_MILLION = 1000000.0
 SECONDS_PER_DAY = 24 * 60 * 60
@@ -100,8 +100,9 @@ async def get_terra_ecosystem_info():
     mir_total_supply = float(mir_token_info['total_supply'])
 
     # coins_total_supply = await terra.supply.total()
+    # coins_total_supply = await terra.bank.total()
     # luna_total_supply = coins_total_supply.get('uluna').amount
-    luna_total_supply = 99453326200000
+    luna_total_supply = 105996364234582
     asset_token_supply = [
         luna_total_supply/100000,
         anc_total_supply/ONE_MILLION,     # ANC

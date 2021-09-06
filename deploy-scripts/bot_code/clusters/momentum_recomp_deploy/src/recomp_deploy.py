@@ -4,11 +4,11 @@ import requests
 import json
 import time
 
-from graphql_querier import mirror_history_query_test, get_all_mirror_assets_test
+from .graphql_querier import mirror_history_query_test, get_all_mirror_assets_test
 import time
 import pandas as pd
 
-from pricing import get_query_info, get_prices
+from .pricing import get_query_info, get_prices
 
 os.environ["MNEMONIC"] = mnemonic = 'record sword bounce legal sea busy eight vanish assault among travel pull gravity inmate boost aerobic voyage wagon tiger own prefer cigar shell group'
 
