@@ -15,7 +15,7 @@ from contract_helpers import Contract, ClusterContract, terra
 ONE_MILLION = 1000000.0
 SECONDS_PER_DAY = 24 * 60 * 60
 
-# The Next Doge Cluster Methodology
+# The Metaverse Cluster Methodology
 """
 For underlying tokens in a cluster, we define them as “activated“ and “deactivated” according to a binary activation function. 
 Consider an activation function such that when the H = 4-hour price percentage for a token exceeds T = 30%, we mark it “activated”. 
@@ -26,18 +26,20 @@ proportional to the market cap of each “activated” token, and then a functio
 If there's any remaining weight percentage, it's allocated to UST. However, if no “activated” tokens exist, we assign a 100% weight to 
 UST and wait for an activation event occurrence.
 """
-class NextDogeRecomposer:
+class MetaverseRecomposer:
     def __init__(self, cluster_contract):
         self.cluster_contract = cluster_contract
 
-        #["UST, ""DOGE", "CUMMIES", "MEME", "ERC20"]
-        self.asset_ids = ["terrausd", "dogecoin", "cumrocket", "degenerator", "erc20"]
+        #["UST, "AXS", "SAND", "MANA", "ENJ", "AUDIO"]
+        self.asset_ids = ["terrausd", 'axie-infinity', 'the-sandbox', 'decentraland', 'enjincoin', 'audius']
+
         self.asset_infos = [
             'uusd', 
-            'terra1wpa2978x6n9c6xdvfzk4uhkzvphmq5fhdnvrym',
-            'terra1kf9qa5f3uu7nq3flg2dva8c9d9lh8h5cyuextt',
-            'terra1u08z2c9r3s3avrn9l0r3m30xhcmssunvv5d0rx',
-            'terra1p0rp8he7jfnevha3k5anhd0als7azjmfhxrvjv',
+            'terra1w07h8u34an2jcfsegjc80edunngf3ey6xdz456',
+            'terra1q3smy9j5qjplyas4l3tgyj72qtq9fvysff4msa',
+            'terra1lc6czeag9zaaqk04y5ynfkxu723n7t56kg2a9r',
+            'terra14vxe68djqpmzspvkaj9fjxc8fu6qmt34wmm6xc',
+            'terra1t89u7cfrp9r4a8msmxz4z3esn5g5z8ga2qsec6',
         ]
 
         self.activation_file = "activation.info"

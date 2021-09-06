@@ -1,6 +1,6 @@
 from contract_helpers import Contract, ClusterContract
 from bot_code.clusters.bullish_cross_recomp_deploy.src.recomp_deploy import BullishCrossRecomposer
-from bot_code.clusters.next_doge_recomp_deploy.src.recomp_deploy import NextDogeRecomposer
+from bot_code.clusters.metaverse_recomp_deploy.src.recomp_deploy import MetaverseRecomposer
 from bot_code.clusters.momentum_recomp_deploy.src.recomp_deploy import MomentumTradingRecomposer
 from bot_code.clusters.terra_ecosystem_recomp_deploy.src.recomp_deploy import TerraFullDilutedMcapRecomposer, get_terra_ecosystem_info
 from bot_code.clusters.fab_mang_recomp_deploy.src.recomp_deploy import FABMANGRecomposer
@@ -245,6 +245,78 @@ CONTRACT_TOKEN_TO_SYM_TEQ = {
     'terra1wpa2978x6n9c6xdvfzk4uhkzvphmq5fhdnvrym': 'DOGE'
 }
 
+SYM_TO_CONTRACT_TOKEN_BOMBAY = {
+  'AAVE': 'terra1exw6sae4wyq8rt56hxdggzmgmqsuukr26u4aj8',
+  'ANC': 'terra1mst8t7guwkku9rqhre4lxtkfkz3epr45wt8h0m',
+  'AUDIO': 'terra1t89u7cfrp9r4a8msmxz4z3esn5g5z8ga2qsec6',
+  'AXS': 'terra1w07h8u34an2jcfsegjc80edunngf3ey6xdz456',
+  'COMP': 'terra10af2zy62wanc6cs3n66cplmpepvf6qnetuydz2',
+  'CREAM': 'terra1a7g946jyjhn8h7gscda7sd68kn9k4whkxq0ddn',
+  'ENJ': 'terra14vxe68djqpmzspvkaj9fjxc8fu6qmt34wmm6xc',
+  'MANA': 'terra1lc6czeag9zaaqk04y5ynfkxu723n7t56kg2a9r',
+  'MKR': 'terra1lflvesvarcfu53gd9cgkv3juyrz79cnk7yw6am',
+  'SAND': 'terra1q3smy9j5qjplyas4l3tgyj72qtq9fvysff4msa',
+  'MIR': 'terra159nvmamkrj0hw5e0e0lp4vzh6py0ev765jgl58',
+  'mAAPL': 'terra1qkk30fyqn27fz0a0h7alx6h73pjhur0afxlamy',
+  'mABNB': 'terra10x0h5r0t9hdwamdxehapjnj67p4f8nx38pxuzx',
+  'mAMC': 'terra1kvjetgk5arnsyn4t4cer8ppttdlymcn35awdc7',
+  'mAMZN': 'terra1gua38jnfldhrqw6xgshwe4phkdyuasfnv5jfyu',
+  'mBABA': 'terra1fczn32j5zt0p9u9eytxa7cdzvhu7yll06lzvl3',
+  'mBTC': 'terra14js9dgr87dxepx2gczkudxj69xudf2npnw87f9',
+  'mCOIN': 'terra1ml4dh06egs4ezjhq5r50ku3zc8086yfsvtreyl',
+  'mETH': 'terra1p8qzs0glqkfx6e08alr5c66vnlscl09df2wmwa',
+  'mFB': 'terra1ucsa089wnu7u6qe05ujp4vzvf73u9aq3u89ytn',
+  'mGLXY': 'terra1et7mmctaffrg0sczfaxkqwksd43wt5fvjhyffd',
+  'mGME': 'terra1ud984ssduc53q6z90raydwe4akch98q0ksr5ry',
+  'mGOOGL': 'terra1ym8kp806plgum787fxpukj6z8tg90eslklppfq',
+  'mGS': 'terra1lj8x2s06vmfherel08qptvv22wqld0z3ytmzcf',
+  'mIAU': 'terra1xx5ndkhe477sa267fc6mryq7jekk6aczep6mqh',
+  'mMSFT': 'terra1kqqqhtqsu9h4c93rlmteg2zuhc0z53ewlwt8vq',
+  'mNFLX': 'terra1r27h7zpchq40r54x64568yep3x8j93lr5u2g24',
+  'mQQQ': 'terra1wxjq2lsxvhq90z0muv4nkcddjt23t89vh4s4d6',
+  'mSLV': 'terra1gytrpc5972ed3gthmupmc6wxyayx4wtvmzq8cy',
+  'mTSLA': 'terra1lrtvldvfkxx47releuk266numcg2k29y7t8t2n',
+  'mTWTR': 'terra1a4jtyzta9zr3df8w2f5d8zr44ws0dm58cznsca',
+  'mUSO': 'terra1tpsls0lzyh2fkznhjyes56upgk5g4z0sw3hgdn',
+  'mVIXY': 'terra1yvplcammukw0d5583jw4payn0veqtgfumqvjk0'
+ }
+
+CONTRACT_TOKEN_TO_SYM_BOMBAY = {
+  'terra10af2zy62wanc6cs3n66cplmpepvf6qnetuydz2': 'COMP',
+  'terra14vxe68djqpmzspvkaj9fjxc8fu6qmt34wmm6xc': 'ENJ',
+  'terra1a7g946jyjhn8h7gscda7sd68kn9k4whkxq0ddn': 'CREAM',
+  'terra1exw6sae4wyq8rt56hxdggzmgmqsuukr26u4aj8': 'AAVE',
+  'terra1lc6czeag9zaaqk04y5ynfkxu723n7t56kg2a9r': 'MANA',
+  'terra1lflvesvarcfu53gd9cgkv3juyrz79cnk7yw6am': 'MKR',
+  'terra1mst8t7guwkku9rqhre4lxtkfkz3epr45wt8h0m': 'ANC',
+  'terra1q3smy9j5qjplyas4l3tgyj72qtq9fvysff4msa': 'SAND',
+  'terra1t89u7cfrp9r4a8msmxz4z3esn5g5z8ga2qsec6': 'AUDIO',
+  'terra1w07h8u34an2jcfsegjc80edunngf3ey6xdz456': 'AXS',
+  'terra10x0h5r0t9hdwamdxehapjnj67p4f8nx38pxuzx': 'mABNB',
+  'terra14js9dgr87dxepx2gczkudxj69xudf2npnw87f9': 'mBTC',
+  'terra159nvmamkrj0hw5e0e0lp4vzh6py0ev765jgl58': 'MIR',
+  'terra1a4jtyzta9zr3df8w2f5d8zr44ws0dm58cznsca': 'mTWTR',
+  'terra1et7mmctaffrg0sczfaxkqwksd43wt5fvjhyffd': 'mGLXY',
+  'terra1fczn32j5zt0p9u9eytxa7cdzvhu7yll06lzvl3': 'mBABA',
+  'terra1gua38jnfldhrqw6xgshwe4phkdyuasfnv5jfyu': 'mAMZN',
+  'terra1gytrpc5972ed3gthmupmc6wxyayx4wtvmzq8cy': 'mSLV',
+  'terra1kqqqhtqsu9h4c93rlmteg2zuhc0z53ewlwt8vq': 'mMSFT',
+  'terra1kvjetgk5arnsyn4t4cer8ppttdlymcn35awdc7': 'mAMC',
+  'terra1lj8x2s06vmfherel08qptvv22wqld0z3ytmzcf': 'mGS',
+  'terra1lrtvldvfkxx47releuk266numcg2k29y7t8t2n': 'mTSLA',
+  'terra1ml4dh06egs4ezjhq5r50ku3zc8086yfsvtreyl': 'mCOIN',
+  'terra1p8qzs0glqkfx6e08alr5c66vnlscl09df2wmwa': 'mETH',
+  'terra1qkk30fyqn27fz0a0h7alx6h73pjhur0afxlamy': 'mAAPL',
+  'terra1r27h7zpchq40r54x64568yep3x8j93lr5u2g24': 'mNFLX',
+  'terra1tpsls0lzyh2fkznhjyes56upgk5g4z0sw3hgdn': 'mUSO',
+  'terra1ucsa089wnu7u6qe05ujp4vzvf73u9aq3u89ytn': 'mFB',
+  'terra1ud984ssduc53q6z90raydwe4akch98q0ksr5ry': 'mGME',
+  'terra1wxjq2lsxvhq90z0muv4nkcddjt23t89vh4s4d6': 'mQQQ',
+  'terra1xx5ndkhe477sa267fc6mryq7jekk6aczep6mqh': 'mIAU',
+  'terra1ym8kp806plgum787fxpukj6z8tg90eslklppfq': 'mGOOGL',
+  'terra1yvplcammukw0d5583jw4payn0veqtgfumqvjk0': 'mVIXY',
+}
+
 SYM_TO_MASSET_COL = {
     'MIR': 'terra15gwkyepfc6xgca5t5zefzwy42uts8l2m4g40k6',
     'mAAPL': 'terra1vxtwu4ehgzz77mnfwrntyrmgl64qjs75mpwqaz',
@@ -285,7 +357,12 @@ SYM_TO_COINGECKO_ID = {
     'DOGE': 'dogecoin',
     'ERCTWENTY': 'erc20',
     'CUMMIES': 'cumrocket',
-    'MEME': 'degenerator'
+    'MEME': 'degenerator',
+    'AXS': 'axie-infinity',
+    'SAND': 'the-sandbox',
+    'MANA': 'decentraland',
+    'ENJ': 'enjincoin',
+    'AUDIO': 'audius'
 }
 
 # Helper for deploying
@@ -295,7 +372,7 @@ CT_SYM_TO_NAME = {
     'MOMENTUM': 'Top 5 30-Day Momentum',
     'BULL': 'Bullish Cross',
     'FOF': 'The Future of France',
-    'NOGE': 'The Next Doge',
+    'META': 'The Metaverse',
 }
 
 # Helper for deploying
@@ -305,7 +382,7 @@ CT_SYM_TO_RECOMP_ORACLE = {
     'MOMENTUM': 'terra1m0z2ul2kzz2ua2fttstn0wkm2fp500pm9am396',
     'BULL': 'terra1e3u7msymmkxu8u68rdvg0nqmq7zaafttcq64ky',
     'FOF': 'terra17qfm7gmtcup5tjq99rhm7a685x6vffg3v8u3wk',
-    'NOGE': 'terra14s0lccdf88wq7t0hxkzwwnglskh588dy0nxzkc',
+    'META': 'terra14s0lccdf88wq7t0hxkzwwnglskh588dy0nxzkc',
 }
 
 # Helper for deploying
@@ -315,5 +392,5 @@ CT_SYM_TO_RECOMPOSER = {
     'MOMENTUM': MomentumTradingRecomposer,
     'BULL': BullishCrossRecomposer,
     'FOF': FutureOfFranceRecomposer,
-    'NOGE': NextDogeRecomposer,
+    'META': MetaverseRecomposer,
 }

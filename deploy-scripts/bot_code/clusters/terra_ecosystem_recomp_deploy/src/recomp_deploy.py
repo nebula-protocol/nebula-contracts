@@ -80,8 +80,8 @@ class TerraFullDilutedMcapRecomposer:
         return target
 
 async def get_terra_ecosystem_info():
-    ANC_ADDR = 'terra16z5t7cr0ueg47tuqmwlp6ymgm2w43dyv4xnt4g'
-    MIR_ADDR = 'terra1gkjll5uwqlwa8mrmtvzv435732tffpjql494fd'
+    ANC_ADDR = 'terra1mst8t7guwkku9rqhre4lxtkfkz3epr45wt8h0m'
+    MIR_ADDR = 'terra159nvmamkrj0hw5e0e0lp4vzh6py0ev765jgl58'
     assets = [
         "uluna", #LUNA
         ANC_ADDR, #ANC
@@ -97,8 +97,9 @@ async def get_terra_ecosystem_info():
     mir_token_info = await mir_token.query.token_info()
     mir_total_supply = float(mir_token_info['total_supply'])
 
-    coins_total_supply = await terra.supply.total()
-    luna_total_supply = coins_total_supply.get('uluna').amount
+    # coins_total_supply = await terra.supply.total()
+    # luna_total_supply = coins_total_supply.get('uluna').amount
+    luna_total_supply = 99453326200000
     asset_token_supply = [
         luna_total_supply/100000,
         anc_total_supply/ONE_MILLION,     # ANC

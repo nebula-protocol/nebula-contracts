@@ -106,7 +106,7 @@ async def mint_and_provide(cluster):
 
     provide_uusd = 500000000000 # Provide $500 liquidity
 
-    if cluster_info['name'] != 'The Next Doge':
+    if cluster_info['name'] != 'The Metaverse':
         provide_uusd = 500000000000 
 
     cost_per_ct = cost_per_cluster_token(cluster_state)

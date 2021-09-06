@@ -53,63 +53,45 @@ ADDR3 = deployer.key.acc_address
 
 async def deploy_mir_token_contracts():
 
-    print('Deploying token contracts now')
+    print('Deploying mirror token contracts now')
     symbols_to_mir_contract = {}
-    
-    # ANC first
-    # anc_contract = await Contract.create(
-    #     DEPLOY_ENVIRONMENT_STATUS_W_GOV['code_ids']['terraswap_token'],
-    #     name='Anchor',
-    #     symbol='ANC',
-    #     decimals=6,
-    #     initial_balances=[
-    #         {
-    #             "address": ADDR1,
-    #             "amount": "1" + "0" * 15,
-    #         },
-    #         {
-    #             "address": ADDR2,
-    #             "amount": "1" + "0" * 15,
-    #         },
-    #         {
-    #             "address": ADDR3,
-    #             "amount": "1" + "0" * 15,
-    #         },
-    #     ],
-    #     mint=None,
-    # )
-    # symbols_to_mir_contract['ANC'] = anc_contract
-
-    import pdb; pdb.set_trace()
-
-
+    contract_to_symbol = {}
     for asset in graphql_mir_data['data']['assets']:
+        print(asset)
+        
         symbol, name, token = asset['symbol'], asset['name'], asset['token']
-
-        mirror_contract = await Contract.create(
-            DEPLOY_ENVIRONMENT_STATUS_W_GOV['code_ids']['terraswap_token'],
-            name=name,
-            symbol=symbol,
-            decimals=6,
-            initial_balances=[
-                {
-                    "address": ADDR1,
-                    "amount": "1" + "0" * 15,
-                },
-                {
-                    "address": ADDR2,
-                    "amount": "1" + "0" * 15,
-                },
-                {
-                    "address": ADDR3,
-                    "amount": "1" + "0" * 15,
-                },
-            ],
-            mint=None,
-        )
-        symbols_to_mir_contract[symbol] = mirror_contract
+        try:
+            mirror_contract = await Contract.create(
+                # DEPLOY_ENVIRONMENT_STATUS_W_GOV['code_ids']['terraswap_token'],
+                9101,
+                name=name,
+                symbol=symbol,
+                decimals=6,
+                initial_balances=[
+                    {
+                        "address": ADDR1,
+                        "amount": "1" + "0" * 18,
+                    },
+                    {
+                        "address": ADDR2,
+                        "amount": "1" + "0" * 18,
+                    },
+                    {
+                        "address": ADDR3,
+                        "amount": "1" + "0" * 18,
+                    },
+                ],
+                mint=None,
+            )
+            symbols_to_mir_contract[symbol] = mirror_contract.address
+            contract_to_symbol[mirror_contract.address] = symbol
+        except:
+            print('broken', symbol)
+            print(symbols_to_mir_contract)
+            print(contract_to_symbol)
 
     print(symbols_to_mir_contract)
+    print(contract_to_symbol)
 
 
 async def deploy_token_contracts():
@@ -118,36 +100,37 @@ async def deploy_token_contracts():
     symbols_to_contracts = {}
     contracts_to_symbols = {}
 
-    tokens = ["AAVE", "COMP", "MKR", "CREAM", "ANC", "DOGE", "ERCTWENTY", "CUMMIES", "MEME"]
-    import pdb; pdb.set_trace()
+    tokens = ["AAVE", "COMP", "MKR", "CREAM", "ANC", "AXS", "SAND", "MANA", "ENJ", "AUDIO"]
 
 
     for t in tokens:
         symbol, name = t, t
+        print(symbol)
 
         contract = await Contract.create(
-            DEPLOY_ENVIRONMENT_STATUS_W_GOV['code_ids']['terraswap_token'],
+            # DEPLOY_ENVIRONMENT_STATUS_W_GOV['code_ids']['terraswap_token'],
+            9101,
             name=name,
             symbol=symbol,
             decimals=6,
             initial_balances=[
                 {
                     "address": ADDR1,
-                    "amount": "1" + "0" * 15,
+                    "amount": "1" + "0" * 18,
                 },
                 {
                     "address": ADDR2,
-                    "amount": "1" + "0" * 15,
+                    "amount": "1" + "0" * 18,
                 },
                 {
                     "address": ADDR3,
-                    "amount": "1" + "0" * 15,
+                    "amount": "1" + "0" * 18,
                 },
             ],
             mint=None,
         )
         symbols_to_contracts[symbol] = contract.address
-        contracts_to_symbols[symbol] = contract.address
+        contracts_to_symbols[contract.address] = symbol
         
 
     print(symbols_to_contracts)
@@ -169,8 +152,9 @@ async def quick_transfer():
 
 async def deploy_contracts():
     # await deploy_new_incentives()
+    await deploy_mir_token_contracts()
     # await deploy_token_contracts()
-    await quick_transfer()
+    # await quick_transfer()
 
 if __name__ == "__main__":
     asyncio.get_event_loop().run_until_complete(deploy_contracts())

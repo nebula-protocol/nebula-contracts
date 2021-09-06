@@ -55,9 +55,6 @@ class Ecosystem:
 
     # background contracts needed to create cluster contracts
     async def initialize_contracts(self):
-        contract_addrs, symbols, query_info = await get_query_info()
-
-        return
         print("Initializing base contracts...")
         code_ids = self.code_ids = await store_contracts()
 
@@ -238,8 +235,6 @@ class Ecosystem:
             recomposer = recomposer_func("")
 
         target = await recomposer.weighting()
-
-        target = [Asset.asset("uluna", "1", native=True)]
 
         penalty_contract = await Contract.create(
             code_ids["nebula_penalty"],

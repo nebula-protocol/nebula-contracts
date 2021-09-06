@@ -4,7 +4,7 @@ import sys
 os.environ["USE_TEQUILA"] = "1"
 os.environ["MNEMONIC"] = mnemonic = 'buddy monster west choice floor lonely owner castle mix mouse stable jealous question column regular sad print ethics blame cabbage knife drip practice violin'
 
-from constants import CONTRACT_TOKEN_TO_SYM_TEQ, SYM_TO_MASSET_COL, SYM_TO_COINGECKO_ID
+from constants import CONTRACT_TOKEN_TO_SYM_BOMBAY, SYM_TO_MASSET_COL, SYM_TO_COINGECKO_ID
 
 from api import Asset
 from contract_helpers import Contract, ClusterContract
@@ -26,7 +26,7 @@ async def get_graphql_price(address, testing=False):
 
     if testing:
         try:
-            sym = CONTRACT_TOKEN_TO_SYM_TEQ[address]
+            sym = CONTRACT_TOKEN_TO_SYM_BOMBAY[address]
             col_address = SYM_TO_MASSET_COL[sym]
         except:
             raise NameError
@@ -87,8 +87,7 @@ async def get_query_info():
         contract_addrs.append(native)
         query_info.append([native, False])
 
-    for addr in list(CONTRACT_TOKEN_TO_SYM_TEQ.keys()):
-        print(addr)
+    for addr in list(CONTRACT_TOKEN_TO_SYM_BOMBAY.keys()):
         token_info = await Contract(addr).query.token_info()
         symbol = token_info["symbol"]
         contract_addrs.append(addr)
