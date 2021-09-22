@@ -23,11 +23,11 @@ class FutureOfFranceRecomposer:
         self.cluster_contract = cluster_contract
         self.asset_names = ["AAVE", "COMP", "MKR", "CREAM", "ANC"]
         self.assets_to_address = {
-            'AAVE': 'terra1exw6sae4wyq8rt56hxdggzmgmqsuukr26u4aj8',
-            'ANC': 'terra1mst8t7guwkku9rqhre4lxtkfkz3epr45wt8h0m',
-            'COMP': 'terra10af2zy62wanc6cs3n66cplmpepvf6qnetuydz2',
-            'CREAM': 'terra1a7g946jyjhn8h7gscda7sd68kn9k4whkxq0ddn',
-            'MKR': 'terra1lflvesvarcfu53gd9cgkv3juyrz79cnk7yw6am'
+            'AAVE': 'terra1j9dmu4k9jm8e52yr2rz20rlhl9kzg9xmd9qszu',
+            'ANC': 'terra1jffn63c4tfzg66qdcaznhqaphmgvprp7muauq6',
+            'COMP': 'terra1vacxu53744tze80e0yjpsyp4rm27s5dr8fvagv',
+            'CREAM': 'terra1xdhrww6v3dxy20ss8gqdk2mwwfk0gqq9ggzf7a',
+            'MKR': 'terra1gm05r4aqmfywp8x2ruphacc4xtnlpuk57m8v2y'
         }
         self.api = "https://api.llama.fi"
         self.protocol_endpoint = "protocols"

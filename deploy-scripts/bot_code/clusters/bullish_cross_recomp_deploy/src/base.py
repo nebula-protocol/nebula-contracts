@@ -7,7 +7,7 @@ import asyncio
 import os
 
 
-USE_TEQUILA = bool(os.environ.get("USE_BOMBAY"))
+USE_BOMBAY = bool(os.environ.get("USE_BOMBAY"))
 USE_MNEMONIC = bool(os.environ.get("MNEMONIC"))
 
 CACHE_INITIALIZATION = True

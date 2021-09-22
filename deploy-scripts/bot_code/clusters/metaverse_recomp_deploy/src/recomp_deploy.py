@@ -37,11 +37,11 @@ class MetaverseRecomposer:
 
         self.asset_infos = [
             'uusd', 
-            'terra1w07h8u34an2jcfsegjc80edunngf3ey6xdz456',
-            'terra1q3smy9j5qjplyas4l3tgyj72qtq9fvysff4msa',
-            'terra1lc6czeag9zaaqk04y5ynfkxu723n7t56kg2a9r',
-            'terra14vxe68djqpmzspvkaj9fjxc8fu6qmt34wmm6xc',
-            'terra1t89u7cfrp9r4a8msmxz4z3esn5g5z8ga2qsec6',
+            'terra1kjqdwxdgdw8pphtdvu43kwtl0d8q93j25u6rl2',
+            'terra1uctdrs0f2g2usgyfhujaehj8e9pfajsy4emk4t',
+            'terra1awdn73w3rllhymnq7getht66tr4cvhgm43zx33',
+            'terra10tey9kxcutm4hzwqnf87mg2sygqx4dvfc50795',
+            'terra16gclfyjnqcdjplx2lxp6f6a9agg7czd5ewmhm5',
         ]
 
         self.activation_file = "activation.info"
@@ -177,7 +177,7 @@ class MetaverseRecomposer:
         prices = await get_prices(query_info)
         target = []
         for a, t, p in zip(self.asset_infos, target_weights, prices):
-            native = (a == 'uluna')
+            native = (a == 'uluna') or (a == 'uusd')
             print(t)
             tw = str(int(100000000 * t / float(p)))
             target.append(Asset.asset(a, tw, native=native))

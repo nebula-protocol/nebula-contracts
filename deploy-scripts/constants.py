@@ -281,6 +281,7 @@ SYM_TO_CONTRACT_TOKEN_BOMBAY = {
   'mVIXY': 'terra1yvplcammukw0d5583jw4payn0veqtgfumqvjk0'
  }
 
+
 CONTRACT_TOKEN_TO_SYM_BOMBAY = {
   'terra10af2zy62wanc6cs3n66cplmpepvf6qnetuydz2': 'COMP',
   'terra14vxe68djqpmzspvkaj9fjxc8fu6qmt34wmm6xc': 'ENJ',
@@ -315,6 +316,78 @@ CONTRACT_TOKEN_TO_SYM_BOMBAY = {
   'terra1xx5ndkhe477sa267fc6mryq7jekk6aczep6mqh': 'mIAU',
   'terra1ym8kp806plgum787fxpukj6z8tg90eslklppfq': 'mGOOGL',
   'terra1yvplcammukw0d5583jw4payn0veqtgfumqvjk0': 'mVIXY',
+}
+
+SYM_TO_CONTRACT_TOKEN_BOMBAY_11 = {
+  'MIR': 'terra1vx0esu27cfkswurt646x3mhfh4wvlwpf4g5t6l',
+  'mAAPL': 'terra1j7twctynt5570e368e4vz5yk48f75vnmkkadw5',
+  'mABNB': 'terra19k40atlcyztyqe6k0d6skesevs2yc2k02dtkdx',
+  'mAMC': 'terra17dlj5a2zj0y2qmv077pt35d0ftw8k6aran39g4',
+  'mAMZN': 'terra1er94ptw07ruqgprd82482nwxcvk5ms9x2egvpj',
+  'mBABA': 'terra1vmcw3z6z02tgw49lwvyshspceqd52la7u2n735',
+  'mBTC': 'terra1r3tkv6en0xzfa9c0e5g3rkfwashhjl7rglwkh4',
+  'mCOIN': 'terra1swyrkzxssfypslxk75e66rr48w7gc5eacq4vme',
+  'mETH': 'terra1y3dzlanz3sr2n08qgc7dt2kw5yx5c4364kq6jc',
+  'mFB': 'terra1nxm5c4e2609sjfwjd6uskywdkh866phpth5ctx',
+  'mGLXY': 'terra1r6k0qadau4egeftxrsl0spvsvw2tneelamymdg',
+  'mGME': 'terra1mf3qumw3w8uyx7tz7h6jq2y5g5v6urlvkmw5yg',
+  'mGOOGL': 'terra1396cs9x0h0nnk0tpuwh2et6qraqh9gkl6h29wu',
+  'mGS': 'terra18ftfpy79us04teq6nc35e3vd6f253unamqalnj',
+  'mIAU': 'terra1m4t75uevjdr8mrz8evxs7wcvrlxl5p6d3lmhev',
+  'mMSFT': 'terra1lkht9dsqzmcdxkx8gryuyevmp9ca9rk3xup9sf',
+  'mNFLX': 'terra1rlwmalf5yjkdl7dc69rta9u09tnkvdfe6qw2px',
+  'mQQQ': 'terra1d0ngfh0n65nsm5wnktfucenr549vdsguk07ug8',
+  'mSLV': 'terra14322huutrc3pmdazpg7h6v7lxay2dz42q60xcl',
+  'mTSLA': 'terra19yu3y6lzvashmfc9hpqz8pund2w3k6fqdwfp7p',
+  'mTWTR': 'terra126a48h56774pse5argad5myx62wfhz32me9lcr',
+  'mUSO': 'terra1g8rh8etjcjz0jg92vnalp69u07gmj9me4y9dzl',
+  'mVIXY': 'terra169fj4nzrryaj3l9m7wyxkgee9j7jqf2yn9uzkz',
+  'AAVE': 'terra1j9dmu4k9jm8e52yr2rz20rlhl9kzg9xmd9qszu',
+  'ANC': 'terra1jffn63c4tfzg66qdcaznhqaphmgvprp7muauq6',
+  'AUDIO': 'terra16gclfyjnqcdjplx2lxp6f6a9agg7czd5ewmhm5',
+  'AXS': 'terra1kjqdwxdgdw8pphtdvu43kwtl0d8q93j25u6rl2',
+  'COMP': 'terra1vacxu53744tze80e0yjpsyp4rm27s5dr8fvagv',
+  'CREAM': 'terra1xdhrww6v3dxy20ss8gqdk2mwwfk0gqq9ggzf7a',
+  'ENJ': 'terra10tey9kxcutm4hzwqnf87mg2sygqx4dvfc50795',
+  'MANA': 'terra1awdn73w3rllhymnq7getht66tr4cvhgm43zx33',
+  'MKR': 'terra1gm05r4aqmfywp8x2ruphacc4xtnlpuk57m8v2y',
+  'SAND': 'terra1uctdrs0f2g2usgyfhujaehj8e9pfajsy4emk4t',
+}
+
+CONTRACT_TOKEN_TO_SYM_BOMBAY_11 = {
+  'terra126a48h56774pse5argad5myx62wfhz32me9lcr': 'mTWTR',
+  'terra1396cs9x0h0nnk0tpuwh2et6qraqh9gkl6h29wu': 'mGOOGL',
+  'terra14322huutrc3pmdazpg7h6v7lxay2dz42q60xcl': 'mSLV',
+  'terra169fj4nzrryaj3l9m7wyxkgee9j7jqf2yn9uzkz': 'mVIXY',
+  'terra17dlj5a2zj0y2qmv077pt35d0ftw8k6aran39g4': 'mAMC',
+  'terra18ftfpy79us04teq6nc35e3vd6f253unamqalnj': 'mGS',
+  'terra19k40atlcyztyqe6k0d6skesevs2yc2k02dtkdx': 'mABNB',
+  'terra19yu3y6lzvashmfc9hpqz8pund2w3k6fqdwfp7p': 'mTSLA',
+  'terra1d0ngfh0n65nsm5wnktfucenr549vdsguk07ug8': 'mQQQ',
+  'terra1er94ptw07ruqgprd82482nwxcvk5ms9x2egvpj': 'mAMZN',
+  'terra1g8rh8etjcjz0jg92vnalp69u07gmj9me4y9dzl': 'mUSO',
+  'terra1j7twctynt5570e368e4vz5yk48f75vnmkkadw5': 'mAAPL',
+  'terra1lkht9dsqzmcdxkx8gryuyevmp9ca9rk3xup9sf': 'mMSFT',
+  'terra1m4t75uevjdr8mrz8evxs7wcvrlxl5p6d3lmhev': 'mIAU',
+  'terra1mf3qumw3w8uyx7tz7h6jq2y5g5v6urlvkmw5yg': 'mGME',
+  'terra1nxm5c4e2609sjfwjd6uskywdkh866phpth5ctx': 'mFB',
+  'terra1r3tkv6en0xzfa9c0e5g3rkfwashhjl7rglwkh4': 'mBTC',
+  'terra1r6k0qadau4egeftxrsl0spvsvw2tneelamymdg': 'mGLXY',
+  'terra1rlwmalf5yjkdl7dc69rta9u09tnkvdfe6qw2px': 'mNFLX',
+  'terra1swyrkzxssfypslxk75e66rr48w7gc5eacq4vme': 'mCOIN',
+  'terra1vmcw3z6z02tgw49lwvyshspceqd52la7u2n735': 'mBABA',
+  'terra1vx0esu27cfkswurt646x3mhfh4wvlwpf4g5t6l': 'MIR',
+  'terra1y3dzlanz3sr2n08qgc7dt2kw5yx5c4364kq6jc': 'mETH',
+  'terra10tey9kxcutm4hzwqnf87mg2sygqx4dvfc50795': 'ENJ',
+  'terra16gclfyjnqcdjplx2lxp6f6a9agg7czd5ewmhm5': 'AUDIO',
+  'terra1awdn73w3rllhymnq7getht66tr4cvhgm43zx33': 'MANA',
+  'terra1gm05r4aqmfywp8x2ruphacc4xtnlpuk57m8v2y': 'MKR',
+  'terra1j9dmu4k9jm8e52yr2rz20rlhl9kzg9xmd9qszu': 'AAVE',
+  'terra1jffn63c4tfzg66qdcaznhqaphmgvprp7muauq6': 'ANC',
+  'terra1kjqdwxdgdw8pphtdvu43kwtl0d8q93j25u6rl2': 'AXS',
+  'terra1uctdrs0f2g2usgyfhujaehj8e9pfajsy4emk4t': 'SAND',
+  'terra1vacxu53744tze80e0yjpsyp4rm27s5dr8fvagv': 'COMP',
+  'terra1xdhrww6v3dxy20ss8gqdk2mwwfk0gqq9ggzf7a': 'CREAM',
 }
 
 SYM_TO_MASSET_COL = {
@@ -377,12 +450,12 @@ CT_SYM_TO_NAME = {
 
 # Helper for deploying
 CT_SYM_TO_RECOMP_ORACLE = { 
+    'META': 'terra14s0lccdf88wq7t0hxkzwwnglskh588dy0nxzkc',
     'TER': 'terra14ew659y4fn4dytu832k9f6l2u94668uclrywfg',
     'FABMANG': 'terra1k5ymxx67tl6cd3dk4kxwt7mwl03dnuqggm8vsv',
     'MOMENTUM': 'terra1m0z2ul2kzz2ua2fttstn0wkm2fp500pm9am396',
     'BULL': 'terra1e3u7msymmkxu8u68rdvg0nqmq7zaafttcq64ky',
     'FOF': 'terra17qfm7gmtcup5tjq99rhm7a685x6vffg3v8u3wk',
-    'META': 'terra14s0lccdf88wq7t0hxkzwwnglskh588dy0nxzkc',
 }
 
 # Helper for deploying

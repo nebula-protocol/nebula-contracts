@@ -2,15 +2,13 @@ import os
 import sys
 import numpy as np
 
-os.environ["USE_TEQUILA"] = "1"
+os.environ["USE_BOMBAY"] = "1"
 os.environ["MNEMONIC"] = 'museum resist wealth require renew punch jeans smooth old color neutral cactus baby retreat guitar web average piano excess next strike drive game romance'
 
 from api import Asset
 from ecosystem import Ecosystem
 from contract_helpers import Contract, ClusterContract, chain
 import asyncio
-from base import deployer
-from constants import DEPLOY_ENVIRONMENT_STATUS_W_GOV
 
 factory_addr = sys.argv[1]
 factory = Contract(factory_addr)
@@ -69,29 +67,35 @@ async def initial_mint(cluster_state):
 
     # Want each token to be roughly $1
     msgs.append(
-        cluster.mint(asset_amounts=mint_assets, min_tokens=min_tokens, _send=send)
+        cluster.rebalance_create(asset_amounts=mint_assets, min_tokens=min_tokens, _send=send)
     )
 
     # await cluster.mint(asset_amounts=mint_assets, min_tokens=min_tokens, _send=send)
     await chain(*msgs)
+    print('Done with mint')
 
 def cost_per_cluster_token(cluster_state):
     outstanding = int(cluster_state['outstanding_balance_tokens'])
     inv = np.array([int(i) for i in cluster_state['inv']])
     prices = np.array([float(i) for i in cluster_state['prices']])
     notional_val = np.dot(inv, prices)
+    print(notional_val)
+    print(outstanding)
     return notional_val / outstanding
 
 
 async def mint_and_provide(cluster):
-    cluster_state = await cluster.query.cluster_state(cluster_contract_address=cluster, stale_threshold="0")
+    cluster_state = await cluster.query.cluster_state(cluster_contract_address=cluster, stale_threshold=0)
     cluster_info = await cluster.query.cluster_info()
     print(cluster_info)
     print(cluster_state)
+
+    if cluster_info['name'] == 'Terra Ecosystem' or cluster_info['name'] == 'The Metaverse':
+        return
     
     if cluster_state['outstanding_balance_tokens'] == '0':
         await initial_mint(cluster_state)
-        cluster_state = await cluster.query.cluster_state(cluster_contract_address=cluster, stale_threshold="0")
+        cluster_state = await cluster.query.cluster_state(cluster_contract_address=cluster, stale_threshold=0)
         print('After initial mint cluster state', cluster_state)
 
     cluster_token = Contract(cluster_state['cluster_token'])
@@ -104,13 +108,11 @@ async def mint_and_provide(cluster):
 
     msgs = []
 
-    provide_uusd = 500000000000 # Provide $500 liquidity
-
-    if cluster_info['name'] != 'The Metaverse':
-        provide_uusd = 500000000000 
+    provide_uusd = 1000000000000 # Provide $500 liquidity
 
     cost_per_ct = cost_per_cluster_token(cluster_state)
     provide_cluster_token = int(provide_uusd / cost_per_ct)
+    print(provide_cluster_token)
     # Increase allowance
     msgs.append(cluster_token.increase_allowance(spender=pair_contract, amount=str(provide_cluster_token)))
 

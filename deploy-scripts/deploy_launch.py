@@ -8,7 +8,7 @@ from ecosystem import Ecosystem
 from contract_helpers import Contract, ClusterContract, store_contract, chain
 import asyncio
 from base import deployer
-from constants import graphql_mir_data, DEPLOY_ENVIRONMENT_STATUS_W_GOV, CONTRACT_TOKEN_TO_SYM_TEQ
+from constants import graphql_mir_data, DEPLOY_ENVIRONMENT_STATUS_W_GOV, CONTRACT_TOKEN_TO_SYM_TEQ, CONTRACT_TOKEN_TO_SYM_BOMBAY
 
 
 REQUIRE_GOV = True
@@ -63,7 +63,7 @@ async def deploy_mir_token_contracts():
         try:
             mirror_contract = await Contract.create(
                 # DEPLOY_ENVIRONMENT_STATUS_W_GOV['code_ids']['terraswap_token'],
-                9101,
+                9462,
                 name=name,
                 symbol=symbol,
                 decimals=6,
@@ -109,7 +109,7 @@ async def deploy_token_contracts():
 
         contract = await Contract.create(
             # DEPLOY_ENVIRONMENT_STATUS_W_GOV['code_ids']['terraswap_token'],
-            9101,
+            9462,
             name=name,
             symbol=symbol,
             decimals=6,
@@ -136,24 +136,28 @@ async def deploy_token_contracts():
     print(symbols_to_contracts)
     print(contracts_to_symbols)
 
+
+SEND_TO = ['terra1hpwskqv92r6apn90kx3k9zk756g9j6m6zh4hmj','terra13dsvt7t99vv74nx45zegufm0yz8gu8n2wsx39l']
+
 async def quick_transfer():
-    SEND_TO = "terra149xt9vmvmk9xag5f9zlnhqdw8yr8xu5kqmtyyk"
-    msgs = []
-    for token, symbol in CONTRACT_TOKEN_TO_SYM_TEQ.items():
-        print(symbol, token)
-        contract = Contract(token)
-        # transfer_out = str(10**15 - 10**6)
-        transfer_out = str(10**12)
-        msgs.append(contract.transfer(recipient=SEND_TO, amount=transfer_out))
-        print("transferred out", symbol)
-        
-    await chain(*msgs)
+    # SEND_TO = "terra149xt9vmvmk9xag5f9zlnhqdw8yr8xu5kqmtyyk"
+    for s in SEND_TO:
+        msgs = []
+        for token, symbol in CONTRACT_TOKEN_TO_SYM_BOMBAY.items():
+            print(symbol, token)
+            contract = Contract(token)
+            # transfer_out = str(10**15 - 10**6)
+            transfer_out = str(10**12)
+            msgs.append(contract.transfer(recipient=s, amount=transfer_out))
+            
+        await chain(*msgs)
+        print("transferred out for", s)
 
 
 async def deploy_contracts():
     # await deploy_new_incentives()
     await deploy_mir_token_contracts()
-    # await deploy_token_contracts()
+    await deploy_token_contracts()
     # await quick_transfer()
 
 if __name__ == "__main__":

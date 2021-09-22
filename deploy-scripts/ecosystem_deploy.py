@@ -88,10 +88,6 @@ class Ecosystem:
                     "address": deployer.key.acc_address,
                     "amount": "1000000000000000",
                 },
-                {
-                    "address": self.factory,
-                    "amount": "10000000000",
-                }, # TODO: give to airdrop / community
             ],
             minter={"minter": self.factory, "cap": None},
         )
@@ -164,41 +160,42 @@ class Ecosystem:
         #     'cluster': None,
         #     'cluster_pair': None,
         #     'cluster_token': None,
-        #     'code_ids': {'nebula_airdrop': '9273',
-        #                 'nebula_cluster': '9259',
-        #                 'nebula_cluster_factory': '9266',
-        #                 'nebula_collector': '9268',
-        #                 'nebula_community': '9272',
-        #                 'nebula_dummy_oracle': '9267',
-        #                 'nebula_gov': '9261',
-        #                 'nebula_incentives': '9270',
-        #                 'nebula_incentives_custody': '9269',
-        #                 'nebula_lp_staking': '9263',
-        #                 'nebula_penalty': '9262',
-        #                 'terraswap_factory': '9260',
-        #                 'terraswap_pair': '9264',
-        #                 'terraswap_router': '9271',
-        #                 'terraswap_token': '9265'},
-        #     'collector': Contract("terra14cse6uuusvanh2mqyqfzc66p7a9zgg8s5drxkk"),
+        #     'code_ids': {'nebula_airdrop': '9297',
+        #                 'nebula_cluster': '9283',
+        #                 'nebula_cluster_factory': '9290',
+        #                 'nebula_collector': '9292',
+        #                 'nebula_community': '9296',
+        #                 'nebula_dummy_oracle': '9291',
+        #                 'nebula_gov': '9285',
+        #                 'nebula_incentives': '9294',
+        #                 'nebula_incentives_custody': '9293',
+        #                 'nebula_lp_staking': '9287',
+        #                 'nebula_penalty': '9286',
+        #                 'terraswap_factory': '9284',
+        #                 'terraswap_pair': '9288',
+        #                 'terraswap_router': '9295',
+        #                 'terraswap_token': '9289'},
+        #     'collector': Contract("terra1799pwcwssgg70p0k7xn9ycxyqtjadmhd3sxpcp"),
         #     'community': None,
-        #     'dummy_oracle': Contract("terra1qnxhd9rsg9s99lpfcm6xgfdvkcfa6pe9k7k3c9"),
-        #     'factory': Contract("terra1qkxc2m8gw42s8z2uq0rpceuhzcsq3vd6uq85f5"),
-        #     'gov': Contract("terra1aym2qeclcgt0zurwp8lful76wa0tfq328n2dkr"),
+        #     'dummy_oracle': Contract("terra1n64kwcpkmfayu5r6vu2cfm3973nuhx9z3nm643"),
+        #     'factory': Contract("terra1t42h486g7rlmdvmstwytx8gkdke6gc9sj22rjm"),
+        #     'gov': Contract("terra18cyghctda4g68lkejejn4rzmstxnrspfu3qg5y"),
         #     'incentives': None,
         #     'incentives_custody': None,
         #     'lp_token': None,
-        #     'neb_pair': Contract("terra1lv6d3t7stn7nl2p5n67zne5eq3sj4pmnflu957"),
-        #     'neb_token': Contract("terra13anczlaetvwhnl6udy8r3py8ujaf2vurpl933q"),
+        #     'neb_pair': Contract("terra14y2nltd95jrgdczp7p5q0r7terqdhynehf5886"),
+        #     'neb_token': Contract("terra1uffn0at4fusclflnk738j3phcmq6jdk8a9kc48"),
         #     'require_gov': True,
-        #     'staking': Contract("terra1ea4j6q2un70w8fnj5le3c7jtwjwy6c6uzzxs4w"),
+        #     'staking': Contract("terra1lrkragd7mhgh52tjh75yf4t7dntyxxk2rp88fu"),
         #     'terraswap_factory': Contract("terra18qpjm4zkvqnpjpw0zn0tdr8gdzvt8au35v45xf")}
 
         pprint.pprint(self.__dict__)
 
         contract_addrs, symbols, query_info = await get_query_info()
+        await set_prices(self.dummy_oracle, contract_addrs, query_info)
         for ct_sym, recomp_oracle in CT_SYM_TO_RECOMP_ORACLE.items():
             print("Trying to deploy", CT_SYM_TO_NAME[ct_sym], ct_sym)
-            await set_prices(self.dummy_oracle, contract_addrs, query_info)
+            # await set_prices(self.dummy_oracle, contract_addrs, query_info)
             cluster = await self.deploy_cluster(ct_sym, recomp_oracle)
             print("Cluster address is ", cluster)
 
@@ -268,6 +265,10 @@ class Ecosystem:
 
         target = await recomposer.weighting()
 
+        target = [t for t in target if int(t['amount']) != 0]
+
+        print(target)
+
         penalty_contract = await Contract.create(
             code_ids["nebula_penalty"],
             penalty_params=penalty_params,
@@ -310,6 +311,9 @@ class Ecosystem:
         )
 
         info = await cluster.query.cluster_info()
+        print(info)
+
+        info = await cluster.query.cluster_state(cluster_contract_address=cluster.address)
         print(info)
 
         token_info = await cluster_token.query.token_info()

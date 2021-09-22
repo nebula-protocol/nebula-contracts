@@ -7,7 +7,7 @@ use crate::{
     util::vec_to_string,
 };
 use cosmwasm_std::{
-    attr, DepsMut, Env, MessageInfo, QuerierWrapper, Response, StdError, StdResult,
+    attr, DepsMut, Env, MessageInfo, QuerierWrapper, Response, StdError, StdResult, Uint128,
 };
 use nebula_protocol::cluster::{ClusterConfig, InstantiateMsg};
 use terraswap::asset::AssetInfo;
@@ -59,6 +59,18 @@ pub fn instantiate(
         .iter()
         .map(|x| x.info.clone())
         .collect::<Vec<_>>();
+
+    let weights = msg
+        .target
+        .iter()
+        .map(|x| x.amount.clone())
+        .collect::<Vec<_>>();
+
+    for w in weights.iter() {
+        if *w == Uint128::zero() {
+            return Err(StdError::generic_err("Initial weights cannot contain zero"));
+        }
+    }
 
     if validate_targets(deps.querier, &env, asset_infos.clone(), false).is_err() {
         return Err(StdError::generic_err(

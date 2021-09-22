@@ -135,14 +135,14 @@ async def set_prices(oracle, contract_addrs, query_info):
             ]
         )
 
-    # print(set_prices_data)
+    print(set_prices_data)
 
     await oracle.set_prices(prices=set_prices_data)
 
 async def pricing_bot():
-    oracle = Contract("terra1ajjdnwvmhgc36p75apzrzkh2ekd8af3hqlzeka")
+    oracle = Contract("terra1yec8tfp4vqwjnxvlkyws3kjkw09pkm5yxkfrxn")
 
-    contract_addrs, symbols, query_info = get_query_info()
+    contract_addrs, symbols, query_info = await get_query_info()
             
     while True:
         price_data = await get_prices(query_info)

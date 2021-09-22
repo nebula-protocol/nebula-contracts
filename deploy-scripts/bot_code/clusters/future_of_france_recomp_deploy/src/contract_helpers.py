@@ -11,7 +11,7 @@ from base import (
     OVERWRITE_CACHE_ALLOWED,
     CACHE_INITIALIZATION,
     terra,
-    USE_TEQUILA,
+    USE_BOMBAY,
 )
 from api import Asset
 import shelve
@@ -25,7 +25,7 @@ shelf = shelve.open(f"{os.path.dirname(__file__)}/cache.dat")
 def async_cache_on_disk(fxn):
     async def _ret(*args, **kwargs):
         key = repr(args) + "|" + repr(kwargs)
-        key = str(USE_TEQUILA) + "|" + fxn.__name__ + "|" + str(key)
+        key = str(USE_BOMBAY) + "|" + fxn.__name__ + "|" + str(key)
         if key not in shelf or fxn.__name__ in OVERWRITE_CACHE_ALLOWED:
             shelf[key] = await fxn(*args, **kwargs)
             shelf.sync()
