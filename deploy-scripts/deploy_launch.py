@@ -8,7 +8,7 @@ from ecosystem import Ecosystem
 from contract_helpers import Contract, ClusterContract, store_contract, chain
 import asyncio
 from base import deployer
-from constants import graphql_mir_data, DEPLOY_ENVIRONMENT_STATUS_W_GOV, CONTRACT_TOKEN_TO_SYM_TEQ, CONTRACT_TOKEN_TO_SYM_BOMBAY
+from constants import graphql_mir_data, DEPLOY_ENVIRONMENT_STATUS_W_GOV, CONTRACT_TOKEN_TO_SYM_TEQ, CONTRACT_TOKEN_TO_SYM_BOMBAY_11
 
 
 REQUIRE_GOV = True
@@ -143,7 +143,7 @@ async def quick_transfer():
     # SEND_TO = "terra149xt9vmvmk9xag5f9zlnhqdw8yr8xu5kqmtyyk"
     for s in SEND_TO:
         msgs = []
-        for token, symbol in CONTRACT_TOKEN_TO_SYM_BOMBAY.items():
+        for token, symbol in CONTRACT_TOKEN_TO_SYM_BOMBAY_11.items():
             print(symbol, token)
             contract = Contract(token)
             # transfer_out = str(10**15 - 10**6)

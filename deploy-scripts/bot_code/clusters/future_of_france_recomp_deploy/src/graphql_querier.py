@@ -56,7 +56,7 @@ async def get_all_mirror_assets():
     return addresses
 
 # Dummy contract on tequila to symbol
-CONTRACT_TOKEN_TO_SYM_BOMBAY = {
+CONTRACT_TOKEN_TO_SYM_BOMBAY_11 = {
     'terra10x0h5r0t9hdwamdxehapjnj67p4f8nx38pxuzx': 'mABNB',
     'terra14js9dgr87dxepx2gczkudxj69xudf2npnw87f9': 'mBTC',
     'terra159nvmamkrj0hw5e0e0lp4vzh6py0ev765jgl58': 'MIR',
@@ -131,7 +131,7 @@ SYM_TO_COINGECKO_ID = {
     'AUDIO': 'audius'
 }
 
-SYM_TO_CONTRACT_TOKEN_BOMBAY = {
+SYM_TO_CONTRACT_TOKEN_BOMBAY_11 = {
     'AAVE': 'terra1exw6sae4wyq8rt56hxdggzmgmqsuukr26u4aj8',
     'ANC': 'terra1mst8t7guwkku9rqhre4lxtkfkz3epr45wt8h0m',
     'AUDIO': 'terra1t89u7cfrp9r4a8msmxz4z3esn5g5z8ga2qsec6',
