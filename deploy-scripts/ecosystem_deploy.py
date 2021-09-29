@@ -58,136 +58,136 @@ class Ecosystem:
         print("Initializing base contracts...")
         code_ids = self.code_ids = await store_contracts()
 
-        if self.terraswap_factory is None:
-            print("Initializing terraswap factory")
-            self.terraswap_factory = await Contract.create(
-                code_ids["terraswap_factory"],
-                pair_code_id=int(code_ids["terraswap_pair"]),
-                token_code_id=int(code_ids["terraswap_token"]),
-            )
+        # if self.terraswap_factory is None:
+        #     print("Initializing terraswap factory")
+        #     self.terraswap_factory = await Contract.create(
+        #         code_ids["terraswap_factory"],
+        #         pair_code_id=int(code_ids["terraswap_pair"]),
+        #         token_code_id=int(code_ids["terraswap_token"]),
+        #     )
 
-        print("Initializing nebula cluster factory")
+        # print("Initializing nebula cluster factory")
 
-        self.factory = await Contract.create(
-            code_ids["nebula_cluster_factory"],
-            token_code_id=int(code_ids["terraswap_token"]),
-            cluster_code_id=int(code_ids["nebula_cluster"]),
-            base_denom="uusd",
-            protocol_fee_rate=DEFAULT_PROTOCOL_FEE_RATE,
-            distribution_schedule=DEFAULT_DISTRIBUTION_SCHEDULE,
-        )
+        # self.factory = await Contract.create(
+        #     code_ids["nebula_cluster_factory"],
+        #     token_code_id=int(code_ids["terraswap_token"]),
+        #     cluster_code_id=int(code_ids["nebula_cluster"]),
+        #     base_denom="uusd",
+        #     protocol_fee_rate=DEFAULT_PROTOCOL_FEE_RATE,
+        #     distribution_schedule=DEFAULT_DISTRIBUTION_SCHEDULE,
+        # )
 
-        print("Initializing Nebula token")
-        self.neb_token = await Contract.create(
-            code_ids["terraswap_token"],
-            name="Nebula Token",
-            symbol="NEB",
-            decimals=6,
-            initial_balances=[
-                {
-                    "address": deployer.key.acc_address,
-                    "amount": "1000000000000000",
-                },
-            ],
-            minter={"minter": self.factory, "cap": None},
-        )
+        # print("Initializing Nebula token")
+        # self.neb_token = await Contract.create(
+        #     code_ids["terraswap_token"],
+        #     name="Nebula Token",
+        #     symbol="NEB",
+        #     decimals=6,
+        #     initial_balances=[
+        #         {
+        #             "address": deployer.key.acc_address,
+        #             "amount": "1000000000000000",
+        #         },
+        #     ],
+        #     minter={"minter": self.factory, "cap": None},
+        # )
 
-        print("Initializing LP staking contract")
-        self.staking = await Contract.create(
-            code_ids["nebula_lp_staking"],
-            owner=self.factory,
-            nebula_token=self.neb_token,
-            terraswap_factory=self.terraswap_factory,
-            base_denom="uusd"
-        )
+        # print("Initializing LP staking contract")
+        # self.staking = await Contract.create(
+        #     code_ids["nebula_lp_staking"],
+        #     owner=self.factory,
+        #     nebula_token=self.neb_token,
+        #     terraswap_factory=self.terraswap_factory,
+        #     base_denom="uusd"
+        # )
 
-        print("Initializing gov contract")
-        self.gov = await Contract.create(
-            code_ids["nebula_gov"],
-            nebula_token=self.neb_token,
-            quorum=DEFAULT_QUORUM,
-            threshold=DEFAULT_THRESHOLD,
-            voting_period=DEFAULT_VOTING_PERIOD,
-            effective_delay=DEFAULT_EFFECTIVE_DELAY,
-            proposal_deposit=DEFAULT_PROPOSAL_DEPOSIT,
-            voter_weight=DEFAULT_VOTER_WEIGHT,
-            snapshot_period=DEFAULT_SNAPSHOT_PERIOD,
-        )
+        # print("Initializing gov contract")
+        # self.gov = await Contract.create(
+        #     code_ids["nebula_gov"],
+        #     nebula_token=self.neb_token,
+        #     quorum=DEFAULT_QUORUM,
+        #     threshold=DEFAULT_THRESHOLD,
+        #     voting_period=DEFAULT_VOTING_PERIOD,
+        #     effective_delay=DEFAULT_EFFECTIVE_DELAY,
+        #     proposal_deposit=DEFAULT_PROPOSAL_DEPOSIT,
+        #     voter_weight=DEFAULT_VOTER_WEIGHT,
+        #     snapshot_period=DEFAULT_SNAPSHOT_PERIOD,
+        # )
 
-        print("Initializing collector contract")
-        self.collector = await Contract.create(
-            code_ids["nebula_collector"],
-            distribution_contract=self.gov,
-            terraswap_factory=self.terraswap_factory,
-            nebula_token=self.neb_token,
-            base_denom="uusd",
-            owner=self.factory,
-        )
-
-
-        print("Create Terraswap pair for NEB-UST")
-        self.neb_pair = Contract(
-            (
-                await self.terraswap_factory.create_pair(
-                    asset_infos=[
-                        Asset.cw20_asset_info(self.neb_token),
-                        Asset.native_asset_info("uusd"),
-                    ]
-                )
-            )
-            .logs[0]
-            .events_by_type["from_contract"]["pair_contract_addr"][0]
-        )
+        # print("Initializing collector contract")
+        # self.collector = await Contract.create(
+        #     code_ids["nebula_collector"],
+        #     distribution_contract=self.gov,
+        #     terraswap_factory=self.terraswap_factory,
+        #     nebula_token=self.neb_token,
+        #     base_denom="uusd",
+        #     owner=self.factory,
+        # )
 
 
-        print("Post initialize factory including resetting the owner")
-        await self.factory.post_initialize(
-            owner=deployer.key.acc_address,
-            nebula_token=self.neb_token,
-            terraswap_factory=self.terraswap_factory,
-            staking_contract=self.staking,
-            commission_collector=self.collector,
-        )
+        # print("Create Terraswap pair for NEB-UST")
+        # self.neb_pair = Contract(
+        #     (
+        #         await self.terraswap_factory.create_pair(
+        #             asset_infos=[
+        #                 Asset.cw20_asset_info(self.neb_token),
+        #                 Asset.native_asset_info("uusd"),
+        #             ]
+        #         )
+        #     )
+        #     .logs[0]
+        #     .events_by_type["from_contract"]["pair_contract_addr"][0]
+        # )
 
-        print("Try to initialize all clusters")
-        self.dummy_oracle = await Contract.create(code_ids["nebula_dummy_oracle"])
+
+        # print("Post initialize factory including resetting the owner")
+        # await self.factory.post_initialize(
+        #     owner=deployer.key.acc_address,
+        #     nebula_token=self.neb_token,
+        #     terraswap_factory=self.terraswap_factory,
+        #     staking_contract=self.staking,
+        #     commission_collector=self.collector,
+        # )
+
+        # print("Try to initialize all clusters")
+        # self.dummy_oracle = await Contract.create(code_ids["nebula_dummy_oracle"])
 
         # First initialize clusters here without governance
 
-        # self.__dict__ = {'airdrop': None,
-        #     'asset_prices': None,
-        #     'asset_tokens': None,
-        #     'cluster': None,
-        #     'cluster_pair': None,
-        #     'cluster_token': None,
-        #     'code_ids': {'nebula_airdrop': '9470',
-        #                 'nebula_cluster': '9456',
-        #                 'nebula_cluster_factory': '9463',
-        #                 'nebula_collector': '9465',
-        #                 'nebula_community': '9469',
-        #                 'nebula_dummy_oracle': '9464',
-        #                 'nebula_gov': '9458',
-        #                 'nebula_incentives': '9467',
-        #                 'nebula_incentives_custody': '9466',
-        #                 'nebula_lp_staking': '9460',
-        #                 'nebula_penalty': '9459',
-        #                 'terraswap_factory': '9457',
-        #                 'terraswap_pair': '9461',
-        #                 'terraswap_router': '9468',
-        #                 'terraswap_token': '9462'},
-        #     'collector': Contract("terra1v4lp0vdpvx6g8y73jvuvnudzzq77djvny8te3d"),
-        #     'community': None,
-        #     'dummy_oracle': Contract("terra1kncqlqmwf6ejqyq2zmhhhr70ud2xje0yq85v25"),
-        #     'factory': Contract("terra1hhk3f0ya2xdz2quxfy8hrx6wsqahclckmecny0"),
-        #     'gov': Contract("terra14zxh59dhfghuhd0y9guyndjm6eex0440x90t05"),
-        #     'incentives': None,
-        #     'incentives_custody': None,
-        #     'lp_token': None,
-        #     'neb_pair': Contract("terra1c8fhmfp7deuzy5zl4rejdtph5j5ycxa4gpv0tw"),
-        #     'neb_token': Contract("terra1gufw29ydtlaytz2n2gwxhn4mxzf8n647wwdxqs"),
-        #     'require_gov': True,
-        #     'staking': Contract("terra1fqxf353a0wtmavmecyz2d32msf5wu3uu5epd5f"),
-        #     'terraswap_factory': Contract("terra18qpjm4zkvqnpjpw0zn0tdr8gdzvt8au35v45xf")}
+        self.__dict__ = {'airdrop': None,
+            'asset_prices': None,
+            'asset_tokens': None,
+            'cluster': None,
+            'cluster_pair': None,
+            'cluster_token': None,
+            'code_ids': {'nebula_airdrop': '9470',
+                        'nebula_cluster': '9456',
+                        'nebula_cluster_factory': '9463',
+                        'nebula_collector': '9465',
+                        'nebula_community': '9469',
+                        'nebula_dummy_oracle': '9464',
+                        'nebula_gov': '9458',
+                        'nebula_incentives': '9467',
+                        'nebula_incentives_custody': '9466',
+                        'nebula_lp_staking': '9460',
+                        'nebula_penalty': '9459',
+                        'terraswap_factory': '9457',
+                        'terraswap_pair': '9461',
+                        'terraswap_router': '9468',
+                        'terraswap_token': '9462'},
+            'collector': Contract("terra1gxenx3drqypghlgpekfjhame47ehaschrerhy3"),
+            'community': None,
+            'dummy_oracle': Contract("terra15fvkuygs08s22s33pxzd3awle3xwxtakfjge9g"),
+            'factory': Contract("terra1edjgukqcch95h5w9pdgzvwu73klrmedjtezprk"),
+            'gov': Contract("terra1r70qwj3f9ztff0p4wqn275nywm920pz4p9v34v"),
+            'incentives': None,
+            'incentives_custody': None,
+            'lp_token': None,
+            'neb_pair': Contract("terra1xwq323ez49pnl688kxf6f5t6hcjjm0wmkzex6r"),
+            'neb_token': Contract("terra1524ah39vl55egrcynq92vz7tkpadd8r2cn9u38"),
+            'require_gov': True,
+            'staking': Contract("terra1gwa7dlqkcrlq5d0ja0pccg566v52cw3ucqxfm2"),
+            'terraswap_factory': Contract("terra18qpjm4zkvqnpjpw0zn0tdr8gdzvt8au35v45xf")}
         pprint.pprint(self.__dict__)
 
         contract_addrs, symbols, query_info = await get_query_info()

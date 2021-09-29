@@ -90,7 +90,7 @@ async def mint_and_provide(cluster):
     print(cluster_info)
     print(cluster_state)
 
-    if cluster_info['name'] == 'Terra Ecosystem' or cluster_info['name'] == 'The Metaverse':
+    if cluster_info['name'] != 'Terra Ecosystem' and cluster_info['name'] != 'The Metaverse':
         return
     
     if cluster_state['outstanding_balance_tokens'] == '0':
@@ -108,7 +108,7 @@ async def mint_and_provide(cluster):
 
     msgs = []
 
-    provide_uusd = 1000000000000 # Provide $500 liquidity
+    provide_uusd = 500000000000 # Provide $500 liquidity
 
     cost_per_ct = cost_per_cluster_token(cluster_state)
     provide_cluster_token = int(provide_uusd / cost_per_ct)
