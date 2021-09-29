@@ -245,7 +245,7 @@ CONTRACT_TOKEN_TO_SYM_TEQ = {
     'terra1wpa2978x6n9c6xdvfzk4uhkzvphmq5fhdnvrym': 'DOGE'
 }
 
-SYM_TO_CONTRACT_TOKEN_BOMBAY = {
+SYM_TO_CONTRACT_TOKEN_11 = {
   'AAVE': 'terra1exw6sae4wyq8rt56hxdggzmgmqsuukr26u4aj8',
   'ANC': 'terra1mst8t7guwkku9rqhre4lxtkfkz3epr45wt8h0m',
   'AUDIO': 'terra1t89u7cfrp9r4a8msmxz4z3esn5g5z8ga2qsec6',
@@ -282,7 +282,7 @@ SYM_TO_CONTRACT_TOKEN_BOMBAY = {
  }
 
 
-CONTRACT_TOKEN_TO_SYM_BOMBAY = {
+CONTRACT_TOKEN_TO_SYM_BOMBAY_11 = {
   'terra10af2zy62wanc6cs3n66cplmpepvf6qnetuydz2': 'COMP',
   'terra14vxe68djqpmzspvkaj9fjxc8fu6qmt34wmm6xc': 'ENJ',
   'terra1a7g946jyjhn8h7gscda7sd68kn9k4whkxq0ddn': 'CREAM',

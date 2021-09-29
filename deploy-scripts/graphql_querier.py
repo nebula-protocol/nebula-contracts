@@ -56,7 +56,7 @@ async def get_all_mirror_assets():
     return addresses
 
 # Dummy contract on tequila to symbol
-CONTRACT_TOKEN_TO_SYM_BOMBAY = {
+CONTRACT_TOKEN_TO_SYM_BOMBAY_11 = {
   'terra10af2zy62wanc6cs3n66cplmpepvf6qnetuydz2': 'COMP',
   'terra14vxe68djqpmzspvkaj9fjxc8fu6qmt34wmm6xc': 'ENJ',
   'terra1a7g946jyjhn8h7gscda7sd68kn9k4whkxq0ddn': 'CREAM',
@@ -141,7 +141,7 @@ SYM_TO_COINGECKO_ID = {
     'AUDIO': 'audius'
 }
 
-SYM_TO_CONTRACT_TOKEN_BOMBAY = {
+SYM_TO_CONTRACT_TOKEN_BOMBAY_11 = {
     'AAVE': 'terra1exw6sae4wyq8rt56hxdggzmgmqsuukr26u4aj8',
     'ANC': 'terra1mst8t7guwkku9rqhre4lxtkfkz3epr45wt8h0m',
     'AUDIO': 'terra1t89u7cfrp9r4a8msmxz4z3esn5g5z8ga2qsec6',
@@ -255,7 +255,7 @@ async def mirror_history_query_test(address, tick, from_stamp, to_stamp):
     """
 
     try:
-        sym = CONTRACT_TOKEN_TO_SYM_BOMBAY[address]
+        sym = CONTRACT_TOKEN_TO_SYM_BOMBAY_11[address]
         col_address = SYM_TO_MASSET_COL[sym]
     except:
         raise NameError
@@ -295,4 +295,4 @@ async def mirror_history_query_test(address, tick, from_stamp, to_stamp):
     
 
 async def get_all_mirror_assets_test():
-   return [k for k, v in CONTRACT_TOKEN_TO_SYM_BOMBAY.items() if (v[0] == 'm' or v == 'MIR')]
+   return [k for k, v in CONTRACT_TOKEN_TO_SYM_BOMBAY_11.items() if (v[0] == 'm' or v == 'MIR')]
