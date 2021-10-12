@@ -421,14 +421,14 @@ pub fn create(
         if let Some(proposed_mint_total) = min_tokens {
             let mut val = 0;
             for i in 0..c.len() {
-                if c[i].u128() % target_weights[i].u128() != 0 {
+                if (c[i].u128() % target_weights[i].u128() != 0) || c[i] == Uint128::zero() {
                     return Err(StdError::generic_err(format!(
-                        "Initial cluster assets must be a multiple of target weights at index {}",
+                        "Initial cluster assets must be a nonzero multiple of target weights at index {}",
                         i
                     )));
                 }
 
-                let div = target_weights[i].u128() / c[i].u128();
+                let div = c[i].u128() / target_weights[i].u128();
                 if val == 0 {
                     val = div;
                 }
@@ -591,7 +591,6 @@ pub fn receive_redeem(
                 amount: amt.clone(),
             };
 
-            // TODO: Check if sender field is correct here (recipient should be sender.clone())
             asset.into_msg(&deps.querier, Addr::unchecked(sender.clone()))
         })
         .collect::<StdResult<Vec<CosmosMsg>>>()?;

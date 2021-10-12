@@ -11,6 +11,8 @@ os.environ["USE_TEQUILA"] = "1"
 from api import Asset
 from contract_helpers import Contract, ClusterContract, terra
 
+from .pricing import get_query_info, get_prices
+
 ONE_MILLION = 1000000.0
 SECONDS_PER_DAY = 24 * 60 * 60
 
@@ -50,15 +52,15 @@ class TerraFullDilutedMcapRecomposer:
         print("Total FDM of all assets: {}M".format(denom/ONE_MILLION))
         target_weights = [asset_to_fdm[asset]/denom for asset in asset_to_fdm]
         print(self.asset_tokens, target_weights)
-        target_weights = [int(10000 * target_weight) for target_weight in target_weights]
-
-        print(self.asset_tokens, target_weights)
-
-
+        _, _, query_info = await get_query_info(self.asset_tokens)
+        prices = await get_prices(query_info)
         target = []
-        for a, t in zip(self.asset_tokens, target_weights):
+        for a, t, p in zip(self.asset_tokens, target_weights, prices):
             native = (a == 'uluna')
-            target.append(Asset.asset(a, str(t), native=native))
+            print(t)
+            tw = str(int(10000000 * t / float(p)))
+            target.append(Asset.asset(a, tw, native=native))
+
         return target
         
     
@@ -80,8 +82,8 @@ class TerraFullDilutedMcapRecomposer:
         return target
 
 async def get_terra_ecosystem_info():
-    ANC_ADDR = 'terra1mst8t7guwkku9rqhre4lxtkfkz3epr45wt8h0m'
-    MIR_ADDR = 'terra159nvmamkrj0hw5e0e0lp4vzh6py0ev765jgl58'
+    ANC_ADDR = 'terra188w8fnaz6lvta7glz9saacdt3q407249n95yh0'
+    MIR_ADDR = 'terra17v346ttxlx3hen5xlkt0v76z33t7rlmm0r39s9'
     assets = [
         "uluna", #LUNA
         ANC_ADDR, #ANC
@@ -98,8 +100,9 @@ async def get_terra_ecosystem_info():
     mir_total_supply = float(mir_token_info['total_supply'])
 
     # coins_total_supply = await terra.supply.total()
+    # coins_total_supply = await terra.bank.total()
     # luna_total_supply = coins_total_supply.get('uluna').amount
-    luna_total_supply = 99453326200000
+    luna_total_supply = 105996364234582
     asset_token_supply = [
         luna_total_supply/100000,
         anc_total_supply/ONE_MILLION,     # ANC
@@ -112,7 +115,7 @@ async def get_terra_ecosystem_info():
 async def run_retarget_periodically(cluster_contract, interval):
     start_time = time.time()
 
-    assets, asset_token_supply = get_terra_ecosystem_info()
+    assets, asset_token_supply = await get_terra_ecosystem_info()
     
     retarget_bot = TerraFullDilutedMcapRecomposer(cluster_contract, assets, asset_token_supply)
 

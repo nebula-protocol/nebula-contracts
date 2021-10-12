@@ -4,9 +4,11 @@ import requests
 import json
 import time
 
-from graphql_querier import mirror_history_query_test, get_all_mirror_assets_test
+from .graphql_querier import mirror_history_query_test, get_all_mirror_assets_test
 import time
 import pandas as pd
+
+from .pricing import get_query_info, get_prices
 
 os.environ["MNEMONIC"] = mnemonic = 'record sword bounce legal sea busy eight vanish assault among travel pull gravity inmate boost aerobic voyage wagon tiger own prefer cigar shell group'
 
@@ -65,12 +67,14 @@ class MomentumTradingRecomposer:
         print('Best assets', best_assets)
         print('Target weights', target_weights)
 
-        target_weights = [int(100 * target_weight) for target_weight in target_weights]
-
+        _, _, query_info = await get_query_info(target_assets)
+        prices = await get_prices(query_info)
         target = []
-        for a, t in zip(target_assets, target_weights):
+        for a, t, p in zip(target_assets, target_weights, prices):
             native = (a == 'uluna')
-            target.append(Asset.asset(a, str(t), native=native))
+            print(t)
+            tw = str(int(100000000 * t / float(p)))
+            target.append(Asset.asset(a, tw, native=native))
 
         return target
     

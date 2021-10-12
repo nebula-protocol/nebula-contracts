@@ -12,6 +12,8 @@ from contract_helpers import Contract, ClusterContract, terra
 ONE_MILLION = 1000000.0
 SECONDS_PER_DAY = 24 * 60 * 60
 
+from .pricing import get_query_info, get_prices
+
 """
 Recomposes according to Total Value Locked (TVL) in the provided assets. 
 WARN: Do not use with Mirrored Assets.
@@ -21,11 +23,11 @@ class FutureOfFranceRecomposer:
         self.cluster_contract = cluster_contract
         self.asset_names = ["AAVE", "COMP", "MKR", "CREAM", "ANC"]
         self.assets_to_address = {
-            'AAVE': 'terra1exw6sae4wyq8rt56hxdggzmgmqsuukr26u4aj8',
-            'ANC': 'terra1mst8t7guwkku9rqhre4lxtkfkz3epr45wt8h0m',
-            'COMP': 'terra10af2zy62wanc6cs3n66cplmpepvf6qnetuydz2',
-            'CREAM': 'terra1a7g946jyjhn8h7gscda7sd68kn9k4whkxq0ddn',
-            'MKR': 'terra1lflvesvarcfu53gd9cgkv3juyrz79cnk7yw6am'
+            'AAVE': 'terra1tuka7n04fgll8rmzm6pllg3xkhkmdl5murkae9',
+            'ANC': 'terra188w8fnaz6lvta7glz9saacdt3q407249n95yh0',
+            'COMP': 'terra1egsu2cll5009dk8a326vgnvrgpq7u397kxpmmv',
+            'CREAM': 'terra1x7fffq9est2jkzcgk9a8n9v9gqr5u4wr8l6qwv',
+            'MKR': 'terra1gpfyxmccze3t93xdpcwlcpdx604khqgtr4a0tv'
         }
         self.api = "https://api.llama.fi"
         self.protocol_endpoint = "protocols"
@@ -67,12 +69,14 @@ class FutureOfFranceRecomposer:
         target_weights = [tvls[slug]/denom for slug in self.slugs]
         asset_tokens = [self.assets_to_address[an] for an in self.asset_names]
         print(self.asset_names, target_weights)
-        target_weights = [int(100 * target_weight) for target_weight in target_weights]
-
+        _, _, query_info = await get_query_info(asset_tokens)
+        prices = await get_prices(query_info)
         target = []
-        for a, t in zip(asset_tokens, target_weights):
+        for a, t, p in zip(asset_tokens, target_weights, prices):
             native = (a == 'uluna')
-            target.append(Asset.asset(a, str(t), native=native))
+            print(t)
+            tw = str(int(100000000 * t / float(p)))
+            target.append(Asset.asset(a, tw, native=native))
         return target
         
     
@@ -104,6 +108,6 @@ async def run_retarget_periodically(cluster_contract, interval):
         )
 
 if __name__ == "__main__":
-    cluster_contract = Contract("terra1fx9m968gn53cu92qf8ye9s4v0nznllkg9w79vp") #TODO: Update
+    cluster_contract = Contract("terra1fx9m968gn53cu92qf8ye9s4v0nznllkg9w79vp")
     interval = SECONDS_PER_DAY
     asyncio.get_event_loop().run_until_complete(run_retarget_periodically(cluster_contract, interval))

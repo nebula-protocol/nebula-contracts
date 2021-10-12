@@ -41,7 +41,7 @@ if USE_BOMBAY:
     }
 
     terra = AsyncLCDClient(
-        "https://bombay-fcd.terra.dev", "bombay-10", gas_prices=gas_prices
+        "https://bombay-fcd.terra.dev", "bombay-12", gas_prices=gas_prices
     )
     deployer = terra.wallet(key)
 else:

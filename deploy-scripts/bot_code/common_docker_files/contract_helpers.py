@@ -1,8 +1,8 @@
+import json
 from terra_sdk.core.wasm import (
     MsgStoreCode,
     MsgInstantiateContract,
     MsgExecuteContract,
-    dict_to_b64,
 )
 from terra_sdk.util.contract import get_code_id, get_contract_address, read_file_as_b64
 from base import (
@@ -11,11 +11,13 @@ from base import (
     OVERWRITE_CACHE_ALLOWED,
     CACHE_INITIALIZATION,
     terra,
-    USE_TEQUILA,
+    USE_BOMBAY,
 )
 from api import Asset
 import shelve
 import os
+import base64
+import json
 
 shelf = shelve.open(f"{os.path.dirname(__file__)}/cache.dat")
 
@@ -23,7 +25,7 @@ shelf = shelve.open(f"{os.path.dirname(__file__)}/cache.dat")
 def async_cache_on_disk(fxn):
     async def _ret(*args, **kwargs):
         key = repr(args) + "|" + repr(kwargs)
-        key = str(USE_TEQUILA) + "|" + fxn.__name__ + "|" + str(key)
+        key = str(USE_BOMBAY) + "|" + fxn.__name__ + "|" + str(key)
         if key not in shelf or fxn.__name__ in OVERWRITE_CACHE_ALLOWED:
             shelf[key] = await fxn(*args, **kwargs)
             shelf.sync()
@@ -160,6 +162,9 @@ class ClusterContract(Contract):
         )
         return await chain(*msgs)
 
+def dict_to_b64(data: dict) -> str:
+    """Converts dict to ASCII-encoded base64 encoded string."""
+    return base64.b64encode(bytes(json.dumps(data), "ascii")).decode()
 
 def custom_objs_to_json(obj):
     if type(obj) == dict:

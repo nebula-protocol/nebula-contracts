@@ -12,6 +12,8 @@ os.environ["USE_TEQUILA"] = "1"
 from api import Asset
 from contract_helpers import Contract, ClusterContract, terra
 
+from .pricing import get_query_info, get_prices
+
 ONE_MILLION = 1000000.0
 SECONDS_PER_DAY = 24 * 60 * 60
 
@@ -35,11 +37,11 @@ class MetaverseRecomposer:
 
         self.asset_infos = [
             'uusd', 
-            'terra1w07h8u34an2jcfsegjc80edunngf3ey6xdz456',
-            'terra1q3smy9j5qjplyas4l3tgyj72qtq9fvysff4msa',
-            'terra1lc6czeag9zaaqk04y5ynfkxu723n7t56kg2a9r',
-            'terra14vxe68djqpmzspvkaj9fjxc8fu6qmt34wmm6xc',
-            'terra1t89u7cfrp9r4a8msmxz4z3esn5g5z8ga2qsec6',
+            'terra1lrnanc6z0r70lhdw0w8kq6wtkykmqekwktp7x6',
+            'terra1ems4zzzrdhtrw35e0wj7ssdcwaj704rtgzp0v2',
+            'terra12knrdep3zgj34z560ml5hy7gu43r00mgyfpes4',
+            'terra10s0alq88mq3h4wrulsn6kgu7g26nnszxjk2ecl',
+            'terra1yy9yu0rqjzsu2gmjvvsv8xelfanqgpadvpur85',
         ]
 
         self.activation_file = "activation.info"
@@ -171,13 +173,14 @@ class MetaverseRecomposer:
         else:
             target_weights = self.default_weights
 
-        target_weights = [int(10000 * target_weight) for target_weight in target_weights]
-
+        _, _, query_info = await get_query_info(self.asset_infos)
+        prices = await get_prices(query_info)
         target = []
-        for a, t in zip(self.asset_infos, target_weights):
+        for a, t, p in zip(self.asset_infos, target_weights, prices):
             native = (a == 'uluna') or (a == 'uusd')
-            if t > 0:
-                target.append(Asset.asset(a, str(t), native=native))
+            print(t)
+            tw = str(int(100000000 * t / float(p)))
+            target.append(Asset.asset(a, tw, native=native))
         
         self.save_activation_information()
         return target
