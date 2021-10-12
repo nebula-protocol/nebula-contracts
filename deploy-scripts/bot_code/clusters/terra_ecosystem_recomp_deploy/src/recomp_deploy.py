@@ -82,8 +82,8 @@ class TerraFullDilutedMcapRecomposer:
         return target
 
 async def get_terra_ecosystem_info():
-    ANC_ADDR = 'terra1jffn63c4tfzg66qdcaznhqaphmgvprp7muauq6'
-    MIR_ADDR = 'terra1vx0esu27cfkswurt646x3mhfh4wvlwpf4g5t6l'
+    ANC_ADDR = 'terra188w8fnaz6lvta7glz9saacdt3q407249n95yh0'
+    MIR_ADDR = 'terra17v346ttxlx3hen5xlkt0v76z33t7rlmm0r39s9'
     assets = [
         "uluna", #LUNA
         ANC_ADDR, #ANC

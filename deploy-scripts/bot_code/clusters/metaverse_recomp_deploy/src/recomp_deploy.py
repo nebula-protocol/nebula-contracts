@@ -37,11 +37,11 @@ class MetaverseRecomposer:
 
         self.asset_infos = [
             'uusd', 
-            'terra1kjqdwxdgdw8pphtdvu43kwtl0d8q93j25u6rl2',
-            'terra1uctdrs0f2g2usgyfhujaehj8e9pfajsy4emk4t',
-            'terra1awdn73w3rllhymnq7getht66tr4cvhgm43zx33',
-            'terra10tey9kxcutm4hzwqnf87mg2sygqx4dvfc50795',
-            'terra16gclfyjnqcdjplx2lxp6f6a9agg7czd5ewmhm5',
+            'terra1lrnanc6z0r70lhdw0w8kq6wtkykmqekwktp7x6',
+            'terra1ems4zzzrdhtrw35e0wj7ssdcwaj704rtgzp0v2',
+            'terra12knrdep3zgj34z560ml5hy7gu43r00mgyfpes4',
+            'terra10s0alq88mq3h4wrulsn6kgu7g26nnszxjk2ecl',
+            'terra1yy9yu0rqjzsu2gmjvvsv8xelfanqgpadvpur85',
         ]
 
         self.activation_file = "activation.info"

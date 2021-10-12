@@ -8,7 +8,7 @@ from ecosystem import Ecosystem
 from contract_helpers import Contract, ClusterContract, store_contract, chain
 import asyncio
 from base import deployer
-from constants import graphql_mir_data, DEPLOY_ENVIRONMENT_STATUS_W_GOV, CONTRACT_TOKEN_TO_SYM_TEQ, CONTRACT_TOKEN_TO_SYM_BOMBAY_11
+from constants import graphql_mir_data, DEPLOY_ENVIRONMENT_STATUS_W_GOV, CONTRACT_TOKEN_TO_SYM_TEQ, CONTRACT_TOKEN_TO_SYM_BOMBAY
 
 
 REQUIRE_GOV = True
@@ -63,7 +63,7 @@ async def deploy_mir_token_contracts():
         try:
             mirror_contract = await Contract.create(
                 # DEPLOY_ENVIRONMENT_STATUS_W_GOV['code_ids']['terraswap_token'],
-                9462,
+                9467,
                 name=name,
                 symbol=symbol,
                 decimals=6,
@@ -109,7 +109,7 @@ async def deploy_token_contracts():
 
         contract = await Contract.create(
             # DEPLOY_ENVIRONMENT_STATUS_W_GOV['code_ids']['terraswap_token'],
-            9462,
+            9467,
             name=name,
             symbol=symbol,
             decimals=6,
@@ -137,15 +137,15 @@ async def deploy_token_contracts():
     print(contracts_to_symbols)
 
 
-# SEND_TO = ['terra1hpwskqv92r6apn90kx3k9zk756g9j6m6zh4hmj','terra13dsvt7t99vv74nx45zegufm0yz8gu8n2wsx39l']
+SEND_TO = ['terra1hpwskqv92r6apn90kx3k9zk756g9j6m6zh4hmj','terra13dsvt7t99vv74nx45zegufm0yz8gu8n2wsx39l', 'terra12hnhh5vtyg5juqnzm43970nh4fw42pt27nw9g9', 'terra1jfa9uhs0z6rkpn2l5zy0jx3l8a8envht07gx3p']
 
-SEND_TO = ['terra12hnhh5vtyg5juqnzm43970nh4fw42pt27nw9g9', 'terra1jfa9uhs0z6rkpn2l5zy0jx3l8a8envht07gx3p']
+# SEND_TO = ['terra12hnhh5vtyg5juqnzm43970nh4fw42pt27nw9g9', 'terra1jfa9uhs0z6rkpn2l5zy0jx3l8a8envht07gx3p']
 
 async def quick_transfer():
     # SEND_TO = "terra149xt9vmvmk9xag5f9zlnhqdw8yr8xu5kqmtyyk"
     for s in SEND_TO:
         msgs = []
-        for token, symbol in CONTRACT_TOKEN_TO_SYM_BOMBAY_11.items():
+        for token, symbol in CONTRACT_TOKEN_TO_SYM_BOMBAY.items():
             print(symbol, token)
             contract = Contract(token)
             # transfer_out = str(10**15 - 10**6)
@@ -158,7 +158,7 @@ async def quick_transfer():
 async def provide_lp():
     terraswap_factory = Contract('terra18qpjm4zkvqnpjpw0zn0tdr8gdzvt8au35v45xf')
 
-    neb_token = Contract('terra1ccthcaymaeatd0ty42mka3wxj36hgxm5r49446')
+    neb_token = Contract('terra17rfslz2j8zf9nmfvmzlvr68csjy6x78eyzms7x')
 
     asset_infos = [Asset.cw20_asset_info(neb_token.address), Asset.native_asset_info('uusd')] 
     pair_info = await terraswap_factory.query.pair(asset_infos=asset_infos)
@@ -182,10 +182,10 @@ async def provide_lp():
 
 async def deploy_contracts():
     # await deploy_new_incentives()
-    await deploy_mir_token_contracts()
-    await deploy_token_contracts()
+    # await deploy_mir_token_contracts()
+    # await deploy_token_contracts()
     # await quick_transfer()
-    # await provide_lp()
+    await provide_lp()
 
 if __name__ == "__main__":
     asyncio.get_event_loop().run_until_complete(deploy_contracts())

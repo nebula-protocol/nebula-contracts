@@ -90,9 +90,12 @@ async def mint_and_provide(cluster):
     print(cluster_info)
     print(cluster_state)
 
-    if cluster_info['name'] != 'Terra Ecosystem' and cluster_info['name'] != 'The Metaverse':
+    if not (cluster_info['name'] == 'Terra Ecosystem' or cluster_info['name'] == 'The Metaverse'):
         return
     
+    # if cluster_info['name'] == 'The Future of France':
+    #     return
+
     if cluster_state['outstanding_balance_tokens'] == '0':
         await initial_mint(cluster_state)
         cluster_state = await cluster.query.cluster_state(cluster_contract_address=cluster, stale_threshold=0)
@@ -108,6 +111,7 @@ async def mint_and_provide(cluster):
 
     msgs = []
 
+    # provide_uusd = 1000000000000 # for everything except TER + META
     provide_uusd = 500000000000 # Provide $500 liquidity
 
     cost_per_ct = cost_per_cluster_token(cluster_state)

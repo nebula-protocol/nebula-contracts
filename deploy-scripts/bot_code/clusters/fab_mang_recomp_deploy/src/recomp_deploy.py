@@ -2,7 +2,7 @@ import os
 import asyncio
 import yfinance as yf
 from .pricing import get_query_info, get_prices
-from .graphql_querier import SYM_TO_CONTRACT_TOKEN_BOMBAY_11
+from .graphql_querier import SYM_TO_CONTRACT_TOKEN_BOMBAY
 
 os.environ["MNEMONIC"] = mnemonic = 'soda buffalo melt legal zebra claw taxi peace fashion service drastic special coach state rare harsh business bulb tissue illness juice steel screen chef'
 os.environ["USE_TEQUILA"] = "1"
@@ -21,7 +21,7 @@ class FABMANGRecomposer:
         self.cluster_contract = cluster_contract
         self.asset_names = ["FB", "AAPL", "BABA", "MSFT", "AMZN", "NFLX", "GOOGL"]
         mAssets = ['m' + name for name in self.asset_names]
-        self.target_assets = [SYM_TO_CONTRACT_TOKEN_BOMBAY_11[mAsset] for mAsset in mAssets]
+        self.target_assets = [SYM_TO_CONTRACT_TOKEN_BOMBAY[mAsset] for mAsset in mAssets]
 
     async def weighting(self):
         _, _, query_info = await get_query_info(self.target_assets)
