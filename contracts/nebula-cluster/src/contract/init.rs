@@ -1,24 +1,30 @@
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
+
 use crate::ext_query::query_asset_balance;
 use crate::{
     state::{save_config, save_target_asset_data},
     util::vec_to_string,
 };
 use cosmwasm_std::{
-    log, Api, CosmosMsg, Env, Extern, InitResponse, Querier, StdError, StdResult, Storage, WasmMsg,
+    attr, DepsMut, Env, MessageInfo, QuerierWrapper, Response, StdError, StdResult, Uint128,
 };
-use nebula_protocol::cluster::{ClusterConfig, InitMsg};
+use nebula_protocol::cluster::{ClusterConfig, InstantiateMsg};
 use terraswap::asset::AssetInfo;
 
-pub fn validate_targets<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+pub fn validate_targets(
+    querier: QuerierWrapper,
     env: &Env,
     target_assets: Vec<AssetInfo>,
-    query: Option<bool>,
+    to_query: bool,
 ) -> StdResult<bool> {
     for i in 0..target_assets.len() - 1 {
-        let to_query = query.unwrap_or(true);
         if to_query {
-            query_asset_balance(&deps.querier, &env.contract.address, &target_assets[i])?;
+            query_asset_balance(
+                &querier,
+                &env.contract.address.to_string(),
+                &target_assets[i],
+            )?;
         }
         for j in i + 1..target_assets.len() {
             if target_assets[i].equal(&target_assets[j]) {
@@ -29,11 +35,13 @@ pub fn validate_targets<S: Storage, A: Api, Q: Querier>(
     return Ok(true);
 }
 
-pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn instantiate(
+    deps: DepsMut,
     env: Env,
-    msg: InitMsg,
-) -> StdResult<InitResponse> {
+    _info: MessageInfo,
+    msg: InstantiateMsg,
+) -> StdResult<Response> {
     let cfg = ClusterConfig {
         name: msg.name.clone(),
         description: msg.description.clone(),
@@ -41,7 +49,7 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         cluster_token: msg.cluster_token,
         factory: msg.factory,
         pricing_oracle: msg.pricing_oracle.clone(),
-        composition_oracle: msg.composition_oracle.clone(),
+        target_oracle: msg.target_oracle.clone(),
         penalty: msg.penalty.clone(),
         active: true,
     };
@@ -52,7 +60,19 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
         .map(|x| x.info.clone())
         .collect::<Vec<_>>();
 
-    if validate_targets(&deps, &env, asset_infos.clone(), Some(false)).is_err() {
+    let weights = msg
+        .target
+        .iter()
+        .map(|x| x.amount.clone())
+        .collect::<Vec<_>>();
+
+    for w in weights.iter() {
+        if *w == Uint128::zero() {
+            return Err(StdError::generic_err("Initial weights cannot contain zero"));
+        }
+    }
+
+    if validate_targets(deps.querier, &env, asset_infos.clone(), false).is_err() {
         return Err(StdError::generic_err(
             "Cluster must contain valid assets and cannot contain duplicate assets",
         ));
@@ -60,28 +80,14 @@ pub fn init<S: Storage, A: Api, Q: Querier>(
 
     let asset_data = msg.target.clone();
 
-    save_config(&mut deps.storage, &cfg)?;
-    save_target_asset_data(&mut deps.storage, &asset_data)?;
+    save_config(deps.storage, &cfg)?;
+    save_target_asset_data(deps.storage, &asset_data)?;
 
     let log = vec![
-        log("name", msg.name),
-        log("owner", msg.owner),
-        log("assets", vec_to_string(&asset_infos)),
+        attr("name", msg.name),
+        attr("owner", msg.owner),
+        attr("assets", vec_to_string(&asset_infos)),
     ];
 
-    if let Some(hook) = msg.init_hook {
-        Ok(InitResponse {
-            log,
-            messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: hook.contract_addr,
-                msg: hook.msg,
-                send: vec![],
-            })],
-        })
-    } else {
-        Ok(InitResponse {
-            log,
-            messages: vec![],
-        })
-    }
+    Ok(Response::new().add_attributes(log))
 }

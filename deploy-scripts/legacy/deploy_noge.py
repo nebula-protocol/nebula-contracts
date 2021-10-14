@@ -65,7 +65,7 @@ async def deploy_noge():
             "target": target_weights,
             "assets": [Asset.cw20_asset_info(i.address) for i in asset_tokens],
             "pricing_oracle": oracle,
-            "composition_oracle": 'terra1y602xtyd2ycp0c76uhn3tq7w8rj9rh7t07rwjn',
+            "target_oracle": 'terra1y602xtyd2ycp0c76uhn3tq7w8rj9rh7t07rwjn',
         },
     )
 

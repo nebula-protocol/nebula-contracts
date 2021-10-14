@@ -85,7 +85,7 @@ class BalancerStrat(StrategyBase):
                 lo = mid
             else:
                 hi = mid - 1
-        # same logic as above, except the intersection point may not be on [0, global_cap) so some logic is needed to handle the bounds
+        # same logic as above, except the intersection point may not be on [0, global_cap) so some logic is needed to execute the bounds
         if lo:
             solu = get_subtraction(lo)
             if solu.sum() > global_cap:

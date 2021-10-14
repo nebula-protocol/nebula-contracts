@@ -1,4 +1,4 @@
-use cosmwasm_std::{Binary, Decimal, HumanAddr, ReadonlyStorage, StdResult, Storage, Uint128};
+use cosmwasm_std::{Binary, Decimal, StdError, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -14,6 +14,7 @@ use nebula_protocol::gov::{PollStatus, VoterInfo};
 static KEY_CONFIG: &[u8] = b"config";
 static KEY_STATE: &[u8] = b"state";
 static KEY_TOTAL_VOTING_POWER: &[u8] = b"total_voting_power";
+static KEY_TMP_POLL_ID: &[u8] = b"tmp_poll_id";
 
 static PREFIX_POLL_INDEXER: &[u8] = b"poll_indexer";
 static PREFIX_POLL_VOTER: &[u8] = b"poll_voter";
@@ -22,13 +23,12 @@ static PREFIX_BANK: &[u8] = b"bank";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
-    pub owner: HumanAddr,
-    pub nebula_token: HumanAddr,
+    pub owner: String,
+    pub nebula_token: String,
     pub quorum: Decimal,
     pub threshold: Decimal,
     pub voting_period: u64,
     pub effective_delay: u64,
-    pub expiration_period: u64,
     pub proposal_deposit: Uint128,
     pub voter_weight: Decimal,
     pub snapshot_period: u64,
@@ -36,7 +36,7 @@ pub struct Config {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
-    pub contract_addr: HumanAddr,
+    pub contract_addr: String,
     pub poll_count: u64,
     pub total_share: Uint128,
     pub total_deposit: Uint128,
@@ -54,7 +54,7 @@ pub struct TokenManager {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Poll {
     pub id: u64,
-    pub creator: HumanAddr,
+    pub creator: String,
     pub status: PollStatus,
     pub yes_votes: Uint128,
     pub no_votes: Uint128,
@@ -75,7 +75,7 @@ pub struct Poll {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ExecuteData {
-    pub contract: HumanAddr,
+    pub contract: String,
     pub msg: Binary,
 }
 
@@ -85,81 +85,88 @@ pub struct TotalVotingPower {
     pub last_upd: u64,
 }
 
-pub fn config_store<S: Storage>(storage: &mut S) -> Singleton<S, Config> {
+pub fn store_tmp_poll_id(storage: &mut dyn Storage, tmp_poll_id: u64) -> StdResult<()> {
+    singleton(storage, KEY_TMP_POLL_ID).save(&tmp_poll_id)
+}
+
+pub fn read_tmp_poll_id(storage: &dyn Storage) -> StdResult<u64> {
+    singleton_read(storage, KEY_TMP_POLL_ID).load()
+}
+
+pub fn config_store(storage: &mut dyn Storage) -> Singleton<Config> {
     singleton(storage, KEY_CONFIG)
 }
 
-pub fn config_read<S: Storage>(storage: &S) -> ReadonlySingleton<S, Config> {
+pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<Config> {
     singleton_read(storage, KEY_CONFIG)
 }
 
-pub fn state_store<S: Storage>(storage: &mut S) -> Singleton<S, State> {
+pub fn state_store(storage: &mut dyn Storage) -> Singleton<State> {
     singleton(storage, KEY_STATE)
 }
 
-pub fn state_read<S: Storage>(storage: &S) -> ReadonlySingleton<S, State> {
+pub fn state_read(storage: &dyn Storage) -> ReadonlySingleton<State> {
     singleton_read(storage, KEY_STATE)
 }
 
-pub fn poll_store<S: Storage>(storage: &mut S) -> Bucket<S, Poll> {
-    bucket(PREFIX_POLL, storage)
+pub fn poll_store(storage: &mut dyn Storage) -> Bucket<Poll> {
+    bucket(storage, PREFIX_POLL)
 }
 
-pub fn poll_read<S: ReadonlyStorage>(storage: &S) -> ReadonlyBucket<S, Poll> {
-    bucket_read(PREFIX_POLL, storage)
+pub fn poll_read(storage: &dyn Storage) -> ReadonlyBucket<Poll> {
+    bucket_read(storage, PREFIX_POLL)
 }
 
-pub fn total_voting_power_store<S: Storage>(storage: &mut S) -> Singleton<S, TotalVotingPower> {
+pub fn total_voting_power_store(storage: &mut dyn Storage) -> Singleton<TotalVotingPower> {
     singleton(storage, KEY_TOTAL_VOTING_POWER)
 }
 
-pub fn total_voting_power_read<S: Storage>(storage: &S) -> ReadonlySingleton<S, TotalVotingPower> {
+pub fn total_voting_power_read(storage: &dyn Storage) -> ReadonlySingleton<TotalVotingPower> {
     singleton_read(storage, KEY_TOTAL_VOTING_POWER)
 }
 
-pub fn poll_indexer_store<'a, S: Storage>(
-    storage: &'a mut S,
+pub fn poll_indexer_store<'a>(
+    storage: &'a mut dyn Storage,
     status: &PollStatus,
-) -> Bucket<'a, S, bool> {
+) -> Bucket<'a, bool> {
     Bucket::multilevel(
-        &[PREFIX_POLL_INDEXER, status.to_string().as_bytes()],
         storage,
+        &[PREFIX_POLL_INDEXER, status.to_string().as_bytes()],
     )
 }
 
-pub fn poll_voter_store<S: Storage>(storage: &mut S, poll_id: u64) -> Bucket<S, VoterInfo> {
-    Bucket::multilevel(&[PREFIX_POLL_VOTER, &poll_id.to_be_bytes()], storage)
+pub fn poll_voter_store(storage: &mut dyn Storage, poll_id: u64) -> Bucket<VoterInfo> {
+    Bucket::multilevel(storage, &[PREFIX_POLL_VOTER, &poll_id.to_be_bytes()])
 }
 
-pub fn poll_voter_read<S: ReadonlyStorage>(
-    storage: &S,
-    poll_id: u64,
-) -> ReadonlyBucket<S, VoterInfo> {
-    ReadonlyBucket::multilevel(&[PREFIX_POLL_VOTER, &poll_id.to_be_bytes()], storage)
+pub fn poll_voter_read(storage: &dyn Storage, poll_id: u64) -> ReadonlyBucket<VoterInfo> {
+    ReadonlyBucket::multilevel(storage, &[PREFIX_POLL_VOTER, &poll_id.to_be_bytes()])
 }
 
-pub fn read_poll_voters<'a, S: ReadonlyStorage>(
-    storage: &'a S,
+pub fn read_poll_voters<'a>(
+    storage: &'a dyn Storage,
     poll_id: u64,
-    start_after: Option<HumanAddr>,
+    start_after: Option<String>,
     limit: Option<u32>,
     order_by: Option<OrderBy>,
-) -> StdResult<Vec<(HumanAddr, VoterInfo)>> {
+) -> StdResult<Vec<(String, VoterInfo)>> {
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
     let (start, end, order_by) = match order_by {
         Some(OrderBy::Asc) => (calc_range_start_addr(start_after), None, OrderBy::Asc),
         _ => (None, calc_range_end_addr(start_after), OrderBy::Desc),
     };
 
-    let voters: ReadonlyBucket<'a, S, VoterInfo> =
-        ReadonlyBucket::multilevel(&[PREFIX_POLL_VOTER, &poll_id.to_be_bytes()], storage);
+    let voters: ReadonlyBucket<'a, VoterInfo> =
+        ReadonlyBucket::multilevel(storage, &[PREFIX_POLL_VOTER, &poll_id.to_be_bytes()]);
     voters
         .range(start.as_deref(), end.as_deref(), order_by.into())
         .take(limit)
         .map(|item| {
             let (k, v) = item?;
             Ok((
-                HumanAddr::from(unsafe { std::str::from_utf8_unchecked(&k) }),
+                std::str::from_utf8(&k)
+                    .map_err(|_| StdError::invalid_utf8("invalid poll voter address"))?
+                    .to_string(),
                 v,
             ))
         })
@@ -168,8 +175,8 @@ pub fn read_poll_voters<'a, S: ReadonlyStorage>(
 
 const MAX_LIMIT: u32 = 30;
 const DEFAULT_LIMIT: u32 = 10;
-pub fn read_polls<'a, S: ReadonlyStorage>(
-    storage: &'a S,
+pub fn read_polls<'a>(
+    storage: &'a dyn Storage,
     filter: Option<PollStatus>,
     start_after: Option<u64>,
     limit: Option<u32>,
@@ -188,9 +195,9 @@ pub fn read_polls<'a, S: ReadonlyStorage>(
     };
 
     if let Some(status) = filter {
-        let poll_indexer: ReadonlyBucket<'a, S, bool> = ReadonlyBucket::multilevel(
-            &[PREFIX_POLL_INDEXER, status.to_string().as_bytes()],
+        let poll_indexer: ReadonlyBucket<'a, bool> = ReadonlyBucket::multilevel(
             storage,
+            &[PREFIX_POLL_INDEXER, status.to_string().as_bytes()],
         );
         poll_indexer
             .range(start.as_deref(), end.as_deref(), order_by.into())
@@ -201,7 +208,7 @@ pub fn read_polls<'a, S: ReadonlyStorage>(
             })
             .collect()
     } else {
-        let polls: ReadonlyBucket<'a, S, Poll> = ReadonlyBucket::new(PREFIX_POLL, storage);
+        let polls: ReadonlyBucket<'a, Poll> = ReadonlyBucket::new(storage, PREFIX_POLL);
 
         polls
             .range(start.as_deref(), end.as_deref(), order_by.into())
@@ -214,34 +221,36 @@ pub fn read_polls<'a, S: ReadonlyStorage>(
     }
 }
 
-pub fn bank_store<S: Storage>(storage: &mut S) -> Bucket<S, TokenManager> {
-    bucket(PREFIX_BANK, storage)
+pub fn bank_store(storage: &mut dyn Storage) -> Bucket<TokenManager> {
+    bucket(storage, PREFIX_BANK)
 }
 
-pub fn bank_read<S: Storage>(storage: &S) -> ReadonlyBucket<S, TokenManager> {
-    bucket_read(PREFIX_BANK, storage)
+pub fn bank_read(storage: &dyn Storage) -> ReadonlyBucket<TokenManager> {
+    bucket_read(storage, PREFIX_BANK)
 }
 
-pub fn read_bank_stakers<'a, S: ReadonlyStorage>(
-    storage: &'a S,
-    start_after: Option<HumanAddr>,
+pub fn read_bank_stakers<'a>(
+    storage: &'a dyn Storage,
+    start_after: Option<String>,
     limit: Option<u32>,
     order_by: Option<OrderBy>,
-) -> StdResult<Vec<(HumanAddr, TokenManager)>> {
+) -> StdResult<Vec<(String, TokenManager)>> {
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
     let (start, end, order_by) = match order_by {
         Some(OrderBy::Asc) => (calc_range_start_addr(start_after), None, OrderBy::Asc),
         _ => (None, calc_range_end_addr(start_after), OrderBy::Desc),
     };
 
-    let stakers: ReadonlyBucket<'a, S, TokenManager> = ReadonlyBucket::new(PREFIX_BANK, storage);
+    let stakers: ReadonlyBucket<'a, TokenManager> = ReadonlyBucket::new(storage, PREFIX_BANK);
     stakers
         .range(start.as_deref(), end.as_deref(), order_by.into())
         .take(limit)
         .map(|item| {
             let (k, v) = item?;
             Ok((
-                HumanAddr::from(unsafe { std::str::from_utf8_unchecked(&k) }),
+                std::str::from_utf8(&k)
+                    .map_err(|_| StdError::invalid_utf8("invalid bank staker address"))?
+                    .to_string(),
                 v,
             ))
         })
@@ -263,7 +272,7 @@ fn calc_range_end(start_after: Option<u64>) -> Option<Vec<u8>> {
 }
 
 // this will set the first key after the provided key, by appending a 1 byte
-fn calc_range_start_addr(start_after: Option<HumanAddr>) -> Option<Vec<u8>> {
+fn calc_range_start_addr(start_after: Option<String>) -> Option<Vec<u8>> {
     start_after.map(|addr| {
         let mut v = addr.as_str().as_bytes().to_vec();
         v.push(1);
@@ -272,6 +281,6 @@ fn calc_range_start_addr(start_after: Option<HumanAddr>) -> Option<Vec<u8>> {
 }
 
 // this will set the first key after the provided key, by appending a 1 byte
-fn calc_range_end_addr(start_after: Option<HumanAddr>) -> Option<Vec<u8>> {
+fn calc_range_end_addr(start_after: Option<String>) -> Option<Vec<u8>> {
     start_after.map(|addr| addr.as_str().as_bytes().to_vec())
 }

@@ -4,7 +4,7 @@ use std::fs::create_dir_all;
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
 use nebula_protocol::gov::{
-    ConfigResponse, Cw20HookMsg, HandleMsg, InitMsg, PollCountResponse, PollResponse,
+    ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, PollCountResponse, PollResponse,
     PollsResponse, QueryMsg, StakerResponse, StateResponse, VotersResponse,
 };
 fn main() {
@@ -13,8 +13,8 @@ fn main() {
     create_dir_all(&out_dir).unwrap();
     remove_schemas(&out_dir).unwrap();
 
-    export_schema(&schema_for!(InitMsg), &out_dir);
-    export_schema(&schema_for!(HandleMsg), &out_dir);
+    export_schema(&schema_for!(InstantiateMsg), &out_dir);
+    export_schema(&schema_for!(ExecuteMsg), &out_dir);
     export_schema(&schema_for!(QueryMsg), &out_dir);
     export_schema(&schema_for!(Cw20HookMsg), &out_dir);
     export_schema(&schema_for!(ConfigResponse), &out_dir);

@@ -1,5 +1,5 @@
 from ecosystem import Ecosystem, deployer
-from contract_helpers import chain
+from contract_helpers import chain, dict_to_b64
 from base import terra
 from api import Asset
 
@@ -49,7 +49,7 @@ async def test_incentives_ops(eco: Ecosystem):
             i.increase_allowance(spender=eco.incentives, amount="5")
             for i in eco.asset_tokens
         ],
-        eco.incentives.arb_cluster_mint(
+        eco.incentives.arb_cluster_create(
             cluster_contract=eco.cluster,
             assets=[Asset.asset(i, "5") for i in eco.asset_tokens],
         )
@@ -71,7 +71,7 @@ async def test_incentives_ops(eco: Ecosystem):
             i.increase_allowance(spender=eco.incentives, amount="5")
             for i in eco.asset_tokens
         ],
-        eco.incentives.mint(
+        eco.incentives.incentives_create(
             cluster_contract=eco.cluster,
             asset_amounts=[Asset.asset(i, "5") for i in eco.asset_tokens],
         )
@@ -90,7 +90,7 @@ async def test_incentives_ops(eco: Ecosystem):
     )
     await chain(
         eco.cluster_token.increase_allowance(spender=eco.incentives, amount="10000000000"),
-        eco.incentives.redeem(
+        eco.incentives.incentives_redeem(
             max_tokens="2000",
             cluster_contract=eco.cluster,
         ),
@@ -108,10 +108,17 @@ async def test_incentives_ops(eco: Ecosystem):
     )
     assert new_bal > old_bal
 
+    incentives_msg = {
+        'deposit_reward': {
+            'rewards': [[1, eco.cluster.address, '1000']]
+        }
+    }
+
     await eco.neb_token.send(
         contract=eco.incentives,
         amount="1000",
-        msg=eco.incentives.deposit_reward(rewards=[[1, eco.cluster, "1000"]]),
+        # msg=eco.incentives.deposit_reward(rewards=[[1, eco.cluster, "1000"]]),
+        msg=dict_to_b64(incentives_msg),
     )
 
     await eco.incentives.new_penalty_period()
@@ -121,7 +128,7 @@ async def test_incentives_ops(eco: Ecosystem):
     try:
         await chain(
             eco.asset_tokens[0].increase_allowance(spender=eco.incentives, amount="50000000000"),
-            eco.incentives.arb_cluster_mint(
+            eco.incentives.arb_cluster_create(
                 cluster_contract=eco.cluster,
                 assets=[Asset.asset(eco.asset_tokens[0], "50000000000")]
             )

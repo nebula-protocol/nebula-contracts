@@ -9,9 +9,9 @@ import sys
 import numpy as np
 
 class ClusterSimulatorWithPenalty:
-    def __init__(self, cluster_contract, collector_fee = 0.001):
+    def __init__(self, cluster_contract, collector_fee_rate = 0.001):
         self.cluster_contract = cluster_contract
-        self.collector_fee = collector_fee
+        self.collector_fee_rate = collector_fee_rate
         
     async def reset_initial_state(self):
         cluster_state = await cluster.query.cluster_state(cluster_contract_address=self.cluster_contract)
@@ -126,7 +126,7 @@ class ClusterSimulatorWithPenalty:
         notional_value = np.dot(amts, self.prices) + penalty
         mint_subtotal = self.supply * notional_value / np.dot(inv, self.prices)
 
-        return mint_subtotal
+        return mint_subtotal * (1 - self.collector_fee_rate)
 
     def simulate_redeem(self, amts=None, cluster_tokens = None, block_height=None, inv=None):
         """

@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    log, to_binary, Api, CosmosMsg, Decimal, Env, Extern, HandleResponse, HandleResult, HumanAddr,
-    Order, Querier, StdResult, Storage, Uint128, WasmMsg,
+    attr, to_binary, CosmosMsg, Decimal, Deps, DepsMut, MessageInfo, Order, Response, StdError,
+    StdResult, Storage, Uint128, WasmMsg,
 };
 
 use crate::state::{
@@ -9,16 +9,16 @@ use crate::state::{
 };
 use nebula_protocol::staking::{RewardInfoResponse, RewardInfoResponseItem};
 
-use cw20::Cw20HandleMsg;
+use cw20::Cw20ExecuteMsg;
 
 // deposit_reward must be from reward token contract
-pub fn deposit_reward<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    rewards: Vec<(HumanAddr, Uint128)>,
+pub fn deposit_reward(
+    deps: DepsMut,
+    rewards: Vec<(String, Uint128)>,
     rewards_amount: Uint128,
-) -> HandleResult {
+) -> StdResult<Response> {
     for (asset_token, amount) in rewards.iter() {
-        let mut pool_info: PoolInfo = read_pool_info(&deps.storage, &asset_token)?;
+        let mut pool_info: PoolInfo = read_pool_info(deps.storage, &asset_token)?;
         let mut reward_amount = *amount;
 
         if pool_info.total_bond_amount.is_zero() {
@@ -31,55 +31,49 @@ pub fn deposit_reward<S: Storage, A: Api, Q: Querier>(
             pool_info.pending_reward = Uint128::zero();
         }
 
-        store_pool_info(&mut deps.storage, &asset_token, &pool_info)?;
+        store_pool_info(deps.storage, &asset_token, &pool_info)?;
     }
 
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![
-            log("action", "deposit_reward"),
-            log("rewards_amount", rewards_amount.to_string()),
-        ],
-        data: None,
-    })
+    Ok(Response::new().add_attributes(vec![
+        attr("action", "deposit_reward"),
+        attr("rewards_amount", rewards_amount.to_string()),
+    ]))
 }
 
 // withdraw all rewards or single reward depending on asset_token
-pub fn withdraw_reward<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    asset_token: Option<HumanAddr>,
-) -> HandleResult {
-    let staker_addr = env.message.sender;
-    let reward_amount = _withdraw_reward(&mut deps.storage, &staker_addr, &asset_token)?;
+pub fn withdraw_reward(
+    deps: DepsMut,
+    info: MessageInfo,
+    asset_token: Option<String>,
+) -> StdResult<Response> {
+    let staker_addr = info.sender;
+    let reward_amount = _withdraw_reward(deps.storage, &staker_addr.to_string(), &asset_token)?;
 
-    let config: Config = read_config(&deps.storage)?;
-    Ok(HandleResponse {
-        messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: config.nebula_token,
-            msg: to_binary(&Cw20HandleMsg::Transfer {
-                recipient: staker_addr,
+    let config: Config = read_config(deps.storage)?;
+    Ok(Response::new()
+        .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: config.nebula_token.to_string(),
+            msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                recipient: staker_addr.to_string(),
                 amount: reward_amount,
             })?,
-            send: vec![],
-        })],
-        log: vec![
-            log("action", "withdraw"),
-            log("amount", reward_amount.to_string()),
-        ],
-        data: None,
-    })
+            funds: vec![],
+        })])
+        .add_attributes(vec![
+            attr("action", "withdraw"),
+            attr("amount", reward_amount.to_string()),
+        ]))
 }
 
-fn _withdraw_reward<S: Storage>(
-    storage: &mut S,
-    staker_addr: &HumanAddr,
-    asset_token: &Option<HumanAddr>,
+fn _withdraw_reward(
+    storage: &mut dyn Storage,
+    staker_addr: &String,
+    asset_token: &Option<String>,
 ) -> StdResult<Uint128> {
     let rewards_bucket = rewards_read(storage, &staker_addr);
 
     // single reward withdraw
-    let reward_pairs: Vec<(HumanAddr, RewardInfo)>;
+    let reward_pairs: Vec<(String, RewardInfo)>;
     if let Some(asset_token) = asset_token {
         let reward_info = rewards_bucket.may_load(asset_token.as_str().as_bytes())?;
         reward_pairs = if let Some(reward_info) = reward_info {
@@ -93,11 +87,13 @@ fn _withdraw_reward<S: Storage>(
             .map(|item| {
                 let (k, v) = item?;
                 Ok((
-                    HumanAddr::from(unsafe { std::str::from_utf8_unchecked(&k) }),
+                    std::str::from_utf8(&k)
+                        .map_err(|_| StdError::invalid_utf8("invalid reward pair address"))?
+                        .to_string(),
                     v,
                 ))
             })
-            .collect::<StdResult<Vec<(HumanAddr, RewardInfo)>>>()?;
+            .collect::<StdResult<Vec<(String, RewardInfo)>>>()?;
     }
 
     let mut amount: Uint128 = Uint128::zero();
@@ -125,21 +121,21 @@ fn _withdraw_reward<S: Storage>(
 // withdraw reward to pending reward
 #[allow(clippy::suspicious_operation_groupings)]
 pub fn before_share_change(pool_info: &PoolInfo, reward_info: &mut RewardInfo) -> StdResult<()> {
-    let pending_reward = (reward_info.bond_amount * pool_info.reward_index
-        - reward_info.bond_amount * reward_info.index)?;
+    let pending_reward = (reward_info.bond_amount * pool_info.reward_index)
+        .checked_sub(reward_info.bond_amount * reward_info.index)?;
 
     reward_info.index = pool_info.reward_index;
     reward_info.pending_reward += pending_reward;
     Ok(())
 }
 
-pub fn query_reward_info<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    staker_addr: HumanAddr,
-    asset_token: Option<HumanAddr>,
+pub fn query_reward_info(
+    deps: Deps,
+    staker_addr: String,
+    asset_token: Option<String>,
 ) -> StdResult<RewardInfoResponse> {
     let reward_infos: Vec<RewardInfoResponseItem> =
-        _read_reward_infos(&deps.storage, &staker_addr, &asset_token)?;
+        _read_reward_infos(deps.storage, &staker_addr, &asset_token)?;
 
     Ok(RewardInfoResponse {
         staker_addr,
@@ -147,10 +143,10 @@ pub fn query_reward_info<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-fn _read_reward_infos<S: Storage>(
-    storage: &S,
-    staker_addr: &HumanAddr,
-    asset_token: &Option<HumanAddr>,
+fn _read_reward_infos(
+    storage: &dyn Storage,
+    staker_addr: &String,
+    asset_token: &Option<String>,
 ) -> StdResult<Vec<RewardInfoResponseItem>> {
     let rewards_bucket = rewards_read(storage, staker_addr);
     let reward_infos: Vec<RewardInfoResponseItem>;
@@ -174,7 +170,9 @@ fn _read_reward_infos<S: Storage>(
             .range(None, None, Order::Ascending)
             .map(|item| {
                 let (k, v) = item?;
-                let asset_token = HumanAddr::from(unsafe { std::str::from_utf8_unchecked(&k) });
+                let asset_token = std::str::from_utf8(&k)
+                    .map_err(|_| StdError::invalid_utf8("invalid asset token address"))?
+                    .to_string();
                 let mut reward_info = v;
                 let pool_info = read_pool_info(storage, &asset_token)?;
                 before_share_change(&pool_info, &mut reward_info)?;

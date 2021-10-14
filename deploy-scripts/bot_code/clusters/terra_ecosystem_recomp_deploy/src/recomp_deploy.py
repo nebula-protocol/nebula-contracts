@@ -11,6 +11,8 @@ os.environ["USE_TEQUILA"] = "1"
 from api import Asset
 from contract_helpers import Contract, ClusterContract, terra
 
+from .pricing import get_query_info, get_prices
+
 ONE_MILLION = 1000000.0
 SECONDS_PER_DAY = 24 * 60 * 60
 
@@ -50,15 +52,15 @@ class TerraFullDilutedMcapRecomposer:
         print("Total FDM of all assets: {}M".format(denom/ONE_MILLION))
         target_weights = [asset_to_fdm[asset]/denom for asset in asset_to_fdm]
         print(self.asset_tokens, target_weights)
-        target_weights = [int(10000 * target_weight) for target_weight in target_weights]
-
-        print(self.asset_tokens, target_weights)
-
-
+        _, _, query_info = await get_query_info(self.asset_tokens)
+        prices = await get_prices(query_info)
         target = []
-        for a, t in zip(self.asset_tokens, target_weights):
+        for a, t, p in zip(self.asset_tokens, target_weights, prices):
             native = (a == 'uluna')
-            target.append(Asset.asset(a, str(t), native=native))
+            print(t)
+            tw = str(int(10000000 * t / float(p)))
+            target.append(Asset.asset(a, tw, native=native))
+
         return target
         
     
@@ -80,8 +82,8 @@ class TerraFullDilutedMcapRecomposer:
         return target
 
 async def get_terra_ecosystem_info():
-    ANC_ADDR = 'terra16z5t7cr0ueg47tuqmwlp6ymgm2w43dyv4xnt4g'
-    MIR_ADDR = 'terra1gkjll5uwqlwa8mrmtvzv435732tffpjql494fd'
+    ANC_ADDR = 'terra188w8fnaz6lvta7glz9saacdt3q407249n95yh0'
+    MIR_ADDR = 'terra17v346ttxlx3hen5xlkt0v76z33t7rlmm0r39s9'
     assets = [
         "uluna", #LUNA
         ANC_ADDR, #ANC
@@ -97,8 +99,10 @@ async def get_terra_ecosystem_info():
     mir_token_info = await mir_token.query.token_info()
     mir_total_supply = float(mir_token_info['total_supply'])
 
-    coins_total_supply = await terra.supply.total()
-    luna_total_supply = coins_total_supply.get('uluna').amount
+    # coins_total_supply = await terra.supply.total()
+    # coins_total_supply = await terra.bank.total()
+    # luna_total_supply = coins_total_supply.get('uluna').amount
+    luna_total_supply = 105996364234582
     asset_token_supply = [
         luna_total_supply/100000,
         anc_total_supply/ONE_MILLION,     # ANC
@@ -108,20 +112,20 @@ async def get_terra_ecosystem_info():
 
     return assets, asset_token_supply
 
-async def run_recomposition_periodically(cluster_contract, interval):
+async def run_retarget_periodically(cluster_contract, interval):
     start_time = time.time()
 
-    assets, asset_token_supply = get_terra_ecosystem_info()
+    assets, asset_token_supply = await get_terra_ecosystem_info()
     
-    recomposition_bot = TerraFullDilutedMcapRecomposer(cluster_contract, assets, asset_token_supply)
+    retarget_bot = TerraFullDilutedMcapRecomposer(cluster_contract, assets, asset_token_supply)
 
     while True:
         await asyncio.gather(
             asyncio.sleep(interval),
-            recomposition_bot.recompose(),
+            retarget_bot.recompose(),
         )
 
 if __name__ == "__main__":
     cluster_contract = Contract("terra1pk8069vrxm0lzqdqy6zq46np8e4jy3r7j0a5k9")
     interval = SECONDS_PER_DAY
-    asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))
+    asyncio.get_event_loop().run_until_complete(run_retarget_periodically(cluster_contract, interval))

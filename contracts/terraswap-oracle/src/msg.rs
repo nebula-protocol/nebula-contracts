@@ -1,9 +1,9 @@
-use cosmwasm_std::{Decimal, HumanAddr};
+use cosmwasm_std::{Decimal};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InitMsg {
-    pub terraswap_factory: HumanAddr,
+pub struct InstantiateMsg {
+    pub terraswap_factory: String,
     pub base_denom: String
 }
 
@@ -18,7 +18,7 @@ pub enum QueryMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum HandleMsg {
+pub enum ExecuteMsg {
 }
 
 #[derive(Serialize, Deserialize, JsonSchema)]

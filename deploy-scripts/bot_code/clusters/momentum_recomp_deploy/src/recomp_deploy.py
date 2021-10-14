@@ -4,9 +4,11 @@ import requests
 import json
 import time
 
-from graphql_querier import mirror_history_query_test, get_all_mirror_assets_test
+from .graphql_querier import mirror_history_query_test, get_all_mirror_assets_test
 import time
 import pandas as pd
+
+from .pricing import get_query_info, get_prices
 
 os.environ["MNEMONIC"] = mnemonic = 'record sword bounce legal sea busy eight vanish assault among travel pull gravity inmate boost aerobic voyage wagon tiger own prefer cigar shell group'
 
@@ -65,12 +67,14 @@ class MomentumTradingRecomposer:
         print('Best assets', best_assets)
         print('Target weights', target_weights)
 
-        target_weights = [int(100 * target_weight) for target_weight in target_weights]
-
+        _, _, query_info = await get_query_info(target_assets)
+        prices = await get_prices(query_info)
         target = []
-        for a, t in zip(target_assets, target_weights):
+        for a, t, p in zip(target_assets, target_weights, prices):
             native = (a == 'uluna')
-            target.append(Asset.asset(a, str(t), native=native))
+            print(t)
+            tw = str(int(100000000 * t / float(p)))
+            target.append(Asset.asset(a, tw, native=native))
 
         return target
     
@@ -93,18 +97,18 @@ class MomentumTradingRecomposer:
         print("Updated Cluster State: ", cluster_state)
         return target
 
-async def run_recomposition_periodically(cluster_contract, interval):
+async def run_retarget_periodically(cluster_contract, interval):
     start_time = time.time()
     
-    recomposition_bot = MomentumTradingRecomposer(cluster_contract)
+    retarget_bot = MomentumTradingRecomposer(cluster_contract)
 
     while True:
         await asyncio.gather(
             asyncio.sleep(interval),
-            recomposition_bot.recompose(),
+            retarget_bot.recompose(),
         )
 
 if __name__ == "__main__":
     cluster_contract = Contract("terra1tj6p0aknfcdgcsrt5kxy529p2hngejmnasjm4s")
     interval = SECONDS_PER_DAY
-    asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))
+    asyncio.get_event_loop().run_until_complete(run_retarget_periodically(cluster_contract, interval))

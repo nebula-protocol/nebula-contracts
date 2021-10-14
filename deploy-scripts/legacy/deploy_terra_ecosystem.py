@@ -70,7 +70,7 @@ async def deploy_terra_ecosystem():
             "target": target_weights,
             "assets": asset_tokens,
             "pricing_oracle": oracle,
-            "composition_oracle": 'terra1qyz9ps2dpv8ay4rg4hy65fvc3wjxu83s246tpy',
+            "target_oracle": 'terra1qyz9ps2dpv8ay4rg4hy65fvc3wjxu83s246tpy',
         },
     )
 

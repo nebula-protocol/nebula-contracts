@@ -1,27 +1,27 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{HumanAddr, Uint128};
+use cosmwasm_std::Uint128;
 use cw20::Cw20ReceiveMsg;
 use terraswap::asset::{Asset, AssetInfo};
 use terraswap::pair::PoolResponse as TerraswapPoolResponse;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InitMsg {
-    pub factory: HumanAddr,
-    pub custody: HumanAddr,
-    pub terraswap_factory: HumanAddr,
-    pub nebula_token: HumanAddr,
+pub struct InstantiateMsg {
+    pub factory: String,
+    pub custody: String,
+    pub terraswap_factory: String,
+    pub nebula_token: String,
     pub base_denom: String,
-    pub owner: HumanAddr,
+    pub owner: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum HandleMsg {
+pub enum ExecuteMsg {
     /// OWNER-CALLABLE
     UpdateOwner {
-        owner: HumanAddr,
+        owner: String,
     },
     Receive(Cw20ReceiveMsg),
     Withdraw {},
@@ -30,66 +30,66 @@ pub enum HandleMsg {
     /// INTERNAL
     _SendAll {
         asset_infos: Vec<AssetInfo>,
-        send_to: HumanAddr,
+        send_to: String,
     },
 
     _SwapAll {
-        terraswap_pair: HumanAddr,
-        cluster_token: HumanAddr,
+        terraswap_pair: String,
+        cluster_token: String,
         min_return: Uint128,
         to_ust: bool,
     },
 
     _RecordTerraswapImpact {
-        arbitrageur: HumanAddr,
-        terraswap_pair: HumanAddr,
-        cluster_contract: HumanAddr,
+        arbitrageur: String,
+        terraswap_pair: String,
+        cluster_contract: String,
         pool_before: TerraswapPoolResponse,
     },
 
     /// USER-CALLABLE
-    ArbClusterMint {
-        cluster_contract: HumanAddr,
+    ArbClusterCreate {
+        cluster_contract: String,
         assets: Vec<Asset>,
         min_ust: Option<Uint128>,
     },
 
     ArbClusterRedeem {
-        cluster_contract: HumanAddr,
+        cluster_contract: String,
         asset: Asset,
         min_cluster: Option<Uint128>,
     },
 
-    Mint {
-        cluster_contract: HumanAddr,
+    IncentivesCreate {
+        cluster_contract: String,
         asset_amounts: Vec<Asset>,
         min_tokens: Option<Uint128>,
     },
 
-    Redeem {
-        cluster_contract: HumanAddr,
+    IncentivesRedeem {
+        cluster_contract: String,
         max_tokens: Uint128,
         asset_amounts: Option<Vec<Asset>>,
     },
 
-    _InternalRewardedMint {
-        rebalancer: HumanAddr,
-        cluster_contract: HumanAddr,
+    _InternalRewardedCreate {
+        rebalancer: String,
+        cluster_contract: String,
         asset_amounts: Vec<Asset>,
         min_tokens: Option<Uint128>,
     },
 
     _InternalRewardedRedeem {
-        rebalancer: HumanAddr,
-        cluster_contract: HumanAddr,
-        cluster_token: HumanAddr,
+        rebalancer: String,
+        cluster_contract: String,
+        cluster_token: String,
         max_tokens: Option<Uint128>,
         asset_amounts: Option<Vec<Asset>>,
     },
 
     _RecordRebalancerRewards {
-        rebalancer: HumanAddr,
-        cluster_contract: HumanAddr,
+        rebalancer: String,
+        cluster_contract: String,
         original_imbalance: Uint128,
     },
 }
@@ -101,28 +101,28 @@ pub enum QueryMsg {
     PenaltyPeriod {},
     PoolInfo {
         pool_type: u16,
-        cluster_address: HumanAddr,
+        cluster_address: String,
         n: Option<u64>,
     },
     CurrentContributorInfo {
         pool_type: u16,
-        contributor_address: HumanAddr,
-        cluster_address: HumanAddr,
+        contributor_address: String,
+        cluster_address: String,
     },
     ContributorPendingRewards {
-        contributor_address: HumanAddr,
+        contributor_address: String,
     },
 }
 
 // We define a custom struct for each query response
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ConfigResponse {
-    pub factory: HumanAddr,
-    pub terraswap_factory: HumanAddr,
-    pub nebula_token: HumanAddr,
+    pub factory: String,
+    pub terraswap_factory: String,
+    pub nebula_token: String,
     pub base_denom: String,
-    pub owner: HumanAddr,
-    pub custody: HumanAddr,
+    pub owner: String,
+    pub custody: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -152,7 +152,7 @@ pub struct ContributorPendingRewardsResponse {
 pub enum Cw20HookMsg {
     /// Deposit rewards to be distributed among stakers and voters
     DepositReward {
-        rewards: Vec<(u16, HumanAddr, Uint128)>,
+        rewards: Vec<(u16, String, Uint128)>,
     },
 }
 
@@ -162,7 +162,7 @@ pub struct MigrateMsg {}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum ExtHandleMsg {
+pub enum ExtExecuteMsg {
     RequestNeb { amount: Uint128 },
 }
 

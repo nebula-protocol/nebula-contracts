@@ -8,8 +8,8 @@ from tests.incentives_ops import test_incentives_ops
 
 
 async def main():
-
-    ecosystem = Ecosystem(require_gov=True)
+    require_gov=True
+    ecosystem = Ecosystem(require_gov=require_gov)
     await ecosystem.initialize_base_contracts()
     await ecosystem.initialize_extraneous_contracts()
     await ecosystem.create_cluster(
@@ -27,11 +27,15 @@ async def main():
         },
     )
 
+    await ecosystem.cluster.query.cluster_state(cluster_contract_address=ecosystem.cluster.address,
+        stale_threshold=0)
+
     # tests are dependent on one another...
     await test_provide_liquidity_and_staking(ecosystem)
     await test_cluster_and_collector_ops(ecosystem)
     await test_community_and_airdrop(ecosystem)
-    await test_governance_ops(ecosystem)
+    if require_gov:
+        await test_governance_ops(ecosystem)
     await test_incentives_ops(ecosystem)
     await test_decommission_cluster(ecosystem)
 

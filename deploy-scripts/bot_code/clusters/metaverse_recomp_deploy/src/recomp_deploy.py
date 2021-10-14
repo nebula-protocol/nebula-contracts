@@ -12,10 +12,12 @@ os.environ["USE_TEQUILA"] = "1"
 from api import Asset
 from contract_helpers import Contract, ClusterContract, terra
 
+from .pricing import get_query_info, get_prices
+
 ONE_MILLION = 1000000.0
 SECONDS_PER_DAY = 24 * 60 * 60
 
-# The Next Doge Cluster Methodology
+# The Metaverse Cluster Methodology
 """
 For underlying tokens in a cluster, we define them as “activated“ and “deactivated” according to a binary activation function. 
 Consider an activation function such that when the H = 4-hour price percentage for a token exceeds T = 30%, we mark it “activated”. 
@@ -26,18 +28,20 @@ proportional to the market cap of each “activated” token, and then a functio
 If there's any remaining weight percentage, it's allocated to UST. However, if no “activated” tokens exist, we assign a 100% weight to 
 UST and wait for an activation event occurrence.
 """
-class NextDogeRecomposer:
+class MetaverseRecomposer:
     def __init__(self, cluster_contract):
         self.cluster_contract = cluster_contract
 
-        #["UST, ""DOGE", "CUMMIES", "MEME", "ERC20"]
-        self.asset_ids = ["terrausd", "dogecoin", "cumrocket", "degenerator", "erc20"]
+        #["UST, "AXS", "SAND", "MANA", "ENJ", "AUDIO"]
+        self.asset_ids = ["terrausd", 'axie-infinity', 'the-sandbox', 'decentraland', 'enjincoin', 'audius']
+
         self.asset_infos = [
             'uusd', 
-            'terra1wpa2978x6n9c6xdvfzk4uhkzvphmq5fhdnvrym',
-            'terra1kf9qa5f3uu7nq3flg2dva8c9d9lh8h5cyuextt',
-            'terra1u08z2c9r3s3avrn9l0r3m30xhcmssunvv5d0rx',
-            'terra1p0rp8he7jfnevha3k5anhd0als7azjmfhxrvjv',
+            'terra1lrnanc6z0r70lhdw0w8kq6wtkykmqekwktp7x6',
+            'terra1ems4zzzrdhtrw35e0wj7ssdcwaj704rtgzp0v2',
+            'terra12knrdep3zgj34z560ml5hy7gu43r00mgyfpes4',
+            'terra10s0alq88mq3h4wrulsn6kgu7g26nnszxjk2ecl',
+            'terra1yy9yu0rqjzsu2gmjvvsv8xelfanqgpadvpur85',
         ]
 
         self.activation_file = "activation.info"
@@ -169,13 +173,14 @@ class NextDogeRecomposer:
         else:
             target_weights = self.default_weights
 
-        target_weights = [int(10000 * target_weight) for target_weight in target_weights]
-
+        _, _, query_info = await get_query_info(self.asset_infos)
+        prices = await get_prices(query_info)
         target = []
-        for a, t in zip(self.asset_infos, target_weights):
+        for a, t, p in zip(self.asset_infos, target_weights, prices):
             native = (a == 'uluna') or (a == 'uusd')
-            if t > 0:
-                target.append(Asset.asset(a, str(t), native=native))
+            print(t)
+            tw = str(int(100000000 * t / float(p)))
+            target.append(Asset.asset(a, tw, native=native))
         
         self.save_activation_information()
         return target
@@ -201,16 +206,16 @@ class NextDogeRecomposer:
 
         return target
 
-async def run_recomposition_periodically(cluster_contract, interval):
-    recomposition_bot = NextDogeRecomposer(cluster_contract)
+async def run_retarget_periodically(cluster_contract, interval):
+    retarget_bot = NextDogeRecomposer(cluster_contract)
 
     while True:
         await asyncio.gather(
             asyncio.sleep(interval),
-            recomposition_bot.recompose(),
+            retarget_bot.recompose(),
         )
 
 if __name__ == "__main__":
     cluster_contract = Contract("terra1dsqtuf79093unny85pv53230rzcwehlwxyd5hc")
     interval = SECONDS_PER_DAY
-    asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))
+    asyncio.get_event_loop().run_until_complete(run_retarget_periodically(cluster_contract, interval))

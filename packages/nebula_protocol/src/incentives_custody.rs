@@ -1,26 +1,26 @@
-use cosmwasm_std::{HumanAddr, Uint128};
+use cosmwasm_std::Uint128;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InitMsg {
-    pub owner: HumanAddr,
-    pub neb_token: HumanAddr,
+pub struct InstantiateMsg {
+    pub owner: String,
+    pub neb_token: String,
 }
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum HandleMsg {
+pub enum ExecuteMsg {
     /// OWNER-CALLABLE
     RequestNeb {
         amount: Uint128,
     },
     UpdateOwner {
-        owner: HumanAddr,
+        owner: String,
     },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    Balance { custody: HumanAddr },
+    Balance { custody: String },
 }

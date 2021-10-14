@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_binary, from_slice, to_binary, Api, CanonicalAddr, Coin, Decimal, Empty, Extern,
-    HumanAddr, Querier, QuerierResult, QueryRequest, SystemError, WasmQuery,
+    from_binary, from_slice, to_binary, Api, CanonicalAddr, Coin, ContractResult, Decimal, Empty,
+    OwnedDeps, Querier, QuerierResult, QueryRequest, SystemError, SystemResult, WasmQuery,
 };
 use cosmwasm_storage::to_length_prefixed;
 
@@ -15,19 +15,15 @@ use terraswap::asset::{AssetInfo, PairInfo};
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies
 /// this uses our CustomQuerier.
 pub fn mock_dependencies(
-    canonical_length: usize,
     contract_balance: &[Coin],
-) -> Extern<MockStorage, MockApi, WasmMockQuerier> {
-    let contract_addr = HumanAddr::from(MOCK_CONTRACT_ADDR);
-    let custom_querier: WasmMockQuerier = WasmMockQuerier::new(
-        MockQuerier::new(&[(&contract_addr, contract_balance)]),
-        MockApi::new(canonical_length),
-        canonical_length,
-    );
+) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier> {
+    let contract_addr = MOCK_CONTRACT_ADDR.to_string();
+    let custom_querier: WasmMockQuerier =
+        WasmMockQuerier::new(MockQuerier::new(&[(&contract_addr, contract_balance)]));
 
-    Extern {
+    OwnedDeps {
         storage: MockStorage::default(),
-        api: MockApi::new(canonical_length),
+        api: MockApi::default(),
         querier: custom_querier,
     }
 }
@@ -37,38 +33,37 @@ pub struct WasmMockQuerier {
     terraswap_factory_querier: TerraswapFactoryQuerier,
     oracle_querier: OracleQuerier,
     mint_querier: MintQuerier,
-    canonical_length: usize,
 }
 
 #[derive(Clone, Default)]
 pub struct TerraswapFactoryQuerier {
-    pairs: HashMap<String, HumanAddr>,
+    pairs: HashMap<String, String>,
 }
 
 impl TerraswapFactoryQuerier {
-    pub fn new(pairs: &[(&String, &HumanAddr)]) -> Self {
+    pub fn new(pairs: &[(&String, &String)]) -> Self {
         TerraswapFactoryQuerier {
             pairs: pairs_to_map(pairs),
         }
     }
 }
 
-pub(crate) fn pairs_to_map(pairs: &[(&String, &HumanAddr)]) -> HashMap<String, HumanAddr> {
-    let mut pairs_map: HashMap<String, HumanAddr> = HashMap::new();
+pub(crate) fn pairs_to_map(pairs: &[(&String, &String)]) -> HashMap<String, String> {
+    let mut pairs_map: HashMap<String, String> = HashMap::new();
     for (key, pair) in pairs.iter() {
-        pairs_map.insert(key.to_string(), HumanAddr::from(pair));
+        pairs_map.insert(key.to_string(), pair.to_string());
     }
     pairs_map
 }
 
 #[derive(Clone, Default)]
 pub struct OracleQuerier {
-    feeders: HashMap<HumanAddr, HumanAddr>,
+    feeders: HashMap<String, String>,
 }
 
 #[derive(Clone, Default)]
 pub struct MintQuerier {
-    configs: HashMap<HumanAddr, (Decimal, Decimal, Option<Decimal>)>,
+    configs: HashMap<String, (Decimal, Decimal, Option<Decimal>)>,
 }
 
 impl Querier for WasmMockQuerier {
@@ -77,13 +72,13 @@ impl Querier for WasmMockQuerier {
         let request: QueryRequest<Empty> = match from_slice(bin_request) {
             Ok(v) => v,
             Err(e) => {
-                return Err(SystemError::InvalidRequest {
+                return SystemResult::Err(SystemError::InvalidRequest {
                     error: format!("Parsing query request: {}", e),
                     request: bin_request.into(),
                 })
             }
         };
-        self.handle_query(&request)
+        self.execute_query(&request)
     }
 }
 
@@ -94,7 +89,7 @@ pub enum QueryMsg {
 }
 
 impl WasmMockQuerier {
-    pub fn handle_query(&self, request: &QueryRequest<Empty>) -> QuerierResult {
+    pub fn execute_query(&self, request: &QueryRequest<Empty>) -> QuerierResult {
         match &request {
             QueryRequest::Wasm(WasmQuery::Smart {
                 contract_addr: _,
@@ -103,8 +98,8 @@ impl WasmMockQuerier {
                 QueryMsg::Pair { asset_infos } => {
                     let key = asset_infos[0].to_string() + asset_infos[1].to_string().as_str();
                     match self.terraswap_factory_querier.pairs.get(&key) {
-                        Some(v) => Ok(to_binary(&PairInfo {
-                            contract_addr: HumanAddr::from("pair"),
+                        Some(v) => SystemResult::Ok(ContractResult::from(to_binary(&PairInfo {
+                            contract_addr: "pair".to_string(),
                             liquidity_token: v.clone(),
                             asset_infos: [
                                 AssetInfo::NativeToken {
@@ -114,8 +109,8 @@ impl WasmMockQuerier {
                                     denom: "uusd".to_string(),
                                 },
                             ],
-                        })),
-                        None => Err(SystemError::InvalidRequest {
+                        }))),
+                        None => SystemResult::Err(SystemError::InvalidRequest {
                             error: "No pair info exists".to_string(),
                             request: msg.as_slice().into(),
                         }),
@@ -127,22 +122,23 @@ impl WasmMockQuerier {
                 let prefix_asset_config = to_length_prefixed(b"asset_config").to_vec();
                 let prefix_feeder = to_length_prefixed(b"feeder").to_vec();
 
-                let api: MockApi = MockApi::new(self.canonical_length);
+                let api: MockApi = MockApi::default();
                 if key.len() > prefix_feeder.len()
                     && key[..prefix_feeder.len()].to_vec() == prefix_feeder
                 {
-                    let api: MockApi = MockApi::new(self.canonical_length);
+                    let api: MockApi = MockApi::default();
                     let rest_key: &[u8] = &key[prefix_feeder.len()..];
 
-                    if contract_addr == &HumanAddr::from("oracle0000") {
-                        let asset_token: HumanAddr = api
-                            .human_address(&(CanonicalAddr::from(rest_key.to_vec())))
-                            .unwrap();
+                    if contract_addr == &("oracle0000") {
+                        let asset_token: String = api
+                            .addr_humanize(&(CanonicalAddr::from(rest_key.to_vec())))
+                            .unwrap()
+                            .to_string();
 
                         let feeder = match self.oracle_querier.feeders.get(&asset_token) {
                             Some(v) => v,
                             None => {
-                                return Err(SystemError::InvalidRequest {
+                                return SystemResult::Err(SystemError::InvalidRequest {
                                     error: format!(
                                         "Oracle Feeder is not found for {}",
                                         asset_token
@@ -152,9 +148,9 @@ impl WasmMockQuerier {
                             }
                         };
 
-                        Ok(to_binary(
-                            &to_binary(&api.canonical_address(&feeder).unwrap()).unwrap(),
-                        ))
+                        SystemResult::Ok(ContractResult::from(to_binary(
+                            &api.addr_canonicalize(&feeder).unwrap(),
+                        )))
                     } else {
                         panic!("DO NOT ENTER HERE")
                     }
@@ -162,29 +158,31 @@ impl WasmMockQuerier {
                     && key[..prefix_asset_config.len()].to_vec() == prefix_asset_config
                 {
                     let rest_key: &[u8] = &key[prefix_asset_config.len()..];
-                    let asset_token: HumanAddr = api
-                        .human_address(&(CanonicalAddr::from(rest_key.to_vec())))
-                        .unwrap();
+                    let asset_token: String = api
+                        .addr_humanize(&(CanonicalAddr::from(rest_key.to_vec())))
+                        .unwrap()
+                        .to_string();
 
                     let config = match self.mint_querier.configs.get(&asset_token) {
                         Some(v) => v,
                         None => {
-                            return Err(SystemError::InvalidRequest {
+                            return SystemResult::Err(SystemError::InvalidRequest {
                                 error: format!("Mint Config is not found for {}", asset_token),
                                 request: key.into(),
                             })
                         }
                     };
 
-                    Ok(to_binary(
+                    SystemResult::Ok(ContractResult::from(to_binary(
                         &to_binary(&MintAssetConfig {
-                            token: api.canonical_address(&asset_token).unwrap(),
+                            token: api.addr_canonicalize(&asset_token).unwrap(),
                             auction_discount: config.0,
                             min_collateral_ratio: config.1,
                             min_collateral_ratio_after_migration: config.2,
                         })
-                        .unwrap(),
-                    ))
+                        .unwrap()
+                        .to_string(),
+                    )))
                 } else {
                     panic!("DO NOT ENTER HERE")
                 }
@@ -195,18 +193,17 @@ impl WasmMockQuerier {
 }
 
 impl WasmMockQuerier {
-    pub fn new<A: Api>(base: MockQuerier<Empty>, _api: A, canonical_length: usize) -> Self {
+    pub fn new(base: MockQuerier<Empty>) -> Self {
         WasmMockQuerier {
             base,
             terraswap_factory_querier: TerraswapFactoryQuerier::default(),
             mint_querier: MintQuerier::default(),
             oracle_querier: OracleQuerier::default(),
-            canonical_length,
         }
     }
 
     // configure the terraswap pair
-    pub fn with_terraswap_pairs(&mut self, pairs: &[(&String, &HumanAddr)]) {
+    pub fn with_terraswap_pairs(&mut self, pairs: &[(&String, &String)]) {
         self.terraswap_factory_querier = TerraswapFactoryQuerier::new(pairs);
     }
 }

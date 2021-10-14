@@ -2,8 +2,8 @@ from terra_sdk.core.wasm import (
     MsgStoreCode,
     MsgInstantiateContract,
     MsgExecuteContract,
-    dict_to_b64,
 )
+from terra_sdk.util.json import dict_to_data
 from terra_sdk.util.contract import get_code_id, get_contract_address, read_file_as_b64
 from base import (
     deployer,
@@ -11,11 +11,13 @@ from base import (
     OVERWRITE_CACHE_ALLOWED,
     CACHE_INITIALIZATION,
     terra,
-    USE_TEQUILA,
+    USE_BOMBAY,
 )
 from api import Asset
 import shelve
 import os
+import base64
+import json
 
 shelf = shelve.open(f"{os.path.dirname(__file__)}/cache.dat")
 
@@ -23,7 +25,7 @@ shelf = shelve.open(f"{os.path.dirname(__file__)}/cache.dat")
 def async_cache_on_disk(fxn):
     async def _ret(*args, **kwargs):
         key = repr(args) + "|" + repr(kwargs)
-        key = str(USE_TEQUILA) + "|" + fxn.__name__ + "|" + str(key)
+        key = str(USE_BOMBAY) + "|" + fxn.__name__ + "|" + str(key)
         if key not in shelf or fxn.__name__ in OVERWRITE_CACHE_ALLOWED:
             shelf[key] = await fxn(*args, **kwargs)
             shelf.sync()
@@ -102,7 +104,7 @@ class Contract:
     @staticmethod
     async def create(code_id, **kwargs):
         kwargs = custom_objs_to_json(kwargs)
-        instantiate = MsgInstantiateContract(deployer.key.acc_address, code_id, kwargs)
+        instantiate = MsgInstantiateContract(deployer.key.acc_address, deployer.key.acc_address, code_id, kwargs)
         result = await sign_and_broadcast(instantiate)
         return Contract(get_contract_address(result))
 
@@ -115,7 +117,6 @@ class Contract:
     def __getattr__(self, item):
         def result_fxn(_send=None, **kwargs):
             return ExecuteMessage(contract=self, json={item: kwargs}, send=_send)
-
         return result_fxn
 
     @property
@@ -139,8 +140,11 @@ class ClusterContract(Contract):
             msgs.append(asset.increase_allowance(spender=self, amount=amt))
             mint_assets.append(Asset.asset(asset, amt))
 
+        await chain(*msgs)
+        msgs = []
+
         msgs.append(
-            self.__getattr__("mint")(asset_amounts=mint_assets, min_tokens=min_tokens)
+            self.__getattr__("rebalance_create")(asset_amounts=mint_assets, min_tokens=min_tokens)
         )
         return await chain(*msgs)
 
@@ -153,7 +157,7 @@ class ClusterContract(Contract):
             ]
 
         msgs.append(
-            self.burn(
+            self.rebalance_redeem(
                 max_tokens=max_tokens,
                 asset_amounts=asset_amounts,
             )
@@ -169,5 +173,10 @@ def custom_objs_to_json(obj):
     if issubclass(type(obj), Contract):
         return obj.address
     if type(obj) == ExecuteMessage:
-        return dict_to_b64(obj.json)
+        return obj.json
+        # return dict_to_data(obj.json)
     return obj
+
+def dict_to_b64(data: dict) -> str:
+    """Converts dict to ASCII-encoded base64 encoded string."""
+    return base64.b64encode(bytes(json.dumps(data), "ascii")).decode()

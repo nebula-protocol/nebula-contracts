@@ -1,4 +1,11 @@
-from contract_helpers import ClusterContract, Contract, store_contracts, deployer
+from contract_helpers import ClusterContract, Contract, store_contracts, deployer, dict_to_b64
+from terra_sdk.core.wasm import (
+    MsgStoreCode,
+    MsgInstantiateContract,
+    MsgExecuteContract,
+)
+from terra_sdk.util.json import dict_to_data
+
 from api import Asset
 import pprint
 import asyncio
@@ -6,13 +13,12 @@ import asyncio
 DEFAULT_POLL_ID = 1
 DEFAULT_QUORUM = "0.3"
 DEFAULT_THRESHOLD = "0.5"
-DEFAULT_VOTING_PERIOD = 4
-DEFAULT_EFFECTIVE_DELAY = 4
-DEFAULT_EXPIRATION_PERIOD = 20000
+DEFAULT_VOTING_PERIOD = 2
+DEFAULT_EFFECTIVE_DELAY = 2
 DEFAULT_PROPOSAL_DEPOSIT = "10000000000"
 DEFAULT_SNAPSHOT_PERIOD = 0
-DEFAULT_VOTER_WEIGHT = "0.1"
-
+DEFAULT_VOTER_WEIGHT = "0.2"
+    
 
 class Ecosystem:
     def __init__(self, require_gov=False):
@@ -50,6 +56,7 @@ class Ecosystem:
     async def initialize_base_contracts(self):
         print("Initializing base contracts...")
         code_ids = self.code_ids = await store_contracts()
+        print(code_ids)
 
         if self.terraswap_factory is None:
             self.terraswap_factory = await Contract.create(
@@ -66,6 +73,8 @@ class Ecosystem:
             protocol_fee_rate="0.001",
             distribution_schedule=[[0, 100000, "1000000"]],
         )
+
+        print('factory', self.factory)
 
         self.neb_token = await Contract.create(
             code_ids["terraswap_token"],
@@ -101,11 +110,12 @@ class Ecosystem:
             threshold=DEFAULT_THRESHOLD,
             voting_period=DEFAULT_VOTING_PERIOD,
             effective_delay=DEFAULT_EFFECTIVE_DELAY,
-            expiration_period=DEFAULT_EXPIRATION_PERIOD,
             proposal_deposit=DEFAULT_PROPOSAL_DEPOSIT,
             voter_weight=DEFAULT_VOTER_WEIGHT,
             snapshot_period=DEFAULT_SNAPSHOT_PERIOD,
         )
+
+        print('gov', self.gov)
 
         self.collector = await Contract.create(
             code_ids["nebula_collector"],
@@ -116,14 +126,6 @@ class Ecosystem:
             owner=self.factory,
         )
 
-        await self.factory.post_initialize(
-            owner=deployer.key.acc_address,
-            nebula_token=self.neb_token,
-            terraswap_factory=self.terraswap_factory,
-            staking_contract=self.staking,
-            commission_collector=self.collector,
-        )
-        
         self.neb_pair = Contract(
             (
                 await self.terraswap_factory.create_pair(
@@ -137,8 +139,14 @@ class Ecosystem:
             .events_by_type["from_contract"]["pair_contract_addr"][0]
         )
 
-        
-        await self.factory.terraswap_creation_hook(asset_token=self.neb_token)
+        await self.factory.post_initialize(
+            owner=deployer.key.acc_address,
+            nebula_token=self.neb_token,
+            terraswap_factory=self.terraswap_factory,
+            staking_contract=self.staking,
+            commission_collector=self.collector,
+        )
+
 
         if self.require_gov:
             # Update factory owner as gov
@@ -274,23 +282,51 @@ class Ecosystem:
                 "penalty": penalty_contract,
                 "target": target,
                 "pricing_oracle": oracle,
-                "composition_oracle": deployer.key.acc_address,
+                "target_oracle": deployer.key.acc_address,
             },
         )
 
+        print('hello')
         if self.require_gov:
 
+            # msg = dict_to_b64(
+            #     MsgExecuteContract(
+            #         deployer.key.acc_address, self.gov.address, dict_to_data({'stake_voting_tokens': {'lock_for_weeks': 104}})
+            #     )
+            # ) # Convert to binary
+
+            # print('message after to_data and gov address', msg, self.gov.address)
+            
             await self.neb_token.send(
                 contract=self.gov,
                 amount="600000000000",
-                msg=self.gov.stake_voting_tokens(lock_for_weeks=104),
+                msg=dict_to_b64({'stake_voting_tokens': {'lock_for_weeks': 104}}),
             )
+
+            print('yo')
+            
+            string_target = [Asset.asset(info.address, amount) for info, amount in zip(assets, target_weights)]
+            print(string_target)
+            create_dict = {
+                "create_cluster": {
+                    # "name": "CLUSTER",
+                    # "symbol": "BSK",
+                    "params": {
+                        "name": "CLUSTER",
+                        "symbol": "BSK",
+                        "description": "Test cluster",
+                        "penalty": penalty_contract.address,
+                        "target": string_target,
+                        "pricing_oracle": oracle.address,
+                        "target_oracle": deployer.key.acc_address,
+                    },
+                }
+            }
 
             resp = await self.create_and_execute_poll(
-                {"contract": self.factory, "msg": create_cluster}
+                {"contract": self.factory.address, "msg": dict_to_b64(create_dict)}
             )
         else:
-
             resp = await create_cluster
 
         logs = resp.logs[0].events_by_type
@@ -298,13 +334,23 @@ class Ecosystem:
         instantiation_logs = logs["instantiate_contract"]
         addresses = instantiation_logs["contract_address"]
 
-        self.cluster_token = Contract(addresses[2])
-        self.cluster_pair = Contract(addresses[1])
-        self.lp_token = Contract(addresses[0])
         self.asset_tokens = assets
         self.asset_prices = asset_prices
+
+        # self.cluster_token = Contract(addresses[2])
+        # self.cluster_pair = Contract(addresses[1])
+        # self.lp_token = Contract(addresses[0])
+        # self.cluster = ClusterContract(
+        #     addresses[3],
+        #     self.cluster_token,
+        #     self.asset_tokens,
+        # )
+
+        self.cluster_token = Contract(addresses[1])
+        self.cluster_pair = Contract(addresses[2])
+        self.lp_token = Contract(addresses[3])
         self.cluster = ClusterContract(
-            addresses[3],
+            addresses[0],
             self.cluster_token,
             self.asset_tokens,
         )
@@ -331,15 +377,18 @@ class Ecosystem:
     async def create_and_execute_poll(
         self, execute_msg, distribute_collector=False, sleep_time=2
     ):
+        create_msg = {
+            'create_poll': {
+                "title": "A new poll!",
+                "description": "Wow, I love polls!",
+                # "link":"See more at https://nebulaprotocol.org",
+                "execute_msg": execute_msg,
+            }
+        }
         resp = await self.neb_token.send(
             contract=self.gov,
             amount=DEFAULT_PROPOSAL_DEPOSIT,
-            msg=self.gov.create_poll(
-                title="A new poll!",
-                description="Wow, I love polls!",
-                link="See more at https://nebulaprotocol.org",
-                execute_msg=execute_msg,
-            ),
+            msg=dict_to_b64(create_msg),
         )
 
         poll_id = int(resp.logs[0].events_by_type["from_contract"]["poll_id"][0])

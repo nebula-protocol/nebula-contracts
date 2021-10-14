@@ -1,5 +1,5 @@
 from ecosystem import Ecosystem, deployer
-from contract_helpers import Contract
+from contract_helpers import Contract, dict_to_b64
 
 
 async def test_governance_ops(eco: Ecosystem):
@@ -17,10 +17,16 @@ async def test_governance_ops(eco: Ecosystem):
         owner=eco.cluster,
     )
 
+    update_config_msg = {
+        'update_config': {
+            'penalty': new_penalty_contract.address
+        }
+    }
+
     await eco.create_and_execute_poll(
         {
-            "contract": eco.cluster,
-            "msg": eco.cluster.update_config(penalty=new_penalty_contract),
+            "contract": eco.cluster.address,
+            "msg": dict_to_b64(update_config_msg),
         },
         distribute_collector=True,
     )

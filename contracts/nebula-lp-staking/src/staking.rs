@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    log, to_binary, Api, Coin, CosmosMsg, Decimal, Env, Extern, HandleResponse, HandleResult,
-    HumanAddr, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
+    attr, to_binary, Addr, Coin, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult, Storage, Uint128, WasmMsg,
 };
 
 use crate::rewards::before_share_change;
@@ -8,82 +8,77 @@ use crate::state::{
     read_config, read_pool_info, rewards_read, rewards_store, store_pool_info, Config, PoolInfo,
     RewardInfo,
 };
-use nebula_protocol::staking::HandleMsg;
+use nebula_protocol::staking::ExecuteMsg;
 use terraswap::asset::{Asset, AssetInfo, PairInfo};
 
-use terraswap::pair::HandleMsg as PairHandleMsg;
+use terraswap::pair::ExecuteMsg as PairExecuteMsg;
 use terraswap::querier::{query_pair_info, query_token_balance};
 
-use cw20::Cw20HandleMsg;
+use cw20::Cw20ExecuteMsg;
 
-pub fn bond<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    _env: Env,
-    staker_addr: HumanAddr,
-    asset_token: HumanAddr,
+pub fn bond(
+    deps: DepsMut,
+    _info: MessageInfo,
+    staker_addr: String,
+    asset_token: String,
     amount: Uint128,
-) -> HandleResult {
-    _increase_bond_amount(&mut deps.storage, &staker_addr, &asset_token, amount)?;
+) -> StdResult<Response> {
+    _increase_bond_amount(deps.storage, &staker_addr, &asset_token, amount)?;
 
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![
-            log("action", "bond"),
-            log("staker_addr", staker_addr.as_str()),
-            log("asset_token", asset_token.as_str()),
-            log("amount", amount.to_string()),
-        ],
-        data: None,
-    })
+    Ok(Response::new().add_attributes(vec![
+        attr("action", "bond"),
+        attr("staker_addr", staker_addr.as_str()),
+        attr("asset_token", asset_token.as_str()),
+        attr("amount", amount.to_string()),
+    ]))
 }
 
-pub fn unbond<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    staker_addr: HumanAddr,
-    asset_token: HumanAddr,
+pub fn unbond(
+    deps: DepsMut,
+    staker_addr: String,
+    asset_token: String,
     amount: Uint128,
-) -> HandleResult {
-    let staking_token: HumanAddr =
-        _decrease_bond_amount(&mut deps.storage, &staker_addr, &asset_token, amount)?;
+) -> StdResult<Response> {
+    let staking_token: String =
+        _decrease_bond_amount(deps.storage, &staker_addr, &asset_token, amount)?;
 
-    Ok(HandleResponse {
-        messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: staking_token,
-            msg: to_binary(&Cw20HandleMsg::Transfer {
-                recipient: staker_addr.clone(),
+    Ok(Response::new()
+        .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: staking_token.to_string(),
+            msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                recipient: staker_addr.to_string(),
                 amount,
             })?,
-            send: vec![],
-        })],
-        log: vec![
-            log("action", "unbond"),
-            log("staker_addr", staker_addr.as_str()),
-            log("asset_token", asset_token.as_str()),
-            log("amount", amount.to_string()),
-        ],
-        data: None,
-    })
+            funds: vec![],
+        })])
+        .add_attributes(vec![
+            attr("action", "unbond"),
+            attr("staker_addr", staker_addr.as_str()),
+            attr("asset_token", asset_token.as_str()),
+            attr("amount", amount.to_string()),
+        ]))
 }
 
-pub fn auto_stake<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn auto_stake(
+    deps: DepsMut,
     env: Env,
+    info: MessageInfo,
     assets: [Asset; 2],
     slippage_tolerance: Option<Decimal>,
-) -> HandleResult {
-    let config: Config = read_config(&deps.storage)?;
-    let terraswap_factory: HumanAddr = config.terraswap_factory;
+) -> StdResult<Response> {
+    let config: Config = read_config(deps.storage)?;
+    let terraswap_factory: String = config.terraswap_factory;
 
     let mut native_asset_op: Option<Asset> = None;
-    let mut token_info_op: Option<(HumanAddr, Uint128)> = None;
+    let mut token_info_op: Option<(String, Uint128)> = None;
     for asset in assets.iter() {
         match asset.info.clone() {
             AssetInfo::NativeToken { .. } => {
-                asset.assert_sent_native_token_balance(&env)?;
+                asset.assert_sent_native_token_balance(&info)?;
                 native_asset_op = Some(asset.clone())
             }
             AssetInfo::Token { contract_addr } => {
-                token_info_op = Some((contract_addr, asset.amount))
+                token_info_op = Some(((contract_addr), asset.amount))
             }
         }
     }
@@ -100,116 +95,123 @@ pub fn auto_stake<S: Storage, A: Api, Q: Querier>(
 
     // query pair info to obtain pair contract address
     let asset_infos: [AssetInfo; 2] = [assets[0].info.clone(), assets[1].info.clone()];
-    let terraswap_pair: PairInfo = query_pair_info(deps, &terraswap_factory, &asset_infos)?;
+    let terraswap_pair: PairInfo = query_pair_info(
+        &deps.querier,
+        Addr::unchecked(terraswap_factory.to_string()),
+        &asset_infos,
+    )?;
 
     // assert the token and lp token match with pool info
-    let pool_info: PoolInfo = read_pool_info(&deps.storage, &token_addr)?;
+    let pool_info: PoolInfo = read_pool_info(deps.storage, &token_addr)?;
 
-    if pool_info.staking_token != terraswap_pair.liquidity_token {
+    if pool_info.staking_token.to_string() != terraswap_pair.liquidity_token.clone() {
         return Err(StdError::generic_err("Invalid staking token"));
     }
 
     // get current lp token amount to later compute the recived amount
     let prev_staking_token_amount = query_token_balance(
-        &deps,
-        &terraswap_pair.liquidity_token,
-        &env.contract.address,
+        &deps.querier,
+        Addr::unchecked(terraswap_pair.liquidity_token.clone()),
+        env.contract.address.clone(),
     )?;
 
     // compute tax
-    let tax_amount: Uint128 = native_asset.compute_tax(deps)?;
+    let tax_amount: Uint128 = native_asset.compute_tax(&deps.querier)?;
 
     // 1. Transfer token asset to staking contract
     // 2. Increase allowance of token for pair contract
     // 3. Provide liquidity
     // 4. Execute staking hook, will stake in the name of the sender
-    Ok(HandleResponse {
-        messages: vec![
+    Ok(Response::new()
+        .add_messages(vec![
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: token_addr.clone(),
-                msg: to_binary(&Cw20HandleMsg::TransferFrom {
-                    owner: env.message.sender.clone(),
-                    recipient: env.contract.address.clone(),
+                contract_addr: token_addr.to_string(),
+                msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
+                    owner: info.sender.to_string(),
+                    recipient: env.contract.address.to_string(),
                     amount: token_amount,
                 })?,
-                send: vec![],
+                funds: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: token_addr.clone(),
-                msg: to_binary(&Cw20HandleMsg::IncreaseAllowance {
+                contract_addr: token_addr.to_string(),
+                msg: to_binary(&Cw20ExecuteMsg::IncreaseAllowance {
                     spender: terraswap_pair.contract_addr.clone(),
                     amount: token_amount,
                     expires: None,
                 })?,
-                send: vec![],
+                funds: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: terraswap_pair.contract_addr,
-                msg: to_binary(&PairHandleMsg::ProvideLiquidity {
+                msg: to_binary(&PairExecuteMsg::ProvideLiquidity {
                     assets: [
                         Asset {
-                            amount: (native_asset.amount.clone() - tax_amount)?,
+                            amount: native_asset.amount.checked_sub(tax_amount)?,
                             info: native_asset.info.clone(),
                         },
                         Asset {
                             amount: token_amount,
                             info: AssetInfo::Token {
-                                contract_addr: token_addr.clone(),
+                                contract_addr: token_addr.to_string(),
                             },
                         },
                     ],
                     slippage_tolerance,
+                    receiver: None,
                 })?,
-                send: vec![Coin {
+                funds: vec![Coin {
                     denom: native_asset.info.to_string(),
-                    amount: (native_asset.amount - tax_amount)?,
+                    amount: native_asset.amount.checked_sub(tax_amount)?,
                 }],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: env.contract.address,
-                msg: to_binary(&HandleMsg::AutoStakeHook {
+                contract_addr: env.contract.address.to_string(),
+                msg: to_binary(&ExecuteMsg::AutoStakeHook {
                     asset_token: token_addr.clone(),
-                    staking_token: terraswap_pair.liquidity_token,
-                    staker_addr: env.message.sender,
+                    staking_token: terraswap_pair.liquidity_token.clone(),
+                    staker_addr: info.sender.to_string(),
                     prev_staking_token_amount,
                 })?,
-                send: vec![],
+                funds: vec![],
             }),
-        ],
-        log: vec![
-            log("action", "auto_stake"),
-            log("asset_token", token_addr.to_string()),
-            log("tax_amount", tax_amount.to_string()),
-        ],
-        data: None,
-    })
+        ])
+        .add_attributes(vec![
+            attr("action", "auto_stake"),
+            attr("asset_token", token_addr.to_string()),
+            attr("tax_amount", tax_amount.to_string()),
+        ]))
 }
 
-pub fn auto_stake_hook<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn auto_stake_hook(
+    deps: DepsMut,
     env: Env,
-    asset_token: HumanAddr,
-    staking_token: HumanAddr,
-    staker_addr: HumanAddr,
+    info: MessageInfo,
+    asset_token: String,
+    staking_token: String,
+    staker_addr: String,
     prev_staking_token_amount: Uint128,
-) -> HandleResult {
+) -> StdResult<Response> {
     // only can be called by itself
-    if env.message.sender != env.contract.address {
-        return Err(StdError::unauthorized());
+    if info.sender.to_string() != env.contract.address {
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     // stake all lp tokens received, compare with staking token amount before liquidity provision was executed
-    let current_staking_token_amount =
-        query_token_balance(&deps, &staking_token, &env.contract.address)?;
-    let amount_to_stake = (current_staking_token_amount - prev_staking_token_amount)?;
+    let current_staking_token_amount = query_token_balance(
+        &deps.querier,
+        Addr::unchecked(staking_token.to_string()),
+        env.contract.address,
+    )?;
+    let amount_to_stake = current_staking_token_amount.checked_sub(prev_staking_token_amount)?;
 
-    bond(deps, env, staker_addr, asset_token, amount_to_stake)
+    bond(deps, info, staker_addr, asset_token, amount_to_stake)
 }
 
-fn _increase_bond_amount<S: Storage>(
-    storage: &mut S,
-    staker_addr: &HumanAddr,
-    asset_token: &HumanAddr,
+fn _increase_bond_amount(
+    storage: &mut dyn Storage,
+    staker_addr: &String,
+    asset_token: &String,
     amount: Uint128,
 ) -> StdResult<()> {
     let mut pool_info: PoolInfo = read_pool_info(storage, asset_token)?;
@@ -234,12 +236,12 @@ fn _increase_bond_amount<S: Storage>(
     Ok(())
 }
 
-fn _decrease_bond_amount<S: Storage>(
-    storage: &mut S,
-    staker_addr: &HumanAddr,
-    asset_token: &HumanAddr,
+fn _decrease_bond_amount(
+    storage: &mut dyn Storage,
+    staker_addr: &String,
+    asset_token: &String,
     amount: Uint128,
-) -> StdResult<HumanAddr> {
+) -> StdResult<String> {
     let mut pool_info: PoolInfo = read_pool_info(storage, &asset_token)?;
     let mut reward_info: RewardInfo =
         rewards_read(storage, &staker_addr).load(asset_token.as_str().as_bytes())?;
@@ -252,9 +254,9 @@ fn _decrease_bond_amount<S: Storage>(
     before_share_change(&pool_info, &mut reward_info)?;
 
     // Decrease bond amount
-    pool_info.total_bond_amount = (pool_info.total_bond_amount - amount)?;
+    pool_info.total_bond_amount = pool_info.total_bond_amount.checked_sub(amount)?;
 
-    reward_info.bond_amount = (reward_info.bond_amount - amount)?;
+    reward_info.bond_amount = reward_info.bond_amount.checked_sub(amount)?;
 
     // Update rewards info
     if reward_info.pending_reward.is_zero() && reward_info.bond_amount.is_zero() {

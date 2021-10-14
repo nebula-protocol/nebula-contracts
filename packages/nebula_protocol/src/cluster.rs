@@ -1,16 +1,15 @@
-use cosmwasm_std::{HumanAddr, Uint128};
+use cosmwasm_std::Uint128;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use terraswap::asset::Asset;
-use terraswap::hook::InitHook;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InitMsg {
+pub struct InstantiateMsg {
     /// Cluster's permissioned owner
-    pub owner: HumanAddr,
+    pub owner: String,
 
     /// Factory address
-    pub factory: HumanAddr,
+    pub factory: String,
 
     /// Cluster name (title)
     pub name: String,
@@ -19,45 +18,43 @@ pub struct InitMsg {
     pub description: String,
 
     /// Cluster token CW20 address
-    pub cluster_token: Option<HumanAddr>,
+    pub cluster_token: Option<String>,
 
     /// Pricing oracle address
-    pub pricing_oracle: HumanAddr,
+    pub pricing_oracle: String,
 
-    /// Target composition oracle address
-    pub composition_oracle: HumanAddr,
+    /// Target target oracle address
+    pub target_oracle: String,
 
     /// Asset addresses and target weights
     pub target: Vec<Asset>,
 
     /// Penalty function address
-    pub penalty: HumanAddr,
-
-    pub init_hook: Option<InitHook>,
+    pub penalty: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum HandleMsg {
+pub enum ExecuteMsg {
     /// OWNER-CALLABLE
     UpdateConfig {
-        owner: Option<HumanAddr>,
+        owner: Option<String>,
         name: Option<String>,
         description: Option<String>,
-        cluster_token: Option<HumanAddr>,
-        pricing_oracle: Option<HumanAddr>,
-        composition_oracle: Option<HumanAddr>,
-        penalty: Option<HumanAddr>,
+        cluster_token: Option<String>,
+        pricing_oracle: Option<String>,
+        target_oracle: Option<String>,
+        penalty: Option<String>,
         target: Option<Vec<Asset>>, // recomp oracle
     },
-    /// Called by recomposition oracle
+    /// Called by target oracle
     UpdateTarget { target: Vec<Asset> },
 
     /// Called by factory only and sets active to false
     Decommission {},
 
     /// USER-CALLABLE
-    Mint {
+    RebalanceCreate {
         /// Asset amounts deposited for minting (cluster must be granted allowance or
         /// sent native assets within the MsgExecuteContract)
         asset_amounts: Vec<Asset>,
@@ -65,7 +62,7 @@ pub enum HandleMsg {
         min_tokens: Option<Uint128>,
     },
     /// Burns assets
-    Burn {
+    RebalanceRedeem {
         /// optional proposed set of weights to use
         max_tokens: Uint128,
         asset_amounts: Option<Vec<Asset>>,
@@ -81,12 +78,7 @@ pub enum Cw20HookMsg {}
 pub enum QueryMsg {
     Config {},
     Target {},
-    ClusterState {
-        /// we need to pass in address of cluster we want to fetch state on
-        /// query in CosmWasm v0.10 does not have env.contract_address
-        /// NOTE: remove for col-5
-        cluster_contract_address: HumanAddr,
-    },
+    ClusterState {},
     ClusterInfo {},
 }
 
@@ -105,10 +97,10 @@ pub struct ClusterStateResponse {
     pub outstanding_balance_tokens: Uint128,
     pub prices: Vec<String>,
     pub inv: Vec<Uint128>,
-    pub penalty: HumanAddr,
-    pub cluster_token: HumanAddr,
+    pub penalty: String,
+    pub cluster_token: String,
     pub target: Vec<Asset>,
-    pub cluster_contract_address: HumanAddr,
+    pub cluster_contract_address: String,
     pub active: bool,
 }
 
@@ -122,11 +114,11 @@ pub struct ClusterInfoResponse {
 pub struct ClusterConfig {
     pub name: String,
     pub description: String,
-    pub owner: HumanAddr,
-    pub cluster_token: Option<HumanAddr>,
-    pub factory: HumanAddr,
-    pub pricing_oracle: HumanAddr,
-    pub composition_oracle: HumanAddr,
-    pub penalty: HumanAddr,
+    pub owner: String,
+    pub cluster_token: Option<String>,
+    pub factory: String,
+    pub pricing_oracle: String,
+    pub target_oracle: String,
+    pub penalty: String,
     pub active: bool,
 }

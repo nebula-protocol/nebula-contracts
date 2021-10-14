@@ -3,32 +3,34 @@ pub use crate::contract::*;
 pub use crate::ext_query::*;
 pub use crate::state::*;
 pub use cluster_math::*;
-pub use cosmwasm_std::testing::{mock_env, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
+pub use cosmwasm_std::testing::{
+    mock_env, mock_info, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR,
+};
 pub use cosmwasm_std::*;
 pub use cw20::BalanceResponse as Cw20BalanceResponse;
-use cw20::{Cw20HandleMsg, Cw20QueryMsg, TokenInfoResponse};
+use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, TokenInfoResponse};
+use nebula_protocol::penalty::ExecuteMsg as PenaltyExecuteMsg;
 use nebula_protocol::{
-    cluster::{HandleMsg, InitMsg, QueryMsg as ClusterQueryMsg, TargetResponse},
+    cluster::{ExecuteMsg, InstantiateMsg, QueryMsg as ClusterQueryMsg, TargetResponse},
     cluster_factory::ConfigResponse as FactoryConfigResponse,
     oracle::{PriceResponse, QueryMsg as OracleQueryMsg},
-    penalty::{MintResponse, QueryMsg as PenaltyQueryMsg, RedeemResponse},
+    penalty::{PenaltyCreateResponse, PenaltyRedeemResponse, QueryMsg as PenaltyQueryMsg},
 };
-use nebula_protocol::penalty::{HandleMsg as PenaltyHandleMsg};
 use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 pub use std::str::FromStr;
 use terra_cosmwasm::*;
 use terraswap::asset::{Asset, AssetInfo};
 
-/// Convenience function for creating inline HumanAddr
-pub fn h(s: &str) -> HumanAddr {
-    HumanAddr(s.to_string())
+/// Convenience function for creating inline String
+pub fn h(s: &str) -> String {
+    s.to_string()
 }
 
 #[macro_export]
 macro_rules! q {
-    ($deps:expr, $val_type:ty, $msg: expr) => {{
-        let res = query($deps, $msg).unwrap();
+    ($deps:expr, $val_type:ty, $env:expr, $msg: expr) => {{
+        let res = query($deps, $env, $msg).unwrap();
         let val: $val_type = from_binary(&res).unwrap();
         val
     }};
@@ -40,7 +42,6 @@ pub struct WasmMockQuerier {
     pub balance_querier: BalanceQuerier, // native balances
     pub oracle_querier: OracleQuerier,   // token registered prices
     pub penalty_querier: PenaltyQuerier, // penalty querier
-    pub canonical_length: usize,
 }
 
 impl Querier for WasmMockQuerier {
@@ -49,23 +50,23 @@ impl Querier for WasmMockQuerier {
         let request: QueryRequest<TerraQueryWrapper> = match from_slice(bin_request) {
             Ok(v) => v,
             Err(e) => {
-                return Err(SystemError::InvalidRequest {
+                return SystemResult::Err(SystemError::InvalidRequest {
                     error: format!("Parsing query request: {}", e),
                     request: bin_request.into(),
                 })
             }
         };
-        self.handle_query(&request)
+        self.execute_query(&request)
     }
 }
 
-const DECIMAL_FRACTIONAL: Uint128 = Uint128(1_000_000_000u128);
+const DECIMAL_FRACTIONAL: Uint128 = Uint128::new(1_000_000_000u128);
 pub fn decimal_division(a: Decimal, b: Decimal) -> Decimal {
     Decimal::from_ratio(DECIMAL_FRACTIONAL * a, b * DECIMAL_FRACTIONAL)
 }
 
 impl WasmMockQuerier {
-    pub fn handle_query(&self, request: &QueryRequest<TerraQueryWrapper>) -> QuerierResult {
+    pub fn execute_query(&self, request: &QueryRequest<TerraQueryWrapper>) -> QuerierResult {
         match &request {
             QueryRequest::Custom(TerraQueryWrapper {
                 route: _,
@@ -76,19 +77,19 @@ impl WasmMockQuerier {
                 let denom_data = match self.balance_querier.balances.get(denom) {
                     Some(v) => v,
                     None => {
-                        return Err(SystemError::InvalidRequest {
+                        return SystemResult::Err(SystemError::InvalidRequest {
                             error: format!("Denom not found in balances"),
                             request: Binary(vec![]),
                         })
                     }
                 };
-                let balance = match denom_data.get(&address) {
-                    Some(v) => v,
-                    None => &Uint128(0),
+                let balance = match denom_data.get(address) {
+                    Some(v) => v.clone(),
+                    None => Uint128::zero(),
                 };
-                Ok(to_binary(&BalanceResponse {
+                SystemResult::Ok(ContractResult::from(to_binary(&BalanceResponse {
                     amount: coin(balance.u128(), denom),
-                }))
+                })))
             }
             QueryRequest::Wasm(WasmQuery::Smart { contract_addr, msg }) => {
                 match from_binary(&msg) {
@@ -97,17 +98,19 @@ impl WasmMockQuerier {
                         quote_asset,
                     }) => match self.oracle_querier.assets.get(&base_asset) {
                         Some(base_price) => match self.oracle_querier.assets.get(&quote_asset) {
-                            Some(quote_price) => Ok(to_binary(&PriceResponse {
-                                rate: decimal_division(*base_price, *quote_price),
-                                last_updated_base: u64::MAX,
-                                last_updated_quote: u64::MAX,
-                            })),
-                            None => Err(SystemError::InvalidRequest {
+                            Some(quote_price) => {
+                                SystemResult::Ok(ContractResult::from(to_binary(&PriceResponse {
+                                    rate: decimal_division(*base_price, *quote_price),
+                                    last_updated_base: u64::MAX,
+                                    last_updated_quote: u64::MAX,
+                                })))
+                            }
+                            None => SystemResult::Err(SystemError::InvalidRequest {
                                 error: "No oracle price exists".to_string(),
                                 request: msg.as_slice().into(),
                             }),
                         },
-                        None => Err(SystemError::InvalidRequest {
+                        None => SystemResult::Err(SystemError::InvalidRequest {
                             error: "No oracle price exists".to_string(),
                             request: msg.as_slice().into(),
                         }),
@@ -117,7 +120,7 @@ impl WasmMockQuerier {
                             let token_data = match self.token_querier.tokens.get(contract_addr) {
                                 Some(v) => v,
                                 None => {
-                                    return Err(SystemError::InvalidRequest {
+                                    return SystemResult::Err(SystemError::InvalidRequest {
                                         error: format!(
                                             "No balance info exists for the contract {}",
                                             contract_addr
@@ -129,19 +132,21 @@ impl WasmMockQuerier {
                             let balance = match token_data.balances.get(&address) {
                                 Some(v) => v,
                                 None => {
-                                    return Err(SystemError::InvalidRequest {
+                                    return SystemResult::Err(SystemError::InvalidRequest {
                                         error: "Balance not found".to_string(),
                                         request: msg.as_slice().into(),
                                     })
                                 }
                             };
-                            Ok(to_binary(&Cw20BalanceResponse { balance: *balance }))
+                            SystemResult::Ok(ContractResult::from(to_binary(
+                                &Cw20BalanceResponse { balance: *balance },
+                            )))
                         }
                         Ok(Cw20QueryMsg::TokenInfo {}) => {
                             let token_data = match self.token_querier.tokens.get(contract_addr) {
                                 Some(v) => v,
                                 None => {
-                                    return Err(SystemError::InvalidRequest {
+                                    return SystemResult::Err(SystemError::InvalidRequest {
                                         error: format!(
                                             "No token info exists for the contract {}",
                                             contract_addr
@@ -150,26 +155,26 @@ impl WasmMockQuerier {
                                     })
                                 }
                             };
-                            Ok(to_binary(&token_data.info))
+                            SystemResult::Ok(ContractResult::from(to_binary(&token_data.info)))
                         }
                         _ => match from_binary(&msg) {
                             Ok(ClusterQueryMsg::Config {}) => {
                                 let config = consts::factory_config();
-                                Ok(to_binary(&config))
+                                SystemResult::Ok(ContractResult::from(to_binary(&config)))
                             }
                             _ => match from_binary(&msg) {
-                                Ok(PenaltyQueryMsg::Mint {
+                                Ok(PenaltyQueryMsg::PenaltyQueryCreate {
                                     block_height: _,
                                     cluster_token_supply: _,
                                     inventory: _,
-                                    mint_asset_amounts: _,
+                                    create_asset_amounts: _,
                                     asset_prices: _,
                                     target_weights: _,
                                 }) => {
                                     let response = consts::mint_response();
-                                    Ok(to_binary(&response))
+                                    SystemResult::Ok(ContractResult::from(to_binary(&response)))
                                 }
-                                Ok(PenaltyQueryMsg::Redeem {
+                                Ok(PenaltyQueryMsg::PenaltyQueryRedeem {
                                     block_height: _,
                                     cluster_token_supply: _,
                                     inventory: _,
@@ -178,18 +183,18 @@ impl WasmMockQuerier {
                                     target_weights: _,
                                     redeem_asset_amounts: _,
                                 }) => {
-                                    let response = RedeemResponse {
+                                    let response = PenaltyRedeemResponse {
                                         redeem_assets: vec![
-                                            Uint128(99),
-                                            Uint128(98),
-                                            Uint128(97),
-                                            Uint128(96),
+                                            Uint128::new(99),
+                                            Uint128::new(98),
+                                            Uint128::new(97),
+                                            Uint128::new(96),
                                         ],
-                                        penalty: Uint128(1234),
-                                        token_cost: Uint128(1234),
-                                        log: vec![log("penalty", 1234)],
+                                        penalty: Uint128::new(1234),
+                                        token_cost: Uint128::new(1234),
+                                        attributes: vec![attr("penalty", "1234")],
                                     };
-                                    Ok(to_binary(&response))
+                                    SystemResult::Ok(ContractResult::from(to_binary(&response)))
                                 }
                                 _ => {
                                     panic!("QueryMsg type not implemented");
@@ -207,7 +212,7 @@ impl WasmMockQuerier {
 #[derive(Clone)]
 pub struct TokenData {
     info: TokenInfoResponse,
-    balances: HashMap<HumanAddr, Uint128>,
+    balances: HashMap<String, Uint128>,
 }
 
 pub fn token_data<T, U>(
@@ -219,11 +224,11 @@ pub fn token_data<T, U>(
 ) -> TokenData
 where
     T: IntoIterator<Item = (U, u128)>,
-    U: Into<HumanAddr>,
+    U: Into<String>,
 {
-    let mut balances_map: HashMap<HumanAddr, Uint128> = HashMap::new();
+    let mut balances_map: HashMap<String, Uint128> = HashMap::new();
     for (account_addr, balance) in balances.into_iter() {
-        balances_map.insert(account_addr.into(), Uint128(balance));
+        balances_map.insert(account_addr.into(), Uint128::new(balance));
     }
 
     TokenData {
@@ -231,7 +236,7 @@ where
             name: name.to_string(),
             symbol: symbol.to_string(),
             decimals,
-            total_supply: Uint128(total_supply),
+            total_supply: Uint128::new(total_supply),
         },
         balances: balances_map,
     }
@@ -240,7 +245,7 @@ where
 #[derive(Default)]
 pub struct TokenQuerier {
     // this lets us iterate over all pairs that match the first string
-    pub tokens: HashMap<HumanAddr, TokenData>,
+    pub tokens: HashMap<String, TokenData>,
 }
 
 impl TokenQuerier {
@@ -253,7 +258,7 @@ impl TokenQuerier {
 
 #[derive(Default)]
 pub struct PenaltyQuerier {
-    pub mint_tokens: Uint128,
+    pub create_tokens: Uint128,
     pub token_cost: Uint128,
     pub redeem_assets: Vec<Uint128>,
 }
@@ -261,7 +266,7 @@ pub struct PenaltyQuerier {
 impl PenaltyQuerier {
     pub fn new() -> Self {
         PenaltyQuerier {
-            mint_tokens: Uint128::zero(),
+            create_tokens: Uint128::zero(),
             token_cost: Uint128::zero(),
             redeem_assets: vec![],
         }
@@ -273,7 +278,7 @@ pub struct BalanceQuerier {
     // this lets us iterate over all pairs that match the first string
 
     // balances: denom -> account address -> amount
-    pub balances: HashMap<String, HashMap<HumanAddr, Uint128>>,
+    pub balances: HashMap<String, HashMap<String, Uint128>>,
 }
 
 impl BalanceQuerier {
@@ -299,18 +304,13 @@ impl OracleQuerier {
 }
 
 impl WasmMockQuerier {
-    pub fn new<A: Api>(
-        base: MockQuerier<TerraQueryWrapper>,
-        _api: A,
-        canonical_length: usize,
-    ) -> Self {
+    pub fn new(base: MockQuerier<TerraQueryWrapper>) -> Self {
         WasmMockQuerier {
             base,
             token_querier: TokenQuerier::default(),
             oracle_querier: OracleQuerier::default(),
             balance_querier: BalanceQuerier::default(),
             penalty_querier: PenaltyQuerier::default(),
-            canonical_length,
         }
     }
 
@@ -322,13 +322,13 @@ impl WasmMockQuerier {
 
     pub fn set_token<T>(&mut self, token_address: T, data: TokenData) -> &mut Self
     where
-        T: Into<HumanAddr>,
+        T: Into<String>,
     {
         self.token_querier.tokens.insert(token_address.into(), data);
         self
     }
 
-    pub fn set_denom<T>(&mut self, denom: T, balances: HashMap<HumanAddr, Uint128>) -> &mut Self
+    pub fn set_denom<T>(&mut self, denom: T, balances: HashMap<String, Uint128>) -> &mut Self
     where
         T: Into<String>,
     {
@@ -338,10 +338,10 @@ impl WasmMockQuerier {
 
     pub fn set_token_supply<T>(&mut self, token_address: T, supply: u128) -> &mut Self
     where
-        T: Into<HumanAddr>,
+        T: Into<String>,
     {
         if let Some(token) = self.token_querier.tokens.get_mut(&token_address.into()) {
-            token.info.total_supply = Uint128(supply);
+            token.info.total_supply = Uint128::new(supply);
         }
         self
     }
@@ -353,13 +353,13 @@ impl WasmMockQuerier {
         balance: u128,
     ) -> &mut Self
     where
-        T: Into<HumanAddr>,
-        U: Into<HumanAddr>,
+        T: Into<String>,
+        U: Into<String>,
     {
         if let Some(token) = self.token_querier.tokens.get_mut(&token_address.into()) {
             token
                 .balances
-                .insert(account_address.into(), Uint128(balance));
+                .insert(account_address.into(), Uint128::new(balance));
         }
         self
     }
@@ -372,10 +372,10 @@ impl WasmMockQuerier {
     ) -> &mut Self
     where
         T: Into<String>,
-        U: Into<HumanAddr>,
+        U: Into<String>,
     {
         if let Some(denom) = self.balance_querier.balances.get_mut(&denom.into()) {
-            denom.insert(account_address.into(), Uint128(balance));
+            denom.insert(account_address.into(), Uint128::new(balance));
         }
         self
     }
@@ -402,8 +402,8 @@ impl WasmMockQuerier {
         self
     }
 
-    pub fn set_mint_amount(&mut self, mint_tokens: Uint128) -> &mut Self {
-        self.penalty_querier.mint_tokens = mint_tokens;
+    pub fn set_mint_amount(&mut self, create_tokens: Uint128) -> &mut Self {
+        self.penalty_querier.create_tokens = create_tokens;
         self
     }
 
@@ -421,19 +421,15 @@ impl WasmMockQuerier {
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies
 /// this uses our CustomQuerier.
 pub fn mock_dependencies(
-    canonical_length: usize,
     contract_balance: &[Coin],
-) -> Extern<MockStorage, MockApi, WasmMockQuerier> {
-    let contract_addr = HumanAddr::from(MOCK_CONTRACT_ADDR);
-    let custom_querier: WasmMockQuerier = WasmMockQuerier::new(
-        MockQuerier::new(&[(&contract_addr, contract_balance)]),
-        MockApi::new(canonical_length),
-        canonical_length,
-    );
+) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier> {
+    let contract_addr = MOCK_CONTRACT_ADDR.to_string();
+    let custom_querier: WasmMockQuerier =
+        WasmMockQuerier::new(MockQuerier::new(&[(&contract_addr, contract_balance)]));
 
-    Extern {
+    OwnedDeps {
         storage: MockStorage::default(),
-        api: MockApi::new(canonical_length),
+        api: MockApi::default(),
         querier: custom_querier,
     }
 }
@@ -452,20 +448,20 @@ pub mod consts {
         "description"
     }
 
-    pub fn owner() -> HumanAddr {
+    pub fn owner() -> String {
         h("owner")
     }
-    pub fn cluster_token() -> HumanAddr {
+    pub fn cluster_token() -> String {
         h("cluster")
     }
-    pub fn factory() -> HumanAddr {
+    pub fn factory() -> String {
         h("factory")
     }
-    pub fn pricing_oracle() -> HumanAddr {
+    pub fn pricing_oracle() -> String {
         h("pricing_oracle")
     }
-    pub fn composition_oracle() -> HumanAddr {
-        h("composition_oracle")
+    pub fn target_oracle() -> String {
+        h("target_oracle")
     }
     pub fn target_assets_stage() -> Vec<Asset> {
         vec![
@@ -473,25 +469,25 @@ pub mod consts {
                 info: AssetInfo::Token {
                     contract_addr: h("mAAPL"),
                 },
-                amount: Uint128(20),
+                amount: Uint128::new(20),
             },
             Asset {
                 info: AssetInfo::Token {
                     contract_addr: h("mGOOG"),
                 },
-                amount: Uint128(20),
+                amount: Uint128::new(20),
             },
             Asset {
                 info: AssetInfo::Token {
                     contract_addr: h("mMSFT"),
                 },
-                amount: Uint128(20),
+                amount: Uint128::new(20),
             },
             Asset {
                 info: AssetInfo::Token {
                     contract_addr: h("mNFLX"),
                 },
-                amount: Uint128(20),
+                amount: Uint128::new(20),
             },
         ]
     }
@@ -504,44 +500,49 @@ pub mod consts {
                 info: AssetInfo::Token {
                     contract_addr: h("mAAPL"),
                 },
-                amount: Uint128(20),
+                amount: Uint128::new(20),
             },
             Asset {
                 info: AssetInfo::Token {
                     contract_addr: h("mGOOG"),
                 },
-                amount: Uint128(20),
+                amount: Uint128::new(20),
             },
             Asset {
                 info: AssetInfo::Token {
                     contract_addr: h("mMSFT"),
                 },
-                amount: Uint128(20),
+                amount: Uint128::new(20),
             },
             Asset {
                 info: AssetInfo::NativeToken {
                     denom: "ukrw".to_string(),
                 },
-                amount: Uint128(20),
+                amount: Uint128::new(20),
             },
         ]
     }
 
     pub fn target_stage() -> Vec<Uint128> {
-        vec![Uint128(20), Uint128(20), Uint128(20), Uint128(20)]
+        vec![
+            Uint128::new(20),
+            Uint128::new(20),
+            Uint128::new(20),
+            Uint128::new(20),
+        ]
     }
 
     pub fn target_native_stage() -> Vec<Uint128> {
         vec![
-            Uint128(20),
-            Uint128(20),
-            Uint128(20),
-            Uint128(20),
-            Uint128(20),
+            Uint128::new(20),
+            Uint128::new(20),
+            Uint128::new(20),
+            Uint128::new(20),
+            Uint128::new(20),
         ]
     }
 
-    pub fn penalty() -> HumanAddr {
+    pub fn penalty() -> String {
         h("penalty")
     }
 
@@ -549,7 +550,7 @@ pub mod consts {
         FactoryConfigResponse {
             owner: h("gov"),
             nebula_token: h("neb"),
-            staking_contract: h("staking"),
+            staking_contract: "staking".to_string(),
             commission_collector: h("collector"),
             protocol_fee_rate: "0.01".to_string(),
             terraswap_factory: h("ts_factory"),
@@ -561,11 +562,11 @@ pub mod consts {
         }
     }
 
-    pub fn mint_response() -> MintResponse {
-        MintResponse {
-            mint_tokens: Uint128(99),
-            penalty: Uint128(1234),
-            log: vec![log("penalty", 1234)],
+    pub fn mint_response() -> PenaltyCreateResponse {
+        PenaltyCreateResponse {
+            create_tokens: Uint128::new(99),
+            penalty: Uint128::new(1234),
+            attributes: vec![attr("penalty", "1234")],
         }
     }
 
@@ -575,7 +576,7 @@ pub mod consts {
                 info: AssetInfo::Token {
                     contract_addr: h("mAAPL"),
                 },
-                amount: Uint128(125_000_000),
+                amount: Uint128::new(125_000_000),
             },
             Asset {
                 info: AssetInfo::Token {
@@ -587,62 +588,61 @@ pub mod consts {
                 info: AssetInfo::Token {
                     contract_addr: h("mMSFT"),
                 },
-                amount: Uint128(149_000_000),
+                amount: Uint128::new(149_000_000),
             },
             Asset {
                 info: AssetInfo::Token {
                     contract_addr: h("mNFLX"),
                 },
-                amount: Uint128(50_090_272),
+                amount: Uint128::new(50_090_272),
             },
         ]
     }
 }
 
-pub fn mock_init() -> (Extern<MockStorage, MockApi, WasmMockQuerier>, InitResponse) {
-    let mut deps = mock_dependencies(20, &[]);
-    let msg = InitMsg {
+pub fn mock_init() -> (OwnedDeps<MockStorage, MockApi, WasmMockQuerier>, Response) {
+    let mut deps = mock_dependencies(&[]);
+    let msg = InstantiateMsg {
         name: consts::name().to_string(),
         description: consts::description().to_string(),
         owner: consts::owner(),
         cluster_token: Some(consts::cluster_token()),
         target: consts::target_assets_stage(),
         pricing_oracle: consts::pricing_oracle(),
-        composition_oracle: consts::composition_oracle(),
+        target_oracle: consts::target_oracle(),
         penalty: consts::penalty(),
         factory: consts::factory(),
-        init_hook: None,
     };
 
-    let env = mock_env(consts::pricing_oracle().as_str(), &[]);
-    let res = init(&mut deps, env.clone(), msg).unwrap();
+    let info = mock_info(consts::pricing_oracle().as_str(), &[]);
+    let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
     (deps, res)
 }
 
-pub fn mock_init_native_stage() -> (Extern<MockStorage, MockApi, WasmMockQuerier>, InitResponse) {
-    let mut deps = mock_dependencies(20, &[]);
-    let msg = InitMsg {
+pub fn mock_init_native_stage() -> (OwnedDeps<MockStorage, MockApi, WasmMockQuerier>, Response) {
+    let mut deps = mock_dependencies(&[]);
+    let msg = InstantiateMsg {
         name: consts::name().to_string(),
         description: consts::description().to_string(),
         owner: consts::owner(),
         cluster_token: Some(consts::cluster_token()),
         target: consts::target_assets_native_stage(),
         pricing_oracle: consts::pricing_oracle(),
-        composition_oracle: consts::composition_oracle(),
+        target_oracle: consts::target_oracle(),
         penalty: consts::penalty(),
         factory: consts::factory(),
-        init_hook: None,
     };
 
-    let env = mock_env(consts::pricing_oracle().as_str(), &[]);
-    let res = init(&mut deps, env.clone(), msg).unwrap();
+    let info = mock_info(consts::pricing_oracle().as_str(), &[]);
+    let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
     (deps, res)
 }
 
 /// sets up mock queriers with basic setup
-pub fn mock_querier_setup(deps: &mut Extern<MockStorage, MockApi, WasmMockQuerier>) {
+pub fn mock_querier_setup(
+    mut deps: OwnedDeps<MockStorage, MockApi, WasmMockQuerier>,
+) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier> {
     deps.querier
-        .reset_token_querier()
         .set_token(
             consts::cluster_token(),
             token_data::<Vec<(&str, u128)>, &str>(
@@ -694,19 +694,22 @@ pub fn mock_querier_setup(deps: &mut Extern<MockStorage, MockApi, WasmMockQuerie
             ),
         );
 
-    deps.querier.reset_oracle_querier().set_oracle_prices(vec![
+    deps.querier.set_oracle_prices(vec![
         ("uusd", Decimal::one()),
         ("mAAPL", Decimal::from_str("1.0").unwrap()),
         ("mGOOG", Decimal::from_str("1.0").unwrap()),
         ("mMSFT", Decimal::from_str("1.0").unwrap()),
         ("mNFLX", Decimal::from_str("1.0").unwrap()),
     ]);
+
+    deps
 }
 
 /// sets up mock queriers with basic setup
-pub fn mock_querier_setup_stage_native(deps: &mut Extern<MockStorage, MockApi, WasmMockQuerier>) {
+pub fn mock_querier_setup_stage_native(
+    mut deps: OwnedDeps<MockStorage, MockApi, WasmMockQuerier>,
+) -> OwnedDeps<MockStorage, MockApi, WasmMockQuerier> {
     deps.querier
-        .reset_token_querier()
         .set_token(
             consts::cluster_token(),
             token_data::<Vec<(&str, u128)>, &str>(
@@ -729,11 +732,13 @@ pub fn mock_querier_setup_stage_native(deps: &mut Extern<MockStorage, MockApi, W
         )
         .set_denom("uluna", HashMap::new());
 
-    deps.querier.reset_oracle_querier().set_oracle_prices(vec![
+    deps.querier.set_oracle_prices(vec![
         ("uusd", Decimal::one()),
         ("wBTC", Decimal::from_str("1.0").unwrap()),
         ("uluna", Decimal::from_str("1.0").unwrap()),
     ]);
+
+    deps
 }
 
 #[test]
@@ -742,32 +747,37 @@ fn proper_initialization() {
     assert_eq!(0, init_res.messages.len());
 
     // make sure target was saved
-    let value = q!(&deps, TargetResponse, ClusterQueryMsg::Target {});
+    let value = q!(
+        deps.as_ref(),
+        TargetResponse,
+        mock_env(),
+        ClusterQueryMsg::Target {}
+    );
     assert_eq!(
         vec![
             Asset {
                 info: AssetInfo::Token {
                     contract_addr: h("mAAPL"),
                 },
-                amount: Uint128(20)
+                amount: Uint128::new(20)
             },
             Asset {
                 info: AssetInfo::Token {
                     contract_addr: h("mGOOG"),
                 },
-                amount: Uint128(20)
+                amount: Uint128::new(20)
             },
             Asset {
                 info: AssetInfo::Token {
                     contract_addr: h("mMSFT"),
                 },
-                amount: Uint128(20)
+                amount: Uint128::new(20)
             },
             Asset {
                 info: AssetInfo::Token {
                     contract_addr: h("mNFLX"),
                 },
-                amount: Uint128(20)
+                amount: Uint128::new(20)
             },
         ],
         value.target
@@ -777,7 +787,7 @@ fn proper_initialization() {
 #[test]
 fn mint() {
     let (mut deps, _) = mock_init();
-    mock_querier_setup(&mut deps);
+    deps = mock_querier_setup(deps);
     // Asset :: UST Price :: Balance (µ)     (+ proposed   ) :: %
     // ---
     // mAAPL ::  135.18   ::  7_290_053_159  (+ 125_000_000) :: 0.20367359382 -> 0.20391741720
@@ -802,79 +812,86 @@ fn mint() {
 
     deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
 
-    let mint_msg = HandleMsg::Mint {
+    let mint_msg = ExecuteMsg::RebalanceCreate {
         asset_amounts: asset_amounts.clone(),
         min_tokens: None,
     };
 
     let addr = "addr0000";
-    let env = mock_env(h(addr), &[]);
-    let res = handle(&mut deps, env.clone(), mint_msg).unwrap();
+    let info = mock_info(addr, &[]);
+    let env = mock_env();
+    let res = execute(deps.as_mut(), env.clone(), info, mint_msg).unwrap();
 
     assert_eq!(
-        res.log,
+        res.attributes,
         vec![
-            log("action", "mint"),
-            log("sender", "addr0000"),
-            log("mint_to_sender", "98"),
-            log("penalty", "1234"),
-            log("fee_amt", "1"),
+            attr("action", "mint"),
+            attr("sender", "addr0000"),
+            attr("mint_to_sender", "98"),
+            attr("penalty", "1234"),
+            attr("fee_amt", "1"),
         ]
     );
 
     assert_eq!(
         res.messages,
         vec![
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: HumanAddr::from("mAAPL"),
-                msg: to_binary(&Cw20HandleMsg::TransferFrom {
-                    owner: HumanAddr::from("addr0000"),
-                    recipient: HumanAddr::from(MOCK_CONTRACT_ADDR),
-                    amount: Uint128(125_000_000),
-                }).unwrap(),
-                send: vec![],
-            }),
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: HumanAddr::from("mGOOG"),
-                msg: to_binary(&Cw20HandleMsg::TransferFrom {
-                    owner: HumanAddr::from("addr0000"),
-                    recipient: HumanAddr::from(MOCK_CONTRACT_ADDR),
+            SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: h("mAAPL"),
+                msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
+                    owner: "addr0000".to_string(),
+                    recipient: MOCK_CONTRACT_ADDR.to_string(),
+                    amount: Uint128::new(125_000_000),
+                })
+                .unwrap(),
+                funds: vec![],
+            })),
+            SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: h("mGOOG"),
+                msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
+                    owner: "addr0000".to_string(),
+                    recipient: MOCK_CONTRACT_ADDR.to_string(),
                     amount: Uint128::zero(),
-                }).unwrap(),
-                send: vec![],
-            }),
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: HumanAddr::from("mMSFT"),
-                msg: to_binary(&Cw20HandleMsg::TransferFrom {
-                    owner: HumanAddr::from("addr0000"),
-                    recipient: HumanAddr::from(MOCK_CONTRACT_ADDR),
-                    amount: Uint128(149_000_000),
-                }).unwrap(),
-                send: vec![],
-            }),
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: HumanAddr::from("mNFLX"),
-                msg: to_binary(&Cw20HandleMsg::TransferFrom {
-                    owner: HumanAddr::from("addr0000"),
-                    recipient: HumanAddr::from(MOCK_CONTRACT_ADDR),
-                    amount: Uint128(50_090_272),
-                }).unwrap(),
-                send: vec![],
-            }),
-            CosmosMsg::Wasm(WasmMsg::Execute {
+                })
+                .unwrap(),
+                funds: vec![],
+            })),
+            SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: h("mMSFT"),
+                msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
+                    owner: "addr0000".to_string(),
+                    recipient: MOCK_CONTRACT_ADDR.to_string(),
+                    amount: Uint128::new(149_000_000),
+                })
+                .unwrap(),
+                funds: vec![],
+            })),
+            SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: h("mNFLX"),
+                msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
+                    owner: "addr0000".to_string(),
+                    recipient: MOCK_CONTRACT_ADDR.to_string(),
+                    amount: Uint128::new(50_090_272),
+                })
+                .unwrap(),
+                funds: vec![],
+            })),
+            SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: consts::penalty(),
-                msg: to_binary(&PenaltyHandleMsg::Mint {
+                msg: to_binary(&PenaltyExecuteMsg::PenaltyCreate {
                     block_height: env.block.height,
-                    cluster_token_supply: Uint128(1_000_000_000),
+                    cluster_token_supply: Uint128::new(1_000_000_000),
                     inventory: vec![
-                        Uint128(7_290_053_159u128), Uint128(319_710_128u128),
-                        Uint128(14_219_281_228u128), Uint128(224_212_221u128)
+                        Uint128::new(7_290_053_159u128),
+                        Uint128::new(319_710_128u128),
+                        Uint128::new(14_219_281_228u128),
+                        Uint128::new(224_212_221u128)
                     ],
-                    mint_asset_amounts: vec![
-                        Uint128(125_000_000),
+                    create_asset_amounts: vec![
+                        Uint128::new(125_000_000),
                         Uint128::zero(),
-                        Uint128(149_000_000),
-                        Uint128(50_090_272),
+                        Uint128::new(149_000_000),
+                        Uint128::new(50_090_272),
                     ],
                     asset_prices: vec![
                         "135.18".to_string(),
@@ -883,41 +900,41 @@ fn mint() {
                         "540.82".to_string()
                     ],
                     target_weights: vec![
-                        Uint128(20u128),
-                        Uint128(20u128),
-                        Uint128(20u128),
-                        Uint128(20u128)
+                        Uint128::new(20u128),
+                        Uint128::new(20u128),
+                        Uint128::new(20u128),
+                        Uint128::new(20u128)
                     ],
-                }).unwrap(),
-                send: vec![],
-            }),
-            CosmosMsg::Wasm(WasmMsg::Execute {
+                })
+                .unwrap(),
+                funds: vec![],
+            })),
+            SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: consts::cluster_token(),
-                msg: to_binary(&Cw20HandleMsg::Mint {
-                    amount: Uint128(1u128),
+                msg: to_binary(&Cw20ExecuteMsg::Mint {
+                    amount: Uint128::new(1u128),
                     recipient: h("collector"),
-                }).unwrap(),
-                send: vec![],
-            }),
-            CosmosMsg::Wasm(WasmMsg::Execute {
+                })
+                .unwrap(),
+                funds: vec![],
+            })),
+            SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: consts::cluster_token(),
-                msg: to_binary(&Cw20HandleMsg::Mint {
-                    amount: Uint128(98),
-                    recipient: HumanAddr::from("addr0000"),
-                }).unwrap(),
-                send: vec![],
-            })
+                msg: to_binary(&Cw20ExecuteMsg::Mint {
+                    amount: Uint128::new(98),
+                    recipient: "addr0000".to_string(),
+                })
+                .unwrap(),
+                funds: vec![],
+            }))
         ]
-        
     );
-
-    assert_eq!(7, res.messages.len());
 }
 
 #[test]
 fn burn() {
     let (mut deps, _init_res) = mock_init();
-    mock_querier_setup(&mut deps);
+    deps = mock_querier_setup(deps);
 
     deps.querier
         .set_token_supply(consts::cluster_token(), 100_000_000)
@@ -933,93 +950,98 @@ fn burn() {
             ("mNFLX", Decimal::from_str("540.82").unwrap()),
         ]);
 
-    let msg = HandleMsg::Burn {
-        max_tokens: Uint128(20_000_000),
+    let msg = ExecuteMsg::RebalanceRedeem {
+        max_tokens: Uint128::new(20_000_000),
         asset_amounts: None,
     };
-    let env = mock_env(h("addr0000"), &[]);
-    let res = handle(&mut deps, env.clone(), msg).unwrap();
+    let info = mock_info("addr0000", &[]);
+    let env = mock_env();
+    let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
     assert_eq!(
-        res.log,
+        res.attributes,
         vec![
-            log("action", "receive:burn"),
-            log("sender", "addr0000"),
-            log("burn_amount", "1234"),
-            log("token_cost", "1247"),
-            log("kept_as_fee", "13"),
-            log("asset_amounts", "[]"),
-            log("redeem_totals", "[99, 98, 97, 96]"),
-            log("penalty", "1234")
+            attr("action", "receive:burn"),
+            attr("sender", "addr0000"),
+            attr("burn_amount", "1234"),
+            attr("token_cost", "1247"),
+            attr("kept_as_fee", "13"),
+            attr("asset_amounts", "[]"),
+            attr("redeem_totals", "[99, 98, 97, 96]"),
+            attr("penalty", "1234")
         ]
     );
 
-    assert_eq!(res.messages, 
+    assert_eq!(
+        res.messages,
         vec![
-            CosmosMsg::Wasm(WasmMsg::Execute {
+            SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: h("mAAPL"),
-                msg: to_binary(&Cw20HandleMsg::Transfer {
-                    recipient: h("addr0000"), 
-                    amount: Uint128(99u128)
+                msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                    recipient: "addr0000".to_string(),
+                    amount: Uint128::new(99u128)
                 })
                 .unwrap(),
-                send: vec![],
-            }),
-            CosmosMsg::Wasm(WasmMsg::Execute {
+                funds: vec![],
+            })),
+            SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: h("mGOOG"),
-                msg: to_binary(&Cw20HandleMsg::Transfer {
-                    recipient: h("addr0000"), 
-                    amount: Uint128(98u128)   
+                msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                    recipient: "addr0000".to_string(),
+                    amount: Uint128::new(98u128)
                 })
                 .unwrap(),
-                send: vec![],
-            }),CosmosMsg::Wasm(WasmMsg::Execute {
+                funds: vec![],
+            })),
+            SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: h("mMSFT"),
-                msg: to_binary(&Cw20HandleMsg::Transfer {
-                    recipient: h("addr0000"), 
-                    amount: Uint128(97u128)
+                msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                    recipient: "addr0000".to_string(),
+                    amount: Uint128::new(97u128)
                 })
                 .unwrap(),
-                send: vec![],
-            }),
-            CosmosMsg::Wasm(WasmMsg::Execute {
+                funds: vec![],
+            })),
+            SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: h("mNFLX"),
-                msg: to_binary(&Cw20HandleMsg::Transfer {
-                    recipient: h("addr0000"), 
-                    amount: Uint128(96u128) 
+                msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                    recipient: "addr0000".to_string(),
+                    amount: Uint128::new(96u128)
                 })
                 .unwrap(),
-                send: vec![],
-            }),
-            CosmosMsg::Wasm(WasmMsg::Execute {
+                funds: vec![],
+            })),
+            SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: consts::cluster_token(),
-                msg: to_binary(&Cw20HandleMsg::TransferFrom {
-                    owner: h("addr0000"),
-                    amount: Uint128(13u128),
+                msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
+                    owner: "addr0000".to_string(),
+                    amount: Uint128::new(13u128),
                     recipient: h("collector"),
                 })
                 .unwrap(),
-                send: vec![],
-            }),
-            CosmosMsg::Wasm(WasmMsg::Execute {
+                funds: vec![],
+            })),
+            SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: consts::cluster_token(),
-                msg: to_binary(&Cw20HandleMsg::BurnFrom {
-                    owner: h("addr0000"),
-                    amount: Uint128(1234u128),
+                msg: to_binary(&Cw20ExecuteMsg::BurnFrom {
+                    owner: "addr0000".to_string(),
+                    amount: Uint128::new(1234u128),
                 })
                 .unwrap(),
-                send: vec![],
-            }),
-            CosmosMsg::Wasm(WasmMsg::Execute {
+                funds: vec![],
+            })),
+            SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: consts::penalty(),
-                msg: to_binary(&PenaltyQueryMsg::Redeem {
+                msg: to_binary(&PenaltyExecuteMsg::PenaltyRedeem {
                     block_height: env.block.height,
-                    cluster_token_supply: Uint128(100_000_000u128),
+                    cluster_token_supply: Uint128::new(100_000_000u128),
                     inventory: vec![
-                        Uint128(7_290_053_159u128), Uint128(319_710_128u128),
-                        Uint128(14_219_281_228u128), Uint128(224_212_221u128)
+                        Uint128::new(7_290_053_159u128),
+                        Uint128::new(319_710_128u128),
+                        Uint128::new(14_219_281_228u128),
+                        Uint128::new(224_212_221u128)
                     ],
-                    max_tokens: Uint128(20_000_000u128),
+                    max_tokens: Uint128::new(20_000_000u128),
                     redeem_asset_amounts: vec![],
                     asset_prices: vec![
                         "135.18".to_string(),
@@ -1028,24 +1050,23 @@ fn burn() {
                         "540.82".to_string()
                     ],
                     target_weights: vec![
-                        Uint128(20u128),
-                        Uint128(20u128),
-                        Uint128(20u128),
-                        Uint128(20u128)
+                        Uint128::new(20u128),
+                        Uint128::new(20u128),
+                        Uint128::new(20u128),
+                        Uint128::new(20u128)
                     ],
                 })
                 .unwrap(),
-                send: vec![],
-            }),
+                funds: vec![],
+            })),
         ]
     );
-    assert_eq!(7, res.messages.len());
 }
 
 #[test]
 fn update_target() {
     let (mut deps, _init_res) = mock_init();
-    mock_querier_setup(&mut deps);
+    deps = mock_querier_setup(deps);
 
     deps.querier
         .set_token_supply(consts::cluster_token(), 100_000_000)
@@ -1056,40 +1077,40 @@ fn update_target() {
             info: AssetInfo::Token {
                 contract_addr: h("mAAPL"),
             },
-            amount: Uint128(10),
+            amount: Uint128::new(10),
         },
         Asset {
             info: AssetInfo::Token {
                 contract_addr: h("mGOOG"),
             },
-            amount: Uint128(5),
+            amount: Uint128::new(5),
         },
         Asset {
             info: AssetInfo::Token {
                 contract_addr: h("mMSFT"),
             },
-            amount: Uint128(35),
+            amount: Uint128::new(35),
         },
         Asset {
             info: AssetInfo::Token {
                 contract_addr: h("mGME"),
             },
-            amount: Uint128(50),
+            amount: Uint128::new(50),
         },
     ];
-    let msg = HandleMsg::UpdateTarget { target: new_target };
+    let msg = ExecuteMsg::UpdateTarget { target: new_target };
 
-    let env = mock_env(consts::owner(), &[]);
-    let res = handle(&mut deps, env, msg).unwrap();
+    let info = mock_info(consts::owner().as_str(), &[]);
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
     assert_eq!(
-        res.log,
+        res.attributes,
         vec![
-            log("action", "reset_target"),
-            log("prev_assets", "[mAAPL, mGOOG, mMSFT, mNFLX]"),
-            log("prev_targets", "[20, 20, 20, 20]"),
-            log("updated_assets", "[mAAPL, mGOOG, mMSFT, mGME, mNFLX]"),
-            log("updated_targets", "[10, 5, 35, 50, 0]"),
+            attr("action", "reset_target"),
+            attr("prev_assets", "[mAAPL, mGOOG, mMSFT, mNFLX]"),
+            attr("prev_targets", "[20, 20, 20, 20]"),
+            attr("updated_assets", "[mAAPL, mGOOG, mMSFT, mGME, mNFLX]"),
+            attr("updated_targets", "[10, 5, 35, 50, 0]"),
         ]
     );
 
@@ -1099,7 +1120,7 @@ fn update_target() {
 #[test]
 fn decommission_cluster() {
     let (mut deps, _init_res) = mock_init();
-    mock_querier_setup(&mut deps);
+    deps = mock_querier_setup(deps);
 
     deps.querier
         .set_token_supply(consts::cluster_token(), 100_000_000)
@@ -1108,28 +1129,28 @@ fn decommission_cluster() {
     let config = read_config(&deps.storage).unwrap();
     assert_eq!(config.active, true);
 
-    let msg = HandleMsg::Decommission {};
+    let msg = ExecuteMsg::Decommission {};
 
-    let env = mock_env("owner0001", &[]);
-    let res = handle(&mut deps, env, msg.clone()).unwrap_err();
+    let info = mock_info("owner0001", &[]);
+    let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
 
     match res {
-        StdError::Unauthorized { .. } => {}
+        StdError::GenericErr { msg, .. } => assert_eq!(msg, "unauthorized"),
         _ => panic!("DO NOT ENTER HERE"),
     }
 
-    let env = mock_env(consts::factory(), &[]);
+    let info = mock_info(consts::factory().as_str(), &[]);
 
-    let res = handle(&mut deps, env.clone(), msg.clone()).unwrap();
+    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
 
-    assert_eq!(res.log, vec![log("action", "decommission_asset")]);
+    assert_eq!(res.attributes, vec![attr("action", "decommission_asset")]);
 
     let config = read_config(&deps.storage).unwrap();
     assert_eq!(config.active, false);
 
     assert_eq!(res.messages, vec![]);
 
-    let res = handle(&mut deps, env.clone(), msg).unwrap_err();
+    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
 
     match res {
         StdError::GenericErr { msg, .. } => {
@@ -1141,12 +1162,12 @@ fn decommission_cluster() {
     let asset_amounts = consts::asset_amounts();
     deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
 
-    let msg = HandleMsg::Mint {
+    let msg = ExecuteMsg::RebalanceCreate {
         asset_amounts: asset_amounts.clone(),
         min_tokens: None,
     };
 
-    let res = handle(&mut deps, env.clone(), msg).unwrap_err();
+    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
     match res {
         StdError::GenericErr { msg, .. } => {
             assert_eq!(msg, "Cannot call mint on a decommissioned cluster")
@@ -1154,33 +1175,39 @@ fn decommission_cluster() {
         _ => panic!("DO NOT ENTER HERE"),
     }
 
-    let msg = HandleMsg::Burn {
-        max_tokens: Uint128(20_000_000),
+    let msg = ExecuteMsg::RebalanceRedeem {
+        max_tokens: Uint128::new(20_000_000),
         asset_amounts: Some(asset_amounts),
     };
 
-    let res = handle(&mut deps, env.clone(), msg).unwrap_err();
+    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
     match res {
         StdError::GenericErr { msg, .. } => {
-            assert_eq!(msg, "Cannot call non pro-rata redeem on a decommissioned cluster")
+            assert_eq!(
+                msg,
+                "Cannot call non pro-rata redeem on a decommissioned cluster"
+            )
         }
         _ => panic!("DO NOT ENTER HERE"),
     }
 
-    let msg = HandleMsg::Burn {
-        max_tokens: Uint128(20_000_000),
+    let msg = ExecuteMsg::RebalanceRedeem {
+        max_tokens: Uint128::new(20_000_000),
         asset_amounts: None,
     };
 
-    let res = handle(&mut deps, env.clone(), msg).unwrap();
-    assert_eq!(res.log, vec![
-        log("action", "receive:burn"),
-        log("sender", "factory"),
-        log("burn_amount", "1234"),
-        log("token_cost", "1247"),
-        log("kept_as_fee", "13"),
-        log("asset_amounts", "[]"),
-        log("redeem_totals", "[99, 98, 97, 96]"),
-        log("penalty", "1234")
-    ]);
+    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+    assert_eq!(
+        res.attributes,
+        vec![
+            attr("action", "receive:burn"),
+            attr("sender", "factory"),
+            attr("burn_amount", "1234"),
+            attr("token_cost", "1247"),
+            attr("kept_as_fee", "13"),
+            attr("asset_amounts", "[]"),
+            attr("redeem_totals", "[99, 98, 97, 96]"),
+            attr("penalty", "1234")
+        ]
+    );
 }

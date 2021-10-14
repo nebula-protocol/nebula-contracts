@@ -1,32 +1,43 @@
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
+
 use cosmwasm_std::{
-    log, to_binary, Api, Binary, CosmosMsg, Decimal, Env, Extern, HandleResponse, HandleResult,
-    HumanAddr, InitResponse, Querier, StdError, StdResult, Storage, Uint128, WasmMsg,
+    attr, to_binary, Addr, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Reply,
+    ReplyOn, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg,
 };
+
+use crate::response::MsgInstantiateContractResponse;
 
 use crate::state::{
     cluster_exists, deactivate_cluster, decrease_total_weight, get_cluster_data,
     increase_total_weight, read_all_weight, read_config, read_last_distributed, read_params,
-    read_total_weight, read_weight, record_cluster, remove_params, remove_weight, store_config,
-    store_last_distributed, store_params, store_total_weight, store_weight, Config,
+    read_tmp_asset, read_tmp_cluster, read_total_weight, read_weight, record_cluster,
+    remove_params, remove_weight, store_config, store_last_distributed, store_params,
+    store_tmp_asset, store_tmp_cluster, store_total_weight, store_weight, Config,
 };
 
 use cluster_math::FPDecimal;
 
+use protobuf::Message;
+
 use nebula_protocol::cluster_factory::{
     ClusterExistsResponse, ClusterListResponse, ConfigResponse, DistributionInfoResponse,
-    HandleMsg, InitMsg, Params, QueryMsg,
+    ExecuteMsg, InstantiateMsg, Params, QueryMsg,
 };
 
-use nebula_protocol::cluster::{HandleMsg as ClusterHandleMsg, InitMsg as ClusterInitMsg};
-use nebula_protocol::penalty::HandleMsg as PenaltyHandleMsg;
-use nebula_protocol::staking::{Cw20HookMsg as StakingCw20HookMsg, HandleMsg as StakingHandleMsg};
+use nebula_protocol::cluster::{
+    ExecuteMsg as ClusterExecuteMsg, InstantiateMsg as ClusterInstantiateMsg,
+};
+use nebula_protocol::penalty::ExecuteMsg as PenaltyExecuteMsg;
+use nebula_protocol::staking::{
+    Cw20HookMsg as StakingCw20HookMsg, ExecuteMsg as StakingExecuteMsg,
+};
 
-use cw20::{Cw20HandleMsg, MinterResponse};
+use cw20::{Cw20ExecuteMsg, MinterResponse};
 use terraswap::asset::{AssetInfo, PairInfo};
-use terraswap::factory::HandleMsg as TerraswapFactoryHandleMsg;
-use terraswap::hook::InitHook;
+use terraswap::factory::ExecuteMsg as TerraswapFactoryExecuteMsg;
 use terraswap::querier::query_pair_info;
-use terraswap::token::InitMsg as TokenInitMsg;
+use terraswap::token::InstantiateMsg as TokenInstantiateMsg;
 
 const NEBULA_TOKEN_WEIGHT: u32 = 300u32;
 const NORMAL_TOKEN_WEIGHT: u32 = 30u32;
@@ -36,40 +47,39 @@ const NORMAL_TOKEN_WEIGHT: u32 = 30u32;
 // real value is 60u64
 const DISTRIBUTION_INTERVAL: u64 = 1u64;
 
-pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn instantiate(
+    deps: DepsMut,
     env: Env,
-    msg: InitMsg,
-) -> StdResult<InitResponse> {
+    _info: MessageInfo,
+    msg: InstantiateMsg,
+) -> StdResult<Response> {
     store_config(
-        &mut deps.storage,
+        deps.storage,
         &Config {
-            owner: HumanAddr::default(),
-            nebula_token: HumanAddr::default(),
-            terraswap_factory: HumanAddr::default(),
-            staking_contract: HumanAddr::default(),
-            commission_collector: HumanAddr::default(),
+            owner: String::default(),
+            nebula_token: String::default(),
+            terraswap_factory: String::default(),
+            staking_contract: String::default(),
+            commission_collector: String::default(),
             protocol_fee_rate: msg.protocol_fee_rate,
             token_code_id: msg.token_code_id,
             cluster_code_id: msg.cluster_code_id,
             base_denom: msg.base_denom,
-            genesis_time: env.block.time,
+            genesis_time: env.block.time.seconds(),
             distribution_schedule: msg.distribution_schedule,
         },
     )?;
 
-    store_total_weight(&mut deps.storage, 0u32)?;
-    store_last_distributed(&mut deps.storage, env.block.time)?;
-    Ok(InitResponse::default())
+    store_total_weight(deps.storage, 0u32)?;
+    store_last_distributed(deps.storage, env.block.time.seconds())?;
+    Ok(Response::default())
 }
 
-pub fn handle<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    msg: HandleMsg,
-) -> StdResult<HandleResponse> {
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
-        HandleMsg::PostInitialize {
+        ExecuteMsg::PostInitialize {
             owner,
             nebula_token,
             terraswap_factory,
@@ -84,53 +94,48 @@ pub fn handle<S: Storage, A: Api, Q: Querier>(
             staking_contract,
             commission_collector,
         ),
-        HandleMsg::UpdateConfig {
+        ExecuteMsg::UpdateConfig {
             owner,
             token_code_id,
             cluster_code_id,
             distribution_schedule,
         } => update_config(
             deps,
-            env,
+            info,
             owner,
             token_code_id,
             cluster_code_id,
             distribution_schedule,
         ),
-        HandleMsg::UpdateWeight {
+        ExecuteMsg::UpdateWeight {
             asset_token,
             weight,
-        } => update_weight(deps, env, asset_token, weight),
-        HandleMsg::CreateCluster { params } => create_cluster(deps, env, params),
-        HandleMsg::TokenCreationHook {} => token_creation_hook(deps, env),
-        HandleMsg::SetClusterTokenHook { cluster } => set_cluster_token_hook(deps, env, cluster),
-        HandleMsg::TerraswapCreationHook { asset_token } => {
-            terraswap_creation_hook(deps, env, asset_token)
+        } => update_weight(deps, info, asset_token, weight),
+        ExecuteMsg::CreateCluster { params } => create_cluster(deps, env, info, params),
+        ExecuteMsg::Distribute {} => distribute(deps, env),
+        ExecuteMsg::PassCommand { contract_addr, msg } => {
+            pass_command(deps, info, contract_addr, msg)
         }
-        HandleMsg::Distribute {} => distribute(deps, env),
-        HandleMsg::PassCommand { contract_addr, msg } => {
-            pass_command(deps, env, contract_addr, msg)
-        }
-        HandleMsg::DecommissionCluster {
+        ExecuteMsg::DecommissionCluster {
             cluster_contract,
             cluster_token,
-        } => decommission_cluster(deps, env, cluster_contract, cluster_token),
+        } => decommission_cluster(deps, info, cluster_contract, cluster_token),
     }
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn post_initialize<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    _env: Env,
-    owner: HumanAddr,
-    nebula_token: HumanAddr,
-    terraswap_factory: HumanAddr,
-    staking_contract: HumanAddr,
-    commission_collector: HumanAddr,
-) -> HandleResult {
-    let mut config: Config = read_config(&deps.storage)?;
-    if config.owner != HumanAddr::default() {
-        return Err(StdError::unauthorized());
+pub fn post_initialize(
+    deps: DepsMut,
+    env: Env,
+    owner: String,
+    nebula_token: String,
+    terraswap_factory: String,
+    staking_contract: String,
+    commission_collector: String,
+) -> StdResult<Response> {
+    let mut config: Config = read_config(deps.storage)?;
+    if config.owner != String::default() {
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     config.owner = owner;
@@ -138,22 +143,27 @@ pub fn post_initialize<S: Storage, A: Api, Q: Querier>(
     config.terraswap_factory = terraswap_factory;
     config.staking_contract = staking_contract;
     config.commission_collector = commission_collector;
-    store_config(&mut deps.storage, &config)?;
+    store_config(deps.storage, &config)?;
 
-    Ok(HandleResponse::default())
+    store_weight(deps.storage, &config.nebula_token, NEBULA_TOKEN_WEIGHT)?;
+    increase_total_weight(deps.storage, NEBULA_TOKEN_WEIGHT)?;
+
+    let neb_addr = config.nebula_token;
+
+    terraswap_creation_hook(deps, env, neb_addr)
 }
 
-pub fn update_config<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    owner: Option<HumanAddr>,
+pub fn update_config(
+    deps: DepsMut,
+    info: MessageInfo,
+    owner: Option<String>,
     token_code_id: Option<u64>,
     cluster_code_id: Option<u64>,
     distribution_schedule: Option<Vec<(u64, u64, Uint128)>>,
-) -> HandleResult {
-    let mut config: Config = read_config(&deps.storage)?;
-    if config.owner != env.message.sender {
-        return Err(StdError::unauthorized());
+) -> StdResult<Response> {
+    let mut config: Config = read_config(deps.storage)?;
+    if config.owner != info.sender.to_string() {
+        return Err(StdError::generic_err("unauthorized"));
     }
 
     if let Some(owner) = owner {
@@ -172,67 +182,54 @@ pub fn update_config<S: Storage, A: Api, Q: Querier>(
         config.cluster_code_id = cluster_code_id;
     }
 
-    store_config(&mut deps.storage, &config)?;
+    store_config(deps.storage, &config)?;
 
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![log("action", "update_config")],
-        data: None,
-    })
+    Ok(Response::new().add_attributes(vec![attr("action", "update_config")]))
 }
 
-pub fn update_weight<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    asset_token: HumanAddr,
+pub fn update_weight(
+    deps: DepsMut,
+    info: MessageInfo,
+    asset_token: String,
     weight: u32,
-) -> HandleResult {
-    let config: Config = read_config(&deps.storage)?;
-    if config.owner != env.message.sender {
-        return Err(StdError::unauthorized());
+) -> StdResult<Response> {
+    let config: Config = read_config(deps.storage)?;
+    if config.owner != info.sender.to_string() {
+        return Err(StdError::generic_err("unauthorized"));
     }
 
-    let origin_weight = read_weight(&deps.storage, &asset_token)?;
-    store_weight(&mut deps.storage, &asset_token, weight)?;
+    let origin_weight = read_weight(deps.storage, &asset_token)?;
+    store_weight(deps.storage, &asset_token, weight)?;
 
-    let origin_total_weight = read_total_weight(&deps.storage)?;
-    store_total_weight(
-        &mut deps.storage,
-        origin_total_weight + weight - origin_weight,
-    )?;
+    let origin_total_weight = read_total_weight(deps.storage)?;
+    store_total_weight(deps.storage, origin_total_weight + weight - origin_weight)?;
 
-    Ok(HandleResponse {
-        messages: vec![],
-        log: vec![
-            log("action", "update_weight"),
-            log("asset_token", asset_token),
-            log("weight", weight),
-        ],
-        data: None,
-    })
+    Ok(Response::new().add_attributes(vec![
+        attr("action", "update_weight"),
+        attr("asset_token", asset_token),
+        attr("weight", weight.to_string()),
+    ]))
 }
 
 // just for by passing command to other contract like update config
-pub fn pass_command<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    contract_addr: HumanAddr,
+pub fn pass_command(
+    deps: DepsMut,
+    info: MessageInfo,
+    contract_addr: String,
     msg: Binary,
-) -> HandleResult {
-    let config: Config = read_config(&deps.storage)?;
-    if config.owner != env.message.sender {
-        return Err(StdError::unauthorized());
+) -> StdResult<Response> {
+    let config: Config = read_config(deps.storage)?;
+    if config.owner != info.sender.to_string() {
+        return Err(StdError::generic_err("unauthorized"));
     }
 
-    Ok(HandleResponse {
-        messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+    Ok(
+        Response::new().add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr,
             msg,
-            send: vec![],
-        })],
-        log: vec![],
-        data: None,
-    })
+            funds: vec![],
+        })]),
+    )
 }
 
 /*
@@ -245,52 +242,91 @@ Whitelisting process
 3. Call `TerraswapCreationHook`
     3-1. Register asset to staking contract
 */
-pub fn create_cluster<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+pub fn create_cluster(
+    deps: DepsMut,
     env: Env,
+    info: MessageInfo,
     params: Params,
-) -> HandleResult {
-    let config: Config = read_config(&deps.storage)?;
-    if config.owner != env.message.sender {
-        return Err(StdError::unauthorized());
+) -> StdResult<Response> {
+    let config: Config = read_config(deps.storage)?;
+    if config.owner != info.sender.to_string() {
+        return Err(StdError::generic_err("unauthorized"));
     }
 
-    if read_params(&deps.storage).is_ok() {
+    if read_params(deps.storage).is_ok() {
         return Err(StdError::generic_err(
             "A cluster registration process is in progress",
         ));
     }
 
-    store_params(&mut deps.storage, &params)?;
+    store_params(deps.storage, &params)?;
 
-    Ok(HandleResponse {
-        messages: vec![CosmosMsg::Wasm(WasmMsg::Instantiate {
-            code_id: config.cluster_code_id,
-            send: vec![],
-            label: None,
-            msg: to_binary(&ClusterInitMsg {
-                name: params.name.clone(),
-                description: params.description.clone(),
-                owner: env.contract.address.clone(),
-                pricing_oracle: params.pricing_oracle.clone(),
-                composition_oracle: params.composition_oracle.clone(),
-                penalty: params.penalty,
-                factory: env.contract.address.clone(),
-                cluster_token: None,
-                target: params.target,
-                init_hook: Some(InitHook {
-                    contract_addr: env.contract.address,
-                    msg: to_binary(&HandleMsg::TokenCreationHook {})?,
-                }),
-            })?,
-        })],
-        log: vec![
-            log("action", "create_cluster"),
-            log("symbol", params.symbol.clone()),
-            log("name", params.name),
-        ],
-        data: None,
-    })
+    Ok(Response::new()
+        .add_submessages(vec![SubMsg {
+            msg: WasmMsg::Instantiate {
+                admin: None,
+                code_id: config.cluster_code_id,
+                funds: vec![],
+                label: "".to_string(),
+                msg: to_binary(&ClusterInstantiateMsg {
+                    name: params.name.clone(),
+                    description: params.description.clone(),
+                    owner: env.contract.address.to_string(),
+                    pricing_oracle: params.pricing_oracle.clone(),
+                    target_oracle: params.target_oracle.clone(),
+                    penalty: params.penalty,
+                    factory: env.contract.address.to_string(),
+                    cluster_token: None,
+                    target: params.target,
+                })?,
+            }
+            .into(),
+            gas_limit: None,
+            id: 1,
+            reply_on: ReplyOn::Success,
+        }])
+        .add_attributes(vec![
+            attr("action", "create_cluster"),
+            attr("symbol", params.symbol.clone()),
+            attr("name", params.name),
+        ]))
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
+    match msg.id {
+        1 => {
+            // get new token's contract address
+            let res: MsgInstantiateContractResponse = Message::parse_from_bytes(
+                msg.result.unwrap().data.unwrap().as_slice(),
+            )
+            .map_err(|_| {
+                StdError::parse_err("MsgInstantiateContractResponse", "failed to parse data")
+            })?;
+            let asset_token = res.get_contract_address();
+
+            token_creation_hook(deps, env, asset_token.to_string())
+        }
+        2 => {
+            let cluster = read_tmp_cluster(deps.storage)?;
+
+            // get new token's contract address
+            let res: MsgInstantiateContractResponse = Message::parse_from_bytes(
+                msg.result.unwrap().data.unwrap().as_slice(),
+            )
+            .map_err(|_| {
+                StdError::parse_err("MsgInstantiateContractResponse", "failed to parse data")
+            })?;
+            let token = res.get_contract_address();
+
+            set_cluster_token_hook(deps, env, cluster, token.to_string())
+        }
+        3 => {
+            let token = read_tmp_asset(deps.storage)?;
+            terraswap_creation_hook(deps, env, token)
+        }
+        _ => Err(StdError::generic_err("reply id is invalid")),
+    }
 }
 
 /*
@@ -299,14 +335,11 @@ TokenCreationHook
 2. Register asset and oracle feeder to oracle contract
 3. Create terraswap pair through terraswap factory with `TerraswapCreationHook`
 */
-pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-) -> HandleResult {
-    let config: Config = read_config(&deps.storage)?;
+pub fn token_creation_hook(deps: DepsMut, _env: Env, cluster: String) -> StdResult<Response> {
+    let config: Config = read_config(deps.storage)?;
 
     // If the param is not exists, it means there is no cluster registration process in progress
-    let params: Params = match read_params(&deps.storage) {
+    let params: Params = match read_params(deps.storage) {
         Ok(v) => v,
         Err(_) => {
             return Err(StdError::generic_err(
@@ -317,25 +350,27 @@ pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
 
     let penalty = params.penalty;
 
-    let cluster = env.message.sender;
-    record_cluster(&mut deps.storage, &cluster)?;
-    Ok(HandleResponse {
-        messages: vec![
+    record_cluster(deps.storage, &cluster)?;
+    store_tmp_cluster(deps.storage, &cluster)?;
+    Ok(Response::new()
+        .add_messages(vec![
             // tell penalty contract to set owner to cluster
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: penalty,
-                send: vec![],
-                msg: to_binary(&PenaltyHandleMsg::UpdateConfig {
+                funds: vec![],
+                msg: to_binary(&PenaltyExecuteMsg::UpdateConfig {
                     owner: Some(cluster.clone()),
                     penalty_params: None,
                 })?,
             }),
-            // Instantiate token
-            CosmosMsg::Wasm(WasmMsg::Instantiate {
+        ])
+        .add_submessages(vec![SubMsg {
+            msg: WasmMsg::Instantiate {
+                admin: None,
                 code_id: config.token_code_id,
-                send: vec![],
-                label: None,
-                msg: to_binary(&TokenInitMsg {
+                funds: vec![],
+                label: "".to_string(),
+                msg: to_binary(&TokenInstantiateMsg {
                     name: params.name.clone(),
                     symbol: params.symbol,
                     decimals: 6u8,
@@ -344,47 +379,27 @@ pub fn token_creation_hook<S: Storage, A: Api, Q: Querier>(
                         minter: cluster.clone(),
                         cap: None,
                     }),
-                    // Set Cluster Token
-                    init_hook: Some(InitHook {
-                        contract_addr: env.contract.address,
-                        msg: to_binary(&HandleMsg::SetClusterTokenHook {
-                            cluster: cluster.clone(),
-                        })?,
-                    }),
                 })?,
-            }),
-            // Set cluster owner (should end up being governance)
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: cluster.clone(),
-                send: vec![],
-                msg: to_binary(&ClusterHandleMsg::UpdateConfig {
-                    owner: Some(config.owner),
-                    name: None,
-                    description: None,
-                    cluster_token: None,
-                    pricing_oracle: None,
-                    composition_oracle: None,
-                    penalty: None,
-                    target: None,
-                })?,
-            }),
-        ],
-        log: vec![log("cluster_addr", cluster.as_str())],
-        data: None,
-    })
+            }
+            .into(),
+            gas_limit: None,
+            id: 2,
+            reply_on: ReplyOn::Success,
+        }])
+        .add_attributes(vec![attr("cluster_addr", cluster.as_str())]))
 }
 
 /// Set Token Hook
-pub fn set_cluster_token_hook<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    cluster: HumanAddr,
-) -> HandleResult {
-    let config: Config = read_config(&deps.storage)?;
-    let token = env.message.sender;
+pub fn set_cluster_token_hook(
+    deps: DepsMut,
+    _env: Env,
+    cluster: String,
+    token: String,
+) -> StdResult<Response> {
+    let config: Config = read_config(deps.storage)?;
 
     // If the param is not exists, it means there is no cluster registration process in progress
-    let params: Params = match read_params(&deps.storage) {
+    let params: Params = match read_params(deps.storage) {
         Ok(v) => v,
         Err(_) => {
             return Err(StdError::generic_err(
@@ -400,34 +415,36 @@ pub fn set_cluster_token_hook<S: Storage, A: Api, Q: Querier>(
         NORMAL_TOKEN_WEIGHT
     };
 
-    store_weight(&mut deps.storage, &token, weight)?;
-    increase_total_weight(&mut deps.storage, weight)?;
+    store_weight(deps.storage, &token, weight)?;
+    increase_total_weight(deps.storage, weight)?;
 
     // Remove params == clear flag
-    remove_params(&mut deps.storage);
-
-    Ok(HandleResponse {
-        messages: vec![
-            //Set cluster token
+    remove_params(deps.storage);
+    store_tmp_asset(deps.storage, &token)?;
+    Ok(Response::new()
+        .add_messages(vec![
+            //Set cluster token and also cluster owner to governance
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: cluster.clone(),
-                send: vec![],
-                msg: to_binary(&ClusterHandleMsg::UpdateConfig {
-                    owner: None,
+                funds: vec![],
+                msg: to_binary(&ClusterExecuteMsg::UpdateConfig {
+                    owner: Some(config.owner),
                     name: None,
                     description: None,
                     cluster_token: Some(token.clone()),
                     pricing_oracle: None,
-                    composition_oracle: None,
+                    target_oracle: None,
                     penalty: None,
                     target: None,
                 })?,
             }),
+        ])
+        .add_submessages(vec![SubMsg {
             // set up terraswap pair
-            CosmosMsg::Wasm(WasmMsg::Execute {
+            msg: WasmMsg::Execute {
                 contract_addr: config.terraswap_factory,
-                send: vec![],
-                msg: to_binary(&TerraswapFactoryHandleMsg::CreatePair {
+                funds: vec![],
+                msg: to_binary(&TerraswapFactoryExecuteMsg::CreatePair {
                     asset_infos: [
                         AssetInfo::NativeToken {
                             denom: config.base_denom,
@@ -436,39 +453,28 @@ pub fn set_cluster_token_hook<S: Storage, A: Api, Q: Querier>(
                             contract_addr: token.clone(),
                         },
                     ],
-                    init_hook: Some(InitHook {
-                        msg: to_binary(&HandleMsg::TerraswapCreationHook {
-                            asset_token: token.clone(),
-                        })?,
-                        contract_addr: env.contract.address,
-                    }),
                 })?,
-            }),
-        ],
-        log: vec![
-            log("action", "set_cluster_token"),
-            log("cluster", cluster),
-            log("token", token),
-        ],
-        data: None,
-    })
+            }
+            .into(),
+            gas_limit: None,
+            id: 3,
+            reply_on: ReplyOn::Success,
+        }])
+        .add_attributes(vec![
+            attr("action", "set_cluster_token"),
+            attr("cluster", cluster),
+            attr("token", token),
+        ]))
 }
 /// 1. Register asset and liquidity(LP) token to staking contract
-pub fn terraswap_creation_hook<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    asset_token: HumanAddr,
-) -> HandleResult {
+pub fn terraswap_creation_hook(
+    deps: DepsMut,
+    _env: Env,
+    asset_token: String,
+) -> StdResult<Response> {
     // Now terraswap contract is already created,
     // and liquidty token also created
-    let config: Config = read_config(&deps.storage)?;
-
-    if config.nebula_token == asset_token {
-        store_weight(&mut deps.storage, &asset_token, NEBULA_TOKEN_WEIGHT)?;
-        increase_total_weight(&mut deps.storage, NEBULA_TOKEN_WEIGHT)?;
-    } else if config.terraswap_factory != env.message.sender {
-        return Err(StdError::unauthorized());
-    }
+    let config: Config = read_config(deps.storage)?;
 
     let asset_infos = [
         AssetInfo::NativeToken {
@@ -480,22 +486,23 @@ pub fn terraswap_creation_hook<S: Storage, A: Api, Q: Querier>(
     ];
 
     // Load terraswap pair info
-    let pair_info: PairInfo = query_pair_info(&deps, &config.terraswap_factory, &asset_infos)?;
+    let pair_info: PairInfo = query_pair_info(
+        &deps.querier,
+        Addr::unchecked(config.terraswap_factory),
+        &asset_infos,
+    )?;
 
     // Execute staking contract to register staking token of newly created asset
-    Ok(HandleResponse {
-        // messages: vec![],
-        messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+    Ok(
+        Response::new().add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: config.staking_contract,
-            send: vec![],
-            msg: to_binary(&StakingHandleMsg::RegisterAsset {
+            funds: vec![],
+            msg: to_binary(&StakingExecuteMsg::RegisterAsset {
                 asset_token,
                 staking_token: pair_info.liquidity_token,
             })?,
-        })],
-        log: vec![],
-        data: None,
-    })
+        })]),
+    )
 }
 
 /*
@@ -503,19 +510,16 @@ Distribute
 Anyone can execute distribute operation to distribute
 nebula inflation rewards on the staking pool
 */
-pub fn distribute<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-) -> HandleResult {
-    let last_distributed = read_last_distributed(&deps.storage)?;
-    if last_distributed + DISTRIBUTION_INTERVAL > env.block.time {
+pub fn distribute(deps: DepsMut, env: Env) -> StdResult<Response> {
+    let last_distributed = read_last_distributed(deps.storage)?;
+    if last_distributed + DISTRIBUTION_INTERVAL > env.block.time.seconds() {
         return Err(StdError::generic_err(
             "Cannot distribute nebula token before interval",
         ));
     }
 
-    let config: Config = read_config(&deps.storage)?;
-    let time_elapsed = env.block.time - config.genesis_time;
+    let config: Config = read_config(deps.storage)?;
+    let time_elapsed = env.block.time.seconds() - config.genesis_time;
     let last_time_elapsed = last_distributed - config.genesis_time;
     let mut target_distribution_amount: Uint128 = Uint128::zero();
     for s in config.distribution_schedule.iter() {
@@ -529,44 +533,44 @@ pub fn distribute<S: Storage, A: Api, Q: Querier>(
 
         let time_slot = s.1 - s.0;
         let distribution_amount_per_sec: Decimal = Decimal::from_ratio(s.2, time_slot);
-        target_distribution_amount += distribution_amount_per_sec * Uint128(time_duration as u128);
+        target_distribution_amount +=
+            distribution_amount_per_sec * Uint128::new(time_duration as u128);
     }
 
     let staking_contract = config.staking_contract;
     let nebula_token = config.nebula_token;
 
-    let (rewards, distribution_amount) = _compute_rewards(&deps, target_distribution_amount)?;
+    let (rewards, distribution_amount) =
+        _compute_rewards(deps.storage, target_distribution_amount)?;
 
     // store last distributed
-    store_last_distributed(&mut deps.storage, env.block.time)?;
+    store_last_distributed(deps.storage, env.block.time.seconds())?;
     // mint token to self and try send minted tokens to staking contract
 
-    Ok(HandleResponse {
-        messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+    Ok(Response::new()
+        .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: nebula_token,
-            msg: to_binary(&Cw20HandleMsg::Send {
+            msg: to_binary(&Cw20ExecuteMsg::Send {
                 contract: staking_contract,
                 amount: distribution_amount,
-                msg: Some(to_binary(&StakingCw20HookMsg::DepositReward { rewards })?),
+                msg: to_binary(&StakingCw20HookMsg::DepositReward { rewards })?,
             })?,
-            send: vec![],
-        })],
-        log: vec![
-            log("action", "distribute"),
-            log("distribution_amount", distribution_amount.to_string()),
-        ],
-        data: None,
-    })
+            funds: vec![],
+        })])
+        .add_attributes(vec![
+            attr("action", "distribute"),
+            attr("distribution_amount", distribution_amount.to_string()),
+        ]))
 }
 
-pub fn _compute_rewards<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+pub fn _compute_rewards(
+    storage: &dyn Storage,
     target_distribution_amount: Uint128,
-) -> StdResult<(Vec<(HumanAddr, Uint128)>, Uint128)> {
-    let total_weight: u32 = read_total_weight(&deps.storage)?;
+) -> StdResult<(Vec<(String, Uint128)>, Uint128)> {
+    let total_weight: u32 = read_total_weight(storage)?;
     let mut distribution_amount: FPDecimal = FPDecimal::zero();
-    let weights: Vec<(HumanAddr, u32)> = read_all_weight(&deps.storage)?;
-    let rewards: Vec<(HumanAddr, Uint128)> = weights
+    let weights: Vec<(String, u32)> = read_all_weight(storage)?;
+    let rewards: Vec<(String, Uint128)> = weights
         .iter()
         .map(|w| {
             let mut amount =
@@ -576,49 +580,44 @@ pub fn _compute_rewards<S: Storage, A: Api, Q: Querier>(
             }
             amount = amount / FPDecimal::from(total_weight as u128);
             distribution_amount = distribution_amount + amount;
-            Ok((w.0.clone(), Uint128(u128::from(amount))))
+            Ok((w.0.clone(), Uint128::new(u128::from(amount))))
         })
         .filter(|m| m.is_ok())
-        .collect::<StdResult<Vec<(HumanAddr, Uint128)>>>()?;
-    Ok((rewards, Uint128(u128::from(distribution_amount))))
+        .collect::<StdResult<Vec<(String, Uint128)>>>()?;
+    Ok((rewards, Uint128::new(u128::from(distribution_amount))))
 }
 
-pub fn decommission_cluster<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
-    env: Env,
-    cluster_contract: HumanAddr,
-    cluster_token: HumanAddr,
-) -> HandleResult {
-    let config: Config = read_config(&deps.storage)?;
-    if config.owner != env.message.sender {
-        return Err(StdError::unauthorized());
+pub fn decommission_cluster(
+    deps: DepsMut,
+    info: MessageInfo,
+    cluster_contract: String,
+    cluster_token: String,
+) -> StdResult<Response> {
+    let config: Config = read_config(deps.storage)?;
+    if config.owner != info.sender.to_string() {
+        return Err(StdError::generic_err("unauthorized"));
     }
 
-    let weight = read_weight(&deps.storage, &cluster_token.clone())?;
-    remove_weight(&mut deps.storage, &cluster_token.clone());
-    decrease_total_weight(&mut deps.storage, weight)?;
-    deactivate_cluster(&mut deps.storage, &cluster_contract)?;
+    let weight = read_weight(deps.storage, &cluster_token.clone())?;
+    remove_weight(deps.storage, &cluster_token.clone());
+    decrease_total_weight(deps.storage, weight)?;
+    deactivate_cluster(deps.storage, &cluster_contract)?;
 
-    Ok(HandleResponse {
-        /// send message to set active asset
-        messages: vec![CosmosMsg::Wasm(WasmMsg::Execute {
+    Ok(Response::new()
+        .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: cluster_contract.clone(),
-            send: vec![],
-            msg: to_binary(&ClusterHandleMsg::Decommission {})?,
-        })],
-        log: vec![
-            log("action", "decommission_asset"),
-            log("cluster_token", cluster_token.to_string()),
-            log("cluster_contract", cluster_contract),
-        ],
-        data: None,
-    })
+            funds: vec![],
+            msg: to_binary(&ClusterExecuteMsg::Decommission {})?,
+        })])
+        .add_attributes(vec![
+            attr("action", "decommission_asset"),
+            attr("cluster_token", cluster_token.to_string()),
+            attr("cluster_contract", cluster_contract),
+        ]))
 }
 
-pub fn query<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    msg: QueryMsg,
-) -> StdResult<Binary> {
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_binary(&query_config(deps)?),
         QueryMsg::ClusterExists { contract_addr } => {
@@ -629,10 +628,8 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-pub fn query_config<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-) -> StdResult<ConfigResponse> {
-    let state = read_config(&deps.storage)?;
+pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
+    let state = read_config(deps.storage)?;
     let resp = ConfigResponse {
         owner: state.owner,
         nebula_token: state.nebula_token,
@@ -650,35 +647,31 @@ pub fn query_config<S: Storage, A: Api, Q: Querier>(
     Ok(resp)
 }
 
-pub fn query_distribution_info<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-) -> StdResult<DistributionInfoResponse> {
-    let weights: Vec<(HumanAddr, u32)> = read_all_weight(&deps.storage)?;
-    let last_distributed = read_last_distributed(&deps.storage)?;
+pub fn query_distribution_info(deps: Deps) -> StdResult<DistributionInfoResponse> {
+    let weights: Vec<(String, u32)> = read_all_weight(deps.storage)?;
+    let last_distributed = read_last_distributed(deps.storage)?;
     let resp = DistributionInfoResponse {
         last_distributed,
         weights: weights
             .iter()
             .map(|w| Ok((w.0.clone(), w.1)))
-            .collect::<StdResult<Vec<(HumanAddr, u32)>>>()?,
+            .collect::<StdResult<Vec<(String, u32)>>>()?,
     };
 
     Ok(resp)
 }
 
-pub fn query_cluster_exists<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    cluster_address: HumanAddr,
+pub fn query_cluster_exists(
+    deps: Deps,
+    cluster_address: String,
 ) -> StdResult<ClusterExistsResponse> {
     Ok(ClusterExistsResponse {
-        exists: cluster_exists(&deps.storage, &cluster_address)?,
+        exists: cluster_exists(deps.storage, &cluster_address)?,
     })
 }
 
-pub fn query_clusters<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-) -> StdResult<ClusterListResponse> {
+pub fn query_clusters(deps: Deps) -> StdResult<ClusterListResponse> {
     Ok(ClusterListResponse {
-        contract_infos: get_cluster_data(&deps.storage)?,
+        contract_infos: get_cluster_data(deps.storage)?,
     })
 }

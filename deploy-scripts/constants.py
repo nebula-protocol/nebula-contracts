@@ -1,10 +1,10 @@
 from contract_helpers import Contract, ClusterContract
-from bot_code.bullish_cross_recomp_deploy.src.recomp_deploy import BullishCrossRecomposer
-from bot_code.next_doge_recomp_deploy.src.recomp_deploy import NextDogeRecomposer
-from bot_code.momentum_recomp_deploy.src.recomp_deploy import MomentumTradingRecomposer
-from bot_code.terra_ecosystem_recomp_deploy.src.recomp_deploy import TerraFullDilutedMcapRecomposer, get_terra_ecosystem_info
-from bot_code.fab_mang_recomp_deploy.src.recomp_deploy import FABMANGRecomposer
-from bot_code.future_of_france_recomp_deploy.src.recomp_deploy import FutureOfFranceRecomposer
+from bot_code.clusters.bullish_cross_recomp_deploy.src.recomp_deploy import BullishCrossRecomposer
+from bot_code.clusters.metaverse_recomp_deploy.src.recomp_deploy import MetaverseRecomposer
+from bot_code.clusters.momentum_recomp_deploy.src.recomp_deploy import MomentumTradingRecomposer
+from bot_code.clusters.terra_ecosystem_recomp_deploy.src.recomp_deploy import TerraFullDilutedMcapRecomposer, get_terra_ecosystem_info
+from bot_code.clusters.fab_mang_recomp_deploy.src.recomp_deploy import FABMANGRecomposer
+from bot_code.clusters.future_of_france_recomp_deploy.src.recomp_deploy import FutureOfFranceRecomposer
 
 terraswap_factory_teq = Contract("terra18qpjm4zkvqnpjpw0zn0tdr8gdzvt8au35v45xf")
 
@@ -245,6 +245,78 @@ CONTRACT_TOKEN_TO_SYM_TEQ = {
     'terra1wpa2978x6n9c6xdvfzk4uhkzvphmq5fhdnvrym': 'DOGE'
 }
 
+SYM_TO_CONTRACT_TOKEN_BOMBAY = {
+  'MIR': 'terra17v346ttxlx3hen5xlkt0v76z33t7rlmm0r39s9',
+  'mAAPL': 'terra103lfndmtdh5shyukw7dc56zjecul22tmvrzq35',
+  'mABNB': 'terra1aadug223w7f3gw73v2mzj9zdnk92uwrjy54k2t',
+  'mAMC': 'terra1ykkcxdyxuxlrmj8s0aggnd6hz3rlxy29yp3a74',
+  'mAMZN': 'terra1dpa7fl2xr6pjxpv4kea6mlw4x7wj20lv28000f',
+  'mBABA': 'terra1uqha8keh70apwkpz859kdjxry48wcp7dl7z3nn',
+  'mBTC': 'terra1y0t9ljrq3cf99zsdclqevpdytlj5c58duwpppy',
+  'mCOIN': 'terra1pzef3kjvxqatkq9vpka42nrxk32fx2evk3cfqy',
+  'mETH': 'terra1z2drghzp07m5rspnrmqwu5h4u00zplya0um83r',
+  'mFB': 'terra1zvj52yhjkd7n96enztyf96xy5yzdm7tzvjtq42',
+  'mGLXY': 'terra1xsvqw4plt28cgyw7ljn9l3dawkaf96nxh7d84y',
+  'mGME': 'terra1ndsm9vy4rc3hug2xj57lygc32sjksjtjkunfap',
+  'mGOOGL': 'terra1f4mcmcpmzm7g77my5m7xeyqcz8csctahwj60hv',
+  'mGS': 'terra165slcpcnk34xlgear8zjpkwq5fek0ecdgy3w2v',
+  'mIAU': 'terra1hpvutycy057kfq5psehp9fn0yuvha53qcfztf6',
+  'mMSFT': 'terra1la54n5pe2cxqemyp09eu36prqkth676mlesd8v',
+  'mNFLX': 'terra1zkk20rkc68a77kwq9kajx45ktuq7yvyjrfazxq',
+  'mQQQ': 'terra1znx67hfkhs4tkdzzlujjx62l7hc7lx2hn4th7l',
+  'mSLV': 'terra12rtwkncmzhu8tztrpv5ka7xd08f9f977m7qafd',
+  'mTSLA': 'terra1yqkat7e8mtsw2x5lee7955w97ynqrc8e7058qa',
+  'mTWTR': 'terra1sj7le043j2jkysaauyaca730y023w76dmrqrf2',
+  'mUSO': 'terra1zfm7ec0pf86paxx475a4j593vhpq8mp789dfl8',
+  'mVIXY': 'terra1vhmf7vl8aafhls0vrv9xes2xjpxv2cx4hygqmq',
+  'AAVE': 'terra1tuka7n04fgll8rmzm6pllg3xkhkmdl5murkae9',
+  'ANC': 'terra188w8fnaz6lvta7glz9saacdt3q407249n95yh0',
+  'AUDIO': 'terra1yy9yu0rqjzsu2gmjvvsv8xelfanqgpadvpur85',
+  'AXS': 'terra1lrnanc6z0r70lhdw0w8kq6wtkykmqekwktp7x6',
+  'COMP': 'terra1egsu2cll5009dk8a326vgnvrgpq7u397kxpmmv',
+  'CREAM': 'terra1x7fffq9est2jkzcgk9a8n9v9gqr5u4wr8l6qwv',
+  'ENJ': 'terra10s0alq88mq3h4wrulsn6kgu7g26nnszxjk2ecl',
+  'MANA': 'terra12knrdep3zgj34z560ml5hy7gu43r00mgyfpes4',
+  'MKR': 'terra1gpfyxmccze3t93xdpcwlcpdx604khqgtr4a0tv',
+  'SAND': 'terra1ems4zzzrdhtrw35e0wj7ssdcwaj704rtgzp0v2'
+}
+
+CONTRACT_TOKEN_TO_SYM_BOMBAY = {
+  'terra103lfndmtdh5shyukw7dc56zjecul22tmvrzq35': 'mAAPL',
+  'terra12rtwkncmzhu8tztrpv5ka7xd08f9f977m7qafd': 'mSLV',
+  'terra165slcpcnk34xlgear8zjpkwq5fek0ecdgy3w2v': 'mGS',
+  'terra17v346ttxlx3hen5xlkt0v76z33t7rlmm0r39s9': 'MIR',
+  'terra1aadug223w7f3gw73v2mzj9zdnk92uwrjy54k2t': 'mABNB',
+  'terra1dpa7fl2xr6pjxpv4kea6mlw4x7wj20lv28000f': 'mAMZN',
+  'terra1f4mcmcpmzm7g77my5m7xeyqcz8csctahwj60hv': 'mGOOGL',
+  'terra1hpvutycy057kfq5psehp9fn0yuvha53qcfztf6': 'mIAU',
+  'terra1la54n5pe2cxqemyp09eu36prqkth676mlesd8v': 'mMSFT',
+  'terra1ndsm9vy4rc3hug2xj57lygc32sjksjtjkunfap': 'mGME',
+  'terra1pzef3kjvxqatkq9vpka42nrxk32fx2evk3cfqy': 'mCOIN',
+  'terra1sj7le043j2jkysaauyaca730y023w76dmrqrf2': 'mTWTR',
+  'terra1uqha8keh70apwkpz859kdjxry48wcp7dl7z3nn': 'mBABA',
+  'terra1vhmf7vl8aafhls0vrv9xes2xjpxv2cx4hygqmq': 'mVIXY',
+  'terra1xsvqw4plt28cgyw7ljn9l3dawkaf96nxh7d84y': 'mGLXY',
+  'terra1y0t9ljrq3cf99zsdclqevpdytlj5c58duwpppy': 'mBTC',
+  'terra1ykkcxdyxuxlrmj8s0aggnd6hz3rlxy29yp3a74': 'mAMC',
+  'terra1yqkat7e8mtsw2x5lee7955w97ynqrc8e7058qa': 'mTSLA',
+  'terra1z2drghzp07m5rspnrmqwu5h4u00zplya0um83r': 'mETH',
+  'terra1zfm7ec0pf86paxx475a4j593vhpq8mp789dfl8': 'mUSO',
+  'terra1zkk20rkc68a77kwq9kajx45ktuq7yvyjrfazxq': 'mNFLX',
+  'terra1znx67hfkhs4tkdzzlujjx62l7hc7lx2hn4th7l': 'mQQQ',
+  'terra1zvj52yhjkd7n96enztyf96xy5yzdm7tzvjtq42': 'mFB',
+  'terra10s0alq88mq3h4wrulsn6kgu7g26nnszxjk2ecl': 'ENJ',
+  'terra12knrdep3zgj34z560ml5hy7gu43r00mgyfpes4': 'MANA',
+  'terra188w8fnaz6lvta7glz9saacdt3q407249n95yh0': 'ANC',
+  'terra1egsu2cll5009dk8a326vgnvrgpq7u397kxpmmv': 'COMP',
+  'terra1ems4zzzrdhtrw35e0wj7ssdcwaj704rtgzp0v2': 'SAND',
+  'terra1gpfyxmccze3t93xdpcwlcpdx604khqgtr4a0tv': 'MKR',
+  'terra1lrnanc6z0r70lhdw0w8kq6wtkykmqekwktp7x6': 'AXS',
+  'terra1tuka7n04fgll8rmzm6pllg3xkhkmdl5murkae9': 'AAVE',
+  'terra1x7fffq9est2jkzcgk9a8n9v9gqr5u4wr8l6qwv': 'CREAM',
+  'terra1yy9yu0rqjzsu2gmjvvsv8xelfanqgpadvpur85': 'AUDIO'
+}
+
 SYM_TO_MASSET_COL = {
     'MIR': 'terra15gwkyepfc6xgca5t5zefzwy42uts8l2m4g40k6',
     'mAAPL': 'terra1vxtwu4ehgzz77mnfwrntyrmgl64qjs75mpwqaz',
@@ -285,7 +357,12 @@ SYM_TO_COINGECKO_ID = {
     'DOGE': 'dogecoin',
     'ERCTWENTY': 'erc20',
     'CUMMIES': 'cumrocket',
-    'MEME': 'degenerator'
+    'MEME': 'degenerator',
+    'AXS': 'axie-infinity',
+    'SAND': 'the-sandbox',
+    'MANA': 'decentraland',
+    'ENJ': 'enjincoin',
+    'AUDIO': 'audius'
 }
 
 # Helper for deploying
@@ -295,17 +372,17 @@ CT_SYM_TO_NAME = {
     'MOMENTUM': 'Top 5 30-Day Momentum',
     'BULL': 'Bullish Cross',
     'FOF': 'The Future of France',
-    'NOGE': 'The Next Doge',
+    'META': 'The Metaverse',
 }
 
 # Helper for deploying
 CT_SYM_TO_RECOMP_ORACLE = { 
+    'META': 'terra14s0lccdf88wq7t0hxkzwwnglskh588dy0nxzkc',
     'TER': 'terra14ew659y4fn4dytu832k9f6l2u94668uclrywfg',
     'FABMANG': 'terra1k5ymxx67tl6cd3dk4kxwt7mwl03dnuqggm8vsv',
     'MOMENTUM': 'terra1m0z2ul2kzz2ua2fttstn0wkm2fp500pm9am396',
     'BULL': 'terra1e3u7msymmkxu8u68rdvg0nqmq7zaafttcq64ky',
     'FOF': 'terra17qfm7gmtcup5tjq99rhm7a685x6vffg3v8u3wk',
-    'NOGE': 'terra14s0lccdf88wq7t0hxkzwwnglskh588dy0nxzkc',
 }
 
 # Helper for deploying
@@ -315,5 +392,5 @@ CT_SYM_TO_RECOMPOSER = {
     'MOMENTUM': MomentumTradingRecomposer,
     'BULL': BullishCrossRecomposer,
     'FOF': FutureOfFranceRecomposer,
-    'NOGE': NextDogeRecomposer,
+    'META': MetaverseRecomposer,
 }

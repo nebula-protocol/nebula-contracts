@@ -7,7 +7,7 @@ import asyncio
 import os
 
 
-USE_TEQUILA = bool(os.environ.get("USE_TEQUILA"))
+USE_BOMBAY = bool(os.environ.get("USE_BOMBAY"))
 USE_MNEMONIC = bool(os.environ.get("MNEMONIC"))
 
 CACHE_INITIALIZATION = True
@@ -37,10 +37,11 @@ gas_prices = {
 }
 
 terra = AsyncLCDClient(
-    "https://tequila-fcd.terra.dev", "tequila-0004", gas_prices=gas_prices
+    "https://bombay-fcd.terra.dev", "bombay-10", gas_prices=gas_prices
 )
 
 deployer = terra.wallet(key)
+print(deployer.key.acc_address)
 
 sequence = asyncio.get_event_loop().run_until_complete(deployer.sequence())
 

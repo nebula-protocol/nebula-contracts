@@ -12,6 +12,8 @@ from contract_helpers import Contract, ClusterContract, terra
 ONE_MILLION = 1000000.0
 SECONDS_PER_DAY = 24 * 60 * 60
 
+from .pricing import get_query_info, get_prices
+
 """
 Recomposes according to Total Value Locked (TVL) in the provided assets. 
 WARN: Do not use with Mirrored Assets.
@@ -21,11 +23,11 @@ class FutureOfFranceRecomposer:
         self.cluster_contract = cluster_contract
         self.asset_names = ["AAVE", "COMP", "MKR", "CREAM", "ANC"]
         self.assets_to_address = {
-            'AAVE': 'terra1rw388r5ptypzzeyqr2swc44drju3zu2j5qlaw2',
-            'ANC': 'terra16z5t7cr0ueg47tuqmwlp6ymgm2w43dyv4xnt4g',
-            'COMP': 'terra1hmuuk7230na78mgp67kf4f0qenyw9xhfjzhaay',
-            'CREAM': 'terra1dvx9np7ajmky66kz8r4dvze9e6gwsxwz5h6x4d',
-            'MKR': 'terra13rkv7zdg4huwe0z9c0k8t7gc3hxhy58c3zghec'
+            'AAVE': 'terra1tuka7n04fgll8rmzm6pllg3xkhkmdl5murkae9',
+            'ANC': 'terra188w8fnaz6lvta7glz9saacdt3q407249n95yh0',
+            'COMP': 'terra1egsu2cll5009dk8a326vgnvrgpq7u397kxpmmv',
+            'CREAM': 'terra1x7fffq9est2jkzcgk9a8n9v9gqr5u4wr8l6qwv',
+            'MKR': 'terra1gpfyxmccze3t93xdpcwlcpdx604khqgtr4a0tv'
         }
         self.api = "https://api.llama.fi"
         self.protocol_endpoint = "protocols"
@@ -67,12 +69,14 @@ class FutureOfFranceRecomposer:
         target_weights = [tvls[slug]/denom for slug in self.slugs]
         asset_tokens = [self.assets_to_address[an] for an in self.asset_names]
         print(self.asset_names, target_weights)
-        target_weights = [int(100 * target_weight) for target_weight in target_weights]
-
+        _, _, query_info = await get_query_info(asset_tokens)
+        prices = await get_prices(query_info)
         target = []
-        for a, t in zip(asset_tokens, target_weights):
+        for a, t, p in zip(asset_tokens, target_weights, prices):
             native = (a == 'uluna')
-            target.append(Asset.asset(a, str(t), native=native))
+            print(t)
+            tw = str(int(100000000 * t / float(p)))
+            target.append(Asset.asset(a, tw, native=native))
         return target
         
     
@@ -94,16 +98,16 @@ class FutureOfFranceRecomposer:
         print("Updated Cluster State: ", cluster_state)
         return target
 
-async def run_recomposition_periodically(cluster_contract, interval):
-    recomposition_bot = FutureOfFranceRecomposer(cluster_contract)
+async def run_retarget_periodically(cluster_contract, interval):
+    retarget_bot = FutureOfFranceRecomposer(cluster_contract)
 
     while True:
         await asyncio.gather(
             asyncio.sleep(interval),
-            recomposition_bot.recompose(),
+            retarget_bot.recompose(),
         )
 
 if __name__ == "__main__":
-    cluster_contract = Contract("terra1fx9m968gn53cu92qf8ye9s4v0nznllkg9w79vp") #TODO: Update
+    cluster_contract = Contract("terra1fx9m968gn53cu92qf8ye9s4v0nznllkg9w79vp")
     interval = SECONDS_PER_DAY
-    asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))
+    asyncio.get_event_loop().run_until_complete(run_retarget_periodically(cluster_contract, interval))

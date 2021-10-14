@@ -1,40 +1,49 @@
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
+
 use cosmwasm_std::{
-    to_binary, Api, Binary, Decimal, Env, Extern, HandleResponse, HumanAddr, InitResponse, Querier,
-    QueryRequest, StdResult, Storage, WasmQuery,
+    to_binary, Binary, Decimal, Env, Deps, DepsMut, Response, 
+    QueryRequest, StdResult, WasmQuery, MessageInfo
 };
 
 use terraswap::asset::{AssetInfo, PairInfo};
 use terraswap::pair::QueryMsg as PairQueryMsg;
 use terraswap::querier::query_pair_info;
 
-use crate::msg::{HandleMsg, InitMsg, PriceResponse, QueryMsg};
+use crate::msg::{ExecuteMsg, InstantiateMsg, PriceResponse, QueryMsg};
 use crate::state::{read_config, set_config, Config};
 use terraswap::pair::PoolResponse;
 
-pub fn init<S: Storage, A: Api, Q: Querier>(
-    deps: &mut Extern<S, A, Q>,
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn instantiate(
+    deps: DepsMut,
     _env: Env,
-    msg: InitMsg,
-) -> StdResult<InitResponse> {
+    info: MessageInfo,
+    msg: InstantiateMsg,
+) -> StdResult<Response> {
     let config = Config {
         terraswap_factory: msg.terraswap_factory,
         base_denom: msg.base_denom,
     };
 
-    set_config(&mut deps.storage, &config)?;
-    Ok(InitResponse::default())
+    set_config(deps.storage, &config)?;
+    Ok(Response::default())
 }
 
-pub fn handle<S: Storage, A: Api, Q: Querier>(
-    _deps: &mut Extern<S, A, Q>,
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn execute(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: ExecuteMsg
+) -> StdResult<Response> {
+    Ok(Response::default())
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(
+    deps: Deps,
     _env: Env,
-    _msg: HandleMsg,
-) -> StdResult<HandleResponse> {
-    Ok(HandleResponse::default())
-}
-
-pub fn query<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
     msg: QueryMsg,
 ) -> StdResult<Binary> {
     match msg {
@@ -42,19 +51,19 @@ pub fn query<S: Storage, A: Api, Q: Querier>(
     }
 }
 
-fn query_price<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
+fn query_price(
+    deps: Deps,
     asset: String,
 ) -> StdResult<PriceResponse> {
-    let cfg = read_config(&deps.storage)?;
+    let cfg = read_config(deps.storage)?;
 
     let asset_info = if deps
         .api
-        .canonical_address(&HumanAddr::from(asset.as_str()))
+        .canonical_address(&(asset.as_str()))
         .is_ok()
     {
         AssetInfo::Token {
-            contract_addr: HumanAddr::from(asset),
+            contract_addr: (asset),
         }
     } else {
         AssetInfo::NativeToken { denom: asset }

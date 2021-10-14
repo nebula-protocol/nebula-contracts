@@ -1,4 +1,4 @@
-use cosmwasm_std::{HumanAddr, StdError, Uint128};
+use cosmwasm_std::{StdError, Uint128};
 use terraswap::asset::AssetInfo;
 
 pub fn missing_cw20_msg() -> StdError {
@@ -55,7 +55,7 @@ pub fn cluster_token_not_set() -> StdError {
     StdError::generic_err("associated cluster token has not yet been set")
 }
 
-pub fn cluster_token_already_set(address: &HumanAddr) -> StdError {
+pub fn cluster_token_already_set(address: &String) -> StdError {
     StdError::generic_err(format!("cluster token has not yet been set to {}", address))
 }
 

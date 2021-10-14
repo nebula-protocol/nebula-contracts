@@ -1,10 +1,10 @@
 import os
 import sys
 
-os.environ["USE_TEQUILA"] = "1"
+os.environ["USE_BOMBAY"] = "1"
 os.environ["MNEMONIC"] = mnemonic = 'buddy monster west choice floor lonely owner castle mix mouse stable jealous question column regular sad print ethics blame cabbage knife drip practice violin'
 
-from constants import CONTRACT_TOKEN_TO_SYM_TEQ, SYM_TO_MASSET_COL, SYM_TO_COINGECKO_ID
+from graphql_querier import CONTRACT_TOKEN_TO_SYM_BOMBAY, SYM_TO_MASSET_COL, SYM_TO_COINGECKO_ID
 
 from api import Asset
 from contract_helpers import Contract, ClusterContract
@@ -26,7 +26,7 @@ async def get_graphql_price(address, testing=False):
 
     if testing:
         try:
-            sym = CONTRACT_TOKEN_TO_SYM_TEQ[address]
+            sym = CONTRACT_TOKEN_TO_SYM_BOMBAY[address]
             col_address = SYM_TO_MASSET_COL[sym]
         except:
             raise NameError
@@ -37,7 +37,7 @@ async def get_graphql_price(address, testing=False):
     query {{
         asset(token: {0}) {{
             prices {{
-                price
+                oraclePrice
             }}
             symbol
             name
@@ -49,7 +49,7 @@ async def get_graphql_price(address, testing=False):
     r.raise_for_status()
     asset = json.loads(r.text)['data']['asset']
 
-    price = asset['prices']['price']
+    price = asset['prices']['oraclePrice']
     return price
 
 async def get_prices(infos):
@@ -78,26 +78,46 @@ async def get_prices(infos):
     print(prices)
     return prices
 
-async def get_query_info():
+async def get_query_info(to_query=None):
     contract_addrs = []
     symbols = []
     query_info = []
 
-    for native in ['uusd', 'uluna']:
-        contract_addrs.append(native)
-        query_info.append([native, False])
+    if to_query is None:
+        for native in ['uusd', 'uluna']:
+            contract_addrs.append(native)
+            query_info.append([native, False])
 
-    for addr in list(CONTRACT_TOKEN_TO_SYM_TEQ.keys()):
-        token_info = await Contract(addr).query.token_info()
-        symbol = token_info["symbol"]
-        contract_addrs.append(addr)
-        symbols.append(symbol)
-        if symbol[0] == 'm':
-            # Use address for mirrored assets
-            query_info.append([addr, True])
-        else:
-            # Use symbol mapping for CoinGecko
-            query_info.append([symbol, False])
+        for addr in list(CONTRACT_TOKEN_TO_SYM_BOMBAY.keys()):
+            token_info = await Contract(addr).query.token_info()
+            symbol = token_info["symbol"]
+            contract_addrs.append(addr)
+            symbols.append(symbol)
+            if symbol[0] == 'm':
+                # Use address for mirrored assets
+                query_info.append([addr, True])
+            else:
+                # Use symbol mapping for CoinGecko
+                query_info.append([symbol, False])
+
+    else:
+        for name in to_query:
+            native = bool(name in ['uusd', 'uluna'])
+            contract_addrs.append(name)
+
+            if native:
+                query_info.append([name, False])
+            else:
+                token_info = await Contract(name).query.token_info()
+                symbol = token_info["symbol"]
+                symbols.append(symbol)
+                if symbol[0] == 'm':
+                    # Use address for mirrored assets
+                    query_info.append([name, True])
+                else:
+                    # Use symbol mapping for CoinGecko
+                    query_info.append([symbol, False])
+
 
     return contract_addrs, symbols, query_info
 
@@ -115,17 +135,16 @@ async def set_prices(oracle, contract_addrs, query_info):
             ]
         )
 
-    # print(set_prices_data)
+    print(set_prices_data)
 
     await oracle.set_prices(prices=set_prices_data)
 
 async def pricing_bot():
-    oracle = Contract("terra1ajjdnwvmhgc36p75apzrzkh2ekd8af3hqlzeka")
+    oracle = Contract("terra1yec8tfp4vqwjnxvlkyws3kjkw09pkm5yxkfrxn")
 
-    contract_addrs, symbols, query_info = get_query_info()
+    contract_addrs, symbols, query_info = await get_query_info()
             
     while True:
-        # TODO: FIX THIS
         price_data = await get_prices(query_info)
         set_prices_data = []
 

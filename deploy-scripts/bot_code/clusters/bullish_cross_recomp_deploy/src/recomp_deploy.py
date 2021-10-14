@@ -9,9 +9,11 @@ from graphql_querier import mirror_history_query_test, get_all_mirror_assets_tes
 import time
 import pandas as pd
 
+from .pricing import get_query_info, get_prices
+
 os.environ["MNEMONIC"] = mnemonic = 'know ice noble near track exercise present lawsuit cabbage pull proof recipe bridge dirt wealth useful oxygen stool lounge source sponsor elephant obvious mirror'
 
-os.environ["USE_TEQUILA"] = "1"
+os.environ["USE_BOMBAY"] = "1"
 
 from api import Asset
 from contract_helpers import Contract, ClusterContract, terra
@@ -126,16 +128,19 @@ class BullishCrossRecomposer:
 
         data = [await mirror_history_query_test(a, self.bar_length, from_time, to) for a in self.asset_addresses]
 
+        filtered_asset_addresses = [addr for addr, d in zip(self.asset_addresses, data) if d[0] is not None]
         data = [d for d in data if d[0] is not None]
+        
         # Might need asset names from CMC
         asset_names, max_timestamps, closes, _ = zip(*data)
 
         # Calculate MC of actual asset names
         mcs = self.get_mcaps(asset_names)
+
         # Keep information only if mc > 0
         asset_data = {name: int(mc) for name, mc in zip(asset_names, mcs) if int(mc) > 0}
         asset_names = [name for name, mc in zip(asset_names, mcs) if int(mc) > 0]
-        relevant_asset_addresses = [addr for addr, mc in zip(self.asset_addresses, mcs) if int(mc) > 0]
+        relevant_asset_addresses = [addr for addr, mc in zip(filtered_asset_addresses, mcs) if int(mc) > 0]
 
         self.closes = {name: pd.Series(close).astype('float') for name, close in zip(asset_names, closes)}
         names_to_contracts = {name: addrs for name, addrs in zip(asset_names, relevant_asset_addresses)}
@@ -189,13 +194,14 @@ class BullishCrossRecomposer:
         print('Target weights', target_weights)
 
 
-        target_weights = [int(10000 * target_weight) for target_weight in target_weights]
-
+        _, _, query_info = await get_query_info(asset_tokens)
+        prices = await get_prices(query_info)
         target = []
-        for a, t in zip(asset_tokens, target_weights):
+        for a, t, p in zip(asset_tokens, target_weights, prices):
             native = (a == 'uluna')
-            if t > 0:
-                target.append(Asset.asset(a, str(t), native=native))
+            print(t)
+            tw = str(int(100000000 * t / float(p)))
+            target.append(Asset.asset(a, tw, native=native))
 
         return target
     
@@ -217,18 +223,18 @@ class BullishCrossRecomposer:
         print("Updated Cluster State: ", cluster_state)
         return target
 
-async def run_recomposition_periodically(cluster_contract, interval):
+async def run_retarget_periodically(cluster_contract, interval):
     start_time = time.time()
     
-    recomposition_bot = BullishCrossRecomposer(cluster_contract)
+    retarget_bot = BullishCrossRecomposer(cluster_contract)
 
     while True:
         await asyncio.gather(
             asyncio.sleep(interval),
-            recomposition_bot.recompose(),
+            retarget_bot.recompose(),
         )
 
 if __name__ == "__main__":
     cluster_contract = Contract("terra1yt04g05n08ez2n2qq5rh9qc9weg32x0l4yrggq")
     interval = 24 * 60 * 60
-    asyncio.get_event_loop().run_until_complete(run_recomposition_periodically(cluster_contract, interval))
+    asyncio.get_event_loop().run_until_complete(run_retarget_periodically(cluster_contract, interval))

@@ -1,6 +1,7 @@
-use cosmwasm_std::{
-    to_binary, Api, Binary, Extern, HumanAddr, Querier, StdError, StdResult, Storage, Uint128,
-};
+#[cfg(not(feature = "library"))]
+use cosmwasm_std::entry_point;
+
+use cosmwasm_std::{to_binary, Addr, Binary, Deps, Env, StdError, StdResult, Uint128};
 
 use crate::ext_query::{query_cw20_balance, query_cw20_token_supply, query_price};
 use crate::state::{read_config, read_target_asset_data};
@@ -10,57 +11,53 @@ use nebula_protocol::cluster::{
 use terraswap::asset::AssetInfo;
 use terraswap::querier::query_balance;
 
-/// Convenience function for creating inline HumanAddr
-pub fn h(s: &str) -> HumanAddr {
-    HumanAddr(s.to_string())
+/// Convenience function for creating inline String
+pub fn h(s: &str) -> String {
+    s.to_string()
 }
 
-pub fn query<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    msg: QueryMsg,
-) -> StdResult<Binary> {
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Target {} => to_binary(&query_target(deps)?),
         QueryMsg::Config {} => to_binary(&query_config(deps)?),
-        QueryMsg::ClusterState {
-            cluster_contract_address,
-        } => to_binary(&query_cluster_state(deps, &cluster_contract_address, 0)?),
+        QueryMsg::ClusterState {} => to_binary(&query_cluster_state(
+            deps,
+            &env.contract.address.to_string(),
+            0,
+        )?),
         QueryMsg::ClusterInfo {} => to_binary(&query_cluster_info(deps)?),
     }
 }
 
-fn query_config<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-) -> StdResult<ConfigResponse> {
-    let cfg = read_config(&deps.storage)?;
+fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
+    let cfg = read_config(deps.storage)?;
     Ok(ConfigResponse { config: cfg })
 }
 
-fn query_target<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-) -> StdResult<TargetResponse> {
-    let target_assets = read_target_asset_data(&deps.storage)?;
+fn query_target(deps: Deps) -> StdResult<TargetResponse> {
+    let target_assets = read_target_asset_data(deps.storage)?;
     Ok(TargetResponse {
         target: target_assets,
     })
 }
 
-pub fn query_cluster_state<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-    cluster_contract_address: &HumanAddr,
+pub fn query_cluster_state(
+    deps: Deps,
+    cluster_contract_address: &String,
     stale_threshold: u64,
 ) -> StdResult<ClusterStateResponse> {
-    let cfg = &read_config(&deps.storage)?;
+    let cfg = &read_config(deps.storage)?;
 
     let active = cfg.active;
 
-    let target_asset_data = read_target_asset_data(&deps.storage)?;
+    let target_asset_data = read_target_asset_data(deps.storage)?;
     let asset_infos = target_asset_data
         .iter()
         .map(|x| x.info.clone())
         .collect::<Vec<_>>();
 
-    let penalty: HumanAddr = HumanAddr::from(&cfg.penalty);
+    let penalty: String = cfg.penalty.clone();
 
     let cluster_token = cfg
         .cluster_token
@@ -93,11 +90,13 @@ pub fn query_cluster_state<S: Storage, A: Api, Q: Querier>(
         .iter()
         .map(|asset| match asset {
             AssetInfo::Token { contract_addr } => {
-                query_cw20_balance(&deps.querier, &contract_addr, cluster_contract_address)
+                query_cw20_balance(&deps.querier, &(contract_addr), cluster_contract_address)
             }
-            AssetInfo::NativeToken { denom } => {
-                query_balance(&deps, cluster_contract_address, denom.clone())
-            }
+            AssetInfo::NativeToken { denom } => query_balance(
+                &deps.querier,
+                Addr::unchecked(cluster_contract_address.to_string()),
+                denom.clone(),
+            ),
         })
         .collect::<StdResult<Vec<Uint128>>>()?;
 
@@ -113,10 +112,8 @@ pub fn query_cluster_state<S: Storage, A: Api, Q: Querier>(
     })
 }
 
-pub fn query_cluster_info<S: Storage, A: Api, Q: Querier>(
-    deps: &Extern<S, A, Q>,
-) -> StdResult<ClusterInfoResponse> {
-    let cfg = &read_config(&deps.storage)?;
+pub fn query_cluster_info(deps: Deps) -> StdResult<ClusterInfoResponse> {
+    let cfg = &read_config(deps.storage)?;
     let name = &cfg.name;
     let description = &cfg.description;
     Ok(ClusterInfoResponse {
