@@ -1,11 +1,30 @@
 use std::u64;
 
 use cosmwasm_std::{Decimal, StdResult, Storage};
-use cosmwasm_storage::{bucket, bucket_read, singleton, singleton_read};
+use cosmwasm_storage::{bucket, bucket_read, singleton, singleton_read, Singleton};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
-/// prices: Map<asset:
+pub static KEY_CONFIG: &[u8] = b"config";
 pub static PREFIX_PRICES: &[u8] = b"prices";
 pub static KEY_TIMESTAMP: &[u8] = b"timestamps";
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct Config {
+    pub owner: String,
+}
+
+pub fn save_config(storage: &mut dyn Storage, config: &Config) -> StdResult<()> {
+    singleton(storage, KEY_CONFIG).save(config)
+}
+
+pub fn read_config(storage: &dyn Storage) -> StdResult<Config> {
+    singleton_read(storage, KEY_CONFIG).load()
+}
+
+pub fn config_store(storage: &mut dyn Storage) -> Singleton<Config> {
+    singleton(storage, KEY_CONFIG)
+}
 
 pub fn read_price(storage: &dyn Storage, asset: &String) -> StdResult<Decimal> {
     bucket_read(storage, PREFIX_PRICES).load(asset.as_bytes())

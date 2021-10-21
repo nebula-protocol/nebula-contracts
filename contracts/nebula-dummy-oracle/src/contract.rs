@@ -2,44 +2,86 @@
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    attr, to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult,
 };
 
 use crate::msg::{ExecuteMsg, InstantiateMsg, PriceResponse, QueryMsg};
-use crate::state::{read_last_update_time, read_price, set_price, store_last_update_time};
+use crate::state::{
+    config_store, read_config, read_last_update_time, read_price, save_config, set_price,
+    store_last_update_time, Config,
+};
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    _deps: DepsMut,
+    deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
-    _msg: InstantiateMsg,
+    msg: InstantiateMsg,
 ) -> StdResult<Response> {
-    Ok(Response::default())
+    let cfg = Config {
+        owner: msg.owner.clone(),
+    };
+
+    save_config(deps.storage, &cfg)?;
+
+    let log = vec![attr("owner", msg.owner)];
+
+    Ok(Response::new().add_attributes(log))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn execute(
-    deps: DepsMut,
-    env: Env,
-    _info: MessageInfo,
-    msg: ExecuteMsg,
-) -> StdResult<Response> {
+pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
-        ExecuteMsg::SetPrices { prices } => try_set_prices(deps, env, &prices),
+        ExecuteMsg::SetPrices { prices } => try_set_prices(deps, env, info, &prices),
+        ExecuteMsg::UpdateConfig { owner } => update_config(deps, info, owner),
     }
+}
+
+pub fn update_config(
+    deps: DepsMut,
+    info: MessageInfo,
+    owner: Option<String>,
+) -> StdResult<Response> {
+    config_store(deps.storage).update(|mut config| {
+        if config.owner != info.sender.to_string() {
+            return Err(StdError::generic_err("unauthorized"));
+        }
+
+        if let Some(owner) = owner {
+            config.owner = owner;
+        }
+
+        Ok(config)
+    })?;
+
+    Ok(Response::new().add_attributes(vec![attr("action", "update_config")]))
 }
 
 pub fn try_set_prices(
     deps: DepsMut,
     env: Env,
+    info: MessageInfo,
     prices: &Vec<(String, Decimal)>,
 ) -> StdResult<Response> {
+    let cfg = read_config(deps.storage)?;
+
+    // check permission
+    if info.sender.to_string() != cfg.owner {
+        return Err(StdError::generic_err("unauthorized"));
+    }
+
     for (asset, price) in prices.iter() {
         set_price(deps.storage, asset, price)?;
     }
     store_last_update_time(deps.storage, &env.block.time.seconds())?;
-    Ok(Response::default())
+
+    let log = vec![
+        attr("action", "try_set_prices"),
+        attr("update_time", env.block.time.seconds().to_string()),
+    ];
+
+    Ok(Response::new().add_attributes(log))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

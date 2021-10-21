@@ -1,6 +1,5 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use snafu::Error;
 
 use crate::querier::load_token_balance;
 use crate::staking::{
