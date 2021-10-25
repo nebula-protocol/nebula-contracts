@@ -15,7 +15,7 @@ use cosmwasm_std::{
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::common::OrderBy;
 use nebula_protocol::gov::{
-    PollStatus, SharesResponse, SharesResponseItem, StakerResponse, VoterInfo,
+    PollStatus, SharesResponse, SharesResponseItem, StakerResponse, VoterInfo, VotingPowerResponse,
 };
 
 pub static SECONDS_PER_WEEK: u64 = 604800u64; //60 * 60 * 24 * 7
@@ -122,12 +122,15 @@ pub fn stake_voting_tokens(
     state_store(deps.storage).save(&state)?;
     bank_store(deps.storage).save(key, &token_manager)?;
     total_voting_power_store(deps.storage).save(&total_voting_power)?;
+    let current_voting_power =
+        calc_voting_power(share, token_manager.lock_end_week.unwrap(), current_week);
 
     Ok(Response::new().add_attributes(vec![
         attr("action", "staking"),
         attr("sender", sender.as_str()),
         attr("share", share.to_string()),
         attr("amount", amount.to_string()),
+        attr("current_voting_power", current_voting_power.to_string()),
     ]))
 }
 
@@ -441,10 +444,39 @@ pub fn query_staker(deps: Deps, address: String) -> StdResult<StakerResponse> {
 }
 
 // Calculate current voting power of a user
-pub fn calc_voting_power(share: Uint128, lock_end_week: u64, current_week: u64) -> Uint128 {
+pub fn calc_voting_power(share: Uint128, lock_end_week: u64, current_week: u64) -> FPDecimal {
     let locked_weeks_remaining = lock_end_week - current_week;
-    let voting_power = (share.u128() * locked_weeks_remaining as u128) / (M as u128);
-    return Uint128::from(voting_power);
+    let voting_power = FPDecimal::from(share.u128())
+        * FPDecimal::from(locked_weeks_remaining as u128)
+        / FPDecimal::from(M as u128);
+    return voting_power;
+}
+
+pub fn query_voting_power(deps: Deps, env: Env, address: String) -> StdResult<VotingPowerResponse> {
+    let state = state_read(deps.storage).load()?;
+    let config = config_read(deps.storage).load()?;
+
+    let key = &address.as_str().as_bytes();
+    let token_manager = bank_read(deps.storage).may_load(key)?.unwrap_or_default();
+
+    // convert share to amount
+    let total_share = state.total_share;
+    let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
+    let total_balance = (load_token_balance(deps, &config.nebula_token, &state.contract_addr)?
+        .checked_sub(total_locked_balance))?;
+
+    let voting_power = calc_voting_power(
+        token_manager
+            .share
+            .multiply_ratio(total_balance, total_share),
+        token_manager.lock_end_week.unwrap(),
+        env.block.time.seconds() / SECONDS_PER_WEEK,
+    );
+
+    Ok(VotingPowerResponse {
+        staker: address,
+        voting_power: voting_power,
+    })
 }
 
 //Increase the number of weeks staked tokens are locked for
