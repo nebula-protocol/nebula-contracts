@@ -980,7 +980,13 @@ fn failed_execute_poll() {
         result: ContractResult::Err("Error".to_string()),
     };
     let res = reply(deps.as_mut(), mock_env(), reply_msg).unwrap();
-    assert_eq!(res.attributes, vec![attr("action", "failed_poll")]);
+    assert_eq!(
+        res.attributes,
+        vec![
+            attr("action", "failed_poll"),
+            attr("error", "Error".to_string())
+        ]
+    );
 
     let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: 1 }).unwrap();
     let poll_res: PollResponse = from_binary(&res).unwrap();
