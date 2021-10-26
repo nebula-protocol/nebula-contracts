@@ -454,21 +454,6 @@ fn test_token_creation_hook() {
                 })
                 .unwrap(),
             })),
-            SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: h("asset0000"),
-                funds: vec![],
-                msg: to_binary(&ClusterExecuteMsg::UpdateConfig {
-                    owner: Some("owner0000".to_string()),
-                    name: None,
-                    description: None,
-                    cluster_token: None,
-                    pricing_oracle: None,
-                    target_oracle: None,
-                    penalty: None,
-                    target: None,
-                })
-                .unwrap(),
-            })),
             SubMsg {
                 msg: WasmMsg::Instantiate {
                     admin: None,
@@ -577,7 +562,7 @@ fn test_set_cluster_token_hook() {
                 contract_addr: h("asset0000"),
                 funds: vec![],
                 msg: to_binary(&ClusterExecuteMsg::UpdateConfig {
-                    owner: None,
+                    owner: Some(h("owner0000")),
                     name: None,
                     description: None,
                     cluster_token: Some(h("cluster_token0000")),
@@ -710,7 +695,7 @@ fn test_set_cluster_token_hook_without_weight() {
                 contract_addr: h("asset0000"),
                 funds: vec![],
                 msg: to_binary(&ClusterExecuteMsg::UpdateConfig {
-                    owner: None,
+                    owner: Some(h("owner0000")),
                     name: None,
                     description: None,
                     cluster_token: Some(h("cluster_token0000")),
