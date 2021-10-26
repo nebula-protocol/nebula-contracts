@@ -20,7 +20,7 @@ use nebula_protocol::common::OrderBy;
 use nebula_protocol::gov::{
     ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, PollExecuteMsg, PollResponse,
     PollStatus, PollsResponse, QueryMsg, SharesResponse, SharesResponseItem, StakerResponse,
-    StateResponse, VoteOption, VoterInfo, VotersResponse, VotersResponseItem,
+    StateResponse, VoteOption, VoterInfo, VotersResponse, VotersResponseItem, VotingPowerResponse,
 };
 use std::str::FromStr;
 
@@ -982,10 +982,7 @@ fn failed_execute_poll() {
     let res = reply(deps.as_mut(), mock_env(), reply_msg).unwrap();
     assert_eq!(
         res.attributes,
-        vec![
-            attr("action", "failed_poll"),
-            attr("error", "Error".to_string())
-        ]
+        vec![attr("action", "failed_poll"), attr("error", "Error")]
     );
 
     let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: 1 }).unwrap();
@@ -2215,6 +2212,7 @@ fn share_calculation() {
             attr("sender", TEST_VOTER),
             attr("share", "50"),
             attr("amount", "100"),
+            attr("current_voting_power", "50")
         ]
     );
 
@@ -2313,6 +2311,7 @@ fn share_calculation_with_voter_rewards() {
             attr("sender", TEST_VOTER),
             attr("share", "100"),
             attr("amount", "100"),
+            attr("current_voting_power", "100")
         ]
     );
 
@@ -2358,6 +2357,7 @@ fn share_calculation_with_voter_rewards() {
             attr("sender", TEST_VOTER),
             attr("share", "50"),
             attr("amount", "100"),
+            attr("current_voting_power", "50")
         ]
     );
 
@@ -4554,6 +4554,21 @@ fn stake_voting_tokens_multiple_lock_end_weeks() {
     let info = mock_info(VOTING_TOKEN, &[]);
     let execute_res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
     assert_stake_tokens_result(stake_amount, 0, stake_amount, 0, execute_res, deps.as_mut());
+
+    let query_msg = QueryMsg::VotingPower {
+        address: TEST_VOTER.to_string(),
+    };
+    let res = query(deps.as_ref(), mock_env(), query_msg).unwrap();
+
+    let response: VotingPowerResponse = from_binary(&res).unwrap();
+    assert_eq!(
+        response,
+        VotingPowerResponse {
+            staker: TEST_VOTER.to_string(),
+            voting_power: FPDecimal::from(stake_amount) * FPDecimal::from(lock_period as u128)
+                / FPDecimal::from(104 as u128)
+        }
+    );
 
     let new_lock_period = lock_period + 1;
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {

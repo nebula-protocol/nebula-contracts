@@ -1,3 +1,4 @@
+use cluster_math::FPDecimal;
 use cosmwasm_std::{Binary, Decimal, Uint128};
 use cw20::Cw20ReceiveMsg;
 use schemars::JsonSchema;
@@ -88,6 +89,9 @@ pub enum QueryMsg {
     Staker {
         address: String,
     },
+    VotingPower {
+        address: String,
+    },
     Poll {
         poll_id: u64,
     },
@@ -167,6 +171,12 @@ pub struct StakerResponse {
     pub locked_balance: Vec<(u64, VoterInfo)>,
     pub pending_voting_rewards: Uint128,
     pub lock_end_week: Option<u64>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+pub struct VotingPowerResponse {
+    pub staker: String,
+    pub voting_power: FPDecimal,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]

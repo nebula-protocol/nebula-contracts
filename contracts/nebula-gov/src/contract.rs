@@ -4,7 +4,8 @@ use cosmwasm_std::entry_point;
 use crate::querier::load_token_balance;
 use crate::staking::{
     calc_voting_power, deposit_reward, increase_lock_time, query_shares, query_staker,
-    stake_voting_tokens, withdraw_voting_rewards, withdraw_voting_tokens, M, SECONDS_PER_WEEK,
+    query_voting_power, stake_voting_tokens, withdraw_voting_rewards, withdraw_voting_tokens, M,
+    SECONDS_PER_WEEK,
 };
 use crate::state::{
     bank_read, bank_store, config_read, config_store, poll_indexer_store, poll_read, poll_store,
@@ -596,7 +597,7 @@ pub fn cast_vote(
         env.block.time.seconds() / SECONDS_PER_WEEK,
     );
 
-    if voting_power < amount {
+    if voting_power < FPDecimal::from(amount.u128()) {
         return Err(StdError::generic_err(
             "User does not have enough staked tokens.",
         ));
@@ -697,11 +698,12 @@ pub fn snapshot_poll(deps: DepsMut, env: Env, poll_id: u64) -> StdResult<Respons
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_binary(&query_config(deps)?),
         QueryMsg::State {} => to_binary(&query_state(deps)?),
         QueryMsg::Staker { address } => to_binary(&query_staker(deps, address)?),
+        QueryMsg::VotingPower { address } => to_binary(&query_voting_power(deps, env, address)?),
         QueryMsg::Poll { poll_id } => to_binary(&query_poll(deps, poll_id)?),
         QueryMsg::Polls {
             filter,
