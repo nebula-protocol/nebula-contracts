@@ -147,7 +147,12 @@ pub fn arb_cluster_create(
         funds: vec![],
     }));
 
-    Ok(Response::new().add_messages(messages))
+    Ok(Response::new().add_messages(messages)
+        .add_attributes(vec![
+            attr("action", "arb_cluster_create"),
+            attr("sender", info.sender.as_str())
+        ])
+    )
 }
 
 pub fn arb_cluster_redeem(
@@ -238,7 +243,12 @@ pub fn arb_cluster_redeem(
         funds: vec![],
     }));
 
-    Ok(Response::new().add_messages(messages))
+    Ok(Response::new().add_messages(messages)
+        .add_attributes(vec![
+            attr("action", "arb_cluster_redeem"),
+            attr("sender", info.sender.as_str())
+        ])
+    )
 }
 
 pub fn record_terraswap_impact(
