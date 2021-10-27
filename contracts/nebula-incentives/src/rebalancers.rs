@@ -289,9 +289,12 @@ pub fn create(
         funds: vec![],
     }));
 
-    Ok(Response::new()
-        .add_messages(messages)
-        .add_attributes(vec![attr("action", "mint")]))
+    Ok(Response::new().add_messages(messages)
+        .add_attributes(vec![
+            attr("action", "incentives_create"),
+            attr("sender", info.sender.as_str())
+        ])
+    )
 }
 
 pub fn redeem(
@@ -360,5 +363,9 @@ pub fn redeem(
                 funds: vec![],
             }),
         ])
-        .add_attributes(vec![attr("action", "internal_rewarded_redeem")]))
+        .add_attributes(vec![
+            attr("action", "incentives_redeem"),
+            attr("sender", info.sender.as_str())
+        ])
+    )
 }
