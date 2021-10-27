@@ -3,6 +3,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use terraswap::asset::Asset;
 
+use cosmwasm_std::CanonicalAddr;
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     /// Cluster's permissioned owner
@@ -114,11 +116,11 @@ pub struct ClusterInfoResponse {
 pub struct ClusterConfig {
     pub name: String,
     pub description: String,
-    pub owner: String,
-    pub cluster_token: Option<String>,
-    pub factory: String,
-    pub pricing_oracle: String,
-    pub target_oracle: String,
-    pub penalty: String,
+    pub owner: CanonicalAddr,
+    pub cluster_token: Option<CanonicalAddr>,
+    pub factory: CanonicalAddr,
+    pub pricing_oracle: CanonicalAddr,
+    pub target_oracle: CanonicalAddr,
+    pub penalty: CanonicalAddr,
     pub active: bool,
 }

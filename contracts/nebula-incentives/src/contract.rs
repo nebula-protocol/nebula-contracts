@@ -34,12 +34,12 @@ pub fn instantiate(
     store_config(
         deps.storage,
         &Config {
-            factory: msg.factory,
-            custody: msg.custody,
-            terraswap_factory: msg.terraswap_factory,
-            nebula_token: msg.nebula_token,
+            factory: deps.api.addr_canonicalize(&msg.factory)?,
+            custody: deps.api.addr_canonicalize(&msg.custody)?,
+            terraswap_factory: deps.api.addr_canonicalize(&msg.terraswap_factory)?,
+            nebula_token: deps.api.addr_canonicalize(&msg.nebula_token)?,
             base_denom: msg.base_denom,
-            owner: msg.owner,
+            owner: deps.api.addr_canonicalize(&msg.owner)?,
         },
     )?;
 
@@ -161,12 +161,12 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 pub fn update_owner(deps: DepsMut, info: MessageInfo, owner: &String) -> StdResult<Response> {
     let cfg = read_config(deps.storage)?;
 
-    if info.sender.to_string() != cfg.owner {
+    if deps.api.addr_canonicalize(info.sender.as_str())? != cfg.owner {
         return Err(StdError::generic_err("unauthorized"));
     }
 
     let mut new_cfg = cfg;
-    new_cfg.owner = owner.clone();
+    new_cfg.owner = deps.api.addr_canonicalize(owner)?;
     store_config(deps.storage, &new_cfg)?;
 
     Ok(Response::new().add_attributes(vec![attr("action", "update_owner")]))
@@ -183,7 +183,7 @@ pub fn receive_cw20(
     match from_binary(&msg)? {
         Cw20HookMsg::DepositReward { rewards } => {
             // only reward token contract can execute this message
-            if config.nebula_token != info.sender.to_string() {
+            if config.nebula_token != deps.api.addr_canonicalize(info.sender.as_str())? {
                 return Err(StdError::generic_err("unauthorized"));
             }
 
@@ -204,7 +204,7 @@ pub fn receive_cw20(
 pub fn new_penalty_period(deps: DepsMut, info: MessageInfo) -> StdResult<Response> {
     let cfg = read_config(deps.storage)?;
 
-    if info.sender.to_string() != cfg.owner {
+    if deps.api.addr_canonicalize(info.sender.as_str())? != cfg.owner {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -251,12 +251,15 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let state = read_config(deps.storage)?;
     let resp = ConfigResponse {
-        factory: state.factory,
-        custody: state.custody,
-        terraswap_factory: state.terraswap_factory,
-        nebula_token: state.nebula_token,
+        factory: deps.api.addr_humanize(&state.factory)?.to_string(),
+        custody: deps.api.addr_humanize(&state.custody)?.to_string(),
+        terraswap_factory: deps
+            .api
+            .addr_humanize(&state.terraswap_factory)?
+            .to_string(),
+        nebula_token: deps.api.addr_humanize(&state.nebula_token)?.to_string(),
         base_denom: state.base_denom,
-        owner: state.owner,
+        owner: deps.api.addr_humanize(&state.owner)?.to_string(),
     };
 
     Ok(resp)

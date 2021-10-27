@@ -27,11 +27,11 @@ pub fn instantiate(
     store_config(
         deps.storage,
         &Config {
-            distribution_contract: msg.distribution_contract,
-            terraswap_factory: msg.terraswap_factory,
-            nebula_token: msg.nebula_token,
+            distribution_contract: deps.api.addr_canonicalize(&msg.distribution_contract)?,
+            terraswap_factory: deps.api.addr_canonicalize(&msg.terraswap_factory)?,
+            nebula_token: deps.api.addr_canonicalize(&msg.nebula_token)?,
             base_denom: msg.base_denom,
-            owner: msg.owner,
+            owner: deps.api.addr_canonicalize(&msg.owner)?,
         },
     )?;
 
@@ -73,7 +73,7 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> StdResult<Respon
     )?;
 
     let messages: Vec<CosmosMsg>;
-    if config.nebula_token == asset_token {
+    if config.nebula_token == deps.api.addr_canonicalize(&asset_token)? {
         // collateral token => nebula token
         let amount = query_balance(
             &deps.querier,
@@ -139,15 +139,18 @@ pub fn distribute(deps: DepsMut, env: Env) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
     let amount = query_token_balance(
         &deps.querier,
-        Addr::unchecked(config.nebula_token.to_string()),
+        deps.api.addr_humanize(&config.nebula_token)?,
         env.contract.address,
     )?;
 
     Ok(Response::new()
         .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: config.nebula_token.to_string(),
+            contract_addr: deps.api.addr_humanize(&config.nebula_token)?.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Send {
-                contract: config.distribution_contract.to_string(),
+                contract: deps
+                    .api
+                    .addr_humanize(&config.distribution_contract)?
+                    .to_string(),
                 amount,
                 msg: to_binary(&GovCw20HookMsg::DepositReward {})?,
             })?,
@@ -169,11 +172,17 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let state = read_config(deps.storage)?;
     let resp = ConfigResponse {
-        distribution_contract: state.distribution_contract,
-        terraswap_factory: state.terraswap_factory,
-        nebula_token: state.nebula_token,
+        distribution_contract: deps
+            .api
+            .addr_humanize(&state.distribution_contract)?
+            .to_string(),
+        terraswap_factory: deps
+            .api
+            .addr_humanize(&state.terraswap_factory)?
+            .to_string(),
+        nebula_token: deps.api.addr_humanize(&state.nebula_token)?.to_string(),
         base_denom: state.base_denom,
-        owner: state.owner,
+        owner: deps.api.addr_humanize(&state.owner)?.to_string(),
     };
 
     Ok(resp)

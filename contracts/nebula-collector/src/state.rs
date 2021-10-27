@@ -1,19 +1,19 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{StdResult, Storage};
+use cosmwasm_std::{CanonicalAddr, StdResult, Storage};
 use cosmwasm_storage::{singleton, singleton_read};
 
 static KEY_CONFIG: &[u8] = b"config";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
-    pub distribution_contract: String, // collected rewards receiver
-    pub terraswap_factory: String,     // terraswap factory contract
-    pub nebula_token: String,
+    pub distribution_contract: CanonicalAddr, // collected rewards receiver
+    pub terraswap_factory: CanonicalAddr,     // terraswap factory contract
+    pub nebula_token: CanonicalAddr,
     pub base_denom: String,
     // factory contract
-    pub owner: String,
+    pub owner: CanonicalAddr,
 }
 
 pub fn store_config(storage: &mut dyn Storage, config: &Config) -> StdResult<()> {

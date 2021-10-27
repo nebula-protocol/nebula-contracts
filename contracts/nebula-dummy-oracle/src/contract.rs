@@ -20,7 +20,7 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
     let cfg = Config {
-        owner: msg.owner.clone(),
+        owner: deps.api.addr_canonicalize(&msg.owner)?,
     };
 
     save_config(deps.storage, &cfg)?;
@@ -43,13 +43,14 @@ pub fn update_config(
     info: MessageInfo,
     owner: Option<String>,
 ) -> StdResult<Response> {
+    let api = deps.api;
     config_store(deps.storage).update(|mut config| {
-        if config.owner != info.sender.to_string() {
+        if config.owner != api.addr_canonicalize(info.sender.as_str())? {
             return Err(StdError::generic_err("unauthorized"));
         }
 
         if let Some(owner) = owner {
-            config.owner = owner;
+            config.owner = api.addr_canonicalize(&owner)?;
         }
 
         Ok(config)
@@ -67,7 +68,7 @@ pub fn try_set_prices(
     let cfg = read_config(deps.storage)?;
 
     // check permission
-    if info.sender.to_string() != cfg.owner {
+    if deps.api.addr_canonicalize(info.sender.as_str())? != cfg.owner {
         return Err(StdError::generic_err("unauthorized"));
     }
 

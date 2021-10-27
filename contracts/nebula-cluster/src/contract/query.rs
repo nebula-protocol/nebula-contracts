@@ -57,7 +57,7 @@ pub fn query_cluster_state(
         .map(|x| x.info.clone())
         .collect::<Vec<_>>();
 
-    let penalty: String = cfg.penalty.clone();
+    let penalty: String = deps.api.addr_humanize(&cfg.penalty)?.to_string();
 
     let cluster_token = cfg
         .cluster_token
@@ -65,7 +65,10 @@ pub fn query_cluster_state(
         .ok_or_else(|| StdError::generic_err("no cluster token exists"))?;
 
     // get supply from cluster token
-    let outstanding_balance_tokens = query_cw20_token_supply(&deps.querier, &cluster_token)?;
+    let outstanding_balance_tokens = query_cw20_token_supply(
+        &deps.querier,
+        &deps.api.addr_humanize(&cluster_token)?.to_string(),
+    )?;
 
     if !active && stale_threshold != u64::MIN {
         return Err(StdError::generic_err(
@@ -78,7 +81,7 @@ pub fn query_cluster_state(
         .map(|asset_info| {
             query_price(
                 &deps.querier,
-                &cfg.pricing_oracle,
+                &deps.api.addr_humanize(&cfg.pricing_oracle)?.to_string(),
                 asset_info,
                 stale_threshold,
             )
@@ -106,7 +109,7 @@ pub fn query_cluster_state(
         inv,
         target: target_asset_data,
         penalty,
-        cluster_token,
+        cluster_token: deps.api.addr_humanize(&cluster_token)?.to_string(),
         cluster_contract_address: cluster_contract_address.clone(),
         active,
     })

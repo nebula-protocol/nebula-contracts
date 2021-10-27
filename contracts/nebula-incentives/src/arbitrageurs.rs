@@ -22,10 +22,10 @@ use std::str::FromStr;
 
 pub fn get_pair_info(deps: Deps, cluster_token: &String) -> StdResult<PairInfo> {
     let config: Config = read_config(deps.storage)?;
-    let terraswap_factory_raw = config.terraswap_factory;
+    let terraswap_factory_addr = deps.api.addr_humanize(&config.terraswap_factory)?;
     query_pair_info(
         &deps.querier,
-        Addr::unchecked(terraswap_factory_raw),
+        terraswap_factory_addr,
         &[
             AssetInfo::NativeToken {
                 denom: config.base_denom,

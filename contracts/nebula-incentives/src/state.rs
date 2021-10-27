@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{DepsMut, StdResult, Storage, Uint128};
+use cosmwasm_std::{CanonicalAddr, DepsMut, StdResult, Storage, Uint128};
 use cosmwasm_storage::{singleton, singleton_read, Bucket, ReadonlyBucket};
 
 static KEY_CONFIG: &[u8] = b"config";
@@ -14,11 +14,11 @@ static PREFIX_REWARD: &[u8] = b"reward";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
-    pub owner: String,
-    pub factory: String,
-    pub custody: String,
-    pub terraswap_factory: String, // terraswap factory contract
-    pub nebula_token: String,
+    pub owner: CanonicalAddr,
+    pub factory: CanonicalAddr,
+    pub custody: CanonicalAddr,
+    pub terraswap_factory: CanonicalAddr, // terraswap factory contract
+    pub nebula_token: CanonicalAddr,
     pub base_denom: String,
 }
 

@@ -23,8 +23,8 @@ pub fn instantiate(
     store_config(
         deps.storage,
         &Config {
-            owner: msg.owner,
-            nebula_token: msg.nebula_token,
+            owner: deps.api.addr_canonicalize(&msg.owner)?,
+            nebula_token: deps.api.addr_canonicalize(&msg.nebula_token)?,
             spend_limit: msg.spend_limit,
         },
     )?;
@@ -54,12 +54,12 @@ pub fn update_config(
     spend_limit: Option<Uint128>,
 ) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
-    if config.owner != info.sender.to_string() {
+    if config.owner != deps.api.addr_canonicalize(info.sender.as_str())? {
         return Err(StdError::generic_err("unauthorized"));
     }
 
     if let Some(owner) = owner {
-        config.owner = owner;
+        config.owner = deps.api.addr_canonicalize(&owner)?;
     }
 
     if let Some(spend_limit) = spend_limit {
@@ -81,7 +81,7 @@ pub fn spend(
     amount: Uint128,
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
-    if config.owner != info.sender.to_string() {
+    if config.owner != deps.api.addr_canonicalize(info.sender.as_str())? {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -91,7 +91,7 @@ pub fn spend(
 
     Ok(Response::new()
         .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: config.nebula_token,
+            contract_addr: deps.api.addr_humanize(&config.nebula_token)?.to_string(),
             funds: vec![],
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: recipient.clone(),
@@ -115,8 +115,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let state = read_config(deps.storage)?;
     let resp = ConfigResponse {
-        owner: state.owner,
-        nebula_token: state.nebula_token,
+        owner: deps.api.addr_humanize(&state.owner)?.to_string(),
+        nebula_token: deps.api.addr_humanize(&state.nebula_token)?.to_string(),
         spend_limit: state.spend_limit,
     };
 

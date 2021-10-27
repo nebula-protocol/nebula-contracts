@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{Order, StdError, StdResult, Storage, Uint128};
+use cosmwasm_std::{Addr, CanonicalAddr, Order, StdError, StdResult, Storage, Uint128};
 use cosmwasm_storage::{singleton, singleton_read, Bucket, ReadonlyBucket, Singleton};
 
 use nebula_protocol::cluster_factory::Params;
@@ -18,11 +18,11 @@ static PREFIX_CLUSTERS: &[u8] = b"clusters";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
-    pub owner: String,
-    pub nebula_token: String,
-    pub terraswap_factory: String,
-    pub staking_contract: String,
-    pub commission_collector: String,
+    pub owner: CanonicalAddr,
+    pub nebula_token: CanonicalAddr,
+    pub terraswap_factory: CanonicalAddr,
+    pub staking_contract: CanonicalAddr,
+    pub commission_collector: CanonicalAddr,
     pub protocol_fee_rate: String,
     pub token_code_id: u64, // used to create asset token
     pub cluster_code_id: u64,
@@ -63,19 +63,19 @@ pub fn get_cluster_data(storage: &dyn Storage) -> StdResult<Vec<(String, bool)>>
         .collect::<StdResult<Vec<(String, bool)>>>()
 }
 
-pub fn store_tmp_cluster(storage: &mut dyn Storage, contract_addr: &String) -> StdResult<()> {
+pub fn store_tmp_cluster(storage: &mut dyn Storage, contract_addr: &Addr) -> StdResult<()> {
     singleton(storage, KEY_TMP_CLUSTER).save(contract_addr)
 }
 
-pub fn read_tmp_asset(storage: &dyn Storage) -> StdResult<String> {
+pub fn read_tmp_asset(storage: &dyn Storage) -> StdResult<Addr> {
     singleton_read(storage, KEY_TMP_ASSET).load()
 }
 
-pub fn store_tmp_asset(storage: &mut dyn Storage, contract_addr: &String) -> StdResult<()> {
+pub fn store_tmp_asset(storage: &mut dyn Storage, contract_addr: &Addr) -> StdResult<()> {
     singleton(storage, KEY_TMP_ASSET).save(contract_addr)
 }
 
-pub fn read_tmp_cluster(storage: &dyn Storage) -> StdResult<String> {
+pub fn read_tmp_cluster(storage: &dyn Storage) -> StdResult<Addr> {
     singleton_read(storage, KEY_TMP_CLUSTER).load()
 }
 
@@ -127,37 +127,35 @@ pub fn read_last_distributed(storage: &dyn Storage) -> StdResult<u64> {
     singleton_read(storage, KEY_LAST_DISTRIBUTED).load()
 }
 
-pub fn store_weight(storage: &mut dyn Storage, asset_token: &String, weight: u32) -> StdResult<()> {
+pub fn store_weight(
+    storage: &mut dyn Storage,
+    asset_token: &CanonicalAddr,
+    weight: u32,
+) -> StdResult<()> {
     let mut weight_bucket: Bucket<u32> = Bucket::new(storage, PREFIX_WEIGHT);
-    weight_bucket.save(asset_token.as_str().as_bytes(), &weight)
+    weight_bucket.save(asset_token.as_slice(), &weight)
 }
 
-pub fn read_weight(storage: &dyn Storage, asset_token: &String) -> StdResult<u32> {
+pub fn read_weight(storage: &dyn Storage, asset_token: &CanonicalAddr) -> StdResult<u32> {
     let weight_bucket: ReadonlyBucket<u32> = ReadonlyBucket::new(storage, PREFIX_WEIGHT);
-    match weight_bucket.load(asset_token.as_str().as_bytes()) {
+    match weight_bucket.load(asset_token.as_slice()) {
         Ok(v) => Ok(v),
         _ => Err(StdError::generic_err("No distribution info stored")),
     }
 }
 
-pub fn remove_weight(storage: &mut dyn Storage, asset_token: &String) {
+pub fn remove_weight(storage: &mut dyn Storage, asset_token: &CanonicalAddr) {
     let mut weight_bucket: Bucket<u32> = Bucket::new(storage, PREFIX_WEIGHT);
-    weight_bucket.remove(asset_token.as_str().as_bytes());
+    weight_bucket.remove(asset_token.as_slice());
 }
 
-pub fn read_all_weight(storage: &dyn Storage) -> StdResult<Vec<(String, u32)>> {
+pub fn read_all_weight(storage: &dyn Storage) -> StdResult<Vec<(CanonicalAddr, u32)>> {
     let weight_bucket: ReadonlyBucket<u32> = ReadonlyBucket::new(storage, PREFIX_WEIGHT);
     weight_bucket
         .range(None, None, Order::Ascending)
         .map(|item| {
             let (k, v) = item?;
-
-            Ok((
-                std::str::from_utf8(&k)
-                    .map_err(|_| StdError::invalid_utf8("invalid weight asset address"))?
-                    .to_string(),
-                v,
-            ))
+            Ok((CanonicalAddr::from(k), v))
         })
         .collect()
 }

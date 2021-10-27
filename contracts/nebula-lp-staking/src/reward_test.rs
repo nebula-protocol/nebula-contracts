@@ -3,7 +3,7 @@ mod tests {
     use crate::contract::{execute, instantiate, query};
     use crate::state::{rewards_read, RewardInfo};
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{from_binary, to_binary, CosmosMsg, Decimal, SubMsg, Uint128, WasmMsg};
+    use cosmwasm_std::{from_binary, to_binary, Api, CosmosMsg, Decimal, SubMsg, Uint128, WasmMsg};
     use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
     use nebula_protocol::staking::{
         Cw20HookMsg, ExecuteMsg, InstantiateMsg, PoolInfoResponse, QueryMsg, RewardInfoResponse,
@@ -181,11 +181,10 @@ mod tests {
         let info = mock_info("reward", &[]);
         let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        let user_addr = "addr".to_string();
-        let asset_addr = "asset".to_string();
-
-        let reward_bucket = rewards_read(deps.as_mut().storage, &user_addr);
-        let reward_info: RewardInfo = reward_bucket.load(asset_addr.as_str().as_bytes()).unwrap();
+        let asset_raw = deps.api.addr_canonicalize("asset").unwrap();
+        let addr_raw = deps.api.addr_canonicalize("addr").unwrap();
+        let reward_bucket = rewards_read(deps.as_mut().storage, &addr_raw);
+        let reward_info: RewardInfo = reward_bucket.load(asset_raw.as_slice()).unwrap();
         assert_eq!(
             RewardInfo {
                 pending_reward: Uint128::zero(),
@@ -207,8 +206,8 @@ mod tests {
         let info = mock_info("staking", &[]);
         let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        let reward_bucket = rewards_read(deps.as_mut().storage, &user_addr);
-        let reward_info: RewardInfo = reward_bucket.load(asset_addr.as_str().as_bytes()).unwrap();
+        let reward_bucket = rewards_read(deps.as_mut().storage, &addr_raw);
+        let reward_info: RewardInfo = reward_bucket.load(asset_raw.as_slice()).unwrap();
         assert_eq!(
             RewardInfo {
                 pending_reward: Uint128::new(100u128),
@@ -238,8 +237,8 @@ mod tests {
         let info = mock_info("addr", &[]);
         let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        let reward_bucket = rewards_read(deps.as_mut().storage, &user_addr);
-        let reward_info: RewardInfo = reward_bucket.load(asset_addr.as_str().as_bytes()).unwrap();
+        let reward_bucket = rewards_read(deps.as_mut().storage, &addr_raw);
+        let reward_info: RewardInfo = reward_bucket.load(asset_raw.as_slice()).unwrap();
         assert_eq!(
             RewardInfo {
                 pending_reward: Uint128::new(200u128),

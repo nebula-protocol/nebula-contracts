@@ -36,9 +36,9 @@ pub fn deposit_reward(
 
     Ok(Response::new()
         .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: cfg.nebula_token,
+            contract_addr: deps.api.addr_humanize(&cfg.nebula_token)?.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: cfg.custody,
+                recipient: deps.api.addr_humanize(&cfg.custody)?.to_string(),
                 amount: rewards_amount,
             })?,
             funds: vec![],
@@ -51,7 +51,7 @@ pub fn deposit_reward(
 
 // withdraw all rewards or single reward depending on asset_token
 pub fn withdraw_reward(deps: DepsMut, info: MessageInfo) -> StdResult<Response> {
-    let cfg = read_config(deps.storage)?;
+    let config: Config = read_config(deps.storage)?;
 
     let reward_owner = info.sender.to_string();
 
@@ -76,18 +76,16 @@ pub fn withdraw_reward(deps: DepsMut, info: MessageInfo) -> StdResult<Response> 
     let reward_amt = read_pending_rewards(deps.storage, &reward_owner);
     store_pending_rewards(deps.storage, &reward_owner, Uint128::zero())?;
 
-    let config: Config = read_config(deps.storage)?;
-
     Ok(Response::new()
         .add_messages(vec![
             // withdraw reward amount from custody contract
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: cfg.custody,
+                contract_addr: deps.api.addr_humanize(&config.custody)?.to_string(),
                 msg: to_binary(&ExtExecuteMsg::RequestNeb { amount: reward_amt })?,
                 funds: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: config.nebula_token,
+                contract_addr: deps.api.addr_humanize(&config.nebula_token)?.to_string(),
                 msg: to_binary(&Cw20ExecuteMsg::Transfer {
                     recipient: reward_owner,
                     amount: reward_amt,

@@ -45,12 +45,12 @@ pub fn instantiate(
     let cfg = ClusterConfig {
         name: msg.name.clone(),
         description: msg.description.clone(),
-        owner: msg.owner.clone(),
-        cluster_token: msg.cluster_token,
-        factory: msg.factory,
-        pricing_oracle: msg.pricing_oracle.clone(),
-        target_oracle: msg.target_oracle.clone(),
-        penalty: msg.penalty.clone(),
+        owner: deps.api.addr_canonicalize(&msg.owner)?,
+        cluster_token: Some(deps.api.addr_canonicalize(&msg.cluster_token.unwrap())?),
+        factory: deps.api.addr_canonicalize(&msg.factory)?,
+        pricing_oracle: deps.api.addr_canonicalize(&msg.pricing_oracle)?,
+        target_oracle: deps.api.addr_canonicalize(&msg.target_oracle)?,
+        penalty: deps.api.addr_canonicalize(&msg.penalty)?,
         active: true,
     };
 

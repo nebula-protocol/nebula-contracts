@@ -9,7 +9,7 @@ use cluster_math::{
     dot, imbalance, int32_vec_to_fpdec, int_vec_to_fpdec, str_vec_to_fpdec, FPDecimal,
 };
 use cosmwasm_std::testing::{mock_env, mock_info};
-use cosmwasm_std::{attr, from_binary, DepsMut, Env, StdError, Timestamp, Uint128};
+use cosmwasm_std::{attr, from_binary, Api, DepsMut, Env, StdError, Timestamp, Uint128};
 use nebula_protocol::penalty::{
     ExecuteMsg, InstantiateMsg, PenaltyCreateResponse, PenaltyParams, PenaltyRedeemResponse,
     QueryMsg,
@@ -66,7 +66,7 @@ fn proper_initialization() {
     assert_eq!(
         config,
         PenaltyConfig {
-            owner: "penalty_owner".to_string(),
+            owner: deps.api.addr_canonicalize("penalty_owner").unwrap(),
             penalty_params: PenaltyParams {
                 penalty_amt_lo: FPDecimal::from_str("0.1").unwrap(),
                 penalty_cutoff_lo: FPDecimal::from_str("0.01").unwrap(),

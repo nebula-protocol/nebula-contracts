@@ -1,5 +1,5 @@
-use cosmwasm_std::{StdResult};
-use cosmwasm_storage::{singleton_read, singleton};
+use cosmwasm_std::{CanonicalAddr, StdResult, Storage};
+use cosmwasm_storage::{singleton, singleton_read};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -8,7 +8,7 @@ pub static CONFIG: &[u8] = b"config";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
-    pub terraswap_factory: String,
+    pub terraswap_factory: CanonicalAddr,
     pub base_denom: String,
 }
 

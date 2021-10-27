@@ -1,6 +1,6 @@
 use std::u64;
 
-use cosmwasm_std::{Decimal, StdResult, Storage};
+use cosmwasm_std::{CanonicalAddr, Decimal, StdResult, Storage};
 use cosmwasm_storage::{bucket, bucket_read, singleton, singleton_read, Singleton};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -11,7 +11,7 @@ pub static KEY_TIMESTAMP: &[u8] = b"timestamps";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
-    pub owner: String,
+    pub owner: CanonicalAddr,
 }
 
 pub fn save_config(storage: &mut dyn Storage, config: &Config) -> StdResult<()> {

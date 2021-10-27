@@ -7,8 +7,8 @@ use crate::state::{
 };
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    attr, from_binary, to_binary, ContractResult, CosmosMsg, Env, Reply, ReplyOn, StdError, SubMsg,
-    SubMsgExecutionResponse, Timestamp, Uint128, WasmMsg,
+    attr, from_binary, to_binary, Api, ContractResult, CosmosMsg, Env, Reply, ReplyOn, StdError,
+    SubMsg, SubMsgExecutionResponse, Timestamp, Uint128, WasmMsg,
 };
 use protobuf::Message;
 
@@ -266,12 +266,18 @@ fn test_update_weight() {
     };
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
+    let api = deps.api;
     store_total_weight(deps.as_mut().storage, 100).unwrap();
-    store_weight(deps.as_mut().storage, &h("asset0000"), 10).unwrap();
+    store_weight(
+        deps.as_mut().storage,
+        &api.addr_canonicalize("asset0000").unwrap(),
+        10,
+    )
+    .unwrap();
 
     // incrase weight
     let msg = ExecuteMsg::UpdateWeight {
-        asset_token: h("asset0000"),
+        asset_token: "asset0000".to_string(),
         weight: 20,
     };
     let info = mock_info("owner0001", &[]);
@@ -288,13 +294,16 @@ fn test_update_weight() {
     assert_eq!(
         distribution_info,
         DistributionInfoResponse {
-            weights: vec![(h("asset0000"), 20), (h("nebula0000"), 300)],
+            weights: vec![(h("nebula0000"), 300), (h("asset0000"), 20)],
             last_distributed: 1_571_797_419,
         }
     );
-
     assert_eq!(
-        read_weight(deps.as_mut().storage, &h("asset0000")).unwrap(),
+        read_weight(
+            deps.as_mut().storage,
+            &api.addr_canonicalize("asset0000").unwrap()
+        )
+        .unwrap(),
         20u32
     );
     assert_eq!(read_total_weight(deps.as_mut().storage).unwrap(), 110u32);
@@ -614,7 +623,7 @@ fn test_set_cluster_token_hook() {
     assert_eq!(
         distribution_info,
         DistributionInfoResponse {
-            weights: vec![(h("cluster_token0000"), 100), (h("nebula0000"), 300)],
+            weights: vec![(h("nebula0000"), 300), (h("cluster_token0000"), 100)],
             last_distributed: 1_571_797_419,
         }
     );
@@ -747,7 +756,7 @@ fn test_set_cluster_token_hook_without_weight() {
     assert_eq!(
         distribution_info,
         DistributionInfoResponse {
-            weights: vec![(h("cluster_token0000"), 30), (h("nebula0000"), 300)],
+            weights: vec![(h("nebula0000"), 300), (h("cluster_token0000"), 30)],
             last_distributed: 1_571_797_419,
         }
     );
@@ -1006,9 +1015,9 @@ fn test_distribute() {
                 amount: Uint128::new(7199u128),
                 msg: to_binary(&StakingCw20HookMsg::DepositReward {
                     rewards: vec![
+                        (h("nebula0000"), Uint128::new(5023)),
                         (h("cluster_token0000"), Uint128::new(1674)),
                         (h("cluster_token0001"), Uint128::new(502)),
-                        (h("nebula0000"), Uint128::new(5023)),
                     ],
                 })
                 .unwrap()
@@ -1024,9 +1033,9 @@ fn test_distribute() {
         distribution_info,
         DistributionInfoResponse {
             weights: vec![
+                (h("nebula0000"), 300),
                 (h("cluster_token0000"), 100),
                 (h("cluster_token0001"), 30),
-                (h("nebula0000"), 300)
             ],
             last_distributed: 1_571_802_819,
         }
@@ -1163,7 +1172,11 @@ fn test_decommission_cluster() {
         }
     );
 
-    let res = read_weight(&deps.storage, &h("asset0000")).unwrap_err();
+    let res = read_weight(
+        &deps.storage,
+        &deps.api.addr_canonicalize("asset0000").unwrap(),
+    )
+    .unwrap_err();
     match res {
         StdError::GenericErr { msg, .. } => {
             assert_eq!(msg, "No distribution info stored")

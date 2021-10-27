@@ -84,13 +84,14 @@ pub fn update_config(
     target: Option<Vec<Asset>>,
 ) -> StdResult<Response> {
     // First, update cluster config
+    let api = deps.api;
     config_store(deps.storage).update(|mut config| {
-        if config.owner != info.sender.to_string() {
+        if config.owner != api.addr_canonicalize(info.sender.as_str())? {
             return Err(StdError::generic_err("unauthorized"));
         }
 
         if let Some(owner) = owner {
-            config.owner = owner;
+            config.owner = api.addr_canonicalize(owner.as_str())?;
         }
 
         if let Some(name) = name {
@@ -103,19 +104,21 @@ pub fn update_config(
 
         match cluster_token {
             None => {}
-            Some(_) => config.cluster_token = cluster_token,
+            Some(_) => {
+                config.cluster_token = Some(api.addr_canonicalize(&cluster_token.unwrap())?);
+            }
         }
 
         if let Some(pricing_oracle) = pricing_oracle {
-            config.pricing_oracle = pricing_oracle;
+            config.pricing_oracle = api.addr_canonicalize(&pricing_oracle)?;
         }
 
         if let Some(target_oracle) = target_oracle {
-            config.target_oracle = target_oracle;
+            config.target_oracle = api.addr_canonicalize(&target_oracle)?
         }
 
         if let Some(penalty) = penalty {
-            config.penalty = penalty;
+            config.penalty = api.addr_canonicalize(&penalty)?
         }
 
         Ok(config)
@@ -146,7 +149,9 @@ pub fn update_target(
         return Err(error::cluster_token_not_set());
     }
     // check permission
-    if (info.sender.to_string() != cfg.owner) && (info.sender.to_string() != cfg.target_oracle) {
+    if (deps.api.addr_canonicalize(info.sender.as_str())? != cfg.owner)
+        && (deps.api.addr_canonicalize(info.sender.as_str())? != cfg.target_oracle)
+    {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -218,7 +223,7 @@ pub fn decommission(deps: DepsMut, info: MessageInfo) -> StdResult<Response> {
         return Err(error::cluster_token_not_set());
     }
     // check permission for factory
-    if info.sender.to_string() != cfg.factory {
+    if deps.api.addr_canonicalize(info.sender.as_str())? != cfg.factory {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -363,7 +368,7 @@ pub fn create(
     if !cluster_token_supply.is_zero() {
         let mint_response = query_create_amount(
             &deps.querier,
-            &cfg.penalty.clone(),
+            &deps.api.addr_humanize(&cfg.penalty)?.to_string(),
             env.block.height,
             cluster_token_supply,
             inv.clone(),
@@ -373,8 +378,10 @@ pub fn create(
         )?;
         let mint_total = mint_response.create_tokens;
 
-        let (collector_address, fee_rate) =
-            query_collector_contract_address(&deps.querier, &cfg.factory)?;
+        let (collector_address, fee_rate) = query_collector_contract_address(
+            &deps.querier,
+            &deps.api.addr_humanize(&cfg.factory)?.to_string(),
+        )?;
         let fee_rate = FPDecimal::from_str(&*fee_rate)?;
 
         // mint_to_sender = mint_total * (1 - fee_rate)
@@ -387,7 +394,7 @@ pub fn create(
         // afterwards, notify the penalty contract that this update happened so
         // it can make stateful updates...
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: cfg.penalty.to_string(),
+            contract_addr: deps.api.addr_humanize(&cfg.penalty)?.to_string(),
             msg: to_binary(&PenaltyExecuteMsg::PenaltyCreate {
                 block_height: env.block.height,
                 cluster_token_supply,
@@ -402,7 +409,7 @@ pub fn create(
         // actually mint the tokens
         if !protocol_fee.is_zero() {
             messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: cluster_token.to_string(),
+                contract_addr: deps.api.addr_humanize(&cluster_token)?.to_string(),
                 msg: to_binary(&Cw20ExecuteMsg::Mint {
                     amount: protocol_fee,
                     recipient: collector_address.to_string(),
@@ -458,7 +465,7 @@ pub fn create(
     }
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: cluster_token.to_string(),
+        contract_addr: deps.api.addr_humanize(&cluster_token)?.to_string(),
         msg: to_binary(&Cw20ExecuteMsg::Mint {
             amount: mint_to_sender,
             recipient: info.sender.to_string(),
@@ -545,8 +552,10 @@ pub fn receive_redeem(
         None => vec![],
     };
 
-    let (collector_address, fee_rate) =
-        query_collector_contract_address(&deps.querier, &cfg.factory)?;
+    let (collector_address, fee_rate) = query_collector_contract_address(
+        &deps.querier,
+        &deps.api.addr_humanize(&cfg.factory)?.to_string(),
+    )?;
 
     let fee_rate: FPDecimal = FPDecimal::from_str(&fee_rate)?;
     let keep_rate: FPDecimal = FPDecimal::one() - fee_rate;
@@ -556,7 +565,7 @@ pub fn receive_redeem(
 
     let redeem_response = query_redeem_amount(
         &deps.querier,
-        &cfg.penalty,
+        &deps.api.addr_humanize(&cfg.penalty)?.to_string(),
         env.block.height,
         cluster_token_supply,
         inv.clone(),
@@ -606,7 +615,7 @@ pub fn receive_redeem(
     let fee_amt: Uint128 = Uint128::from(fee_amt);
     if !fee_amt.is_zero() {
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: cluster_token.to_string(),
+            contract_addr: deps.api.addr_humanize(&cluster_token)?.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
                 owner: sender.clone(),
                 amount: fee_amt,
@@ -618,7 +627,7 @@ pub fn receive_redeem(
 
     // burn the rest from allowance
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: cluster_token.to_string(),
+        contract_addr: deps.api.addr_humanize(&cluster_token)?.to_string(),
         msg: to_binary(&Cw20ExecuteMsg::BurnFrom {
             owner: sender.clone(),
             amount: token_cost.checked_sub(fee_amt)?,
@@ -629,7 +638,7 @@ pub fn receive_redeem(
     // afterwards, notify the penalty contract that this update happened so
     // it can make stateful updates...
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: cfg.penalty.to_string(),
+        contract_addr: deps.api.addr_humanize(&cfg.penalty)?.to_string(),
         msg: to_binary(&PenaltyExecuteMsg::PenaltyRedeem {
             block_height: env.block.height,
             cluster_token_supply,

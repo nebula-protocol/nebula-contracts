@@ -2,8 +2,8 @@
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    to_binary, Binary, Decimal, Env, Deps, DepsMut, Response, 
-    QueryRequest, StdResult, WasmQuery, MessageInfo
+    to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, QueryRequest, Response, StdResult,
+    WasmQuery,
 };
 
 use terraswap::asset::{AssetInfo, PairInfo};
@@ -18,11 +18,11 @@ use terraswap::pair::PoolResponse;
 pub fn instantiate(
     deps: DepsMut,
     _env: Env,
-    info: MessageInfo,
+    _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
     let config = Config {
-        terraswap_factory: msg.terraswap_factory,
+        terraswap_factory: deps.api.addr_canonicalize(&msg.terraswap_factory)?,
         base_denom: msg.base_denom,
     };
 
@@ -32,36 +32,25 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    msg: ExecuteMsg
+    _deps: DepsMut,
+    _env: Env,
+    _info: MessageInfo,
+    _msg: ExecuteMsg,
 ) -> StdResult<Response> {
     Ok(Response::default())
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(
-    deps: Deps,
-    _env: Env,
-    msg: QueryMsg,
-) -> StdResult<Binary> {
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Price { base_asset, .. } => to_binary(&query_price(deps, base_asset)?),
     }
 }
 
-fn query_price(
-    deps: Deps,
-    asset: String,
-) -> StdResult<PriceResponse> {
+fn query_price(deps: Deps, asset: String) -> StdResult<PriceResponse> {
     let cfg = read_config(deps.storage)?;
 
-    let asset_info = if deps
-        .api
-        .canonical_address(&(asset.as_str()))
-        .is_ok()
-    {
+    let asset_info = if deps.api.addr_canonicalize(&(asset.as_str())).is_ok() {
         AssetInfo::Token {
             contract_addr: (asset),
         }
@@ -70,8 +59,8 @@ fn query_price(
     };
 
     let pair_info: PairInfo = query_pair_info(
-        &deps,
-        &cfg.terraswap_factory,
+        &deps.querier,
+        deps.api.addr_humanize(&cfg.terraswap_factory)?,
         &[
             AssetInfo::NativeToken {
                 denom: cfg.base_denom.to_string(),

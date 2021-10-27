@@ -2,7 +2,7 @@
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    attr, from_binary, to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response,
+    attr, from_binary, to_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response,
     StdError, StdResult, Uint128,
 };
 
@@ -26,9 +26,9 @@ pub fn instantiate(
     store_config(
         deps.storage,
         &Config {
-            owner: msg.owner,
-            nebula_token: msg.nebula_token,
-            terraswap_factory: msg.terraswap_factory,
+            owner: deps.api.addr_canonicalize(&msg.owner)?,
+            nebula_token: deps.api.addr_canonicalize(&msg.nebula_token)?,
+            terraswap_factory: deps.api.addr_canonicalize(&msg.terraswap_factory)?,
         },
     )?;
 
@@ -39,16 +39,38 @@ pub fn instantiate(
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
         ExecuteMsg::Receive(msg) => receive_cw20(deps, info, msg),
-        ExecuteMsg::UpdateConfig { owner } => update_config(deps, info, owner),
+        ExecuteMsg::UpdateConfig { owner } => {
+            let owner_addr = if let Some(owner_addr) = owner {
+                Some(deps.api.addr_validate(&owner_addr)?)
+            } else {
+                None
+            };
+            update_config(deps, info, owner_addr)
+        }
         ExecuteMsg::RegisterAsset {
             asset_token,
             staking_token,
-        } => register_asset(deps, info, asset_token, staking_token),
+        } => {
+            let api = deps.api;
+            register_asset(
+                deps,
+                info,
+                api.addr_validate(&asset_token)?,
+                api.addr_validate(&staking_token)?,
+            )
+        }
         ExecuteMsg::Unbond {
             asset_token,
             amount,
         } => unbond(deps, info.sender.to_string(), asset_token, amount),
-        ExecuteMsg::Withdraw { asset_token } => withdraw_reward(deps, info, asset_token),
+        ExecuteMsg::Withdraw { asset_token } => {
+            let asset_addr = if let Some(asset_addr) = asset_token {
+                Some(deps.api.addr_validate(&asset_addr)?)
+            } else {
+                None
+            };
+            withdraw_reward(deps, info, asset_addr)
+        }
         ExecuteMsg::AutoStake {
             assets,
             slippage_tolerance,
@@ -58,15 +80,18 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             staking_token,
             staker_addr,
             prev_staking_token_amount,
-        } => auto_stake_hook(
-            deps,
-            env,
-            info,
-            asset_token,
-            staking_token,
-            staker_addr,
-            prev_staking_token_amount,
-        ),
+        } => {
+            let api = deps.api;
+            auto_stake_hook(
+                deps,
+                env,
+                info,
+                api.addr_validate(&asset_token)?,
+                api.addr_validate(&staking_token)?,
+                api.addr_validate(&staker_addr)?,
+                prev_staking_token_amount,
+            )
+        }
     }
 }
 
@@ -80,18 +105,25 @@ pub fn receive_cw20(
 
     match from_binary(&msg)? {
         Cw20HookMsg::Bond { asset_token } => {
-            let pool_info: PoolInfo = read_pool_info(deps.storage, &asset_token)?;
+            let pool_info: PoolInfo =
+                read_pool_info(deps.storage, &deps.api.addr_canonicalize(&asset_token)?)?;
 
             // only staking token contract can execute this message
-            if pool_info.staking_token != info.sender.to_string() {
+            if pool_info.staking_token != deps.api.addr_canonicalize(info.sender.as_str())? {
                 return Err(StdError::generic_err("unauthorized"));
             }
-
-            bond(deps, info, cw20_msg.sender, asset_token, cw20_msg.amount)
+            let api = deps.api;
+            bond(
+                deps,
+                info,
+                api.addr_validate(cw20_msg.sender.as_str())?,
+                api.addr_validate(asset_token.as_str())?,
+                cw20_msg.amount,
+            )
         }
         Cw20HookMsg::DepositReward { rewards } => {
             // only reward token contract can execute this message
-            if config.nebula_token != info.sender.to_string() {
+            if config.nebula_token != deps.api.addr_canonicalize(info.sender.as_str())? {
                 return Err(StdError::generic_err("unauthorized"));
             }
 
@@ -109,19 +141,15 @@ pub fn receive_cw20(
     }
 }
 
-pub fn update_config(
-    deps: DepsMut,
-    info: MessageInfo,
-    owner: Option<String>,
-) -> StdResult<Response> {
+pub fn update_config(deps: DepsMut, info: MessageInfo, owner: Option<Addr>) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
 
-    if info.sender != config.owner {
+    if deps.api.addr_canonicalize(info.sender.as_str())? != config.owner {
         return Err(StdError::generic_err("unauthorized"));
     }
 
     if let Some(owner) = owner {
-        config.owner = owner;
+        config.owner = deps.api.addr_canonicalize(owner.as_str())?;
     }
 
     store_config(deps.storage, &config)?;
@@ -131,24 +159,25 @@ pub fn update_config(
 fn register_asset(
     deps: DepsMut,
     info: MessageInfo,
-    asset_token: String,
-    staking_token: String,
+    asset_token: Addr,
+    staking_token: Addr,
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
+    let asset_token_raw = deps.api.addr_canonicalize(asset_token.as_str())?;
 
-    if config.owner != info.sender.to_string() {
+    if config.owner != deps.api.addr_canonicalize(info.sender.as_str())? {
         return Err(StdError::generic_err("unauthorized"));
     }
 
-    if read_pool_info(deps.storage, &asset_token).is_ok() {
+    if read_pool_info(deps.storage, &asset_token_raw).is_ok() {
         return Err(StdError::generic_err("Asset was already registered"));
     }
 
     store_pool_info(
         deps.storage,
-        &asset_token,
+        &asset_token_raw,
         &PoolInfo {
-            staking_token,
+            staking_token: deps.api.addr_canonicalize(staking_token.as_str())?,
             total_bond_amount: Uint128::zero(),
             reward_index: Decimal::zero(),
             pending_reward: Uint128::zero(),
@@ -176,18 +205,22 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let state = read_config(deps.storage)?;
     let resp = ConfigResponse {
-        owner: state.owner,
-        nebula_token: state.nebula_token,
+        owner: deps.api.addr_humanize(&state.owner)?.to_string(),
+        nebula_token: deps.api.addr_humanize(&state.nebula_token)?.to_string(),
     };
 
     Ok(resp)
 }
 
 pub fn query_pool_info(deps: Deps, asset_token: String) -> StdResult<PoolInfoResponse> {
-    let pool_info: PoolInfo = read_pool_info(deps.storage, &asset_token)?;
+    let asset_token_raw = deps.api.addr_canonicalize(&asset_token)?;
+    let pool_info: PoolInfo = read_pool_info(deps.storage, &asset_token_raw)?;
     Ok(PoolInfoResponse {
         asset_token,
-        staking_token: pool_info.staking_token,
+        staking_token: deps
+            .api
+            .addr_humanize(&pool_info.staking_token)?
+            .to_string(),
         total_bond_amount: pool_info.total_bond_amount,
         reward_index: pool_info.reward_index,
         pending_reward: pool_info.pending_reward,

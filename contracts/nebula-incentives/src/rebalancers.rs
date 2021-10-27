@@ -29,7 +29,7 @@ pub fn get_cluster_state(deps: Deps, cluster: &String) -> StdResult<ClusterState
 pub fn assert_cluster_exists(deps: Deps, cluster: &String) -> StdResult<bool> {
     let cfg = read_config(deps.storage)?;
     let res: ClusterExistsResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: cfg.factory,
+        contract_addr: deps.api.addr_humanize(&cfg.factory)?.to_string(),
         msg: to_binary(&ClusterExists {
             contract_addr: cluster.clone(),
         })?,
