@@ -29,8 +29,8 @@ pub fn instantiate(
     store_config(
         deps.storage,
         &Config {
-            owner: msg.owner,
-            nebula_token: msg.nebula_token,
+            owner: deps.api.addr_canonicalize(&msg.owner)?,
+            nebula_token: deps.api.addr_canonicalize(&msg.nebula_token)?,
         },
     )?;
 
@@ -66,12 +66,12 @@ pub fn update_config(
     owner: Option<String>,
 ) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
-    if info.sender.to_string() != config.owner {
+    if deps.api.addr_canonicalize(info.sender.as_str())? != config.owner {
         return Err(StdError::generic_err("unauthorized"));
     }
 
     if let Some(owner) = owner {
-        config.owner = owner;
+        config.owner = deps.api.addr_canonicalize(&owner)?;
     }
 
     store_config(deps.storage, &config)?;
@@ -92,7 +92,7 @@ pub fn register_merkle_root(
     merkle_root: String,
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
-    if info.sender.to_string() != config.owner {
+    if deps.api.addr_canonicalize(info.sender.as_str())? != config.owner {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -121,8 +121,10 @@ pub fn claim(
     let config: Config = read_config(deps.storage)?;
     let merkle_root: String = read_merkle_root(deps.storage, stage)?;
 
+    let user_raw = deps.api.addr_canonicalize(info.sender.as_str())?;
+
     // If user claimed target stage, return err
-    if read_claimed(deps.storage, &info.sender.to_string(), stage)? {
+    if read_claimed(deps.storage, &user_raw, stage)? {
         return Err(StdError::generic_err("Already claimed"));
     }
 
@@ -154,13 +156,13 @@ pub fn claim(
     if root_buf != hash {
         return Err(StdError::generic_err("Verification is failed"));
     }
-
+    let user_raw = deps.api.addr_canonicalize(info.sender.as_str())?;
     // Update claim index to the current stage
-    store_claimed(deps.storage, &info.sender.to_string(), stage)?;
+    store_claimed(deps.storage, &user_raw, stage)?;
 
     Ok(Response::new()
         .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: config.nebula_token.to_string(),
+            contract_addr: deps.api.addr_humanize(&config.nebula_token)?.to_string(),
             funds: vec![],
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: info.sender.to_string(),
@@ -207,8 +209,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let state = read_config(deps.storage)?;
     let resp = ConfigResponse {
-        owner: state.owner,
-        nebula_token: state.nebula_token,
+        owner: deps.api.addr_humanize(&state.owner)?.to_string(),
+        nebula_token: deps.api.addr_humanize(&state.nebula_token)?.to_string(),
     };
 
     Ok(resp)
@@ -229,8 +231,9 @@ pub fn query_latest_stage(deps: Deps) -> StdResult<LatestStageResponse> {
 }
 
 pub fn query_is_claimed(deps: Deps, stage: u8, address: String) -> StdResult<IsClaimedResponse> {
+    let address_raw = deps.api.addr_canonicalize(&address)?;
     let resp = IsClaimedResponse {
-        is_claimed: read_claimed(deps.storage, &address, stage)?,
+        is_claimed: read_claimed(deps.storage, &address_raw, stage)?,
     };
 
     Ok(resp)
