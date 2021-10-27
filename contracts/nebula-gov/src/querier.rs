@@ -1,17 +1,17 @@
-use cosmwasm_std::{to_binary, Deps, QueryRequest, StdResult, Uint128, WasmQuery};
+use cosmwasm_std::{to_binary, CanonicalAddr, Deps, QueryRequest, StdResult, Uint128, WasmQuery};
 
 use cw20::{BalanceResponse, Cw20QueryMsg};
 
 pub fn load_token_balance(
     deps: Deps,
-    contract_addr: &String,
-    account_addr: &String,
+    contract_addr: &CanonicalAddr,
+    account_addr: &CanonicalAddr,
 ) -> StdResult<Uint128> {
-    // load balance form the token contract
+    // load balance from the token contract
     let res: BalanceResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: contract_addr.to_string(),
+        contract_addr: deps.api.addr_humanize(&contract_addr)?.to_string(),
         msg: to_binary(&Cw20QueryMsg::Balance {
-            address: account_addr.to_string(),
+            address: deps.api.addr_humanize(&account_addr)?.to_string(),
         })?,
     }))?;
 

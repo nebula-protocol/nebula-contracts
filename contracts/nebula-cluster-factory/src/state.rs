@@ -39,8 +39,8 @@ pub fn read_config(storage: &dyn Storage) -> StdResult<Config> {
     singleton_read(storage, KEY_CONFIG).load()
 }
 
-pub fn cluster_exists(storage: &dyn Storage, contract_addr: &String) -> StdResult<bool> {
-    match ReadonlyBucket::new(storage, PREFIX_CLUSTERS).load(&contract_addr.as_str().as_bytes()) {
+pub fn cluster_exists(storage: &dyn Storage, contract_addr: &CanonicalAddr) -> StdResult<bool> {
+    match ReadonlyBucket::new(storage, PREFIX_CLUSTERS).load(&contract_addr.as_slice()) {
         Ok(res) => Ok(res),
         Err(_) => Ok(false),
     }
@@ -79,12 +79,15 @@ pub fn read_tmp_cluster(storage: &dyn Storage) -> StdResult<Addr> {
     singleton_read(storage, KEY_TMP_CLUSTER).load()
 }
 
-pub fn record_cluster(storage: &mut dyn Storage, contract_addr: &String) -> StdResult<()> {
-    Bucket::new(storage, PREFIX_CLUSTERS).save(&contract_addr.as_str().as_bytes(), &true)
+pub fn record_cluster(storage: &mut dyn Storage, contract_addr: &CanonicalAddr) -> StdResult<()> {
+    Bucket::new(storage, PREFIX_CLUSTERS).save(&contract_addr.as_slice(), &true)
 }
 
-pub fn deactivate_cluster(storage: &mut dyn Storage, contract_addr: &String) -> StdResult<()> {
-    Bucket::new(storage, PREFIX_CLUSTERS).save(&contract_addr.as_str().as_bytes(), &false)
+pub fn deactivate_cluster(
+    storage: &mut dyn Storage,
+    contract_addr: &CanonicalAddr,
+) -> StdResult<()> {
+    Bucket::new(storage, PREFIX_CLUSTERS).save(&contract_addr.as_slice(), &false)
 }
 
 pub fn store_params(storage: &mut dyn Storage, init_data: &Params) -> StdResult<()> {

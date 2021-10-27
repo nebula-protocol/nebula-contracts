@@ -3,8 +3,8 @@ use crate::mock_querier::mock_dependencies;
 use crate::state::{contributions_read, read_from_contribution_bucket, record_contribution};
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    attr, coins, from_binary, to_binary, BankMsg, CosmosMsg, Decimal, DepsMut, StdError, SubMsg,
-    Uint128, WasmMsg,
+    attr, coins, from_binary, to_binary, Api, BankMsg, CosmosMsg, Decimal, DepsMut, StdError,
+    SubMsg, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use nebula_protocol::cluster::ExecuteMsg as ClusterExecuteMsg;
@@ -161,6 +161,7 @@ fn test_penalty_period() {
 #[test]
 fn test_withdraw_reward() {
     let mut deps = mock_dependencies(&[]);
+    let api = deps.api;
 
     mock_init(deps.as_mut());
 
@@ -186,27 +187,27 @@ fn test_withdraw_reward() {
     // Manually record contribution to pools; one pool has other contribution from another address, make sure ratio is correct
     record_contribution(
         deps.as_mut(),
-        &"contributor0000".to_string(),
+        &api.addr_canonicalize("contributor0000").unwrap(),
         PoolType::REBALANCE,
-        &"cluster".to_string(),
+        &api.addr_canonicalize("cluster").unwrap(),
         Uint128::new(25),
     )
     .unwrap();
 
     record_contribution(
         deps.as_mut(),
-        &"contributor0000".to_string(),
+        &api.addr_canonicalize("contributor0000").unwrap(),
         PoolType::ARBITRAGE,
-        &"cluster".to_string(),
+        &api.addr_canonicalize("cluster").unwrap(),
         Uint128::new(25),
     )
     .unwrap();
 
     record_contribution(
         deps.as_mut(),
-        &"contributor0001".to_string(),
+        &api.addr_canonicalize("contributor0001").unwrap(),
         PoolType::ARBITRAGE,
-        &"cluster".to_string(),
+        &api.addr_canonicalize("cluster").unwrap(),
         Uint128::new(25),
     )
     .unwrap();
@@ -228,7 +229,7 @@ fn test_withdraw_reward() {
     let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
 
     // Now, we are eligible to collect rewards
-
+    println!("contributor0000");
     let msg = ExecuteMsg::Withdraw {};
     let info = mock_info("contributor0000", &[]);
     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
@@ -1078,10 +1079,13 @@ fn test_record_rebalancer_rewards() {
     // See if stateful changes actually happens
     let contribution_bucket = contributions_read(
         &deps.storage,
-        &"rebalancer".to_string(),
+        &deps.api.addr_canonicalize("rebalancer").unwrap(),
         PoolType::REBALANCE,
     );
-    let contribution = read_from_contribution_bucket(&contribution_bucket, &"cluster".to_string());
+    let contribution = read_from_contribution_bucket(
+        &contribution_bucket,
+        &deps.api.addr_canonicalize("cluster").unwrap(),
+    );
 
     assert_eq!(contribution.n, 1);
     assert_eq!(contribution.value_contributed, Uint128::new(49));
@@ -1142,10 +1146,13 @@ fn test_record_terraswap_impact() {
     // See if stateful changes actually happens
     let contribution_bucket = contributions_read(
         &deps.storage,
-        &"arbitrageur".to_string(),
+        &deps.api.addr_canonicalize("arbitrageur").unwrap(),
         PoolType::ARBITRAGE,
     );
-    let contribution = read_from_contribution_bucket(&contribution_bucket, &"cluster".to_string());
+    let contribution = read_from_contribution_bucket(
+        &contribution_bucket,
+        &deps.api.addr_canonicalize("cluster").unwrap(),
+    );
 
     assert_eq!(contribution.n, 1);
     assert_eq!(contribution.value_contributed, Uint128::new(567));

@@ -50,8 +50,8 @@ pub fn instantiate(
     validate_voter_weight(msg.voter_weight)?;
 
     let config = Config {
-        nebula_token: msg.nebula_token,
-        owner: info.sender.to_string(),
+        nebula_token: deps.api.addr_canonicalize(&msg.nebula_token)?,
+        owner: deps.api.addr_canonicalize(info.sender.as_str())?,
         quorum: msg.quorum,
         threshold: msg.threshold,
         voting_period: msg.voting_period,
@@ -62,7 +62,7 @@ pub fn instantiate(
     };
 
     let state = State {
-        contract_addr: env.contract.address.to_string(),
+        contract_addr: deps.api.addr_canonicalize(env.contract.address.as_str())?,
         poll_count: 0,
         total_share: Uint128::zero(),
         total_deposit: Uint128::zero(),
@@ -132,7 +132,7 @@ pub fn receive_cw20(
 ) -> StdResult<Response> {
     // only nebula token contract can execute this executer
     let config: Config = config_read(deps.storage).load()?;
-    if config.nebula_token != info.sender.to_string() {
+    if config.nebula_token != deps.api.addr_canonicalize(info.sender.as_str())? {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -158,7 +158,13 @@ pub fn receive_cw20(
             execute_msg,
         ),
         Cw20HookMsg::DepositReward {} => {
-            deposit_reward(deps, info, cw20_msg.sender, cw20_msg.amount)
+            let api = deps.api;
+            deposit_reward(
+                deps,
+                info,
+                api.addr_canonicalize(&cw20_msg.sender)?,
+                cw20_msg.amount,
+            )
         }
     }
 }
@@ -192,13 +198,14 @@ pub fn update_config(
     voter_weight: Option<Decimal>,
     snapshot_period: Option<u64>,
 ) -> StdResult<Response> {
+    let api = deps.api;
     config_store(deps.storage).update(|mut config| {
-        if config.owner != info.sender.to_string() {
+        if config.owner != api.addr_canonicalize(info.sender.as_str())? {
             return Err(StdError::generic_err("unauthorized"));
         }
 
         if let Some(owner) = owner {
-            config.owner = owner;
+            config.owner = api.addr_canonicalize(&owner)?;
         }
 
         if let Some(quorum) = quorum {
@@ -352,16 +359,16 @@ pub fn create_poll(
 
     let execute_data = if let Some(execute_msg) = execute_msg {
         Some(ExecuteData {
-            contract: execute_msg.contract,
+            contract: deps.api.addr_canonicalize(&execute_msg.contract)?,
             msg: execute_msg.msg,
         })
     } else {
         None
     };
-
+    let sender_address_raw = deps.api.addr_canonicalize(&proposer)?;
     let new_poll = Poll {
         id: poll_id,
-        creator: proposer,
+        creator: sender_address_raw,
         status: PollStatus::InProgress,
         yes_votes: Uint128::zero(),
         no_votes: Uint128::zero(),
@@ -386,7 +393,10 @@ pub fn create_poll(
 
     let r = Response::new().add_attributes(vec![
         attr("action", "create_poll"),
-        attr("creator", new_poll.creator),
+        attr(
+            "creator",
+            deps.api.addr_humanize(&new_poll.creator)?.as_str(),
+        ),
         attr("poll_id", &poll_id.to_string()),
         attr("end_height", new_poll.end_height.to_string()),
     ]);
@@ -450,10 +460,10 @@ pub fn end_poll(deps: DepsMut, env: Env, poll_id: u64) -> StdResult<Response> {
         // Refunds deposit only when quorum is reached
         if !a_poll.deposit_amount.is_zero() {
             messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: config.nebula_token,
+                contract_addr: deps.api.addr_humanize(&config.nebula_token)?.to_string(),
                 funds: vec![],
                 msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                    recipient: a_poll.creator.clone(),
+                    recipient: deps.api.addr_humanize(&a_poll.creator)?.to_string(),
                     amount: a_poll.deposit_amount,
                 })?,
             }))
@@ -509,7 +519,7 @@ pub fn execute_poll(deps: DepsMut, env: Env, poll_id: u64) -> StdResult<Response
     if let Some(execute_data) = a_poll.execute_data {
         messages.push(SubMsg {
             msg: CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: execute_data.contract,
+                contract_addr: deps.api.addr_humanize(&execute_data.contract)?.to_string(),
                 msg: execute_data.msg,
                 funds: vec![],
             }),
@@ -573,13 +583,14 @@ pub fn cast_vote(
 
     // Check the voter already has a vote on the poll
     if poll_voter_read(deps.storage, poll_id)
-        .load(&sender_address.as_str().as_bytes())
+        .load(deps.api.addr_canonicalize(&sender_address)?.as_slice())
         .is_ok()
     {
         return Err(StdError::generic_err("User has already voted."));
     }
 
-    let key = &sender_address.as_str().as_bytes();
+    let sender_address_raw = deps.api.addr_canonicalize(&sender_address)?;
+    let key = &sender_address_raw.as_slice();
     let mut token_manager = bank_read(deps.storage).may_load(key)?.unwrap_or_default();
 
     // convert share to amount
@@ -631,8 +642,10 @@ pub fn cast_vote(
     bank_store(deps.storage).save(key, &token_manager)?;
 
     // store poll voter && and update poll data
-    poll_voter_store(deps.storage, poll_id)
-        .save(&sender_address.as_str().as_bytes(), &vote_info)?;
+    poll_voter_store(deps.storage, poll_id).save(
+        &deps.api.addr_canonicalize(&sender_address)?.as_slice(),
+        &vote_info,
+    )?;
 
     // processing snapshot
     let time_to_end = a_poll.end_height - env.block.height;
@@ -728,8 +741,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let config: Config = config_read(deps.storage).load()?;
     Ok(ConfigResponse {
-        owner: config.owner,
-        nebula_token: config.nebula_token,
+        owner: deps.api.addr_humanize(&config.owner)?.to_string(),
+        nebula_token: deps.api.addr_humanize(&config.nebula_token)?.to_string(),
         quorum: config.quorum,
         threshold: config.threshold,
         voting_period: config.voting_period,
@@ -759,7 +772,7 @@ fn query_poll(deps: Deps, poll_id: u64) -> StdResult<PollResponse> {
 
     Ok(PollResponse {
         id: poll.id,
-        creator: poll.creator,
+        creator: deps.api.addr_humanize(&poll.creator).unwrap().to_string(),
         status: poll.status,
         end_height: poll.end_height,
         title: poll.title,
@@ -768,7 +781,7 @@ fn query_poll(deps: Deps, poll_id: u64) -> StdResult<PollResponse> {
         deposit_amount: poll.deposit_amount,
         execute_data: if let Some(execute_data) = poll.execute_data {
             Some(PollExecuteMsg {
-                contract: execute_data.contract,
+                contract: deps.api.addr_humanize(&execute_data.contract)?.to_string(),
                 msg: execute_data.msg,
             })
         } else {
@@ -796,7 +809,7 @@ fn query_polls(
         .map(|poll| {
             Ok(PollResponse {
                 id: poll.id,
-                creator: poll.creator.clone(),
+                creator: deps.api.addr_humanize(&poll.creator).unwrap().to_string(),
                 status: poll.status.clone(),
                 end_height: poll.end_height,
                 title: poll.title.to_string(),
@@ -805,7 +818,7 @@ fn query_polls(
                 deposit_amount: poll.deposit_amount,
                 execute_data: if let Some(execute_data) = poll.execute_data.clone() {
                     Some(PollExecuteMsg {
-                        contract: execute_data.contract,
+                        contract: deps.api.addr_humanize(&execute_data.contract)?.to_string(),
                         msg: execute_data.msg,
                     })
                 } else {
@@ -842,7 +855,13 @@ fn query_voters(
     let voters = if poll.status != PollStatus::InProgress {
         vec![]
     } else if let Some(start_after) = start_after {
-        read_poll_voters(deps.storage, poll_id, Some(start_after), limit, order_by)?
+        read_poll_voters(
+            deps.storage,
+            poll_id,
+            Some(deps.api.addr_canonicalize(&start_after)?),
+            limit,
+            order_by,
+        )?
     } else {
         read_poll_voters(deps.storage, poll_id, None, limit, order_by)?
     };
@@ -851,7 +870,7 @@ fn query_voters(
         .iter()
         .map(|voter_info| {
             Ok(VotersResponseItem {
-                voter: voter_info.0.clone(),
+                voter: deps.api.addr_humanize(&voter_info.0)?.to_string(),
                 vote: voter_info.1.vote.clone(),
                 balance: voter_info.1.balance,
             })

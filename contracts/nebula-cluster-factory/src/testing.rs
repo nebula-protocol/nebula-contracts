@@ -491,7 +491,13 @@ fn test_token_creation_hook() {
 
     assert_eq!(res.attributes, vec![attr("cluster_addr", "asset0000")]);
 
-    assert_eq!(cluster_exists(&deps.storage, &h("asset0000")), Ok(true));
+    assert_eq!(
+        cluster_exists(
+            &deps.storage,
+            &deps.api.addr_canonicalize("asset0000").unwrap(),
+        ),
+        Ok(true)
+    );
 }
 
 #[test]
@@ -1157,7 +1163,11 @@ fn test_decommission_cluster() {
     );
 
     assert_eq!(
-        cluster_exists(&deps.storage, &h("asset0000")).unwrap(),
+        cluster_exists(
+            &deps.storage,
+            &deps.api.addr_canonicalize("asset0000").unwrap()
+        )
+        .unwrap(),
         false
     );
 

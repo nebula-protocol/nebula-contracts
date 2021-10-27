@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    attr, to_binary, CosmosMsg, DepsMut, MessageInfo, Order, Response, StdError, StdResult,
-    Storage, Uint128, WasmMsg,
+    attr, to_binary, CanonicalAddr, CosmosMsg, DepsMut, MessageInfo, Order, Response, StdError,
+    StdResult, Storage, Uint128, WasmMsg,
 };
 
 use crate::state::{
@@ -27,11 +27,14 @@ pub fn deposit_reward(
         if !PoolType::ALL_TYPES.contains(&pool_type) {
             return Err(StdError::generic_err("pool type not found"));
         }
-        let mut pool_info: PoolInfo =
-            read_from_pool_bucket(&pool_info_read(deps.storage, *pool_type, n), &asset_token);
+        let asset_token_raw = deps.api.addr_canonicalize(&asset_token)?;
+        let mut pool_info: PoolInfo = read_from_pool_bucket(
+            &pool_info_read(deps.storage, *pool_type, n),
+            &asset_token_raw,
+        );
         pool_info.reward_total += *amount;
         pool_info_store(deps.storage, *pool_type, n)
-            .save(asset_token.as_str().as_bytes(), &pool_info)?;
+            .save(asset_token_raw.as_slice(), &pool_info)?;
     }
 
     Ok(Response::new()
@@ -53,27 +56,36 @@ pub fn deposit_reward(
 pub fn withdraw_reward(deps: DepsMut, info: MessageInfo) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
 
-    let reward_owner = info.sender.to_string();
+    let reward_owner = deps.api.addr_canonicalize(info.sender.as_str())?;
 
     let mut contribution_tuples = vec![];
 
     for i in PoolType::ALL_TYPES.iter() {
         let contribution_bucket = contributions_read(deps.storage, &reward_owner, **i);
+        println!("contribution_bucket {:?}", contribution_tuples);
         for kv in contribution_bucket.range(None, None, Order::Ascending) {
             let (k, _) = kv?;
 
-            let asset_address = std::str::from_utf8(&k)
-                .map_err(|_| StdError::invalid_utf8("invalid asset address"))?
+            let asset_address = deps
+                .api
+                .addr_humanize(&CanonicalAddr::from(k.clone()))?
                 .to_string();
             contribution_tuples.push((i, asset_address));
         }
     }
 
     for (pool_type, asset_address) in contribution_tuples {
-        contributions_to_pending_rewards(deps.storage, &reward_owner, **pool_type, &asset_address)?;
+        let asset_address_raw = deps.api.addr_canonicalize(&asset_address)?;
+        contributions_to_pending_rewards(
+            deps.storage,
+            &reward_owner,
+            **pool_type,
+            &asset_address_raw,
+        )?;
     }
 
     let reward_amt = read_pending_rewards(deps.storage, &reward_owner);
+    println!("reward amount: {:?}", reward_amt);
     store_pending_rewards(deps.storage, &reward_owner, Uint128::zero())?;
 
     Ok(Response::new()
@@ -87,7 +99,7 @@ pub fn withdraw_reward(deps: DepsMut, info: MessageInfo) -> StdResult<Response> 
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: deps.api.addr_humanize(&config.nebula_token)?.to_string(),
                 msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                    recipient: reward_owner,
+                    recipient: deps.api.addr_humanize(&reward_owner)?.to_string(),
                     amount: reward_amt,
                 })?,
                 funds: vec![],

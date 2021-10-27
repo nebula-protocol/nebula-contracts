@@ -351,7 +351,10 @@ pub fn token_creation_hook(deps: DepsMut, _env: Env, cluster: Addr) -> StdResult
 
     let penalty = params.penalty;
 
-    record_cluster(deps.storage, &cluster.to_string())?;
+    record_cluster(
+        deps.storage,
+        &deps.api.addr_canonicalize(&cluster.as_str())?,
+    )?;
     store_tmp_cluster(deps.storage, &cluster)?;
     Ok(Response::new()
         .add_messages(vec![
@@ -601,6 +604,7 @@ pub fn decommission_cluster(
     cluster_token: String,
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
+    let cluster_contract_raw: CanonicalAddr = deps.api.addr_canonicalize(&cluster_contract)?;
     let cluster_token_raw: CanonicalAddr = deps.api.addr_canonicalize(&cluster_token)?;
     if config.owner != deps.api.addr_canonicalize(info.sender.as_str())? {
         return Err(StdError::generic_err("unauthorized"));
@@ -609,7 +613,7 @@ pub fn decommission_cluster(
     let weight = read_weight(deps.storage, &deps.api.addr_canonicalize(&cluster_token)?)?;
     remove_weight(deps.storage, &cluster_token_raw);
     decrease_total_weight(deps.storage, weight)?;
-    deactivate_cluster(deps.storage, &cluster_contract)?;
+    deactivate_cluster(deps.storage, &cluster_contract_raw)?;
 
     Ok(Response::new()
         .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
@@ -680,8 +684,9 @@ pub fn query_cluster_exists(
     deps: Deps,
     cluster_address: String,
 ) -> StdResult<ClusterExistsResponse> {
+    let cluster_address_raw: CanonicalAddr = deps.api.addr_canonicalize(&cluster_address)?;
     Ok(ClusterExistsResponse {
-        exists: cluster_exists(deps.storage, &cluster_address)?,
+        exists: cluster_exists(deps.storage, &cluster_address_raw)?,
     })
 }
 

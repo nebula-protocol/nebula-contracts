@@ -70,6 +70,9 @@ pub fn record_rebalancer_rewards(
         return Err(StdError::generic_err("unauthorized"));
     }
 
+    let rebalancer_raw = deps.api.addr_canonicalize(&rebalancer)?;
+    let cluster_contract_raw = deps.api.addr_canonicalize(&cluster_contract)?;
+
     let new_imbalance = cluster_imbalance(deps.as_ref(), &cluster_contract)?;
     let mut contribution = Uint128::zero();
 
@@ -78,9 +81,9 @@ pub fn record_rebalancer_rewards(
 
         record_contribution(
             deps,
-            &rebalancer,
+            &rebalancer_raw,
             PoolType::REBALANCE,
-            &cluster_contract,
+            &cluster_contract_raw,
             contribution,
         )?;
     }

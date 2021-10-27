@@ -17,8 +17,8 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
-    set_owner(deps.storage, &msg.owner)?;
-    set_neb(deps.storage, &msg.neb_token)?;
+    set_owner(deps.storage, &deps.api.addr_canonicalize(&msg.owner)?)?;
+    set_neb(deps.storage, &deps.api.addr_canonicalize(&msg.neb_token)?)?;
     Ok(Response::default())
 }
 
@@ -34,15 +34,15 @@ pub fn update_owner(deps: DepsMut, info: MessageInfo, owner: &String) -> StdResu
     let old_owner = read_owner(deps.storage)?;
 
     // check permission
-    if info.sender != old_owner {
+    if deps.api.addr_canonicalize(info.sender.as_str())? != old_owner {
         return Err(StdError::generic_err("unauthorized"));
     }
 
-    set_owner(deps.storage, &owner)?;
+    set_owner(deps.storage, &deps.api.addr_canonicalize(owner)?)?;
 
     Ok(Response::new().add_attributes(vec![
         attr("action", "update_owner"),
-        attr("old_owner", old_owner.to_string()),
+        attr("old_owner", deps.api.addr_humanize(&old_owner)?.to_string()),
         attr("new_owner", owner.to_string()),
     ]))
 }
@@ -53,13 +53,16 @@ pub fn request_neb(
     info: MessageInfo,
     amount: Uint128,
 ) -> StdResult<Response> {
-    if info.sender.to_string() != read_owner(deps.storage)? {
+    if deps.api.addr_canonicalize(info.sender.as_str())? != read_owner(deps.storage)? {
         return Err(StdError::generic_err("unauthorized"));
     }
 
     Ok(Response::new()
         .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: read_neb(deps.storage)?.to_string(),
+            contract_addr: deps
+                .api
+                .addr_humanize(&read_neb(deps.storage)?)?
+                .to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: info.sender.to_string(),
                 amount,
@@ -79,7 +82,8 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Balance { custody } => {
             let nebula_token = read_neb(deps.storage)?;
-            let balance = load_token_balance(deps, &nebula_token, &custody)?;
+            let balance =
+                load_token_balance(deps, &nebula_token, &deps.api.addr_canonicalize(&custody)?)?;
             Ok(to_binary(&to_binary(&balance).unwrap())?)
         }
     }

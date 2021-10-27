@@ -281,8 +281,9 @@ pub fn query_pool_info(
         Some(_) => n.unwrap(),
         None => read_current_n(deps.storage)?,
     };
+    let cluster_address_raw = deps.api.addr_canonicalize(&cluster_address)?;
     let pool_bucket = pool_info_read(deps.storage, pool_type, n);
-    let pool_info = read_from_pool_bucket(&pool_bucket, &cluster_address);
+    let pool_info = read_from_pool_bucket(&pool_bucket, &cluster_address_raw);
     let resp = IncentivesPoolInfoResponse {
         value_total: pool_info.value_total,
         reward_total: pool_info.reward_total,
@@ -296,8 +297,10 @@ pub fn query_contributor_info(
     contributor_address: String,
     cluster_address: String,
 ) -> StdResult<CurrentContributorInfoResponse> {
-    let contribution_bucket = contributions_read(deps.storage, &contributor_address, pool_type);
-    let contributions = read_from_contribution_bucket(&contribution_bucket, &cluster_address);
+    let contributor_address_raw = deps.api.addr_canonicalize(&contributor_address)?;
+    let cluster_address_raw = deps.api.addr_canonicalize(&cluster_address)?;
+    let contribution_bucket = contributions_read(deps.storage, &contributor_address_raw, pool_type);
+    let contributions = read_from_contribution_bucket(&contribution_bucket, &cluster_address_raw);
     let resp = CurrentContributorInfoResponse {
         n: read_current_n(deps.storage)?,
         value_contributed: contributions.value_contributed,
@@ -309,7 +312,8 @@ pub fn query_contributor_pending_rewards(
     deps: Deps,
     contributor_address: String,
 ) -> StdResult<ContributorPendingRewardsResponse> {
-    let pending_rewards = read_pending_rewards(deps.storage, &contributor_address);
+    let contributor_address_raw = deps.api.addr_canonicalize(&contributor_address)?;
+    let pending_rewards = read_pending_rewards(deps.storage, &contributor_address_raw);
     let resp = ContributorPendingRewardsResponse { pending_rewards };
     Ok(resp)
 }

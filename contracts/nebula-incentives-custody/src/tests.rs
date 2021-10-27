@@ -4,7 +4,7 @@ use crate::state::{read_neb, read_owner};
 
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    attr, from_binary, to_binary, Binary, CosmosMsg, StdError, SubMsg, Uint128, WasmMsg,
+    attr, from_binary, to_binary, Api, Binary, CosmosMsg, StdError, SubMsg, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::incentives_custody::{ExecuteMsg, InstantiateMsg, QueryMsg};
@@ -31,10 +31,10 @@ fn proper_initialization() {
     assert_eq!(0, res.messages.len());
 
     let owner = read_owner(deps.as_mut().storage).unwrap();
-    assert_eq!(owner, h(OWNER));
+    assert_eq!(owner, deps.api.addr_canonicalize(OWNER).unwrap());
 
     let neb = read_neb(deps.as_mut().storage).unwrap();
-    assert_eq!(neb, h(NEB_TOKEN));
+    assert_eq!(neb, deps.api.addr_canonicalize(NEB_TOKEN).unwrap());
 }
 
 #[test]
@@ -149,7 +149,7 @@ fn test_update_owner() {
     assert_eq!(0, res.messages.len());
 
     let owner = read_owner(deps.as_mut().storage).unwrap();
-    assert_eq!(owner, h("owner0001"));
+    assert_eq!(owner, deps.api.addr_canonicalize("owner0001").unwrap());
 
     assert_eq!(
         res.attributes,

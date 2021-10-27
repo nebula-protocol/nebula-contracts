@@ -250,6 +250,8 @@ pub fn record_terraswap_impact(
     cluster_contract: String,
     pool_before: TerraswapPoolResponse,
 ) -> StdResult<Response> {
+    let arbitrageur_raw = deps.api.addr_canonicalize(&arbitrageur)?;
+    let cluster_contract_raw = deps.api.addr_canonicalize(&cluster_contract)?;
     if info.sender.to_string() != env.contract.address {
         return Err(StdError::generic_err("unauthorized"));
     }
@@ -317,9 +319,9 @@ pub fn record_terraswap_impact(
         let imbalanced_fixed = Uint128::new(imbalance_fixed.into());
         record_contribution(
             deps,
-            &arbitrageur,
+            &arbitrageur_raw,
             PoolType::ARBITRAGE,
-            &cluster_contract,
+            &cluster_contract_raw,
             Uint128::new(imbalanced_fixed.into()),
         )?;
     }
