@@ -6,7 +6,6 @@ use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 use nebula_protocol::penalty::{
     ExecuteMsg, InstantiateMsg, PenaltyParams, PenaltyRedeemResponse, QueryMsg,
 };
-// use cluster_dummy_oracle::state::State;
 
 fn main() {
     let mut out_dir = current_dir().unwrap();

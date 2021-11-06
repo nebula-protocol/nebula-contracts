@@ -799,18 +799,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nebula-dummy-oracle"
-version = "2.0.0"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cosmwasm-storage",
- "schemars",
- "serde",
- "snafu",
-]
-
-[[package]]
 name = "nebula-gov"
 version = "2.0.0"
 dependencies = [
@@ -869,6 +857,18 @@ dependencies = [
  "serde",
  "terra-cosmwasm",
  "terraswap",
+]
+
+[[package]]
+name = "nebula-oracle"
+version = "2.0.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "schemars",
+ "serde",
+ "snafu",
 ]
 
 [[package]]

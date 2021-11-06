@@ -3,14 +3,13 @@ use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
     attr, to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult,
+    StdResult, Uint128,
 };
 
 use crate::msg::{ExecuteMsg, InstantiateMsg, PriceResponse, QueryMsg};
-use crate::state::{
-    config_store, read_config, read_last_update_time, read_price, save_config, set_price,
-    store_last_update_time, Config,
-};
+use crate::state::{read_config, read_price, store_config, store_price, Config, PriceInfo};
+
+const DECIMAL_FRACTIONAL: Uint128 = Uint128::new(1_000_000_000u128);
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -23,7 +22,7 @@ pub fn instantiate(
         owner: msg.owner.clone(),
     };
 
-    save_config(deps.storage, &cfg)?;
+    store_config(deps.storage, &cfg)?;
 
     let log = vec![attr("owner", msg.owner)];
 
@@ -43,18 +42,17 @@ pub fn update_config(
     info: MessageInfo,
     owner: Option<String>,
 ) -> StdResult<Response> {
-    config_store(deps.storage).update(|mut config| {
-        if config.owner != info.sender.to_string() {
-            return Err(StdError::generic_err("unauthorized"));
-        }
+    let mut config: Config = read_config(deps.storage)?;
 
-        if let Some(owner) = owner {
-            config.owner = owner;
-        }
+    if config.owner != info.sender.to_string() {
+        return Err(StdError::generic_err("unauthorized"));
+    }
 
-        Ok(config)
-    })?;
+    if let Some(owner) = owner {
+        config.owner = owner;
+    }
 
+    store_config(deps.storage, &config)?;
     Ok(Response::new().add_attributes(vec![attr("action", "update_config")]))
 }
 
@@ -72,9 +70,13 @@ pub fn try_set_prices(
     }
 
     for (asset, price) in prices.iter() {
-        set_price(deps.storage, asset, price)?;
+        let price = PriceInfo {
+            price: price.clone(),
+            last_updated_time: env.block.time.seconds(),
+        };
+
+        store_price(deps.storage, asset, &price)?;
     }
-    store_last_update_time(deps.storage, &env.block.time.seconds())?;
 
     let log = vec![
         attr("action", "try_set_prices"),
@@ -87,17 +89,25 @@ pub fn try_set_prices(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Price { base_asset, .. } => to_binary(&query_price(deps, base_asset)?),
+        QueryMsg::Price {
+            base_asset,
+            quote_asset,
+        } => to_binary(&query_price(deps, base_asset, quote_asset)?),
     }
 }
 
-fn query_price(deps: Deps, asset: String) -> StdResult<PriceResponse> {
-    let rate = read_price(deps.storage, &asset)?;
-    let last_update = read_last_update_time(deps.storage)?;
+fn query_price(deps: Deps, base_asset: String, quote_asset: String) -> StdResult<PriceResponse> {
+    let price_info_base = read_price(deps.storage, &base_asset)?;
+    let price_info_quote = read_price(deps.storage, &quote_asset)?;
+
+    let rate = Decimal::from_ratio(
+        price_info_base.price * DECIMAL_FRACTIONAL,
+        price_info_quote.price * DECIMAL_FRACTIONAL,
+    );
 
     Ok(PriceResponse {
         rate,
-        last_updated_base: u64::MAX,
-        last_updated_quote: last_update,
+        last_updated_base: price_info_base.last_updated_time,
+        last_updated_quote: price_info_quote.last_updated_time,
     })
 }
