@@ -115,7 +115,7 @@ pub fn arb_cluster_create(
         msg: to_binary(&ExecuteMsg::_SwapAll {
             terraswap_pair: pair_info.contract_addr.clone(),
             cluster_token,
-            to_ust: true,
+            to_ust: true, // how about changing this to to_base
             min_return: min_ust.unwrap_or(Uint128::zero()),
         })?,
         funds: vec![],
@@ -400,11 +400,6 @@ pub fn swap_all(
             env.contract.address,
             config.base_denom.to_string(),
         )?;
-        let belief_price = if min_return == Uint128::zero() {
-            Decimal::zero()
-        } else {
-            Decimal::from_ratio(amount, min_return)
-        };
 
         let swap_asset = Asset {
             info: AssetInfo::NativeToken {
@@ -415,6 +410,12 @@ pub fn swap_all(
 
         // deduct tax first
         let amount = (swap_asset.deduct_tax(&deps.querier)?).amount;
+        let belief_price = if min_return == Uint128::zero() {
+            Decimal::zero()
+        } else {
+            Decimal::from_ratio(amount, min_return)
+        };
+
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: terraswap_pair,
             msg: to_binary(&TerraswapExecuteMsg::Swap {

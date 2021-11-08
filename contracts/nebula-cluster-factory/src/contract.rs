@@ -234,13 +234,16 @@ pub fn pass_command(
 
 /*
 Whitelisting process
-1. Create asset token contract with `config.token_code_id` with `minter` argument
-2. Call `TokenCreationHook`
-    2-1. Initialize distribution info
-    2-2. Register asset and oracle feeder to oracle contract
-    2-3. Create terraswap pair through terraswap factory
-3. Call `TerraswapCreationHook`
-    3-1. Register asset to staking contract
+1. Create cluster contract with `config.cluster_code_id`
+2. Call `ClusterCreationHook`
+    2-1. Record cluster address
+    2-2. Create token contract with `config.token_code_id`
+3. ClusterTokenCreationHook
+    3-1. Initialize distribution info
+    3-2. Register cluster token to cluster contract and set owner of cluster contract to gov contract
+    3-3. Create terraswap pair through terraswap factory with `TerraswapCreationHook`
+4. Call `TerraswapCreationHook`
+    4-1. Register asset to staking contract
 */
 pub fn create_cluster(
     deps: DepsMut,
@@ -305,7 +308,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
             })?;
             let asset_token = res.get_contract_address();
 
-            token_creation_hook(deps, env, asset_token.to_string())
+            cluster_creation_hook(deps, env, asset_token.to_string())
         }
         2 => {
             let cluster = read_tmp_cluster(deps.storage)?;
@@ -319,7 +322,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
             })?;
             let token = res.get_contract_address();
 
-            set_cluster_token_hook(deps, env, cluster, token.to_string())
+            cluster_token_creation_hook(deps, env, cluster, token.to_string())
         }
         3 => {
             let token = read_tmp_asset(deps.storage)?;
@@ -330,12 +333,11 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
 }
 
 /*
-TokenCreationHook
-1. Initialize distribution info
-2. Register asset and oracle feeder to oracle contract
-3. Create terraswap pair through terraswap factory with `TerraswapCreationHook`
+ClusterCreationHook
+1. Record cluster address
+2. Create token contract with `config.token_code_id`
 */
-pub fn token_creation_hook(deps: DepsMut, _env: Env, cluster: String) -> StdResult<Response> {
+pub fn cluster_creation_hook(deps: DepsMut, _env: Env, cluster: String) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
 
     // If the param is not exists, it means there is no cluster registration process in progress
@@ -389,8 +391,13 @@ pub fn token_creation_hook(deps: DepsMut, _env: Env, cluster: String) -> StdResu
         .add_attributes(vec![attr("cluster_addr", cluster.as_str())]))
 }
 
-/// Set Token Hook
-pub fn set_cluster_token_hook(
+/*
+ClusterTokenCreationHook
+1. Initialize distribution info
+2. Register cluster token to cluster contract and set owner of cluster contract to gov contract
+3. Create terraswap pair through terraswap factory with `TerraswapCreationHook`
+*/
+pub fn cluster_token_creation_hook(
     deps: DepsMut,
     _env: Env,
     cluster: String,
@@ -473,7 +480,7 @@ pub fn terraswap_creation_hook(
     asset_token: String,
 ) -> StdResult<Response> {
     // Now terraswap contract is already created,
-    // and liquidty token also created
+    // and liquidity token also created
     let config: Config = read_config(deps.storage)?;
 
     let asset_infos = [
