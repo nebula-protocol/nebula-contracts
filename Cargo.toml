@@ -6,7 +6,7 @@ members = [
   "contracts/nebula-cluster-factory",
   "contracts/nebula-collector",
   "contracts/nebula-community",
-  "contracts/nebula-dummy-oracle",
+  "contracts/nebula-oracle",
   "contracts/nebula-gov",
   "contracts/nebula-incentives",
   "contracts/nebula-incentives-custody",
