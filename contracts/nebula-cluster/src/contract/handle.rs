@@ -37,7 +37,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         ExecuteMsg::RebalanceCreate {
             asset_amounts,
             min_tokens,
-        } => create(deps, env, info, &asset_amounts, &min_tokens),
+        } => create(deps, env, info, asset_amounts, min_tokens),
         ExecuteMsg::RebalanceRedeem {
             max_tokens,
             asset_amounts,
@@ -101,9 +101,8 @@ pub fn update_config(
             config.description = description;
         }
 
-        match cluster_token {
-            None => {}
-            Some(_) => config.cluster_token = cluster_token,
+        if cluster_token.is_some() {
+            config.cluster_token = cluster_token;
         }
 
         if let Some(pricing_oracle) = pricing_oracle {
@@ -153,15 +152,11 @@ pub fn update_target(
     let mut asset_data = target.clone();
 
     // Create new vec for logging and validation purpose
-    let mut updated_asset_infos = asset_data
-        .iter()
-        .map(|x| x.info.clone())
-        .collect::<Vec<_>>();
-
-    let mut updated_target_weights = asset_data
-        .iter()
-        .map(|x| x.amount.clone())
-        .collect::<Vec<_>>();
+    let (mut updated_asset_infos, mut updated_target_weights): (Vec<AssetInfo>, Vec<Uint128>) =
+        asset_data
+            .iter()
+            .map(|x| (x.info.clone(), x.amount.clone()))
+            .unzip();
 
     if validate_targets(deps.querier, &env, updated_asset_infos.clone(), true).is_err() {
         return Err(StdError::generic_err(
@@ -246,8 +241,8 @@ pub fn create(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    asset_amounts: &Vec<Asset>,
-    min_tokens: &Option<Uint128>,
+    asset_amounts: Vec<Asset>,
+    min_tokens: Option<Uint128>,
 ) -> StdResult<Response> {
     // duplication check for the given asset_amounts
     if validate_targets(
@@ -282,13 +277,13 @@ pub fn create(
     let mut inv = cluster_state.inv;
     let target = cluster_state.target;
 
-    let asset_infos = target.iter().map(|x| x.info.clone()).collect::<Vec<_>>();
+    let target_infos = target.iter().map(|x| x.info.clone()).collect::<Vec<_>>();
 
-    let native_coin_denoms = asset_infos
+    let native_coin_denoms = target_infos
         .iter()
-        .filter(|asset| asset.is_native_token())
-        .map(|asset| {
-            match asset {
+        .filter(|info| info.is_native_token())
+        .map(|info| {
+            match info {
                 AssetInfo::NativeToken { denom } => Ok(denom.clone()),
                 _ => Err(StdError::generic_err(
                     "Already filtered. Cannot contain non-native denoms.",
@@ -306,7 +301,7 @@ pub fn create(
         .ok_or_else(|| error::cluster_token_not_set())?;
 
     // accommodate inputs: subsets of target assets vector
-    let mut asset_weights = vec![Uint128::zero(); asset_infos.len()];
+    let mut asset_weights = vec![Uint128::zero(); target_infos.len()];
     let mut messages = vec![];
 
     // Return an error if assets not in target are sent to the mint function
@@ -318,7 +313,8 @@ pub fn create(
         }
     }
 
-    for (i, asset_info) in asset_infos.iter().enumerate() {
+    // compute weight from the given input amounts
+    for (i, asset_info) in target_infos.iter().enumerate() {
         for asset in asset_amounts.iter() {
             if asset.info.clone() == asset_info.clone() {
                 if target_weights[i] == Uint128::zero() && asset.amount > Uint128::zero() {
@@ -352,9 +348,7 @@ pub fn create(
         }
     }
 
-    let asset_weights = asset_weights.clone();
-
-    let c = asset_weights;
+    let c = asset_weights.clone();
 
     let mint_to_sender;
 
@@ -363,7 +357,7 @@ pub fn create(
     if !cluster_token_supply.is_zero() {
         let mint_response = query_create_amount(
             &deps.querier,
-            &cfg.penalty.clone(),
+            cfg.penalty.clone(),
             env.block.height,
             cluster_token_supply,
             inv.clone(),
@@ -375,7 +369,7 @@ pub fn create(
 
         let (collector_address, fee_rate) =
             query_collector_contract_address(&deps.querier, &cfg.factory)?;
-        let fee_rate = FPDecimal::from_str(&*fee_rate)?;
+        let fee_rate = FPDecimal::from_str(&fee_rate)?;
 
         // mint_to_sender = mint_total * (1 - fee_rate)
         // protocol_fee = mint_total - mint_to_sender == mint_total * fee_rate
@@ -435,13 +429,13 @@ pub fn create(
 
                 if div != val {
                     return Err(StdError::generic_err(format!(
-                        "Initial cluster assets must be a multiple of target weights at index {}",
+                        "Initial cluster assets have weight invariant at index {}",
                         i
                     )));
                 }
             }
 
-            mint_to_sender = *proposed_mint_total;
+            mint_to_sender = proposed_mint_total;
         } else {
             return Err(StdError::generic_err(
                 "Cluster is uninitialized. \
@@ -452,8 +446,8 @@ pub fn create(
     }
 
     if let Some(min) = min_tokens {
-        if mint_to_sender < *min {
-            return Err(error::below_min_tokens(mint_to_sender, *min));
+        if mint_to_sender < min {
+            return Err(error::below_min_tokens(mint_to_sender, min));
         }
     }
 

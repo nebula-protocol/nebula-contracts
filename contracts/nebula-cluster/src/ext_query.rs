@@ -116,7 +116,7 @@ pub fn query_collector_contract_address(
 /// -- Queries the penalty contract for the amount to mint
 pub fn query_create_amount(
     querier: &QuerierWrapper,
-    penalty_address: &String,
+    penalty_address: String,
     block_height: u64,
     cluster_token_supply: Uint128,
     inventory: Vec<Uint128>,
