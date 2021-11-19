@@ -452,6 +452,11 @@ pub fn calc_voting_power(share: Uint128, lock_end_week: u64, current_week: u64) 
     return voting_power;
 }
 
+pub fn query_total_voting_power(deps: Deps) -> StdResult<TotalVotingPower> {
+    let total_power = total_voting_power_read(deps.storage).load()?;
+    Ok(total_power)
+}
+
 pub fn query_voting_power(deps: Deps, env: Env, address: String) -> StdResult<VotingPowerResponse> {
     let state = state_read(deps.storage).load()?;
     let config = config_read(deps.storage).load()?;

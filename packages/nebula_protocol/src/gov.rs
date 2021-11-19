@@ -89,6 +89,7 @@ pub enum QueryMsg {
     Staker {
         address: String,
     },
+    TotalVotingPower {},
     VotingPower {
         address: String,
     },
