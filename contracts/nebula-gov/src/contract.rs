@@ -3,8 +3,8 @@ use cosmwasm_std::entry_point;
 
 use crate::querier::load_token_balance;
 use crate::staking::{
-    calc_voting_power, deposit_reward, increase_lock_time, query_shares, query_staker,
-    query_total_voting_power, query_voting_power, stake_voting_tokens, withdraw_voting_rewards,
+    calc_voting_power, deposit_reward, increase_lock_time, query_current_total_voting_power,
+    query_shares, query_staker, query_voting_power, stake_voting_tokens, withdraw_voting_rewards,
     withdraw_voting_tokens, M, SECONDS_PER_WEEK,
 };
 use crate::state::{
@@ -704,7 +704,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::State {} => to_binary(&query_state(deps)?),
         QueryMsg::Staker { address } => to_binary(&query_staker(deps, address)?),
         QueryMsg::VotingPower { address } => to_binary(&query_voting_power(deps, env, address)?),
-        QueryMsg::TotalVotingPower {} => to_binary(&query_total_voting_power(deps)?),
+        QueryMsg::CurrentTotalVotingPower {} => to_binary(&query_current_total_voting_power(deps)?),
         QueryMsg::Poll { poll_id } => to_binary(&query_poll(deps, poll_id)?),
         QueryMsg::Polls {
             filter,

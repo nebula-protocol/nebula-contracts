@@ -89,7 +89,7 @@ pub enum QueryMsg {
     Staker {
         address: String,
     },
-    TotalVotingPower {},
+    CurrentTotalVotingPower {},
     VotingPower {
         address: String,
     },
@@ -178,6 +178,12 @@ pub struct StakerResponse {
 pub struct VotingPowerResponse {
     pub staker: String,
     pub voting_power: FPDecimal,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+pub struct CurrentTotalVotingPowerResponse {
+    pub current_power: FPDecimal,
+    pub current_week: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
