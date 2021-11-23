@@ -92,6 +92,9 @@ async def mint_and_provide(cluster):
 
     if not (cluster_info['name'] == 'Terra Ecosystem' or cluster_info['name'] == 'The Metaverse'):
         return
+
+    if cluster_info['name'] != 'The Metaverse':
+        return
     
     # if cluster_info['name'] == 'The Future of France':
     #     return

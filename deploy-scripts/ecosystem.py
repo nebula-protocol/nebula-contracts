@@ -259,7 +259,7 @@ class Ecosystem:
             ]
 
         assets = tuple(assets)
-        oracle = await Contract.create(code_ids["nebula_dummy_oracle"])
+        oracle = await Contract.create(code_ids["nebula_dummy_oracle"], owner=deployer.key.acc_address)
         await oracle.set_prices(prices=list(zip(assets, asset_prices)))
         
         self.dummy_oracle = oracle
@@ -286,24 +286,13 @@ class Ecosystem:
             },
         )
 
-        print('hello')
         if self.require_gov:
-
-            # msg = dict_to_b64(
-            #     MsgExecuteContract(
-            #         deployer.key.acc_address, self.gov.address, dict_to_data({'stake_voting_tokens': {'lock_for_weeks': 104}})
-            #     )
-            # ) # Convert to binary
-
-            # print('message after to_data and gov address', msg, self.gov.address)
             
             await self.neb_token.send(
                 contract=self.gov,
                 amount="600000000000",
                 msg=dict_to_b64({'stake_voting_tokens': {'lock_for_weeks': 104}}),
             )
-
-            print('yo')
             
             string_target = [Asset.asset(info.address, amount) for info, amount in zip(assets, target_weights)]
             print(string_target)
