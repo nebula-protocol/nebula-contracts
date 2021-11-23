@@ -3,7 +3,7 @@ use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
     attr, to_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response,
-    StdResult, WasmMsg,
+    StdResult, WasmMsg, StdError
 };
 
 use crate::state::{read_config, store_config, Config};
@@ -42,12 +42,19 @@ pub fn instantiate(
 pub fn execute(
     deps: DepsMut,
     env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     msg: ExecuteMsg,
 ) -> StdResult<Response> {
     match msg {
         ExecuteMsg::Convert { asset_token } => convert(deps, env, asset_token),
         ExecuteMsg::Distribute {} => distribute(deps, env),
+        ExecuteMsg::UpdateConfig {
+            owner,
+        } => update_config(
+            deps,
+            info,
+            owner,
+        ),
     }
 }
 
@@ -157,6 +164,25 @@ pub fn distribute(deps: DepsMut, env: Env) -> StdResult<Response> {
             attr("action", "distribute"),
             attr("amount", amount.to_string()),
         ]))
+}
+
+pub fn update_config(
+    deps: DepsMut,
+    info: MessageInfo,
+    owner: Option<String>,
+) -> StdResult<Response> {
+    let mut config: Config = read_config(deps.storage)?;
+    if config.owner != info.sender.to_string() {
+        return Err(StdError::generic_err("unauthorized"));
+    }
+
+    if let Some(owner) = owner {
+        config.owner = owner;
+    }
+
+    store_config(deps.storage, &config)?;
+
+    Ok(Response::new().add_attributes(vec![attr("action", "update_config")]))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

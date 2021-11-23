@@ -18,6 +18,9 @@ pub enum ExecuteMsg {
         asset_token: String,
     },
     Distribute {},
+    UpdateConfig {
+        owner: Option<String>,
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
