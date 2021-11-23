@@ -287,7 +287,7 @@ class Ecosystem:
         )
 
         if self.require_gov:
-            
+            print('Creating cluster through governance')
             await self.neb_token.send(
                 contract=self.gov,
                 amount="600000000000",
@@ -298,8 +298,6 @@ class Ecosystem:
             print(string_target)
             create_dict = {
                 "create_cluster": {
-                    # "name": "CLUSTER",
-                    # "symbol": "BSK",
                     "params": {
                         "name": "CLUSTER",
                         "symbol": "BSK",
@@ -325,15 +323,6 @@ class Ecosystem:
 
         self.asset_tokens = assets
         self.asset_prices = asset_prices
-
-        # self.cluster_token = Contract(addresses[2])
-        # self.cluster_pair = Contract(addresses[1])
-        # self.lp_token = Contract(addresses[0])
-        # self.cluster = ClusterContract(
-        #     addresses[3],
-        #     self.cluster_token,
-        #     self.asset_tokens,
-        # )
 
         self.cluster_token = Contract(addresses[1])
         self.cluster_pair = Contract(addresses[2])

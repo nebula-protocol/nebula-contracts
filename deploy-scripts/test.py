@@ -1,4 +1,4 @@
-from ecosystem import Ecosystem
+from ecosystem_testing import Ecosystem
 import asyncio
 from tests.provide_liquidity_and_staking import test_provide_liquidity_and_staking
 from tests.cluster_and_collector_ops import test_cluster_and_collector_ops, test_decommission_cluster
