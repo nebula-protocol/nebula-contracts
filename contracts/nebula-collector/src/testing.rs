@@ -7,9 +7,6 @@ use nebula_protocol::collector::{ConfigResponse, ExecuteMsg, InstantiateMsg};
 use nebula_protocol::gov::Cw20HookMsg::DepositReward;
 use terraswap::asset::{Asset, AssetInfo};
 use terraswap::pair::{Cw20HookMsg as TerraswapCw20HookMsg, ExecuteMsg as TerraswapExecuteMsg};
-use nebula_protocol::collector::{
-    QueryMsg,
-};
 
 #[test]
 fn proper_initialization() {
