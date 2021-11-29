@@ -3,7 +3,7 @@ use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
     attr, to_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response,
-    StdResult, WasmMsg, StdError
+    StdError, StdResult, WasmMsg,
 };
 
 use crate::state::{read_config, store_config, Config};
@@ -39,20 +39,23 @@ pub fn instantiate(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn execute(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    msg: ExecuteMsg,
-) -> StdResult<Response> {
+pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
         ExecuteMsg::Convert { asset_token } => convert(deps, env, asset_token),
         ExecuteMsg::Distribute {} => distribute(deps, env),
         ExecuteMsg::UpdateConfig {
+            distribution_contract,
+            terraswap_factory,
+            nebula_token,
+            base_denom,
             owner,
         } => update_config(
             deps,
             info,
+            distribution_contract,
+            terraswap_factory,
+            nebula_token,
+            base_denom,
             owner,
         ),
     }
@@ -169,6 +172,10 @@ pub fn distribute(deps: DepsMut, env: Env) -> StdResult<Response> {
 pub fn update_config(
     deps: DepsMut,
     info: MessageInfo,
+    distribution_contract: Option<String>,
+    terraswap_factory: Option<String>,
+    nebula_token: Option<String>,
+    base_denom: Option<String>,
     owner: Option<String>,
 ) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
@@ -178,6 +185,22 @@ pub fn update_config(
 
     if let Some(owner) = owner {
         config.owner = owner;
+    }
+
+    if let Some(distribution_contract) = distribution_contract {
+        config.distribution_contract = distribution_contract;
+    }
+
+    if let Some(terraswap_factory) = terraswap_factory {
+        config.terraswap_factory = terraswap_factory;
+    }
+
+    if let Some(nebula_token) = nebula_token {
+        config.nebula_token = nebula_token;
+    }
+
+    if let Some(base_denom) = base_denom {
+        config.base_denom = base_denom;
     }
 
     store_config(deps.storage, &config)?;
