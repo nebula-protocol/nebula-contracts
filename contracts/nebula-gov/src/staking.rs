@@ -15,7 +15,8 @@ use cosmwasm_std::{
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::common::OrderBy;
 use nebula_protocol::gov::{
-    PollStatus, SharesResponse, SharesResponseItem, StakerResponse, VoterInfo, VotingPowerResponse,
+    CurrentTotalVotingPowerResponse, PollStatus, SharesResponse, SharesResponseItem,
+    StakerResponse, VoterInfo, VotingPowerResponse,
 };
 
 pub static SECONDS_PER_WEEK: u64 = 604800u64; //60 * 60 * 24 * 7
@@ -450,6 +451,15 @@ pub fn calc_voting_power(share: Uint128, lock_end_week: u64, current_week: u64) 
         * FPDecimal::from(locked_weeks_remaining as u128)
         / FPDecimal::from(M as u128);
     return voting_power;
+}
+
+pub fn query_current_total_voting_power(deps: Deps) -> StdResult<CurrentTotalVotingPowerResponse> {
+    let total_voting_power = total_voting_power_read(deps.storage).load()?;
+    let current_power = total_voting_power.voting_power[(total_voting_power.last_upd % M) as usize];
+    Ok(CurrentTotalVotingPowerResponse {
+        current_power,
+        current_week: total_voting_power.last_upd,
+    })
 }
 
 pub fn query_voting_power(deps: Deps, env: Env, address: String) -> StdResult<VotingPowerResponse> {

@@ -18,9 +18,10 @@ use cosmwasm_std::{
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use nebula_protocol::common::OrderBy;
 use nebula_protocol::gov::{
-    ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, PollExecuteMsg, PollResponse,
-    PollStatus, PollsResponse, QueryMsg, SharesResponse, SharesResponseItem, StakerResponse,
-    StateResponse, VoteOption, VoterInfo, VotersResponse, VotersResponseItem, VotingPowerResponse,
+    ConfigResponse, CurrentTotalVotingPowerResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg,
+    PollExecuteMsg, PollResponse, PollStatus, PollsResponse, QueryMsg, SharesResponse,
+    SharesResponseItem, StakerResponse, StateResponse, VoteOption, VoterInfo, VotersResponse,
+    VotersResponseItem, VotingPowerResponse,
 };
 use std::str::FromStr;
 
@@ -3569,6 +3570,51 @@ fn test_abstain_votes_quorum() {
             attr("rejected_reason", "Quorum not reached"),
             attr("passed", "false"),
         ]
+    );
+}
+
+#[test]
+fn test_query_total_voting_power() {
+    let mut deps = mock_dependencies(&[]);
+    mock_init(deps.as_mut());
+
+    let stake_amount = 1000000u128;
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(stake_amount))],
+    )]);
+
+    let lock_period = 10u64;
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER.to_string(),
+        amount: Uint128::from(stake_amount),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {
+            lock_for_weeks: Some(lock_period),
+        })
+        .unwrap(),
+    });
+
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let env = mock_env();
+    let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
+    assert_stake_tokens_result(stake_amount, 0, stake_amount, 0, execute_res, deps.as_mut());
+
+    let total_voting_power = total_voting_power_read(&deps.storage).load().unwrap();
+    let current_week = env.block.time.seconds() / SECONDS_PER_WEEK;
+    let res = query(
+        deps.as_ref(),
+        mock_env(),
+        QueryMsg::CurrentTotalVotingPower {},
+    )
+    .unwrap();
+    let response: CurrentTotalVotingPowerResponse = from_binary(&res).unwrap();
+    assert_eq!(
+        CurrentTotalVotingPowerResponse {
+            current_power: total_voting_power.voting_power
+                [(total_voting_power.last_upd % 104) as usize],
+            current_week
+        },
+        response
     );
 }
 
