@@ -51,5 +51,7 @@ pub fn save_asset_balance(
 }
 
 pub fn read_asset_balance(storage: &dyn Storage, asset: &String) -> StdResult<Uint128> {
-    bucket_read(storage, PREFIX_BALANCE).load(asset.as_bytes())
+    Ok(bucket_read(storage, PREFIX_BALANCE)
+        .load(asset.as_bytes())
+        .unwrap_or(Uint128::zero()))
 }
