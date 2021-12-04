@@ -664,14 +664,14 @@ fn update_asset_balance(
     storage: &mut dyn Storage,
     asset_id: &String,
     amount: Uint128,
-    add: bool,
+    mint: bool,
 ) -> StdResult<()> {
     let mut asset_amount = match read_asset_balance(storage, &asset_id) {
         Ok(amount) => amount,
         Err(_) => Uint128::zero(),
     };
 
-    match add {
+    match mint {
         true => asset_amount = asset_amount.checked_add(amount)?,
         false => asset_amount = asset_amount.checked_sub(amount)?,
     };
