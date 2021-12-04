@@ -3,7 +3,7 @@ use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
     attr, to_binary, Addr, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
-    Uint128, WasmMsg,
+    Storage, Uint128, WasmMsg,
 };
 
 use cw20::Cw20ExecuteMsg;
@@ -14,7 +14,9 @@ use crate::ext_query::{
     query_asset_balance, query_collector_contract_address, query_create_amount, query_redeem_amount,
 };
 use crate::state::{config_store, read_config};
-use crate::state::{read_target_asset_data, save_target_asset_data};
+use crate::state::{
+    read_asset_balance, read_target_asset_data, save_asset_balance, save_target_asset_data,
+};
 use crate::util::vec_to_string;
 
 use cluster_math::FPDecimal;
@@ -274,7 +276,7 @@ pub fn create(
 
     let prices = cluster_state.prices;
     let cluster_token_supply = cluster_state.outstanding_balance_tokens;
-    let mut inv = cluster_state.inv;
+    let inv = cluster_state.inv;
     let target = cluster_state.target;
 
     let target_infos = target.iter().map(|x| x.info.clone()).collect::<Vec<_>>();
@@ -336,12 +338,12 @@ pub fn create(
                         })?,
                         funds: vec![],
                     }));
-                } else {
+                    update_asset_balance(deps.storage, contract_addr, asset.amount, true)?;
+                } else if let AssetInfo::NativeToken { denom } = &asset.info {
                     // validate that native token balance is correct
                     asset.assert_sent_native_token_balance(&info)?;
 
-                    // inventory should not include native assets sent in this transaction
-                    inv[i] = inv[i].checked_sub(asset.amount)?;
+                    update_asset_balance(deps.storage, denom, asset.amount, true)?;
                 }
                 break;
             }
@@ -580,6 +582,11 @@ pub fn receive_redeem(
         .zip(asset_infos.iter())
         .filter(|(amt, _asset)| !amt.is_zero()) // remove 0 amounts
         .map(|(amt, asset_info)| {
+            if let AssetInfo::Token { contract_addr, .. } = &asset_info {
+                update_asset_balance(deps.storage, contract_addr, amt.clone(), false)?;
+            } else if let AssetInfo::NativeToken { denom } = &asset_info {
+                update_asset_balance(deps.storage, denom, amt.clone(), false)?;
+            }
             let asset = Asset {
                 info: asset_info.clone(),
                 amount: amt.clone(),
@@ -651,4 +658,23 @@ pub fn receive_redeem(
         ]
         .concat(),
     ))
+}
+
+fn update_asset_balance(
+    storage: &mut dyn Storage,
+    asset_id: &String,
+    amount: Uint128,
+    add: bool,
+) -> StdResult<()> {
+    let mut asset_amount = match read_asset_balance(storage, &asset_id) {
+        Ok(amount) => amount,
+        Err(_) => Uint128::zero(),
+    };
+
+    match add {
+        true => asset_amount = asset_amount.checked_add(amount)?,
+        false => asset_amount = asset_amount.checked_sub(amount)?,
+    };
+    save_asset_balance(storage, &asset_id, &asset_amount)?;
+    Ok(())
 }
