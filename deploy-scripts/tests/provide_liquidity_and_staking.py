@@ -1,4 +1,4 @@
-from ecosystem import Ecosystem
+from ecosystem_testing import Ecosystem
 from contract_helpers import chain, deployer, dict_to_b64
 from api import Asset
 import asyncio
