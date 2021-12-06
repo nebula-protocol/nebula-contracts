@@ -313,6 +313,8 @@ class Ecosystem:
             resp = await self.create_and_execute_poll(
                 {"contract": self.factory.address, "msg": dict_to_b64(create_dict)}
             )
+
+            print('done with creating governance')
         else:
             resp = await create_cluster
 
