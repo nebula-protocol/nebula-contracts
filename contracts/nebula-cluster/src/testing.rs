@@ -928,7 +928,7 @@ fn mint() {
         ]
     );
 
-    // check invenotry post-mint
+    // check inventory post-mint
     let res = query(deps.as_ref(), mock_env(), ClusterQueryMsg::ClusterState {}).unwrap();
     let response: ClusterStateResponse = from_binary(&res).unwrap();
     assert_eq!(
