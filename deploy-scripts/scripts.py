@@ -9,6 +9,8 @@ from contract_helpers import Contract, ClusterContract, store_contract, chain
 import asyncio
 from base import deployer
 from constants import graphql_mir_data, DEPLOY_ENVIRONMENT_STATUS_W_GOV, CONTRACT_TOKEN_TO_SYM_TEQ, CONTRACT_TOKEN_TO_SYM_BOMBAY
+import time
+from pprint import pprint
 
 
 REQUIRE_GOV = True
@@ -47,9 +49,13 @@ async def deploy_new_incentives():
 
     print(ecosystem.__dict__)
 
+ADDR0 = deployer.key.acc_address
 ADDR1 = "terra149xt9vmvmk9xag5f9zlnhqdw8yr8xu5kqmtyyk"
 ADDR2 = "terra1hpwskqv92r6apn90kx3k9zk756g9j6m6zh4hmj"
-ADDR3 = deployer.key.acc_address
+ADDR3 = "terra12hnhh5vtyg5juqnzm43970nh4fw42pt27nw9g9"
+ADDR4 = "terra1jfa9uhs0z6rkpn2l5zy0jx3l8a8envht07gx3p"
+
+BOMBAY_TOKEN_CODE = 148
 
 async def deploy_mir_token_contracts():
 
@@ -62,22 +68,29 @@ async def deploy_mir_token_contracts():
         symbol, name, token = asset['symbol'], asset['name'], asset['token']
         try:
             mirror_contract = await Contract.create(
-                # DEPLOY_ENVIRONMENT_STATUS_W_GOV['code_ids']['terraswap_token'],
-                9467,
+                BOMBAY_TOKEN_CODE,
                 name=name,
                 symbol=symbol,
                 decimals=6,
                 initial_balances=[
                     {
                         "address": ADDR1,
-                        "amount": "1" + "0" * 18,
+                        "amount": "1" + "0" * 10,
                     },
                     {
                         "address": ADDR2,
-                        "amount": "1" + "0" * 18,
+                        "amount": "1" + "0" * 10,
                     },
                     {
                         "address": ADDR3,
+                        "amount": "1" + "0" * 10,
+                    },
+                    {
+                        "address": ADDR4,
+                        "amount": "1" + "0" * 10,
+                    },
+                    {
+                        "address": ADDR0,
                         "amount": "1" + "0" * 18,
                     },
                 ],
@@ -90,9 +103,8 @@ async def deploy_mir_token_contracts():
             print(symbols_to_mir_contract)
             print(contract_to_symbol)
 
-    print(symbols_to_mir_contract)
-    print(contract_to_symbol)
-
+    pprint(symbols_to_mir_contract)
+    pprint(contract_to_symbol)
 
 async def deploy_token_contracts():
 
@@ -108,22 +120,29 @@ async def deploy_token_contracts():
         print(symbol)
 
         contract = await Contract.create(
-            # DEPLOY_ENVIRONMENT_STATUS_W_GOV['code_ids']['terraswap_token'],
-            9467,
+            BOMBAY_TOKEN_CODE,
             name=name,
             symbol=symbol,
             decimals=6,
             initial_balances=[
                 {
                     "address": ADDR1,
-                    "amount": "1" + "0" * 18,
+                    "amount": "1" + "0" * 10,
                 },
                 {
                     "address": ADDR2,
-                    "amount": "1" + "0" * 18,
+                    "amount": "1" + "0" * 10,
                 },
                 {
                     "address": ADDR3,
+                    "amount": "1" + "0" * 10,
+                },
+                {
+                    "address": ADDR4,
+                    "amount": "1" + "0" * 10,
+                },
+                {
+                    "address": ADDR0,
                     "amount": "1" + "0" * 18,
                 },
             ],
@@ -131,10 +150,11 @@ async def deploy_token_contracts():
         )
         symbols_to_contracts[symbol] = contract.address
         contracts_to_symbols[contract.address] = symbol
+        time.sleep(1)
         
 
-    print(symbols_to_contracts)
-    print(contracts_to_symbols)
+    pprint(symbols_to_contracts)
+    pprint(contracts_to_symbols)
 
 
 SEND_TO = ['terra1hpwskqv92r6apn90kx3k9zk756g9j6m6zh4hmj','terra13dsvt7t99vv74nx45zegufm0yz8gu8n2wsx39l', 'terra12hnhh5vtyg5juqnzm43970nh4fw42pt27nw9g9', 'terra1jfa9uhs0z6rkpn2l5zy0jx3l8a8envht07gx3p']
@@ -158,7 +178,7 @@ async def quick_transfer():
 async def provide_lp():
     terraswap_factory = Contract('terra18qpjm4zkvqnpjpw0zn0tdr8gdzvt8au35v45xf')
 
-    neb_token = Contract('terra17rfslz2j8zf9nmfvmzlvr68csjy6x78eyzms7x')
+    neb_token = Contract('terra1nknarneeatpm7amzw4rhxhcaqyt3ecx6y7k5yq')
 
     asset_infos = [Asset.cw20_asset_info(neb_token.address), Asset.native_asset_info('uusd')] 
     pair_info = await terraswap_factory.query.pair(asset_infos=asset_infos)

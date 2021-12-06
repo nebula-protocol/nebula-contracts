@@ -3,6 +3,7 @@ import asyncio
 import requests
 import json
 import time
+from .graphql_querier import SYM_TO_CONTRACT_TOKEN_BOMBAY
 
 os.environ["MNEMONIC"] = mnemonic = 'idea salute sniff electric lecture table flag oblige pyramid light ocean heart web ramp save fiscal sting course uncle deputy way field vacant genius'
 
@@ -82,8 +83,8 @@ class TerraFullDilutedMcapRecomposer:
         return target
 
 async def get_terra_ecosystem_info():
-    ANC_ADDR = 'terra188w8fnaz6lvta7glz9saacdt3q407249n95yh0'
-    MIR_ADDR = 'terra17v346ttxlx3hen5xlkt0v76z33t7rlmm0r39s9'
+    ANC_ADDR = SYM_TO_CONTRACT_TOKEN_BOMBAY['ANC']
+    MIR_ADDR = SYM_TO_CONTRACT_TOKEN_BOMBAY['MIR']
     assets = [
         "uluna", #LUNA
         ANC_ADDR, #ANC

@@ -1,7 +1,7 @@
 use crate::contract::{execute, instantiate, query_config};
 use crate::mock_querier::mock_dependencies;
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
-use cosmwasm_std::{to_binary, Coin, CosmosMsg, Decimal, SubMsg, Uint128, WasmMsg};
+use cosmwasm_std::{to_binary, Coin, CosmosMsg, Decimal, StdError, SubMsg, Uint128, WasmMsg};
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::collector::{ConfigResponse, ExecuteMsg, InstantiateMsg};
 use nebula_protocol::gov::Cw20HookMsg::DepositReward;
@@ -156,4 +156,55 @@ fn test_distribute() {
             funds: vec![],
         }))]
     )
+}
+
+#[test]
+fn test_update_config() {
+    let mut deps = mock_dependencies(&[]);
+
+    let msg = InstantiateMsg {
+        terraswap_factory: ("terraswapfactory".to_string()),
+        distribution_contract: ("gov0000".to_string()),
+        nebula_token: ("nebula0000".to_string()),
+        owner: ("owner0000".to_string()),
+        base_denom: "uusd".to_string(),
+    };
+
+    let info = mock_info("addr0000", &[]);
+    let _res = instantiate(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+
+    // upate owner
+    let msg = ExecuteMsg::UpdateConfig {
+        terraswap_factory: Some("terraswapfactory1".to_string()),
+        distribution_contract: Some("gov0001".to_string()),
+        nebula_token: Some("nebula0001".to_string()),
+        base_denom: Some("uusd1".to_string()),
+        owner: Some("owner0001".to_string()),
+    };
+
+    let info = mock_info("owner0000", &[]);
+    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    let config: ConfigResponse = query_config(deps.as_ref()).unwrap();
+
+    assert_eq!("terraswapfactory1", config.terraswap_factory.as_str());
+    assert_eq!("gov0001", config.distribution_contract.as_str());
+    assert_eq!("nebula0001", config.nebula_token.as_str());
+    assert_eq!("uusd1", config.base_denom.as_str());
+    assert_eq!("owner0001", config.owner.as_str());
+
+    // failed unauthoirzed
+    let msg = ExecuteMsg::UpdateConfig {
+        owner: None,
+        terraswap_factory: Some("terraswapfactory1".to_string()),
+        distribution_contract: Some("gov0001".to_string()),
+        nebula_token: Some("nebula0001".to_string()),
+        base_denom: Some("uusd1".to_string()),
+    };
+
+    let info = mock_info("owner0000", &[]);
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    match res {
+        StdError::GenericErr { msg, .. } => assert_eq!(msg, "unauthorized"),
+        _ => panic!("DO NOT ENTER HERE"),
+    }
 }
