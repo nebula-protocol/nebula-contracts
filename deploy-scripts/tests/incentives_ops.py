@@ -1,4 +1,4 @@
-from ecosystem import Ecosystem, deployer
+from ecosystem_testing import Ecosystem, deployer
 from contract_helpers import chain, dict_to_b64
 from base import terra
 from api import Asset
