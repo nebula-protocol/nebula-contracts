@@ -18,6 +18,13 @@ pub enum ExecuteMsg {
         asset_token: String,
     },
     Distribute {},
+    UpdateConfig {
+        distribution_contract: Option<String>,
+        terraswap_factory: Option<String>,
+        nebula_token: Option<String>,
+        base_denom: Option<String>,
+        owner: Option<String>,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

@@ -2,6 +2,7 @@ import os
 import asyncio
 import requests
 import json
+from .graphql_querier import SYM_TO_CONTRACT_TOKEN_BOMBAY
 
 os.environ["MNEMONIC"] = mnemonic = 'trash comic lawn fatal jewel alien twin drip immense general rose ahead coffee rack liquid bottom because unveil clean butter leave wear slam surprise'
 os.environ["USE_TEQUILA"] = "1"
@@ -23,11 +24,11 @@ class FutureOfFranceRecomposer:
         self.cluster_contract = cluster_contract
         self.asset_names = ["AAVE", "COMP", "MKR", "CREAM", "ANC"]
         self.assets_to_address = {
-            'AAVE': 'terra1tuka7n04fgll8rmzm6pllg3xkhkmdl5murkae9',
-            'ANC': 'terra188w8fnaz6lvta7glz9saacdt3q407249n95yh0',
-            'COMP': 'terra1egsu2cll5009dk8a326vgnvrgpq7u397kxpmmv',
-            'CREAM': 'terra1x7fffq9est2jkzcgk9a8n9v9gqr5u4wr8l6qwv',
-            'MKR': 'terra1gpfyxmccze3t93xdpcwlcpdx604khqgtr4a0tv'
+            'AAVE': SYM_TO_CONTRACT_TOKEN_BOMBAY['AAVE'],
+            'ANC': SYM_TO_CONTRACT_TOKEN_BOMBAY['ANC'],
+            'COMP': SYM_TO_CONTRACT_TOKEN_BOMBAY['COMP'],
+            'CREAM': SYM_TO_CONTRACT_TOKEN_BOMBAY['CREAM'],
+            'MKR': SYM_TO_CONTRACT_TOKEN_BOMBAY['MKR'],
         }
         self.api = "https://api.llama.fi"
         self.protocol_endpoint = "protocols"

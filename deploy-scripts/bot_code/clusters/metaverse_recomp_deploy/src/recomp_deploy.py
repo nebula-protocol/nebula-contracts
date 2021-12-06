@@ -5,6 +5,7 @@ import json
 import pickle
 import backoff
 from datetime import timedelta, datetime
+from .graphql_querier import SYM_TO_CONTRACT_TOKEN_BOMBAY
 
 os.environ["MNEMONIC"] = mnemonic = 'parent hospital arrest brush exact giraffe glimpse exist grain curtain always depend session wash twin insane rural brain ahead destroy sudden claim story funny'
 os.environ["USE_TEQUILA"] = "1"
@@ -37,11 +38,11 @@ class MetaverseRecomposer:
 
         self.asset_infos = [
             'uusd', 
-            'terra1lrnanc6z0r70lhdw0w8kq6wtkykmqekwktp7x6',
-            'terra1ems4zzzrdhtrw35e0wj7ssdcwaj704rtgzp0v2',
-            'terra12knrdep3zgj34z560ml5hy7gu43r00mgyfpes4',
-            'terra10s0alq88mq3h4wrulsn6kgu7g26nnszxjk2ecl',
-            'terra1yy9yu0rqjzsu2gmjvvsv8xelfanqgpadvpur85',
+            SYM_TO_CONTRACT_TOKEN_BOMBAY['AXS'],
+            SYM_TO_CONTRACT_TOKEN_BOMBAY['SAND'],
+            SYM_TO_CONTRACT_TOKEN_BOMBAY['MANA'],
+            SYM_TO_CONTRACT_TOKEN_BOMBAY['ENJ'],
+            SYM_TO_CONTRACT_TOKEN_BOMBAY['AUDIO'],
         ]
 
         self.activation_file = "activation.info"
