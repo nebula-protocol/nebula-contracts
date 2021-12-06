@@ -1,15 +1,14 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
-use cosmwasm_std::{to_binary, Addr, Binary, Deps, Env, StdError, StdResult, Uint128};
+use cosmwasm_std::{to_binary, Binary, Deps, Env, StdError, StdResult, Uint128};
 
-use crate::ext_query::{query_cw20_balance, query_cw20_token_supply, query_price};
-use crate::state::{read_config, read_target_asset_data};
+use crate::ext_query::{query_cw20_token_supply, query_price};
+use crate::state::{read_asset_balance, read_config, read_target_asset_data};
 use nebula_protocol::cluster::{
     ClusterInfoResponse, ClusterStateResponse, ConfigResponse, QueryMsg, TargetResponse,
 };
 use terraswap::asset::AssetInfo;
-use terraswap::querier::query_balance;
 
 /// Convenience function for creating inline String
 pub fn h(s: &str) -> String {
@@ -89,14 +88,8 @@ pub fn query_cluster_state(
     let inv: Vec<Uint128> = asset_infos
         .iter()
         .map(|asset| match asset {
-            AssetInfo::Token { contract_addr } => {
-                query_cw20_balance(&deps.querier, &(contract_addr), cluster_contract_address)
-            }
-            AssetInfo::NativeToken { denom } => query_balance(
-                &deps.querier,
-                Addr::unchecked(cluster_contract_address.to_string()),
-                denom.clone(),
-            ),
+            AssetInfo::Token { contract_addr } => read_asset_balance(deps.storage, contract_addr),
+            AssetInfo::NativeToken { denom } => read_asset_balance(deps.storage, denom),
         })
         .collect::<StdResult<Vec<Uint128>>>()?;
 

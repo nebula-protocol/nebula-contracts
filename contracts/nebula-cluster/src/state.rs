@@ -1,5 +1,5 @@
-use cosmwasm_std::{StdResult, Storage};
-use cosmwasm_storage::{singleton, singleton_read, Singleton};
+use cosmwasm_std::{StdResult, Storage, Uint128};
+use cosmwasm_storage::{bucket, bucket_read, singleton, singleton_read, Singleton};
 use nebula_protocol::cluster::ClusterConfig;
 use terraswap::asset::Asset;
 
@@ -11,6 +11,8 @@ pub static TARGET_KEY: &[u8] = b"target";
 
 /// asset data: Vec<AssetData>
 pub static ASSET_DATA_KEY: &[u8] = b"asset_data";
+
+pub static PREFIX_BALANCE: &[u8] = b"balance";
 
 pub fn config_store(storage: &mut dyn Storage) -> Singleton<ClusterConfig> {
     singleton(storage, CONFIG_KEY)
@@ -38,4 +40,18 @@ pub fn read_target(storage: &dyn Storage) -> StdResult<Vec<u32>> {
 
 pub fn save_target(storage: &mut dyn Storage, target: &Vec<u32>) -> StdResult<()> {
     singleton(storage, TARGET_KEY).save(target)
+}
+
+pub fn save_asset_balance(
+    storage: &mut dyn Storage,
+    asset: &String,
+    inventory: &Uint128,
+) -> StdResult<()> {
+    bucket(storage, PREFIX_BALANCE).save(asset.as_bytes(), inventory)
+}
+
+pub fn read_asset_balance(storage: &dyn Storage, asset: &String) -> StdResult<Uint128> {
+    Ok(bucket_read(storage, PREFIX_BALANCE)
+        .load(asset.as_bytes())
+        .unwrap_or(Uint128::zero()))
 }

@@ -11,7 +11,10 @@ pub use cw20::BalanceResponse as Cw20BalanceResponse;
 use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, TokenInfoResponse};
 use nebula_protocol::penalty::ExecuteMsg as PenaltyExecuteMsg;
 use nebula_protocol::{
-    cluster::{ExecuteMsg, InstantiateMsg, QueryMsg as ClusterQueryMsg, TargetResponse},
+    cluster::{
+        ClusterStateResponse, ExecuteMsg, InstantiateMsg, QueryMsg as ClusterQueryMsg,
+        TargetResponse,
+    },
     cluster_factory::ConfigResponse as FactoryConfigResponse,
     oracle::{PriceResponse, QueryMsg as OracleQueryMsg},
     penalty::{PenaltyCreateResponse, PenaltyRedeemResponse, QueryMsg as PenaltyQueryMsg},
@@ -186,7 +189,7 @@ impl WasmMockQuerier {
                                     let response = PenaltyRedeemResponse {
                                         redeem_assets: vec![
                                             Uint128::new(99),
-                                            Uint128::new(98),
+                                            Uint128::new(0),
                                             Uint128::new(97),
                                             Uint128::new(96),
                                         ],
@@ -796,17 +799,12 @@ fn mint() {
     // mNFLX ::  540.82   ::    224_212_221  (+  50_090_272) :: 0.02506130106 -> 0.03016943389
 
     // The set token balance should include the amount we would also like to stage
-    deps.querier
-        .set_token_balance("mAAPL", MOCK_CONTRACT_ADDR, 7_290_053_159)
-        .set_token_balance("mGOOG", MOCK_CONTRACT_ADDR, 319_710_128)
-        .set_token_balance("mMSFT", MOCK_CONTRACT_ADDR, 14_219_281_228)
-        .set_token_balance("mNFLX", MOCK_CONTRACT_ADDR, 224_212_221)
-        .set_oracle_prices(vec![
-            ("mAAPL", Decimal::from_str("135.18").unwrap()),
-            ("mGOOG", Decimal::from_str("1780.03").unwrap()),
-            ("mMSFT", Decimal::from_str("222.42").unwrap()),
-            ("mNFLX", Decimal::from_str("540.82").unwrap()),
-        ]);
+    deps.querier.set_oracle_prices(vec![
+        ("mAAPL", Decimal::from_str("135.18").unwrap()),
+        ("mGOOG", Decimal::from_str("1780.03").unwrap()),
+        ("mMSFT", Decimal::from_str("222.42").unwrap()),
+        ("mNFLX", Decimal::from_str("540.82").unwrap()),
+    ]);
 
     let asset_amounts = consts::asset_amounts();
 
@@ -882,10 +880,10 @@ fn mint() {
                     block_height: env.block.height,
                     cluster_token_supply: Uint128::new(1_000_000_000),
                     inventory: vec![
-                        Uint128::new(7_290_053_159u128),
-                        Uint128::new(319_710_128u128),
-                        Uint128::new(14_219_281_228u128),
-                        Uint128::new(224_212_221u128)
+                        Uint128::new(0u128),
+                        Uint128::new(0u128),
+                        Uint128::new(0u128),
+                        Uint128::new(0u128)
                     ],
                     create_asset_amounts: vec![
                         Uint128::new(125_000_000),
@@ -929,6 +927,58 @@ fn mint() {
             }))
         ]
     );
+
+    // check inventory post-mint
+    let res = query(deps.as_ref(), mock_env(), ClusterQueryMsg::ClusterState {}).unwrap();
+    let response: ClusterStateResponse = from_binary(&res).unwrap();
+    assert_eq!(
+        ClusterStateResponse {
+            outstanding_balance_tokens: Uint128::from(1_000_000_000u128),
+            prices: vec![
+                "135.18".to_string(),
+                "1780.03".to_string(),
+                "222.42".to_string(),
+                "540.82".to_string()
+            ],
+            inv: vec![
+                Uint128::new(125_000_000u128),
+                Uint128::zero(),
+                Uint128::new(149_000_000),
+                Uint128::new(50_090_272),
+            ],
+            penalty: "penalty".to_string(),
+            cluster_token: "cluster".to_string(),
+            target: vec![
+                Asset {
+                    info: AssetInfo::Token {
+                        contract_addr: "mAAPL".to_string(),
+                    },
+                    amount: Uint128::new(20,),
+                },
+                Asset {
+                    info: AssetInfo::Token {
+                        contract_addr: "mGOOG".to_string(),
+                    },
+                    amount: Uint128::new(20,),
+                },
+                Asset {
+                    info: AssetInfo::Token {
+                        contract_addr: "mMSFT".to_string(),
+                    },
+                    amount: Uint128::new(20,),
+                },
+                Asset {
+                    info: AssetInfo::Token {
+                        contract_addr: "mNFLX".to_string(),
+                    },
+                    amount: Uint128::new(20,),
+                },
+            ],
+            cluster_contract_address: "cosmos2contract".to_string(),
+            active: true
+        },
+        response
+    );
 }
 
 #[test]
@@ -939,10 +989,6 @@ fn burn() {
     deps.querier
         .set_token_supply(consts::cluster_token(), 100_000_000)
         .set_token_balance(consts::cluster_token(), "addr0000", 20_000_000)
-        .set_token_balance("mAAPL", MOCK_CONTRACT_ADDR, 7_290_053_159)
-        .set_token_balance("mGOOG", MOCK_CONTRACT_ADDR, 319_710_128)
-        .set_token_balance("mMSFT", MOCK_CONTRACT_ADDR, 14_219_281_228)
-        .set_token_balance("mNFLX", MOCK_CONTRACT_ADDR, 224_212_221)
         .set_oracle_prices(vec![
             ("mAAPL", Decimal::from_str("135.18").unwrap()),
             ("mGOOG", Decimal::from_str("1780.03").unwrap()),
@@ -950,9 +996,49 @@ fn burn() {
             ("mNFLX", Decimal::from_str("540.82").unwrap()),
         ]);
 
+    // mint first to have underlying assets to redeem
+    let asset_amounts = consts::asset_amounts();
+
+    deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
+
+    let mint_msg = ExecuteMsg::RebalanceCreate {
+        asset_amounts: asset_amounts.clone(),
+        min_tokens: None,
+    };
+
+    let addr = "addr0000";
+    let info = mock_info(addr, &[]);
+    let env = mock_env();
+    let _res = execute(deps.as_mut(), env.clone(), info, mint_msg).unwrap();
+
     let msg = ExecuteMsg::RebalanceRedeem {
         max_tokens: Uint128::new(20_000_000),
-        asset_amounts: None,
+        asset_amounts: Some(vec![
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: "mAAPL".to_string(),
+                },
+                amount: Uint128::new(20),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: "mGOOG".to_string(),
+                },
+                amount: Uint128::new(0),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: "mMSFT".to_string(),
+                },
+                amount: Uint128::new(20),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: "mNFLX".to_string(),
+                },
+                amount: Uint128::new(20),
+            },
+        ]),
     };
     let info = mock_info("addr0000", &[]);
     let env = mock_env();
@@ -966,8 +1052,8 @@ fn burn() {
             attr("burn_amount", "1234"),
             attr("token_cost", "1247"),
             attr("kept_as_fee", "13"),
-            attr("asset_amounts", "[]"),
-            attr("redeem_totals", "[99, 98, 97, 96]"),
+            attr("asset_amounts", "[20, 0, 20, 20]"),
+            attr("redeem_totals", "[99, 0, 97, 96]"),
             attr("penalty", "1234")
         ]
     );
@@ -980,15 +1066,6 @@ fn burn() {
                 msg: to_binary(&Cw20ExecuteMsg::Transfer {
                     recipient: "addr0000".to_string(),
                     amount: Uint128::new(99u128)
-                })
-                .unwrap(),
-                funds: vec![],
-            })),
-            SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: h("mGOOG"),
-                msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                    recipient: "addr0000".to_string(),
-                    amount: Uint128::new(98u128)
                 })
                 .unwrap(),
                 funds: vec![],
@@ -1036,13 +1113,18 @@ fn burn() {
                     block_height: env.block.height,
                     cluster_token_supply: Uint128::new(100_000_000u128),
                     inventory: vec![
-                        Uint128::new(7_290_053_159u128),
-                        Uint128::new(319_710_128u128),
-                        Uint128::new(14_219_281_228u128),
-                        Uint128::new(224_212_221u128)
+                        Uint128::new(125_000_000u128),
+                        Uint128::zero(),
+                        Uint128::new(149_000_000),
+                        Uint128::new(50_090_272),
                     ],
                     max_tokens: Uint128::new(20_000_000u128),
-                    redeem_asset_amounts: vec![],
+                    redeem_asset_amounts: vec![
+                        Uint128::new(20),
+                        Uint128::zero(),
+                        Uint128::new(20),
+                        Uint128::new(20)
+                    ],
                     asset_prices: vec![
                         "135.18".to_string(),
                         "1780.03".to_string(),
@@ -1129,6 +1211,21 @@ fn decommission_cluster() {
     let config = read_config(&deps.storage).unwrap();
     assert_eq!(config.active, true);
 
+    // mint first to have underlying assets to redeem
+    let asset_amounts = consts::asset_amounts();
+
+    deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
+
+    let mint_msg = ExecuteMsg::RebalanceCreate {
+        asset_amounts: asset_amounts.clone(),
+        min_tokens: None,
+    };
+
+    let addr = "addr0000";
+    let info = mock_info(addr, &[]);
+    let env = mock_env();
+    let _res = execute(deps.as_mut(), env.clone(), info, mint_msg).unwrap();
+
     let msg = ExecuteMsg::Decommission {};
 
     let info = mock_info("owner0001", &[]);
@@ -1206,7 +1303,7 @@ fn decommission_cluster() {
             attr("token_cost", "1247"),
             attr("kept_as_fee", "13"),
             attr("asset_amounts", "[]"),
-            attr("redeem_totals", "[99, 98, 97, 96]"),
+            attr("redeem_totals", "[99, 0, 97, 96]"),
             attr("penalty", "1234")
         ]
     );
