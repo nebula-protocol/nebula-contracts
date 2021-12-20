@@ -1,30 +1,28 @@
+use std::str::FromStr;
+
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-
 use cosmwasm_std::{
     attr, to_binary, Addr, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
     Storage, Uint128, WasmMsg,
 };
-
 use cw20::Cw20ExecuteMsg;
+use terraswap::asset::{Asset, AssetInfo};
+
+use cluster_math::FPDecimal;
+use nebula_protocol::cluster::ExecuteMsg;
+use nebula_protocol::penalty::ExecuteMsg as PenaltyExecuteMsg;
 
 use crate::contract::{query_cluster_state, validate_targets};
 use crate::error;
 use crate::ext_query::{
-    query_asset_balance, query_collector_contract_address, query_create_amount, query_redeem_amount,
+    query_collector_contract_address, query_create_amount, query_redeem_amount,
 };
 use crate::state::{config_store, read_config};
 use crate::state::{
     read_asset_balance, read_target_asset_data, save_asset_balance, save_target_asset_data,
 };
 use crate::util::vec_to_string;
-
-use cluster_math::FPDecimal;
-use nebula_protocol::cluster::ExecuteMsg;
-use nebula_protocol::penalty::ExecuteMsg as PenaltyExecuteMsg;
-
-use std::str::FromStr;
-use terraswap::asset::{Asset, AssetInfo};
 
 // prices last 30s before they go from fresh to stale
 const FRESH_TIMESPAN: u64 = 30;
@@ -176,11 +174,10 @@ pub fn update_target(
     // When previous assets are not found,
     // then set that not found item target to zero
     for prev_asset in prev_assets.iter() {
-        let inv_balance = query_asset_balance(
-            &deps.querier,
-            &env.contract.address.to_string(),
-            &prev_asset,
-        )?;
+        let inv_balance = match prev_asset {
+            AssetInfo::Token { contract_addr } => read_asset_balance(deps.storage, contract_addr),
+            AssetInfo::NativeToken { denom } => read_asset_balance(deps.storage, denom),
+        }?;
         if !inv_balance.is_zero() && !updated_asset_infos.contains(&prev_asset) {
             let asset_elem = Asset {
                 info: prev_asset.clone(),
@@ -350,7 +347,7 @@ pub fn create(
         }
     }
 
-    let c = asset_weights.clone();
+    let create_asset_amounts = asset_weights.clone();
 
     let mint_to_sender;
 
@@ -363,7 +360,7 @@ pub fn create(
             env.block.height,
             cluster_token_supply,
             inv.clone(),
-            c.clone(),
+            create_asset_amounts.clone(),
             prices.clone(),
             target_weights.clone(),
         )?;
@@ -388,9 +385,9 @@ pub fn create(
                 block_height: env.block.height,
                 cluster_token_supply,
                 inventory: inv,
-                create_asset_amounts: c,
+                create_asset_amounts,
                 asset_prices: prices,
-                target_weights: target_weights,
+                target_weights,
             })?,
             funds: vec![],
         }));
@@ -416,15 +413,17 @@ pub fn create(
         // c is required to be in ratio with the target weights
         if let Some(proposed_mint_total) = min_tokens {
             let mut val = 0;
-            for i in 0..c.len() {
-                if (c[i].u128() % target_weights[i].u128() != 0) || c[i] == Uint128::zero() {
+            for i in 0..create_asset_amounts.len() {
+                if (create_asset_amounts[i].u128() % target_weights[i].u128() != 0)
+                    || create_asset_amounts[i] == Uint128::zero()
+                {
                     return Err(StdError::generic_err(format!(
                         "Initial cluster assets must be a nonzero multiple of target weights at index {}",
                         i
                     )));
                 }
 
-                let div = c[i].u128() / target_weights[i].u128();
+                let div = create_asset_amounts[i].u128() / target_weights[i].u128();
                 if val == 0 {
                     val = div;
                 }
@@ -638,7 +637,7 @@ pub fn receive_redeem(
             max_tokens,
             redeem_asset_amounts: asset_amounts.clone(),
             asset_prices: prices,
-            target_weights: target_weights,
+            target_weights,
         })?,
         funds: vec![],
     }));

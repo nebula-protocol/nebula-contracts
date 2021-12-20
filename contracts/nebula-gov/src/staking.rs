@@ -1,3 +1,16 @@
+use cosmwasm_std::{
+    attr, to_binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
+    Storage, Uint128, WasmMsg,
+};
+use cw20::Cw20ExecuteMsg;
+
+use cluster_math::FPDecimal;
+use nebula_protocol::common::OrderBy;
+use nebula_protocol::gov::{
+    CurrentTotalVotingPowerResponse, PollStatus, SharesResponse, SharesResponseItem,
+    StakerResponse, VoterInfo, VotingPowerResponse,
+};
+
 use crate::querier::load_token_balance;
 use crate::state::{
     bank_read, bank_store, config_read, config_store, poll_read, poll_store, poll_voter_read,
@@ -6,20 +19,8 @@ use crate::state::{
     TotalVotingPower,
 };
 
-use cluster_math::FPDecimal;
-
-use cosmwasm_std::{
-    attr, to_binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
-    Storage, Uint128, WasmMsg,
-};
-use cw20::Cw20ExecuteMsg;
-use nebula_protocol::common::OrderBy;
-use nebula_protocol::gov::{
-    CurrentTotalVotingPowerResponse, PollStatus, SharesResponse, SharesResponseItem,
-    StakerResponse, VoterInfo, VotingPowerResponse,
-};
-
-pub static SECONDS_PER_WEEK: u64 = 604800u64; //60 * 60 * 24 * 7
+pub static SECONDS_PER_WEEK: u64 = 604800u64;
+//60 * 60 * 24 * 7
 pub static M: u64 = 104u64; //Max weeks
 
 pub fn adjust_total_voting_power(

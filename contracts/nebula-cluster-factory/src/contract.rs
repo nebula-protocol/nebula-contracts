@@ -1,13 +1,30 @@
-#[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-
+#[cfg(not(feature = "library"))]
 use cosmwasm_std::{
     attr, to_binary, Addr, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Reply,
     ReplyOn, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg,
 };
+use cw20::{Cw20ExecuteMsg, MinterResponse};
+use protobuf::Message;
+use terraswap::asset::{AssetInfo, PairInfo};
+use terraswap::factory::ExecuteMsg as TerraswapFactoryExecuteMsg;
+use terraswap::querier::query_pair_info;
+use terraswap::token::InstantiateMsg as TokenInstantiateMsg;
+
+use cluster_math::FPDecimal;
+use nebula_protocol::cluster::{
+    ExecuteMsg as ClusterExecuteMsg, InstantiateMsg as ClusterInstantiateMsg,
+};
+use nebula_protocol::cluster_factory::{
+    ClusterExistsResponse, ClusterListResponse, ConfigResponse, DistributionInfoResponse,
+    ExecuteMsg, InstantiateMsg, Params, QueryMsg,
+};
+use nebula_protocol::penalty::ExecuteMsg as PenaltyExecuteMsg;
+use nebula_protocol::staking::{
+    Cw20HookMsg as StakingCw20HookMsg, ExecuteMsg as StakingExecuteMsg,
+};
 
 use crate::response::MsgInstantiateContractResponse;
-
 use crate::state::{
     cluster_exists, deactivate_cluster, decrease_total_weight, get_cluster_data,
     increase_total_weight, read_all_weight, read_config, read_last_distributed, read_params,
@@ -16,36 +33,10 @@ use crate::state::{
     store_tmp_asset, store_tmp_cluster, store_total_weight, store_weight, Config,
 };
 
-use cluster_math::FPDecimal;
-
-use protobuf::Message;
-
-use nebula_protocol::cluster_factory::{
-    ClusterExistsResponse, ClusterListResponse, ConfigResponse, DistributionInfoResponse,
-    ExecuteMsg, InstantiateMsg, Params, QueryMsg,
-};
-
-use nebula_protocol::cluster::{
-    ExecuteMsg as ClusterExecuteMsg, InstantiateMsg as ClusterInstantiateMsg,
-};
-use nebula_protocol::penalty::ExecuteMsg as PenaltyExecuteMsg;
-use nebula_protocol::staking::{
-    Cw20HookMsg as StakingCw20HookMsg, ExecuteMsg as StakingExecuteMsg,
-};
-
-use cw20::{Cw20ExecuteMsg, MinterResponse};
-use terraswap::asset::{AssetInfo, PairInfo};
-use terraswap::factory::ExecuteMsg as TerraswapFactoryExecuteMsg;
-use terraswap::querier::query_pair_info;
-use terraswap::token::InstantiateMsg as TokenInstantiateMsg;
-
 const NEBULA_TOKEN_WEIGHT: u32 = 300u32;
 const NORMAL_TOKEN_WEIGHT: u32 = 30u32;
 
-// lowering these to 1s for testing purposes
-// change them back before we release anything...
-// real value is 60u64
-const DISTRIBUTION_INTERVAL: u64 = 1u64;
+const DISTRIBUTION_INTERVAL: u64 = 60u64;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -256,6 +247,7 @@ pub fn create_cluster(
         return Err(StdError::generic_err("unauthorized"));
     }
 
+    // If the param storage exists, it means there is a cluster registration process in progress
     if read_params(deps.storage).is_ok() {
         return Err(StdError::generic_err(
             "A cluster registration process is in progress",
@@ -295,17 +287,17 @@ pub fn create_cluster(
         ]))
 }
 
+fn get_res_msg(msg: Reply) -> StdResult<MsgInstantiateContractResponse> {
+    Message::parse_from_bytes(msg.result.unwrap().data.unwrap().as_slice())
+        .map_err(|_| StdError::parse_err("MsgInstantiateContractResponse", "failed to parse data"))
+}
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
     match msg.id {
         1 => {
             // get new token's contract address
-            let res: MsgInstantiateContractResponse = Message::parse_from_bytes(
-                msg.result.unwrap().data.unwrap().as_slice(),
-            )
-            .map_err(|_| {
-                StdError::parse_err("MsgInstantiateContractResponse", "failed to parse data")
-            })?;
+            let res: MsgInstantiateContractResponse = get_res_msg(msg)?;
             let asset_token = res.get_contract_address();
 
             cluster_creation_hook(deps, env, asset_token.to_string())
@@ -314,12 +306,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
             let cluster = read_tmp_cluster(deps.storage)?;
 
             // get new token's contract address
-            let res: MsgInstantiateContractResponse = Message::parse_from_bytes(
-                msg.result.unwrap().data.unwrap().as_slice(),
-            )
-            .map_err(|_| {
-                StdError::parse_err("MsgInstantiateContractResponse", "failed to parse data")
-            })?;
+            let res: MsgInstantiateContractResponse = get_res_msg(msg)?;
             let token = res.get_contract_address();
 
             cluster_token_creation_hook(deps, env, cluster, token.to_string())
@@ -340,17 +327,15 @@ ClusterCreationHook
 pub fn cluster_creation_hook(deps: DepsMut, _env: Env, cluster: String) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
 
-    // If the param is not exists, it means there is no cluster registration process in progress
+    // If the param storage exists, it means there is a cluster registration process in progress
     let params: Params = match read_params(deps.storage) {
         Ok(v) => v,
         Err(_) => {
             return Err(StdError::generic_err(
                 "No cluster registration process in progress",
-            ))
+            ));
         }
     };
-
-    let penalty = params.penalty;
 
     record_cluster(deps.storage, &cluster)?;
     store_tmp_cluster(deps.storage, &cluster)?;
@@ -358,7 +343,7 @@ pub fn cluster_creation_hook(deps: DepsMut, _env: Env, cluster: String) -> StdRe
         .add_messages(vec![
             // tell penalty contract to set owner to cluster
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: penalty,
+                contract_addr: params.penalty,
                 funds: vec![],
                 msg: to_binary(&PenaltyExecuteMsg::UpdateConfig {
                     owner: Some(cluster.clone()),
@@ -405,13 +390,13 @@ pub fn cluster_token_creation_hook(
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
 
-    // If the param is not exists, it means there is no cluster registration process in progress
+    // If the param storage exists, it means there is a cluster registration process in progress
     let params: Params = match read_params(deps.storage) {
         Ok(v) => v,
         Err(_) => {
             return Err(StdError::generic_err(
                 "No cluster registration process in progress",
-            ))
+            ));
         }
     };
 
@@ -473,7 +458,8 @@ pub fn cluster_token_creation_hook(
             attr("token", token),
         ]))
 }
-/// 1. Register asset and liquidity(LP) token to staking contract
+
+/// 1. Register asset and liquidity (LP) token to staking contract
 pub fn terraswap_creation_hook(
     deps: DepsMut,
     _env: Env,
@@ -544,9 +530,6 @@ pub fn distribute(deps: DepsMut, env: Env) -> StdResult<Response> {
             distribution_amount_per_sec * Uint128::new(time_duration as u128);
     }
 
-    let staking_contract = config.staking_contract;
-    let nebula_token = config.nebula_token;
-
     let (rewards, distribution_amount) =
         _compute_rewards(deps.storage, target_distribution_amount)?;
 
@@ -556,9 +539,9 @@ pub fn distribute(deps: DepsMut, env: Env) -> StdResult<Response> {
 
     Ok(Response::new()
         .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: nebula_token,
+            contract_addr: config.nebula_token,
             msg: to_binary(&Cw20ExecuteMsg::Send {
-                contract: staking_contract,
+                contract: config.staking_contract,
                 amount: distribution_amount,
                 msg: to_binary(&StakingCw20HookMsg::DepositReward { rewards })?,
             })?,
