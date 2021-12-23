@@ -48,7 +48,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> StdResult<Response> {
     match msg {
-        ExecuteMsg::UpdateConfig { owner } => update_config(deps, info, owner),
+        ExecuteMsg::UpdateConfig { owner, nebula_token } => update_config(deps, info, owner, nebula_token),
         ExecuteMsg::RegisterMerkleRoot { merkle_root } => {
             register_merkle_root(deps, info, merkle_root)
         }
@@ -64,6 +64,7 @@ pub fn update_config(
     deps: DepsMut,
     info: MessageInfo,
     owner: Option<String>,
+    nebula_token: Option<String>
 ) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
     if info.sender.to_string() != config.owner {
@@ -72,6 +73,9 @@ pub fn update_config(
 
     if let Some(owner) = owner {
         config.owner = owner;
+    }
+    if let Some(nebula_token) = nebula_token {
+        config.nebula_token = nebula_token;
     }
 
     store_config(deps.storage, &config)?;

@@ -1,15 +1,12 @@
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_binary, from_slice, to_binary, Api, CanonicalAddr, Coin, ContractResult, Decimal, Empty,
-    OwnedDeps, Querier, QuerierResult, QueryRequest, SystemError, SystemResult, WasmQuery,
+    from_binary, from_slice, to_binary, Coin, ContractResult, Empty, OwnedDeps, Querier,
+    QuerierResult, QueryRequest, SystemError, SystemResult, WasmQuery,
 };
-use cosmwasm_storage::to_length_prefixed;
-
-use crate::querier::MintAssetConfig;
-use std::collections::HashMap;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use terraswap::asset::{AssetInfo, PairInfo};
 
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies
@@ -31,8 +28,6 @@ pub fn mock_dependencies(
 pub struct WasmMockQuerier {
     base: MockQuerier<Empty>,
     terraswap_factory_querier: TerraswapFactoryQuerier,
-    oracle_querier: OracleQuerier,
-    mint_querier: MintQuerier,
 }
 
 #[derive(Clone, Default)]
@@ -56,16 +51,6 @@ pub(crate) fn pairs_to_map(pairs: &[(&String, &String)]) -> HashMap<String, Stri
     pairs_map
 }
 
-#[derive(Clone, Default)]
-pub struct OracleQuerier {
-    feeders: HashMap<String, String>,
-}
-
-#[derive(Clone, Default)]
-pub struct MintQuerier {
-    configs: HashMap<String, (Decimal, Decimal, Option<Decimal>)>,
-}
-
 impl Querier for WasmMockQuerier {
     fn raw_query(&self, bin_request: &[u8]) -> QuerierResult {
         // MockQuerier doesn't support Custom, so we ignore it completely here
@@ -75,7 +60,7 @@ impl Querier for WasmMockQuerier {
                 return SystemResult::Err(SystemError::InvalidRequest {
                     error: format!("Parsing query request: {}", e),
                     request: bin_request.into(),
-                })
+                });
             }
         };
         self.execute_query(&request)
@@ -117,76 +102,6 @@ impl WasmMockQuerier {
                     }
                 }
             },
-            QueryRequest::Wasm(WasmQuery::Raw { contract_addr, key }) => {
-                let key: &[u8] = key.as_slice();
-                let prefix_asset_config = to_length_prefixed(b"asset_config").to_vec();
-                let prefix_feeder = to_length_prefixed(b"feeder").to_vec();
-
-                let api: MockApi = MockApi::default();
-                if key.len() > prefix_feeder.len()
-                    && key[..prefix_feeder.len()].to_vec() == prefix_feeder
-                {
-                    let api: MockApi = MockApi::default();
-                    let rest_key: &[u8] = &key[prefix_feeder.len()..];
-
-                    if contract_addr == &("oracle0000") {
-                        let asset_token: String = api
-                            .addr_humanize(&(CanonicalAddr::from(rest_key.to_vec())))
-                            .unwrap()
-                            .to_string();
-
-                        let feeder = match self.oracle_querier.feeders.get(&asset_token) {
-                            Some(v) => v,
-                            None => {
-                                return SystemResult::Err(SystemError::InvalidRequest {
-                                    error: format!(
-                                        "Oracle Feeder is not found for {}",
-                                        asset_token
-                                    ),
-                                    request: key.into(),
-                                })
-                            }
-                        };
-
-                        SystemResult::Ok(ContractResult::from(to_binary(
-                            &api.addr_canonicalize(&feeder).unwrap(),
-                        )))
-                    } else {
-                        panic!("DO NOT ENTER HERE")
-                    }
-                } else if key.len() > prefix_asset_config.len()
-                    && key[..prefix_asset_config.len()].to_vec() == prefix_asset_config
-                {
-                    let rest_key: &[u8] = &key[prefix_asset_config.len()..];
-                    let asset_token: String = api
-                        .addr_humanize(&(CanonicalAddr::from(rest_key.to_vec())))
-                        .unwrap()
-                        .to_string();
-
-                    let config = match self.mint_querier.configs.get(&asset_token) {
-                        Some(v) => v,
-                        None => {
-                            return SystemResult::Err(SystemError::InvalidRequest {
-                                error: format!("Mint Config is not found for {}", asset_token),
-                                request: key.into(),
-                            })
-                        }
-                    };
-
-                    SystemResult::Ok(ContractResult::from(to_binary(
-                        &to_binary(&MintAssetConfig {
-                            token: api.addr_canonicalize(&asset_token).unwrap(),
-                            auction_discount: config.0,
-                            min_collateral_ratio: config.1,
-                            min_collateral_ratio_after_migration: config.2,
-                        })
-                        .unwrap()
-                        .to_string(),
-                    )))
-                } else {
-                    panic!("DO NOT ENTER HERE")
-                }
-            }
             _ => self.base.handle_query(request),
         }
     }
@@ -197,8 +112,6 @@ impl WasmMockQuerier {
         WasmMockQuerier {
             base,
             terraswap_factory_querier: TerraswapFactoryQuerier::default(),
-            mint_querier: MintQuerier::default(),
-            oracle_querier: OracleQuerier::default(),
         }
     }
 

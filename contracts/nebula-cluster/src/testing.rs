@@ -1154,6 +1154,21 @@ fn update_target() {
         .set_token_supply(consts::cluster_token(), 100_000_000)
         .set_token_balance(consts::cluster_token(), "addr0000", 20_000_000);
 
+    // mint first
+    let asset_amounts = consts::asset_amounts();
+
+    deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
+
+    let mint_msg = ExecuteMsg::RebalanceCreate {
+        asset_amounts: asset_amounts.clone(),
+        min_tokens: None,
+    };
+
+    let addr = "addr0000";
+    let info = mock_info(addr, &[]);
+    let env = mock_env();
+    let _res = execute(deps.as_mut(), env.clone(), info, mint_msg).unwrap();
+
     let new_target: Vec<Asset> = vec![
         Asset {
             info: AssetInfo::Token {
@@ -1267,7 +1282,7 @@ fn decommission_cluster() {
     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
     match res {
         StdError::GenericErr { msg, .. } => {
-            assert_eq!(msg, "Cannot call mint on a decommissioned cluster")
+            assert_eq!(msg, "Cannot call create on a decommissioned cluster")
         }
         _ => panic!("DO NOT ENTER HERE"),
     }

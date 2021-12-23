@@ -1,3 +1,21 @@
+use std::str::FromStr;
+
+use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
+use cosmwasm_std::{
+    attr, coins, from_binary, to_binary, Addr, ContractResult, CosmosMsg, Decimal, DepsMut, Env,
+    Reply, ReplyOn, Response, StdError, SubMsg, Timestamp, Uint128, WasmMsg,
+};
+use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
+
+use cluster_math::FPDecimal;
+use nebula_protocol::common::OrderBy;
+use nebula_protocol::gov::{
+    ConfigResponse, CurrentTotalVotingPowerResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg,
+    PollExecuteMsg, PollResponse, PollStatus, PollsResponse, QueryMsg, SharesResponse,
+    SharesResponseItem, StakerResponse, StateResponse, VoteOption, VoterInfo, VotersResponse,
+    VotersResponseItem, VotingPowerResponse,
+};
+
 use crate::contract::{execute, instantiate, query, reply};
 use crate::mock_querier::mock_dependencies;
 use crate::querier::load_token_balance;
@@ -7,23 +25,6 @@ use crate::state::{
     poll_voter_store, state_read, total_voting_power_read, Config, Poll, State, TokenManager,
     TotalVotingPower,
 };
-
-use cluster_math::FPDecimal;
-
-use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
-use cosmwasm_std::{
-    attr, coins, from_binary, to_binary, Addr, ContractResult, CosmosMsg, Decimal, DepsMut, Env,
-    Reply, ReplyOn, Response, StdError, SubMsg, Timestamp, Uint128, WasmMsg,
-};
-use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
-use nebula_protocol::common::OrderBy;
-use nebula_protocol::gov::{
-    ConfigResponse, CurrentTotalVotingPowerResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg,
-    PollExecuteMsg, PollResponse, PollStatus, PollsResponse, QueryMsg, SharesResponse,
-    SharesResponseItem, StakerResponse, StateResponse, VoteOption, VoterInfo, VotersResponse,
-    VotersResponseItem, VotingPowerResponse,
-};
-use std::str::FromStr;
 
 const VOTING_TOKEN: &str = "voting_token";
 const TEST_CREATOR: &str = "creator";
@@ -193,11 +194,11 @@ fn fails_create_poll_invalid_title() {
     }
 
     let msg = create_poll_msg(
-            "0123456789012345678901234567890123456789012345678901234567890123401234567890123456789012345678901234567890123456789012345678901234012345678901234567890123456789012345678901234567890123456789012340123456789012345678901234567890123456789012345678901234567890123401234567890123456789012345678901234567890123456789012345678901234".to_string(),
-            "test".to_string(),
-            None,
-            None,
-        );
+        "0123456789012345678901234567890123456789012345678901234567890123401234567890123456789012345678901234567890123456789012345678901234012345678901234567890123456789012345678901234567890123456789012340123456789012345678901234567890123456789012345678901234567890123401234567890123456789012345678901234567890123456789012345678901234".to_string(),
+        "test".to_string(),
+        None,
+        None,
+    );
 
     match execute(deps.as_mut(), mock_env(), info.clone(), msg) {
         Ok(_) => panic!("Must return error"),
@@ -220,11 +221,11 @@ fn fails_create_poll_invalid_description() {
     }
 
     let msg = create_poll_msg(
-            "test".to_string(),
-            "0123456789012345678901234567890123456789012345678901234567890123401234567890123456789012345678901234567890123456789012345678901234012345678901234567890123456789012345678901234567890123456789012340123456789012345678901234567890123456789012345678901234567890123401234567890123456789012345678901234567890123456789012345678901234".to_string(),
-            None,
-            None,
-        );
+        "test".to_string(),
+        "0123456789012345678901234567890123456789012345678901234567890123401234567890123456789012345678901234567890123456789012345678901234012345678901234567890123456789012345678901234567890123456789012340123456789012345678901234567890123456789012345678901234567890123401234567890123456789012345678901234567890123456789012345678901234".to_string(),
+        None,
+        None,
+    );
 
     match execute(deps.as_mut(), mock_env(), info.clone(), msg) {
         Ok(_) => panic!("Must return error"),
@@ -252,11 +253,11 @@ fn fails_create_poll_invalid_link() {
     }
 
     let msg = create_poll_msg(
-            "test".to_string(),
-            "test".to_string(),
-            Some("0123456789012345678901234567890123456789012345678901234567890123401234567890123456789012345678901234567890123456789012345678901234012345678901234567890123456789012345678901234567890123456789012340123456789012345678901234567890123456789012345678901234567890123401234567890123456789012345678901234567890123456789012345678901234".to_string()),
-            None,
-        );
+        "test".to_string(),
+        "test".to_string(),
+        Some("0123456789012345678901234567890123456789012345678901234567890123401234567890123456789012345678901234567890123456789012345678901234012345678901234567890123456789012345678901234567890123456789012340123456789012345678901234567890123456789012345678901234567890123401234567890123456789012345678901234567890123456789012345678901234".to_string()),
+        None,
+    );
 
     match execute(deps.as_mut(), mock_env(), info.clone(), msg) {
         Ok(_) => panic!("Must return error"),
@@ -743,7 +744,7 @@ fn happy_days_end_poll() {
     );
     assert_eq!(
         execute_res.attributes,
-        vec![attr("action", "execute_poll"), attr("poll_id", "1"),]
+        vec![attr("action", "execute_poll"), attr("poll_id", "1")]
     );
 
     // Query executed polls
@@ -2213,7 +2214,7 @@ fn share_calculation() {
             attr("sender", TEST_VOTER),
             attr("share", "50"),
             attr("amount", "100"),
-            attr("current_voting_power", "50")
+            attr("current_voting_power", "50"),
         ]
     );
 
@@ -2312,7 +2313,7 @@ fn share_calculation_with_voter_rewards() {
             attr("sender", TEST_VOTER),
             attr("share", "100"),
             attr("amount", "100"),
-            attr("current_voting_power", "100")
+            attr("current_voting_power", "100"),
         ]
     );
 
@@ -2358,7 +2359,7 @@ fn share_calculation_with_voter_rewards() {
             attr("sender", TEST_VOTER),
             attr("share", "50"),
             attr("amount", "100"),
-            attr("current_voting_power", "50")
+            attr("current_voting_power", "50"),
         ]
     );
 
@@ -3612,7 +3613,7 @@ fn test_query_total_voting_power() {
         CurrentTotalVotingPowerResponse {
             current_power: total_voting_power.voting_power
                 [(total_voting_power.last_upd % 104) as usize],
-            current_week
+            current_week,
         },
         response
     );
@@ -3804,7 +3805,7 @@ fn snapshot_poll() {
     )
     .unwrap_err();
     assert_eq!(
-        StdError::generic_err("Cannot snapshot at this height",),
+        StdError::generic_err("Cannot snapshot at this height"),
         snapshot_err
     );
 
@@ -4612,7 +4613,7 @@ fn stake_voting_tokens_multiple_lock_end_weeks() {
         VotingPowerResponse {
             staker: TEST_VOTER.to_string(),
             voting_power: FPDecimal::from(stake_amount) * FPDecimal::from(lock_period as u128)
-                / FPDecimal::from(104 as u128)
+                / FPDecimal::from(104 as u128),
         }
     );
 
@@ -4811,7 +4812,7 @@ fn total_voting_power_calculation() {
                 FPDecimal::from_str("86.538461538461538461").unwrap(),
             ]
             .to_vec(),
-            last_upd: current_week
+            last_upd: current_week,
         }
     );
 
@@ -4939,7 +4940,7 @@ fn total_voting_power_calculation() {
                 FPDecimal::from_str("0").unwrap(),
             ]
             .to_vec(),
-            last_upd: current_week
+            last_upd: current_week,
         }
     );
 
@@ -5085,7 +5086,7 @@ fn total_voting_power_calculation() {
                 FPDecimal::from_str("0").unwrap(),
             ]
             .to_vec(),
-            last_upd: current_week
+            last_upd: current_week,
         }
     );
 }
