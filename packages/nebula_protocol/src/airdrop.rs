@@ -15,6 +15,7 @@ pub enum ExecuteMsg {
     /// OWNER-CALLABLE
     UpdateConfig {
         owner: Option<String>,
+        nebula_token: Option<String>
     },
     RegisterMerkleRoot {
         merkle_root: String,

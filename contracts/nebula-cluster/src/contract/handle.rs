@@ -20,28 +20,16 @@ use crate::ext_query::{
 };
 use crate::state::{config_store, read_config};
 use crate::state::{
-    read_asset_balance, read_target_asset_data, save_asset_balance, save_target_asset_data,
+    read_asset_balance, read_target_asset_data, store_asset_balance, store_target_asset_data,
 };
 use crate::util::vec_to_string;
 
 // prices last 30s before they go from fresh to stale
 const FRESH_TIMESPAN: u64 = 30;
 
-/*
-    Match the incoming message to the right category: receive, mint,
-    reset_target, or  set cluster token
-*/
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
     match msg {
-        ExecuteMsg::RebalanceCreate {
-            asset_amounts,
-            min_tokens,
-        } => create(deps, env, info, asset_amounts, min_tokens),
-        ExecuteMsg::RebalanceRedeem {
-            max_tokens,
-            asset_amounts,
-        } => receive_redeem(deps, env, info, max_tokens, asset_amounts),
         ExecuteMsg::UpdateConfig {
             owner,
             name,
@@ -64,6 +52,14 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             penalty,
             target,
         ),
+        ExecuteMsg::RebalanceCreate {
+            asset_amounts,
+            min_tokens,
+        } => create(deps, env, info, asset_amounts, min_tokens),
+        ExecuteMsg::RebalanceRedeem {
+            max_tokens,
+            asset_amounts,
+        } => receive_redeem(deps, env, info, max_tokens, asset_amounts),
         ExecuteMsg::UpdateTarget { target } => update_target(deps, env, info, &target),
         ExecuteMsg::Decommission {} => decommission(deps, info),
     }
@@ -83,7 +79,7 @@ pub fn update_config(
     penalty: Option<String>,
     target: Option<Vec<Asset>>,
 ) -> StdResult<Response> {
-    // First, update cluster config
+    // Update cluster config
     config_store(deps.storage).update(|mut config| {
         if config.owner != info.sender.to_string() {
             return Err(StdError::generic_err("unauthorized"));
@@ -120,6 +116,7 @@ pub fn update_config(
         Ok(config)
     })?;
 
+    // Update cluster target
     if let Some(target) = target {
         update_target(deps, env, info, &target)?;
     }
@@ -138,12 +135,11 @@ pub fn update_target(
     info: MessageInfo,
     target: &Vec<Asset>,
 ) -> StdResult<Response> {
-    // allow removal / adding
-
     let cfg = read_config(deps.storage)?;
     if let None = cfg.cluster_token {
         return Err(error::cluster_token_not_set());
     }
+
     // check permission
     if (info.sender.to_string() != cfg.owner) && (info.sender.to_string() != cfg.target_oracle) {
         return Err(StdError::generic_err("unauthorized"));
@@ -151,7 +147,9 @@ pub fn update_target(
 
     let mut asset_data = target.clone();
 
-    // Create new vec for logging and validation purpose
+    // Create new vectors for logging and validation purpose
+    // update_asset_infos contains the list of new assets
+    // update_target_weights contains the list of weights for each new assets
     let (mut updated_asset_infos, mut updated_target_weights): (Vec<AssetInfo>, Vec<Uint128>) =
         asset_data
             .iter()
@@ -190,7 +188,7 @@ pub fn update_target(
         }
     }
 
-    save_target_asset_data(deps.storage, &asset_data)?;
+    store_target_asset_data(deps.storage, &asset_data)?;
 
     Ok(Response::new().add_attributes(vec![
         attr("action", "reset_target"),
@@ -243,7 +241,7 @@ pub fn create(
     asset_amounts: Vec<Asset>,
     min_tokens: Option<Uint128>,
 ) -> StdResult<Response> {
-    // duplication check for the given asset_amounts
+    // check asset_amounts for duplicate and unsupported assets
     if validate_targets(
         deps.querier,
         &env,
@@ -253,7 +251,7 @@ pub fn create(
     .is_err()
     {
         return Err(StdError::generic_err(
-            "The given asset_amounts contain invalid or duplicate assets",
+            "Input asset_amounts contain invalid or duplicate assets",
         ));
     }
 
@@ -261,7 +259,7 @@ pub fn create(
 
     if !cfg.active {
         return Err(StdError::generic_err(
-            "Cannot call mint on a decommissioned cluster",
+            "Cannot call create on a decommissioned cluster",
         ));
     }
 
@@ -285,7 +283,7 @@ pub fn create(
             match info {
                 AssetInfo::NativeToken { denom } => Ok(denom.clone()),
                 _ => Err(StdError::generic_err(
-                    "Already filtered. Cannot contain non-native denoms.",
+                    "Filtered list cannot contain non-native denoms",
                 )),
             }
             .unwrap()
@@ -299,32 +297,33 @@ pub fn create(
         .clone()
         .ok_or_else(|| error::cluster_token_not_set())?;
 
-    // accommodate inputs: subsets of target assets vector
+    // Vector to store create asset weights
     let mut asset_weights = vec![Uint128::zero(); target_infos.len()];
+    
     let mut messages = vec![];
 
-    // Return an error if assets not in target are sent to the mint function
+    // Return an error if assets not in target are sent to the create function
     for coin in info.funds.iter() {
         if !native_coin_denoms.contains(&coin.denom) {
             return Err(StdError::generic_err(
-                "Unsupported assets were sent to the mint function",
+                "Unsupported assets were sent to the create function",
             ));
         }
     }
 
-    // compute weight from the given input amounts
+    // verify asset transfers and update cluster inventory balance
     for (i, asset_info) in target_infos.iter().enumerate() {
         for asset in asset_amounts.iter() {
             if asset.info.clone() == asset_info.clone() {
                 if target_weights[i] == Uint128::zero() && asset.amount > Uint128::zero() {
                     return Err(StdError::generic_err(
-                        format!("Cannot mint with non-zero asset amount when target weight is zero for asset {}", asset.info.to_string()),
+                        format!("Cannot call create with non-zero asset amount when target weight is zero for asset {}", asset.info.to_string()),
                     ));
                 };
 
                 asset_weights[i] = asset.amount;
 
-                // pick up allowance from smart contracts
+                // transfer assets from sender
                 if let AssetInfo::Token { contract_addr, .. } = &asset.info {
                     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: contract_addr.clone(),
@@ -335,11 +334,14 @@ pub fn create(
                         })?,
                         funds: vec![],
                     }));
+
+                    // update asset inventory balance in cluster
                     update_asset_balance(deps.storage, contract_addr, asset.amount, true)?;
                 } else if let AssetInfo::NativeToken { denom } = &asset.info {
                     // validate that native token balance is correct
                     asset.assert_sent_native_token_balance(&info)?;
 
+                    // update asset inventory balance in cluster
                     update_asset_balance(deps.storage, denom, asset.amount, true)?;
                 }
                 break;
@@ -349,12 +351,14 @@ pub fn create(
 
     let create_asset_amounts = asset_weights.clone();
 
-    let mint_to_sender;
+    let mint_amount_to_sender;
 
-    // do a regular mint
+    // mint cluster tokens and deduct protocol fees
     let mut extra_logs = vec![];
     if !cluster_token_supply.is_zero() {
-        let mint_response = query_create_amount(
+        // cluster has been initialized
+        // perform a normal mint
+        let create_response = query_create_amount(
             &deps.querier,
             cfg.penalty.clone(),
             env.block.height,
@@ -364,21 +368,21 @@ pub fn create(
             prices.clone(),
             target_weights.clone(),
         )?;
-        let mint_total = mint_response.create_tokens;
+        let create_amount = create_response.create_tokens;
 
         let (collector_address, fee_rate) =
             query_collector_contract_address(&deps.querier, &cfg.factory)?;
         let fee_rate = FPDecimal::from_str(&fee_rate)?;
 
+        // calculate fee amount
         // mint_to_sender = mint_total * (1 - fee_rate)
         // protocol_fee = mint_total - mint_to_sender == mint_total * fee_rate
         let _mint_to_sender: u128 =
-            (FPDecimal::from(mint_total.u128()) * (FPDecimal::one() - fee_rate)).into();
-        mint_to_sender = Uint128::from(_mint_to_sender);
-        let protocol_fee = mint_total.checked_sub(mint_to_sender)?;
+            (FPDecimal::from(create_amount.u128()) * (FPDecimal::one() - fee_rate)).into();
+        mint_amount_to_sender = Uint128::from(_mint_to_sender);
+        let protocol_fee = create_amount.checked_sub(mint_amount_to_sender)?;
 
-        // afterwards, notify the penalty contract that this update happened so
-        // it can make stateful updates...
+        // update penalty contract states
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: cfg.penalty.to_string(),
             msg: to_binary(&PenaltyExecuteMsg::PenaltyCreate {
@@ -392,7 +396,7 @@ pub fn create(
             funds: vec![],
         }));
 
-        // actually mint the tokens
+        // mint cluster tokens
         if !protocol_fee.is_zero() {
             messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: cluster_token.to_string(),
@@ -404,7 +408,7 @@ pub fn create(
             }));
         }
 
-        extra_logs = mint_response.attributes;
+        extra_logs = create_response.attributes;
         extra_logs.push(attr("fee_amt", protocol_fee))
     } else {
         // cluster has no cluster tokens -- cluster is empty and needs to be initialized
@@ -436,7 +440,7 @@ pub fn create(
                 }
             }
 
-            mint_to_sender = proposed_mint_total;
+            mint_amount_to_sender = proposed_mint_total;
         } else {
             return Err(StdError::generic_err(
                 "Cluster is uninitialized. \
@@ -446,16 +450,16 @@ pub fn create(
         }
     }
 
-    if let Some(min) = min_tokens {
-        if mint_to_sender < min {
-            return Err(error::below_min_tokens(mint_to_sender, min));
+    if let Some(min_tokens) = min_tokens {
+        if mint_amount_to_sender < min_tokens {
+            return Err(error::below_min_tokens(mint_amount_to_sender, min_tokens));
         }
     }
 
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: cluster_token.to_string(),
         msg: to_binary(&Cw20ExecuteMsg::Mint {
-            amount: mint_to_sender,
+            amount: mint_amount_to_sender,
             recipient: info.sender.to_string(),
         })?,
         funds: vec![],
@@ -464,7 +468,7 @@ pub fn create(
     let mut logs = vec![
         attr("action", "mint"),
         attr("sender", &info.sender.to_string()),
-        attr("mint_to_sender", mint_to_sender),
+        attr("mint_to_sender", mint_amount_to_sender),
     ];
     logs.extend(extra_logs);
 
@@ -674,6 +678,7 @@ fn update_asset_balance(
         true => asset_amount = asset_amount.checked_add(amount)?,
         false => asset_amount = asset_amount.checked_sub(amount)?,
     };
-    save_asset_balance(storage, &asset_id, &asset_amount)?;
+
+    store_asset_balance(storage, &asset_id, &asset_amount)?;
     Ok(())
 }

@@ -22,7 +22,7 @@ pub fn read_config(storage: &dyn Storage) -> StdResult<ClusterConfig> {
     singleton_read(storage, CONFIG_KEY).load()
 }
 
-pub fn save_config(storage: &mut dyn Storage, config: &ClusterConfig) -> StdResult<()> {
+pub fn store_config(storage: &mut dyn Storage, config: &ClusterConfig) -> StdResult<()> {
     singleton(storage, CONFIG_KEY).save(config)
 }
 
@@ -30,7 +30,7 @@ pub fn read_target_asset_data(storage: &dyn Storage) -> StdResult<Vec<Asset>> {
     singleton_read(storage, ASSET_DATA_KEY).load()
 }
 
-pub fn save_target_asset_data(storage: &mut dyn Storage, asset_data: &Vec<Asset>) -> StdResult<()> {
+pub fn store_target_asset_data(storage: &mut dyn Storage, asset_data: &Vec<Asset>) -> StdResult<()> {
     singleton(storage, ASSET_DATA_KEY).save(asset_data)
 }
 
@@ -38,11 +38,11 @@ pub fn read_target(storage: &dyn Storage) -> StdResult<Vec<u32>> {
     singleton_read(storage, TARGET_KEY).load()
 }
 
-pub fn save_target(storage: &mut dyn Storage, target: &Vec<u32>) -> StdResult<()> {
+pub fn store_target(storage: &mut dyn Storage, target: &Vec<u32>) -> StdResult<()> {
     singleton(storage, TARGET_KEY).save(target)
 }
 
-pub fn save_asset_balance(
+pub fn store_asset_balance(
     storage: &mut dyn Storage,
     asset: &String,
     inventory: &Uint128,

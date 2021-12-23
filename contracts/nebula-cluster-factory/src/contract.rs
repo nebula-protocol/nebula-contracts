@@ -98,19 +98,19 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             cluster_code_id,
             distribution_schedule,
         ),
-        ExecuteMsg::UpdateWeight {
-            asset_token,
-            weight,
-        } => update_weight(deps, info, asset_token, weight),
         ExecuteMsg::CreateCluster { params } => create_cluster(deps, env, info, params),
-        ExecuteMsg::Distribute {} => distribute(deps, env),
-        ExecuteMsg::PassCommand { contract_addr, msg } => {
-            pass_command(deps, info, contract_addr, msg)
-        }
         ExecuteMsg::DecommissionCluster {
             cluster_contract,
             cluster_token,
         } => decommission_cluster(deps, info, cluster_contract, cluster_token),
+        ExecuteMsg::UpdateWeight {
+            asset_token,
+            weight,
+        } => update_weight(deps, info, asset_token, weight),
+        ExecuteMsg::Distribute {} => distribute(deps, env),
+        ExecuteMsg::PassCommand { contract_addr, msg } => {
+            pass_command(deps, info, contract_addr, msg)
+        }
     }
 }
 
@@ -202,7 +202,7 @@ pub fn update_weight(
     ]))
 }
 
-// just for by passing command to other contract like update config
+// for passing command to other contract e.g. update config
 pub fn pass_command(
     deps: DepsMut,
     info: MessageInfo,
@@ -296,24 +296,24 @@ fn get_res_msg(msg: Reply) -> StdResult<MsgInstantiateContractResponse> {
 pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
     match msg.id {
         1 => {
-            // get new token's contract address
+            // get new cluster token's contract address
             let res: MsgInstantiateContractResponse = get_res_msg(msg)?;
-            let asset_token = res.get_contract_address();
+            let cluster_contract = res.get_contract_address();
 
-            cluster_creation_hook(deps, env, asset_token.to_string())
+            cluster_creation_hook(deps, env, cluster_contract.to_string())
         }
         2 => {
-            let cluster = read_tmp_cluster(deps.storage)?;
+            let cluster_contract = read_tmp_cluster(deps.storage)?;
 
-            // get new token's contract address
+            // get new cluster token's contract address
             let res: MsgInstantiateContractResponse = get_res_msg(msg)?;
-            let token = res.get_contract_address();
+            let cluster_token = res.get_contract_address();
 
-            cluster_token_creation_hook(deps, env, cluster, token.to_string())
+            cluster_token_creation_hook(deps, env, cluster_contract, cluster_token.to_string())
         }
         3 => {
-            let token = read_tmp_asset(deps.storage)?;
-            terraswap_creation_hook(deps, env, token)
+            let cluster_token = read_tmp_asset(deps.storage)?;
+            terraswap_creation_hook(deps, env, cluster_token)
         }
         _ => Err(StdError::generic_err("reply id is invalid")),
     }
@@ -324,7 +324,7 @@ ClusterCreationHook
 1. Record cluster address
 2. Create token contract with `config.token_code_id`
 */
-pub fn cluster_creation_hook(deps: DepsMut, _env: Env, cluster: String) -> StdResult<Response> {
+pub fn cluster_creation_hook(deps: DepsMut, _env: Env, cluster_contract: String) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
 
     // If the param storage exists, it means there is a cluster registration process in progress
@@ -337,8 +337,8 @@ pub fn cluster_creation_hook(deps: DepsMut, _env: Env, cluster: String) -> StdRe
         }
     };
 
-    record_cluster(deps.storage, &cluster)?;
-    store_tmp_cluster(deps.storage, &cluster)?;
+    record_cluster(deps.storage, &cluster_contract)?;
+    store_tmp_cluster(deps.storage, &cluster_contract)?;
     Ok(Response::new()
         .add_messages(vec![
             // tell penalty contract to set owner to cluster
@@ -346,7 +346,7 @@ pub fn cluster_creation_hook(deps: DepsMut, _env: Env, cluster: String) -> StdRe
                 contract_addr: params.penalty,
                 funds: vec![],
                 msg: to_binary(&PenaltyExecuteMsg::UpdateConfig {
-                    owner: Some(cluster.clone()),
+                    owner: Some(cluster_contract.clone()),
                     penalty_params: None,
                 })?,
             }),
@@ -363,7 +363,7 @@ pub fn cluster_creation_hook(deps: DepsMut, _env: Env, cluster: String) -> StdRe
                     decimals: 6u8,
                     initial_balances: vec![],
                     mint: Some(MinterResponse {
-                        minter: cluster.clone(),
+                        minter: cluster_contract.clone(),
                         cap: None,
                     }),
                 })?,
@@ -373,7 +373,7 @@ pub fn cluster_creation_hook(deps: DepsMut, _env: Env, cluster: String) -> StdRe
             id: 2,
             reply_on: ReplyOn::Success,
         }])
-        .add_attributes(vec![attr("cluster_addr", cluster.as_str())]))
+        .add_attributes(vec![attr("cluster_addr", cluster_contract.as_str())]))
 }
 
 /*
@@ -385,8 +385,8 @@ ClusterTokenCreationHook
 pub fn cluster_token_creation_hook(
     deps: DepsMut,
     _env: Env,
-    cluster: String,
-    token: String,
+    cluster_contract: String,
+    cluster_token: String,
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
 
@@ -407,23 +407,23 @@ pub fn cluster_token_creation_hook(
         NORMAL_TOKEN_WEIGHT
     };
 
-    store_weight(deps.storage, &token, weight)?;
+    store_weight(deps.storage, &cluster_token, weight)?;
     increase_total_weight(deps.storage, weight)?;
 
     // Remove params == clear flag
     remove_params(deps.storage);
-    store_tmp_asset(deps.storage, &token)?;
+    store_tmp_asset(deps.storage, &cluster_token)?;
     Ok(Response::new()
         .add_messages(vec![
             //Set cluster token and also cluster owner to governance
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: cluster.clone(),
+                contract_addr: cluster_contract.clone(),
                 funds: vec![],
                 msg: to_binary(&ClusterExecuteMsg::UpdateConfig {
                     owner: Some(config.owner),
                     name: None,
                     description: None,
-                    cluster_token: Some(token.clone()),
+                    cluster_token: Some(cluster_token.clone()),
                     pricing_oracle: None,
                     target_oracle: None,
                     penalty: None,
@@ -442,7 +442,7 @@ pub fn cluster_token_creation_hook(
                             denom: config.base_denom,
                         },
                         AssetInfo::Token {
-                            contract_addr: token.clone(),
+                            contract_addr: cluster_token.clone(),
                         },
                     ],
                 })?,
@@ -454,8 +454,8 @@ pub fn cluster_token_creation_hook(
         }])
         .add_attributes(vec![
             attr("action", "set_cluster_token"),
-            attr("cluster", cluster),
-            attr("token", token),
+            attr("cluster", cluster_contract),
+            attr("token", cluster_token),
         ]))
 }
 
@@ -463,7 +463,7 @@ pub fn cluster_token_creation_hook(
 pub fn terraswap_creation_hook(
     deps: DepsMut,
     _env: Env,
-    asset_token: String,
+    cluster_token: String,
 ) -> StdResult<Response> {
     // Now terraswap contract is already created,
     // and liquidity token also created
@@ -474,7 +474,7 @@ pub fn terraswap_creation_hook(
             denom: "uusd".to_string(),
         },
         AssetInfo::Token {
-            contract_addr: asset_token.clone(),
+            contract_addr: cluster_token.clone(),
         },
     ];
 
@@ -491,7 +491,7 @@ pub fn terraswap_creation_hook(
             contract_addr: config.staking_contract,
             funds: vec![],
             msg: to_binary(&StakingExecuteMsg::RegisterAsset {
-                asset_token,
+                asset_token: cluster_token,
                 staking_token: pair_info.liquidity_token,
             })?,
         })]),
@@ -512,17 +512,17 @@ pub fn distribute(deps: DepsMut, env: Env) -> StdResult<Response> {
     }
 
     let config: Config = read_config(deps.storage)?;
-    let time_elapsed = env.block.time.seconds() - config.genesis_time;
+    let time_since_genesis = env.block.time.seconds() - config.genesis_time;
     let last_time_elapsed = last_distributed - config.genesis_time;
     let mut target_distribution_amount: Uint128 = Uint128::zero();
     for s in config.distribution_schedule.iter() {
-        if s.0 > time_elapsed || s.1 < last_time_elapsed {
+        if s.0 > time_since_genesis || s.1 < last_time_elapsed {
             continue;
         }
 
         // min(s.1, time_elapsed) - max(s.0, last_time_elapsed)
         let time_duration =
-            std::cmp::min(s.1, time_elapsed) - std::cmp::max(s.0, last_time_elapsed);
+            std::cmp::min(s.1, time_since_genesis) - std::cmp::max(s.0, last_time_elapsed);
 
         let time_slot = s.1 - s.0;
         let distribution_amount_per_sec: Decimal = Decimal::from_ratio(s.2, time_slot);

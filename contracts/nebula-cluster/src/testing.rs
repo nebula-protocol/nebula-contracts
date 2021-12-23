@@ -1282,7 +1282,7 @@ fn decommission_cluster() {
     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
     match res {
         StdError::GenericErr { msg, .. } => {
-            assert_eq!(msg, "Cannot call mint on a decommissioned cluster")
+            assert_eq!(msg, "Cannot call create on a decommissioned cluster")
         }
         _ => panic!("DO NOT ENTER HERE"),
     }

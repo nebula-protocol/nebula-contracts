@@ -26,6 +26,6 @@ pub fn read_config(storage: &dyn Storage) -> StdResult<PenaltyConfig> {
     singleton_read(storage, CONFIG_KEY).load()
 }
 
-pub fn save_config(storage: &mut dyn Storage, config: &PenaltyConfig) -> StdResult<()> {
+pub fn store_config(storage: &mut dyn Storage, config: &PenaltyConfig) -> StdResult<()> {
     singleton(storage, CONFIG_KEY).save(config)
 }

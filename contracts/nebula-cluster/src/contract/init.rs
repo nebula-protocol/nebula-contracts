@@ -3,7 +3,7 @@ use cosmwasm_std::entry_point;
 
 use crate::ext_query::query_asset_balance;
 use crate::{
-    state::{save_config, save_target_asset_data},
+    state::{store_config, store_target_asset_data},
     util::vec_to_string,
 };
 use cosmwasm_std::{
@@ -80,8 +80,8 @@ pub fn instantiate(
 
     let asset_data = msg.target.clone();
 
-    save_config(deps.storage, &cfg)?;
-    save_target_asset_data(deps.storage, &asset_data)?;
+    store_config(deps.storage, &cfg)?;
+    store_target_asset_data(deps.storage, &asset_data)?;
 
     let log = vec![
         attr("name", msg.name),

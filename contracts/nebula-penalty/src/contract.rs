@@ -6,7 +6,7 @@ use cosmwasm_std::{
     Uint128,
 };
 
-use crate::state::{config_store, read_config, save_config, PenaltyConfig};
+use crate::state::{config_store, read_config, store_config, PenaltyConfig};
 use cluster_math::{
     add, div_const, dot, imbalance, int_vec_to_fpdec, mul_const, str_vec_to_fpdec, sub, FPDecimal,
 };
@@ -38,7 +38,7 @@ pub fn instantiate(
         // know to fast forward to current net asset value if last_block == 0
         last_block: 0u64,
     };
-    save_config(deps.storage, &cfg)?;
+    store_config(deps.storage, &cfg)?;
     Ok(Response::default())
 }
 
@@ -302,7 +302,7 @@ pub fn update_ema(
     let mut cfg = read_config(deps.storage)?;
     cfg.ema = get_ema(deps.as_ref(), block_height, net_asset_val)?;
     cfg.last_block = block_height;
-    save_config(deps.storage, &cfg)?;
+    store_config(deps.storage, &cfg)?;
     Ok(Response::new().add_attributes(vec![attr("new_ema", &format!("{}", cfg.ema.to_string()))]))
 }
 
