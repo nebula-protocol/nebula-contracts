@@ -1,24 +1,32 @@
 use cosmwasm_std::Decimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+use terraswap::asset::AssetInfo;
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     pub owner: String,
+    pub oracle_addr: String,
+    pub base_denom: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    SetPrices { prices: Vec<(String, Decimal)> },
-    UpdateConfig { owner: Option<String> },
+    UpdateConfig {
+        owner: Option<String>,
+        oracle_addr: Option<String>,
+        base_denom: Option<String>,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     Price {
-        base_asset: String,
-        quote_asset: String,
+        base_asset: AssetInfo,
+        quote_asset: AssetInfo,
     },
 }
 

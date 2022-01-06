@@ -99,20 +99,22 @@ impl WasmMockQuerier {
                     Ok(OracleQueryMsg::Price {
                         base_asset,
                         quote_asset,
-                    }) => match self.oracle_querier.assets.get(&base_asset) {
-                        Some(base_price) => match self.oracle_querier.assets.get(&quote_asset) {
-                            Some(quote_price) => {
-                                SystemResult::Ok(ContractResult::from(to_binary(&PriceResponse {
-                                    rate: decimal_division(*base_price, *quote_price),
-                                    last_updated_base: u64::MAX,
-                                    last_updated_quote: u64::MAX,
-                                })))
+                    }) => match self.oracle_querier.assets.get(&base_asset.to_string()) {
+                        Some(base_price) => {
+                            match self.oracle_querier.assets.get(&quote_asset.to_string()) {
+                                Some(quote_price) => SystemResult::Ok(ContractResult::from(
+                                    to_binary(&PriceResponse {
+                                        rate: decimal_division(*base_price, *quote_price),
+                                        last_updated_base: u64::MAX,
+                                        last_updated_quote: u64::MAX,
+                                    }),
+                                )),
+                                None => SystemResult::Err(SystemError::InvalidRequest {
+                                    error: "No oracle price exists".to_string(),
+                                    request: msg.as_slice().into(),
+                                }),
                             }
-                            None => SystemResult::Err(SystemError::InvalidRequest {
-                                error: "No oracle price exists".to_string(),
-                                request: msg.as_slice().into(),
-                            }),
-                        },
+                        }
                         None => SystemResult::Err(SystemError::InvalidRequest {
                             error: "No oracle price exists".to_string(),
                             request: msg.as_slice().into(),

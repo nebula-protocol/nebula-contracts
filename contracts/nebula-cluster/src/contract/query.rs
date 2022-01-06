@@ -78,7 +78,7 @@ pub fn query_cluster_state(
             query_price(
                 &deps.querier,
                 &cfg.pricing_oracle,
-                asset_info,
+                asset_info.clone(),
                 stale_threshold,
             )
         })

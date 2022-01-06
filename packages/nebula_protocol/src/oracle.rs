@@ -1,6 +1,8 @@
 use cosmwasm_std::Decimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+use terraswap::asset::AssetInfo;
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     pub terraswap_factory: String,
@@ -11,8 +13,8 @@ pub struct InstantiateMsg {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     Price {
-        base_asset: String,
-        quote_asset: String,
+        base_asset: AssetInfo,
+        quote_asset: AssetInfo,
     },
 }
 
