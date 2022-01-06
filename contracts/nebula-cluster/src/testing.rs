@@ -705,14 +705,14 @@ pub fn mock_querier_setup(
                 1_000_000_000_000,
                 vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
         )).set_token(
+            "mGE",
+            token_data(
+                "Mirrored GE",
                 "mGE",
-                token_data(
-                    "Mirrored GE",
-                    "mGE",
-                    6,
-                    1_000_000_000_000,
-                    vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
-                )
+                6,
+                1_000_000_000_000,
+                vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
+            )
     );
 
     deps.querier.set_oracle_prices(vec![
