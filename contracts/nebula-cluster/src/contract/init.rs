@@ -16,16 +16,14 @@ pub fn validate_targets(
     querier: QuerierWrapper,
     env: &Env,
     target_assets: Vec<AssetInfo>,
-    to_query: bool,
 ) -> StdResult<bool> {
-    for i in 0..target_assets.len() - 1 {
-        if to_query {
-            query_asset_balance(
-                &querier,
-                &env.contract.address.to_string(),
-                &target_assets[i],
-            )?;
-        }
+    for i in 0..target_assets.len() {
+        // Check if asset is a valid CW20.
+        query_asset_balance(
+            &querier,
+            &env.contract.address.to_string(),
+            &target_assets[i],
+        )?;
         for j in i + 1..target_assets.len() {
             if target_assets[i].equal(&target_assets[j]) {
                 return Ok(false);
@@ -72,7 +70,7 @@ pub fn instantiate(
         }
     }
 
-    if validate_targets(deps.querier, &env, asset_infos.clone(), false).is_err() {
+    if validate_targets(deps.querier, &env, asset_infos.clone()).is_err() {
         return Err(StdError::generic_err(
             "Cluster must contain valid assets and cannot contain duplicate assets",
         ));

@@ -156,7 +156,7 @@ pub fn update_target(
             .map(|x| (x.info.clone(), x.amount.clone()))
             .unzip();
 
-    if validate_targets(deps.querier, &env, updated_asset_infos.clone(), true).is_err() {
+    if validate_targets(deps.querier, &env, updated_asset_infos.clone()).is_err() {
         return Err(StdError::generic_err(
             "Cluster must contain valid assets and cannot contain duplicate assets",
         ));
@@ -246,7 +246,6 @@ pub fn create(
         deps.querier,
         &env,
         asset_amounts.iter().map(|a| a.info.clone()).collect(),
-        true,
     )
     .is_err()
     {
@@ -299,7 +298,7 @@ pub fn create(
 
     // Vector to store create asset weights
     let mut asset_weights = vec![Uint128::zero(); target_infos.len()];
-    
+
     let mut messages = vec![];
 
     // Return an error if assets not in target are sent to the create function
