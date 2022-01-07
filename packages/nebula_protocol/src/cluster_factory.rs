@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::{Binary, Uint128};
 
-use terraswap::asset::Asset;
+use astroport::asset::Asset;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -22,7 +22,7 @@ pub enum ExecuteMsg {
     ///////////////////
     PostInitialize {
         owner: String,
-        terraswap_factory: String,
+        astroport_factory: String,
         nebula_token: String,
         staking_contract: String,
         commission_collector: String,
@@ -70,7 +70,7 @@ pub struct ConfigResponse {
     pub staking_contract: String,
     pub commission_collector: String,
     pub protocol_fee_rate: String,
-    pub terraswap_factory: String,
+    pub astroport_factory: String,
     pub token_code_id: u64,
     pub cluster_code_id: u64,
     pub base_denom: String,

@@ -10,7 +10,7 @@ use cosmwasm_std::{
     attr, DepsMut, Env, MessageInfo, QuerierWrapper, Response, StdError, StdResult, Uint128,
 };
 use nebula_protocol::cluster::{ClusterConfig, InstantiateMsg};
-use terraswap::asset::AssetInfo;
+use astroport::asset::AssetInfo;
 
 pub fn validate_targets(
     querier: QuerierWrapper,

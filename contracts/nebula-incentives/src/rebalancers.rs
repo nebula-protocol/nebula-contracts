@@ -11,8 +11,8 @@ use nebula_protocol::cluster::{
     ClusterStateResponse, ExecuteMsg as ClusterExecuteMsg, QueryMsg as ClusterQueryMsg,
 };
 
-use terraswap::asset::{Asset, AssetInfo};
-use terraswap::querier::query_token_balance;
+use astroport::asset::{Asset, AssetInfo};
+use astroport::querier::query_token_balance;
 
 use cluster_math::{imbalance, int_vec_to_fpdec, str_vec_to_fpdec};
 use nebula_protocol::cluster_factory::ClusterExistsResponse;
@@ -127,7 +127,7 @@ pub fn internal_rewarded_create(
             AssetInfo::Token { contract_addr } => {
                 create_asset_amounts.push(asset.clone());
                 messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: contract_addr.clone(),
+                    contract_addr: String::from(contract_addr),
                     msg: to_binary(&Cw20ExecuteMsg::IncreaseAllowance {
                         spender: cluster_contract.clone(),
                         amount: asset.amount,
@@ -220,7 +220,7 @@ pub fn internal_rewarded_redeem(
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::_SendAll {
                     asset_infos: vec![AssetInfo::Token {
-                        contract_addr: cluster_token,
+                        contract_addr: deps.api.addr_validate(cluster_token.as_str())?,
                     }],
                     send_to: rebalancer,
                 })?,
@@ -255,7 +255,7 @@ pub fn create(
             }
             AssetInfo::Token { contract_addr } => {
                 messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: contract_addr.clone(),
+                    contract_addr: String::from(contract_addr),
                     msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
                         owner: info.sender.to_string(),
                         recipient: env.contract.address.to_string(),
@@ -282,7 +282,7 @@ pub fn create(
         contract_addr: env.contract.address.to_string(),
         msg: to_binary(&ExecuteMsg::_SendAll {
             asset_infos: vec![AssetInfo::Token {
-                contract_addr: cluster_token,
+                contract_addr: deps.api.addr_validate(cluster_token.as_str())?,
             }],
             send_to: info.sender.to_string(),
         })?,

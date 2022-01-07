@@ -35,11 +35,11 @@ overflow-checks = true
 backtraces = ["cosmwasm-std/backtraces"]
 
 [dependencies]
-cw20 = { version = "0.8.0" } 
-terraswap = "2.4.0"
+cw20 = { version = "0.8.0" }
+astroport = { path = "../../packages/astroport" }
 terra-cosmwasm = { version = "2.0.0" }
 cosmwasm-std = { version = "0.16.0", default-features = false }
-cosmwasm-storage = { version = "0.16.0", default-features = false }
+cosmwasm-storage = { version = "0.16.0", default-features = false, features = ["iterator"] }
 schemars = "0.8.1"
 nebula-protocol = { version = "2.0.0", path = "../../packages/nebula_protocol" }
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }

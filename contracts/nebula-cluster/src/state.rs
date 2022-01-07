@@ -1,7 +1,7 @@
 use cosmwasm_std::{StdResult, Storage, Uint128};
 use cosmwasm_storage::{bucket, bucket_read, singleton, singleton_read, Singleton};
 use nebula_protocol::cluster::ClusterConfig;
-use terraswap::asset::Asset;
+use astroport::asset::Asset;
 
 /// config: ClusterConfig
 pub static CONFIG_KEY: &[u8] = b"config";

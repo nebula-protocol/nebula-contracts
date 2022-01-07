@@ -28,7 +28,7 @@ pub fn instantiate(
         &Config {
             owner: msg.owner,
             nebula_token: msg.nebula_token,
-            terraswap_factory: msg.terraswap_factory,
+            astroport_factory: msg.astroport_factory,
         },
     )?;
 

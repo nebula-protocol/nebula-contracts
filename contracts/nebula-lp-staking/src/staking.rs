@@ -9,10 +9,10 @@ use crate::state::{
     RewardInfo,
 };
 use nebula_protocol::staking::ExecuteMsg;
-use terraswap::asset::{Asset, AssetInfo, PairInfo};
 
-use terraswap::pair::ExecuteMsg as PairExecuteMsg;
-use terraswap::querier::{query_pair_info, query_token_balance};
+use astroport::asset::{Asset, AssetInfo, PairInfo};
+use astroport::pair::ExecuteMsg as PairExecuteMsg;
+use astroport::querier::{query_pair_info, query_token_balance};
 
 use cw20::Cw20ExecuteMsg;
 
@@ -67,10 +67,10 @@ pub fn auto_stake(
     slippage_tolerance: Option<Decimal>,
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
-    let terraswap_factory: String = config.terraswap_factory;
+    let astroport_factory: String = config.astroport_factory;
 
     let mut native_asset_op: Option<Asset> = None;
-    let mut token_info_op: Option<(String, Uint128)> = None;
+    let mut token_info_op: Option<(Addr, Uint128)> = None;
     for asset in assets.iter() {
         match asset.info.clone() {
             AssetInfo::NativeToken { .. } => {
@@ -95,23 +95,23 @@ pub fn auto_stake(
 
     // query pair info to obtain pair contract address
     let asset_infos: [AssetInfo; 2] = [assets[0].info.clone(), assets[1].info.clone()];
-    let terraswap_pair: PairInfo = query_pair_info(
+    let astroport_pair: PairInfo = query_pair_info(
         &deps.querier,
-        Addr::unchecked(terraswap_factory.to_string()),
+        Addr::unchecked(astroport_factory.to_string()),
         &asset_infos,
     )?;
 
     // assert the token and lp token match with pool info
-    let pool_info: PoolInfo = read_pool_info(deps.storage, &token_addr)?;
+    let pool_info: PoolInfo = read_pool_info(deps.storage, &String::from(&token_addr))?;
 
-    if pool_info.staking_token.to_string() != terraswap_pair.liquidity_token.clone() {
+    if pool_info.staking_token.to_string() != astroport_pair.liquidity_token.clone() {
         return Err(StdError::generic_err("Invalid staking token"));
     }
 
     // get current lp token amount to later compute the recived amount
     let prev_staking_token_amount = query_token_balance(
         &deps.querier,
-        Addr::unchecked(terraswap_pair.liquidity_token.clone()),
+        Addr::unchecked(astroport_pair.liquidity_token.clone()),
         env.contract.address.clone(),
     )?;
 
@@ -136,14 +136,14 @@ pub fn auto_stake(
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: token_addr.to_string(),
                 msg: to_binary(&Cw20ExecuteMsg::IncreaseAllowance {
-                    spender: terraswap_pair.contract_addr.clone(),
+                    spender: String::from(astroport_pair.contract_addr.clone()),
                     amount: token_amount,
                     expires: None,
                 })?,
                 funds: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: terraswap_pair.contract_addr,
+                contract_addr: String::from(astroport_pair.contract_addr),
                 msg: to_binary(&PairExecuteMsg::ProvideLiquidity {
                     assets: [
                         Asset {
@@ -153,11 +153,12 @@ pub fn auto_stake(
                         Asset {
                             amount: token_amount,
                             info: AssetInfo::Token {
-                                contract_addr: token_addr.to_string(),
+                                contract_addr: deps.api.addr_validate(token_addr.as_str())?,
                             },
                         },
                     ],
                     slippage_tolerance,
+                    auto_stake: None,
                     receiver: None,
                 })?,
                 funds: vec![Coin {
@@ -168,8 +169,8 @@ pub fn auto_stake(
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::AutoStakeHook {
-                    asset_token: token_addr.clone(),
-                    staking_token: terraswap_pair.liquidity_token.clone(),
+                    asset_token: String::from(token_addr.clone()),
+                    staking_token: String::from(astroport_pair.liquidity_token.clone()),
                     staker_addr: info.sender.to_string(),
                     prev_staking_token_amount,
                 })?,

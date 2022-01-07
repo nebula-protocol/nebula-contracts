@@ -9,7 +9,7 @@ static KEY_CONFIG: &[u8] = b"config";
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
     pub distribution_contract: String, // collected rewards receiver
-    pub terraswap_factory: String,     // terraswap factory contract
+    pub astroport_factory: String,     // astroport factory contract
     pub nebula_token: String,
     pub base_denom: String,
     // factory contract

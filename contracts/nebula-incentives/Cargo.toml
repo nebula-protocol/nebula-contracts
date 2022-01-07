@@ -33,10 +33,10 @@ overflow-checks = true
 backtraces = ["cosmwasm-std/backtraces"]
 
 [dependencies]
-cw20 = { version = "0.8.0" } 
+cw20 = { version = "0.8.0" }
 cosmwasm-std = { version = "0.16.0", default-features = false}
 cosmwasm-storage = { version = "0.16.0" }
-terraswap = "2.4.0"
+astroport = { path = "../../packages/astroport" }
 schemars = "0.8.1"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 cluster-math = { path = "../../libraries/cluster-math" }

@@ -16,7 +16,7 @@ mod tests {
         let msg = InstantiateMsg {
             owner: "owner".to_string(),
             nebula_token: "reward".to_string(),
-            terraswap_factory: "terraswap-factory".to_string(),
+            astroport_factory: "astroport-factory".to_string(),
         };
 
         let info = mock_info("addr", &[]);
@@ -43,7 +43,7 @@ mod tests {
         let msg = InstantiateMsg {
             owner: "owner".to_string(),
             nebula_token: "reward".to_string(),
-            terraswap_factory: "terraswap-factory".to_string(),
+            astroport_factory: "astroport-factory".to_string(),
         };
 
         let info = mock_info("addr", &[]);
@@ -87,7 +87,7 @@ mod tests {
         let msg = InstantiateMsg {
             owner: "owner".to_string(),
             nebula_token: "reward".to_string(),
-            terraswap_factory: "terraswap-factory".to_string(),
+            astroport_factory: "astroport-factory".to_string(),
         };
 
         let info = mock_info("addr", &[]);

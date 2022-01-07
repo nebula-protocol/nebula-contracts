@@ -7,7 +7,7 @@ use cosmwasm_std::{
 };
 
 use crate::arbitrageurs::{
-    arb_cluster_create, arb_cluster_redeem, record_terraswap_impact, send_all, swap_all,
+    arb_cluster_create, arb_cluster_redeem, record_astroport_impact, send_all, swap_all,
 };
 use crate::rebalancers::{
     create, internal_rewarded_create, internal_rewarded_redeem, record_rebalancer_rewards, redeem,
@@ -36,7 +36,7 @@ pub fn instantiate(
         &Config {
             factory: msg.factory,
             custody: msg.custody,
-            terraswap_factory: msg.terraswap_factory,
+            astroport_factory: msg.astroport_factory,
             nebula_token: msg.nebula_token,
             base_denom: msg.base_denom,
             owner: msg.owner,
@@ -55,7 +55,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         ExecuteMsg::Withdraw {} => withdraw_reward(deps, info),
         ExecuteMsg::NewPenaltyPeriod {} => new_penalty_period(deps, info),
         ExecuteMsg::_SwapAll {
-            terraswap_pair,
+            astroport_pair,
             cluster_token,
             to_ust,
             min_return,
@@ -63,7 +63,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             deps,
             env,
             info,
-            terraswap_pair,
+            astroport_pair,
             cluster_token,
             to_ust,
             min_return,
@@ -72,17 +72,17 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             asset_infos,
             send_to,
         } => send_all(deps, env, info, &asset_infos, send_to),
-        ExecuteMsg::_RecordTerraswapImpact {
+        ExecuteMsg::_RecordAstroportImpact {
             arbitrageur,
-            terraswap_pair,
+            astroport_pair,
             cluster_contract,
             pool_before,
-        } => record_terraswap_impact(
+        } => record_astroport_impact(
             deps,
             env,
             info,
             arbitrageur,
-            terraswap_pair,
+            astroport_pair,
             cluster_contract,
             pool_before,
         ),
@@ -253,7 +253,7 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let resp = ConfigResponse {
         factory: state.factory,
         custody: state.custody,
-        terraswap_factory: state.terraswap_factory,
+        astroport_factory: state.astroport_factory,
         nebula_token: state.nebula_token,
         base_denom: state.base_denom,
         owner: state.owner,

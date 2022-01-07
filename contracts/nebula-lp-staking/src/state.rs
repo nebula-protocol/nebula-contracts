@@ -13,7 +13,7 @@ static PREFIX_REWARD: &[u8] = b"reward";
 pub struct Config {
     pub owner: String,
     pub nebula_token: String,
-    pub terraswap_factory: String,
+    pub astroport_factory: String,
 }
 
 pub fn store_config(storage: &mut dyn Storage, config: &Config) -> StdResult<()> {

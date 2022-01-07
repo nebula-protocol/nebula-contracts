@@ -17,7 +17,7 @@ pub struct Config {
     pub owner: String,
     pub factory: String,
     pub custody: String,
-    pub terraswap_factory: String, // terraswap factory contract
+    pub astroport_factory: String, // astroport factory contract
     pub nebula_token: String,
     pub base_denom: String,
 }

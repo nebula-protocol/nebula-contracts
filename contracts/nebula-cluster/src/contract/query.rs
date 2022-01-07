@@ -8,7 +8,7 @@ use crate::state::{read_asset_balance, read_config, read_target_asset_data};
 use nebula_protocol::cluster::{
     ClusterInfoResponse, ClusterStateResponse, ConfigResponse, QueryMsg, TargetResponse,
 };
-use terraswap::asset::AssetInfo;
+use astroport::asset::AssetInfo;
 
 /// Convenience function for creating inline String
 pub fn h(s: &str) -> String {
@@ -88,7 +88,7 @@ pub fn query_cluster_state(
     let inv: Vec<Uint128> = asset_infos
         .iter()
         .map(|asset| match asset {
-            AssetInfo::Token { contract_addr } => read_asset_balance(deps.storage, contract_addr),
+            AssetInfo::Token { contract_addr } => read_asset_balance(deps.storage, &String::from(contract_addr)),
             AssetInfo::NativeToken { denom } => read_asset_balance(deps.storage, denom),
         })
         .collect::<StdResult<Vec<Uint128>>>()?;

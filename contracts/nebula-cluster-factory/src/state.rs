@@ -20,7 +20,7 @@ static PREFIX_CLUSTERS: &[u8] = b"clusters";
 pub struct Config {
     pub owner: String,
     pub nebula_token: String,
-    pub terraswap_factory: String,
+    pub astroport_factory: String,
     pub staking_contract: String,
     pub commission_collector: String,
     pub protocol_fee_rate: String,

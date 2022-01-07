@@ -8,30 +8,30 @@ use crate::state::{read_config, record_contribution, Config};
 
 use nebula_protocol::incentives::{ExecuteMsg, PoolType};
 
-use terraswap::pair::PoolResponse as TerraswapPoolResponse;
-use terraswap::pair::QueryMsg as TerraswapQueryMsg;
+use astroport::pair::PoolResponse as AstroportPoolResponse;
+use astroport::pair::QueryMsg as AstroportQueryMsg;
 
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::cluster::{ClusterStateResponse, QueryMsg as ClusterQueryMsg};
-use terraswap::asset::{Asset, AssetInfo, PairInfo};
-use terraswap::pair::{Cw20HookMsg as TerraswapCw20HookMsg, ExecuteMsg as TerraswapExecuteMsg};
-use terraswap::querier::{query_balance, query_pair_info, query_token_balance};
+use astroport::asset::{Asset, AssetInfo, PairInfo};
+use astroport::pair::{Cw20HookMsg as AstroportCw20HookMsg, ExecuteMsg as AstroportExecuteMsg};
+use astroport::querier::{query_balance, query_pair_info, query_token_balance};
 
 use cluster_math::FPDecimal;
 use std::str::FromStr;
 
 pub fn get_pair_info(deps: Deps, cluster_token: &String) -> StdResult<PairInfo> {
     let config: Config = read_config(deps.storage)?;
-    let terraswap_factory_raw = config.terraswap_factory;
+    let astroport_factory_raw = config.astroport_factory;
     query_pair_info(
         &deps.querier,
-        Addr::unchecked(terraswap_factory_raw),
+        Addr::unchecked(astroport_factory_raw),
         &[
             AssetInfo::NativeToken {
                 denom: config.base_denom,
             },
             AssetInfo::Token {
-                contract_addr: cluster_token.clone(),
+                contract_addr: deps.api.addr_validate(cluster_token.as_str())?,
             },
         ],
     )
@@ -86,7 +86,7 @@ pub fn arb_cluster_create(
             }
             AssetInfo::Token { contract_addr } => {
                 messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: contract_addr.clone(),
+                    contract_addr: String::from(contract_addr),
                     msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
                         owner: info.sender.to_string(),
                         recipient: contract.to_string(),
@@ -113,7 +113,7 @@ pub fn arb_cluster_create(
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.to_string(),
         msg: to_binary(&ExecuteMsg::_SwapAll {
-            terraswap_pair: pair_info.contract_addr.clone(),
+            astroport_pair: String::from(pair_info.contract_addr.clone()),
             cluster_token,
             to_ust: true, // how about changing this to to_base
             min_return: min_ust.unwrap_or(Uint128::zero()),
@@ -124,13 +124,13 @@ pub fn arb_cluster_create(
     // record pool state difference
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.to_string(),
-        msg: to_binary(&ExecuteMsg::_RecordTerraswapImpact {
+        msg: to_binary(&ExecuteMsg::_RecordAstroportImpact {
             arbitrageur: info.sender.to_string(),
-            terraswap_pair: pair_info.contract_addr.clone(),
+            astroport_pair: String::from(pair_info.contract_addr.clone()),
             cluster_contract,
             pool_before: deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-                contract_addr: pair_info.contract_addr,
-                msg: to_binary(&TerraswapQueryMsg::Pool {})?,
+                contract_addr: String::from(pair_info.contract_addr),
+                msg: to_binary(&AstroportQueryMsg::Pool {})?,
             }))?,
         })?,
         funds: vec![],
@@ -191,7 +191,7 @@ pub fn arb_cluster_redeem(
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.to_string(),
         msg: to_binary(&ExecuteMsg::_SwapAll {
-            terraswap_pair: pair_info.contract_addr.clone(),
+            astroport_pair: String::from(pair_info.contract_addr.clone()),
             cluster_token: cluster_token.clone(),
             to_ust: false,
             min_return: min_cluster.unwrap_or(Uint128::zero()),
@@ -202,13 +202,13 @@ pub fn arb_cluster_redeem(
     // record pool state difference
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.to_string(),
-        msg: to_binary(&ExecuteMsg::_RecordTerraswapImpact {
+        msg: to_binary(&ExecuteMsg::_RecordAstroportImpact {
             arbitrageur: info.sender.to_string(),
-            terraswap_pair: pair_info.contract_addr.clone(),
+            astroport_pair: String::from(pair_info.contract_addr.clone()),
             cluster_contract: cluster_contract.clone(),
             pool_before: deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-                contract_addr: pair_info.contract_addr,
-                msg: to_binary(&TerraswapQueryMsg::Pool {})?,
+                contract_addr: String::from(pair_info.contract_addr),
+                msg: to_binary(&AstroportQueryMsg::Pool {})?,
             }))?,
         })?,
         funds: vec![],
@@ -251,23 +251,23 @@ pub fn arb_cluster_redeem(
     )
 }
 
-pub fn record_terraswap_impact(
+pub fn record_astroport_impact(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     arbitrageur: String,
-    terraswap_pair: String,
+    astroport_pair: String,
     cluster_contract: String,
-    pool_before: TerraswapPoolResponse,
+    pool_before: AstroportPoolResponse,
 ) -> StdResult<Response> {
     if info.sender.to_string() != env.contract.address {
         return Err(StdError::generic_err("unauthorized"));
     }
 
-    let pool_now: TerraswapPoolResponse =
+    let pool_now: AstroportPoolResponse =
         deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-            contract_addr: terraswap_pair,
-            msg: to_binary(&TerraswapQueryMsg::Pool {})?,
+            contract_addr: astroport_pair,
+            msg: to_binary(&AstroportQueryMsg::Pool {})?,
         }))?;
 
     let contract_state: ClusterStateResponse =
@@ -280,7 +280,7 @@ pub fn record_terraswap_impact(
     // by breaking it down into its respective components
     // is that the real fair value? to actually extract
     // this value you need to pay significant fees,
-    // so realistically the fair value on terraswap
+    // so realistically the fair value on astroport
     // may be 0-2% cheaper
     let mut fair_value = FPDecimal::zero();
     for i in 0..contract_state.prices.len() {
@@ -295,7 +295,7 @@ pub fn record_terraswap_impact(
     // which causes cases where the prices moves in the right direction
     // but the imbalance computed here goes up
     // hopefully they are rare enough to ignore
-    fn terraswap_imbalance(assets: &[Asset], fair_value: FPDecimal) -> FPDecimal {
+    fn astroport_imbalance(assets: &[Asset], fair_value: FPDecimal) -> FPDecimal {
         let sorted_assets = match assets[0].clone().info {
             AssetInfo::Token { .. } => vec![assets[1].clone(), assets[0].clone()],
             AssetInfo::NativeToken { .. } => assets.to_vec(),
@@ -318,8 +318,8 @@ pub fn record_terraswap_impact(
     }
 
     // if positive -> this arb moved us closer to fair value
-    let imb0 = terraswap_imbalance(&pool_before.assets.to_vec(), fair_value);
-    let imb1 = terraswap_imbalance(&pool_now.assets.to_vec(), fair_value);
+    let imb0 = astroport_imbalance(&pool_before.assets.to_vec(), fair_value);
+    let imb1 = astroport_imbalance(&pool_now.assets.to_vec(), fair_value);
 
     let imbalance_fixed = imb0 - imb1;
 
@@ -335,7 +335,7 @@ pub fn record_terraswap_impact(
     }
 
     Ok(Response::new().add_attributes(vec![
-        attr("action", "record_terraswap_arbitrageur_rewards"),
+        attr("action", "record_astroport_arbitrageur_rewards"),
         attr("fair_value", &format!("{}", fair_value)),
         attr("arbitrage_imbalance_fixed", &format!("{}", imbalance_fixed)),
         attr("arbitrage_imbalance_sign", imbalance_fixed.sign.to_string()),
@@ -350,7 +350,7 @@ pub fn swap_all(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    terraswap_pair: String,
+    astroport_pair: String,
     cluster_token: String,
     to_ust: bool,
     min_return: Uint128,
@@ -382,9 +382,9 @@ pub fn swap_all(
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: cluster_token,
             msg: to_binary(&Cw20ExecuteMsg::Send {
-                contract: terraswap_pair.clone(),
+                contract: astroport_pair.clone(),
                 amount,
-                msg: to_binary(&TerraswapCw20HookMsg::Swap {
+                msg: to_binary(&AstroportCw20HookMsg::Swap {
                     max_spread: Some(Decimal::zero()),
                     belief_price: Some(belief_price),
                     to: None,
@@ -393,7 +393,7 @@ pub fn swap_all(
             funds: vec![],
         }));
         logs.push(attr("amount", amount));
-        logs.push(attr("addr", terraswap_pair.to_string()));
+        logs.push(attr("addr", astroport_pair.to_string()));
     } else {
         let amount = query_balance(
             &deps.querier,
@@ -417,8 +417,8 @@ pub fn swap_all(
         };
 
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: terraswap_pair,
-            msg: to_binary(&TerraswapExecuteMsg::Swap {
+            contract_addr: astroport_pair,
+            msg: to_binary(&AstroportExecuteMsg::Swap {
                 offer_asset: Asset {
                     amount,
                     ..swap_asset
