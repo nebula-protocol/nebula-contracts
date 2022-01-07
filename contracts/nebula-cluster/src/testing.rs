@@ -2,6 +2,7 @@ use super::*;
 pub use crate::contract::*;
 pub use crate::ext_query::*;
 pub use crate::state::*;
+use astroport::asset::{Asset, AssetInfo};
 pub use cluster_math::*;
 pub use cosmwasm_std::testing::{
     mock_env, mock_info, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR,
@@ -23,7 +24,6 @@ use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 pub use std::str::FromStr;
 use terra_cosmwasm::*;
-use astroport::asset::{Asset, AssetInfo};
 
 /// Convenience function for creating inline String
 pub fn h(s: &str) -> String {
@@ -81,132 +81,130 @@ impl WasmMockQuerier {
                     Some(v) => v,
                     None => {
                         return SystemResult::Err(SystemError::InvalidRequest {
-                            error: format!("Denom not found in balances"),
+                            error: "Denom not found in balances".to_string(),
                             request: Binary(vec![]),
                         })
                     }
                 };
                 let balance = match denom_data.get(address) {
-                    Some(v) => v.clone(),
+                    Some(v) => *v,
                     None => Uint128::zero(),
                 };
                 SystemResult::Ok(ContractResult::from(to_binary(&BalanceResponse {
                     amount: coin(balance.u128(), denom),
                 })))
             }
-            QueryRequest::Wasm(WasmQuery::Smart { contract_addr, msg }) => {
-                match from_binary(&msg) {
-                    Ok(OracleQueryMsg::Price {
-                        base_asset,
-                        quote_asset,
-                    }) => match self.oracle_querier.assets.get(&base_asset) {
-                        Some(base_price) => match self.oracle_querier.assets.get(&quote_asset) {
-                            Some(quote_price) => {
-                                SystemResult::Ok(ContractResult::from(to_binary(&PriceResponse {
-                                    rate: decimal_division(*base_price, *quote_price),
-                                    last_updated_base: u64::MAX,
-                                    last_updated_quote: u64::MAX,
-                                })))
-                            }
-                            None => SystemResult::Err(SystemError::InvalidRequest {
-                                error: "No oracle price exists".to_string(),
-                                request: msg.as_slice().into(),
-                            }),
-                        },
+            QueryRequest::Wasm(WasmQuery::Smart { contract_addr, msg }) => match from_binary(msg) {
+                Ok(OracleQueryMsg::Price {
+                    base_asset,
+                    quote_asset,
+                }) => match self.oracle_querier.assets.get(&base_asset) {
+                    Some(base_price) => match self.oracle_querier.assets.get(&quote_asset) {
+                        Some(quote_price) => {
+                            SystemResult::Ok(ContractResult::from(to_binary(&PriceResponse {
+                                rate: decimal_division(*base_price, *quote_price),
+                                last_updated_base: u64::MAX,
+                                last_updated_quote: u64::MAX,
+                            })))
+                        }
                         None => SystemResult::Err(SystemError::InvalidRequest {
                             error: "No oracle price exists".to_string(),
                             request: msg.as_slice().into(),
                         }),
                     },
-                    _ => match from_binary(&msg) {
-                        Ok(Cw20QueryMsg::Balance { address }) => {
-                            let token_data = match self.token_querier.tokens.get(contract_addr) {
-                                Some(v) => v,
-                                None => {
-                                    return SystemResult::Err(SystemError::InvalidRequest {
-                                        error: format!(
-                                            "No balance info exists for the contract {}",
-                                            contract_addr
-                                        ),
-                                        request: msg.as_slice().into(),
-                                    })
-                                }
-                            };
-                            let balance = match token_data.balances.get(&address) {
-                                Some(v) => v,
-                                None => {
-                                    return SystemResult::Err(SystemError::InvalidRequest {
-                                        error: "Balance not found".to_string(),
-                                        request: msg.as_slice().into(),
-                                    })
-                                }
-                            };
-                            SystemResult::Ok(ContractResult::from(to_binary(
-                                &Cw20BalanceResponse { balance: *balance },
-                            )))
-                        }
-                        Ok(Cw20QueryMsg::TokenInfo {}) => {
-                            let token_data = match self.token_querier.tokens.get(contract_addr) {
-                                Some(v) => v,
-                                None => {
-                                    return SystemResult::Err(SystemError::InvalidRequest {
-                                        error: format!(
-                                            "No token info exists for the contract {}",
-                                            contract_addr
-                                        ),
-                                        request: msg.as_slice().into(),
-                                    })
-                                }
-                            };
-                            SystemResult::Ok(ContractResult::from(to_binary(&token_data.info)))
-                        }
-                        _ => match from_binary(&msg) {
-                            Ok(ClusterQueryMsg::Config {}) => {
-                                let config = consts::factory_config();
-                                SystemResult::Ok(ContractResult::from(to_binary(&config)))
+                    None => SystemResult::Err(SystemError::InvalidRequest {
+                        error: "No oracle price exists".to_string(),
+                        request: msg.as_slice().into(),
+                    }),
+                },
+                _ => match from_binary(msg) {
+                    Ok(Cw20QueryMsg::Balance { address }) => {
+                        let token_data = match self.token_querier.tokens.get(contract_addr) {
+                            Some(v) => v,
+                            None => {
+                                return SystemResult::Err(SystemError::InvalidRequest {
+                                    error: format!(
+                                        "No balance info exists for the contract {}",
+                                        contract_addr
+                                    ),
+                                    request: msg.as_slice().into(),
+                                })
                             }
-                            _ => match from_binary(&msg) {
-                                Ok(PenaltyQueryMsg::PenaltyQueryCreate {
-                                    block_height: _,
-                                    cluster_token_supply: _,
-                                    inventory: _,
-                                    create_asset_amounts: _,
-                                    asset_prices: _,
-                                    target_weights: _,
-                                }) => {
-                                    let response = consts::mint_response();
-                                    SystemResult::Ok(ContractResult::from(to_binary(&response)))
-                                }
-                                Ok(PenaltyQueryMsg::PenaltyQueryRedeem {
-                                    block_height: _,
-                                    cluster_token_supply: _,
-                                    inventory: _,
-                                    max_tokens: _,
-                                    asset_prices: _,
-                                    target_weights: _,
-                                    redeem_asset_amounts: _,
-                                }) => {
-                                    let response = PenaltyRedeemResponse {
-                                        redeem_assets: vec![
-                                            Uint128::new(99),
-                                            Uint128::new(0),
-                                            Uint128::new(97),
-                                            Uint128::new(96),
-                                        ],
-                                        penalty: Uint128::new(1234),
-                                        token_cost: Uint128::new(1234),
-                                        attributes: vec![attr("penalty", "1234")],
-                                    };
-                                    SystemResult::Ok(ContractResult::from(to_binary(&response)))
-                                }
-                                _ => {
-                                    panic!("QueryMsg type not implemented");
-                                }
-                            },
+                        };
+                        let balance = match token_data.balances.get(&address) {
+                            Some(v) => v,
+                            None => {
+                                return SystemResult::Err(SystemError::InvalidRequest {
+                                    error: "Balance not found".to_string(),
+                                    request: msg.as_slice().into(),
+                                })
+                            }
+                        };
+                        SystemResult::Ok(ContractResult::from(to_binary(&Cw20BalanceResponse {
+                            balance: *balance,
+                        })))
+                    }
+                    Ok(Cw20QueryMsg::TokenInfo {}) => {
+                        let token_data = match self.token_querier.tokens.get(contract_addr) {
+                            Some(v) => v,
+                            None => {
+                                return SystemResult::Err(SystemError::InvalidRequest {
+                                    error: format!(
+                                        "No token info exists for the contract {}",
+                                        contract_addr
+                                    ),
+                                    request: msg.as_slice().into(),
+                                })
+                            }
+                        };
+                        SystemResult::Ok(ContractResult::from(to_binary(&token_data.info)))
+                    }
+                    _ => match from_binary(msg) {
+                        Ok(ClusterQueryMsg::Config {}) => {
+                            let config = consts::factory_config();
+                            SystemResult::Ok(ContractResult::from(to_binary(&config)))
+                        }
+                        _ => match from_binary(msg) {
+                            Ok(PenaltyQueryMsg::PenaltyQueryCreate {
+                                block_height: _,
+                                cluster_token_supply: _,
+                                inventory: _,
+                                create_asset_amounts: _,
+                                asset_prices: _,
+                                target_weights: _,
+                            }) => {
+                                let response = consts::mint_response();
+                                SystemResult::Ok(ContractResult::from(to_binary(&response)))
+                            }
+                            Ok(PenaltyQueryMsg::PenaltyQueryRedeem {
+                                block_height: _,
+                                cluster_token_supply: _,
+                                inventory: _,
+                                max_tokens: _,
+                                asset_prices: _,
+                                target_weights: _,
+                                redeem_asset_amounts: _,
+                            }) => {
+                                let response = PenaltyRedeemResponse {
+                                    redeem_assets: vec![
+                                        Uint128::new(99),
+                                        Uint128::new(0),
+                                        Uint128::new(97),
+                                        Uint128::new(96),
+                                    ],
+                                    penalty: Uint128::new(1234),
+                                    token_cost: Uint128::new(1234),
+                                    attributes: vec![attr("penalty", "1234")],
+                                };
+                                SystemResult::Ok(ContractResult::from(to_binary(&response)))
+                            }
+                            _ => {
+                                panic!("QueryMsg type not implemented");
+                            }
                         },
                     },
-                }
-            }
+                },
+            },
             _ => self.base.handle_query(request),
         }
     }
@@ -696,7 +694,8 @@ pub fn mock_querier_setup(
                 1_000_000_000_000,
                 vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
             ),
-        ).set_token(
+        )
+        .set_token(
             "mGME",
             token_data(
                 "Mirrored GME",
@@ -704,7 +703,9 @@ pub fn mock_querier_setup(
                 6,
                 1_000_000_000_000,
                 vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
-        )).set_token(
+            ),
+        )
+        .set_token(
             "mGE",
             token_data(
                 "Mirrored GE",
@@ -712,8 +713,8 @@ pub fn mock_querier_setup(
                 6,
                 1_000_000_000_000,
                 vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
-            )
-    );
+            ),
+        );
 
     deps.querier.set_oracle_prices(vec![
         ("uusd", Decimal::one()),
@@ -831,7 +832,7 @@ fn mint() {
     deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
 
     let mint_msg = ExecuteMsg::RebalanceCreate {
-        asset_amounts: asset_amounts.clone(),
+        asset_amounts: asset_amounts,
         min_tokens: None,
     };
 
@@ -1022,14 +1023,14 @@ fn burn() {
     deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
 
     let mint_msg = ExecuteMsg::RebalanceCreate {
-        asset_amounts: asset_amounts.clone(),
+        asset_amounts: asset_amounts,
         min_tokens: None,
     };
 
     let addr = "addr0000";
     let info = mock_info(addr, &[]);
     let env = mock_env();
-    let _res = execute(deps.as_mut(), env.clone(), info, mint_msg).unwrap();
+    let _res = execute(deps.as_mut(), env, info, mint_msg).unwrap();
 
     let msg = ExecuteMsg::RebalanceRedeem {
         max_tokens: Uint128::new(20_000_000),
@@ -1179,14 +1180,14 @@ fn update_target() {
     deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
 
     let mint_msg = ExecuteMsg::RebalanceCreate {
-        asset_amounts: asset_amounts.clone(),
+        asset_amounts: asset_amounts,
         min_tokens: None,
     };
 
     let addr = "addr0000";
     let info = mock_info(addr, &[]);
     let env = mock_env();
-    let _res = execute(deps.as_mut(), env.clone(), info, mint_msg).unwrap();
+    let _res = execute(deps.as_mut(), env, info, mint_msg).unwrap();
 
     let new_target: Vec<Asset> = vec![
         Asset {
@@ -1257,14 +1258,14 @@ fn decommission_cluster() {
     deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
 
     let mint_msg = ExecuteMsg::RebalanceCreate {
-        asset_amounts: asset_amounts.clone(),
+        asset_amounts: asset_amounts,
         min_tokens: None,
     };
 
     let addr = "addr0000";
     let info = mock_info(addr, &[]);
     let env = mock_env();
-    let _res = execute(deps.as_mut(), env.clone(), info, mint_msg).unwrap();
+    let _res = execute(deps.as_mut(), env, info, mint_msg).unwrap();
 
     let msg = ExecuteMsg::Decommission {};
 
@@ -1333,7 +1334,7 @@ fn decommission_cluster() {
         asset_amounts: None,
     };
 
-    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
     assert_eq!(
         res.attributes,
         vec![

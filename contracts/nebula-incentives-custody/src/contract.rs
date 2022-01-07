@@ -38,11 +38,11 @@ pub fn update_owner(deps: DepsMut, info: MessageInfo, owner: &String) -> StdResu
         return Err(StdError::generic_err("unauthorized"));
     }
 
-    set_owner(deps.storage, &owner)?;
+    set_owner(deps.storage, owner)?;
 
     Ok(Response::new().add_attributes(vec![
         attr("action", "update_owner"),
-        attr("old_owner", old_owner.to_string()),
+        attr("old_owner", old_owner),
         attr("new_owner", owner.to_string()),
     ]))
 }
@@ -53,13 +53,13 @@ pub fn request_neb(
     info: MessageInfo,
     amount: Uint128,
 ) -> StdResult<Response> {
-    if info.sender.to_string() != read_owner(deps.storage)? {
+    if info.sender != read_owner(deps.storage)? {
         return Err(StdError::generic_err("unauthorized"));
     }
 
     Ok(Response::new()
         .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: read_neb(deps.storage)?.to_string(),
+            contract_addr: read_neb(deps.storage)?,
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: info.sender.to_string(),
                 amount,

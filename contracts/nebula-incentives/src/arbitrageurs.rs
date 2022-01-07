@@ -11,11 +11,11 @@ use nebula_protocol::incentives::{ExecuteMsg, PoolType};
 use astroport::pair::PoolResponse as AstroportPoolResponse;
 use astroport::pair::QueryMsg as AstroportQueryMsg;
 
-use cw20::Cw20ExecuteMsg;
-use nebula_protocol::cluster::{ClusterStateResponse, QueryMsg as ClusterQueryMsg};
 use astroport::asset::{Asset, AssetInfo, PairInfo};
 use astroport::pair::{Cw20HookMsg as AstroportCw20HookMsg, ExecuteMsg as AstroportExecuteMsg};
 use astroport::querier::{query_balance, query_pair_info, query_token_balance};
+use cw20::Cw20ExecuteMsg;
+use nebula_protocol::cluster::{ClusterStateResponse, QueryMsg as ClusterQueryMsg};
 
 use cluster_math::FPDecimal;
 use std::str::FromStr;
@@ -67,7 +67,7 @@ pub fn arb_cluster_create(
     assert_cluster_exists(deps.as_ref(), &cluster_contract)?;
 
     let mut messages = vec![];
-    let contract = env.contract.address.clone();
+    let contract = env.contract.address;
 
     let cfg: Config = read_config(deps.storage)?;
 
@@ -147,12 +147,10 @@ pub fn arb_cluster_create(
         funds: vec![],
     }));
 
-    Ok(Response::new().add_messages(messages)
-        .add_attributes(vec![
-            attr("action", "arb_cluster_create"),
-            attr("sender", info.sender.as_str())
-        ])
-    )
+    Ok(Response::new().add_messages(messages).add_attributes(vec![
+        attr("action", "arb_cluster_create"),
+        attr("sender", info.sender.as_str()),
+    ]))
 }
 
 pub fn arb_cluster_redeem(
@@ -168,7 +166,7 @@ pub fn arb_cluster_redeem(
     let cluster_state = get_cluster_state(deps.as_ref(), &cluster_contract)?;
 
     let mut messages = vec![];
-    let contract = env.contract.address.clone();
+    let contract = env.contract.address;
 
     let cfg: Config = read_config(deps.storage)?;
 
@@ -220,7 +218,7 @@ pub fn arb_cluster_redeem(
         msg: to_binary(&ExecuteMsg::_InternalRewardedRedeem {
             rebalancer: info.sender.to_string(),
             cluster_contract,
-            cluster_token: cluster_token.clone(),
+            cluster_token: cluster_token,
             max_tokens: None,
             asset_amounts: None,
         })?,
@@ -243,12 +241,10 @@ pub fn arb_cluster_redeem(
         funds: vec![],
     }));
 
-    Ok(Response::new().add_messages(messages)
-        .add_attributes(vec![
-            attr("action", "arb_cluster_redeem"),
-            attr("sender", info.sender.as_str())
-        ])
-    )
+    Ok(Response::new().add_messages(messages).add_attributes(vec![
+        attr("action", "arb_cluster_redeem"),
+        attr("sender", info.sender.as_str()),
+    ]))
 }
 
 pub fn record_astroport_impact(
@@ -260,7 +256,7 @@ pub fn record_astroport_impact(
     cluster_contract: String,
     pool_before: AstroportPoolResponse,
 ) -> StdResult<Response> {
-    if info.sender.to_string() != env.contract.address {
+    if info.sender != env.contract.address {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -355,7 +351,7 @@ pub fn swap_all(
     to_ust: bool,
     min_return: Uint128,
 ) -> StdResult<Response> {
-    if info.sender.to_string() != env.contract.address {
+    if info.sender != env.contract.address {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -393,7 +389,7 @@ pub fn swap_all(
             funds: vec![],
         }));
         logs.push(attr("amount", amount));
-        logs.push(attr("addr", astroport_pair.to_string()));
+        logs.push(attr("addr", astroport_pair));
     } else {
         let amount = query_balance(
             &deps.querier,
@@ -443,7 +439,7 @@ pub fn send_all(
     asset_infos: &[AssetInfo],
     send_to: String,
 ) -> StdResult<Response> {
-    if info.sender.to_string() != env.contract.address {
+    if info.sender != env.contract.address {
         return Err(StdError::generic_err("unauthorized"));
     }
 

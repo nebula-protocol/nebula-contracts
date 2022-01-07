@@ -52,7 +52,7 @@ mod tests {
         let info = mock_info("owner0000", &[]);
         let msg = ExecuteMsg::UpdateConfig {
             owner: Some("owner0001".to_string()),
-            nebula_token: Some(("nebula0000").to_string())
+            nebula_token: Some(("nebula0000").to_string()),
         };
 
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -65,7 +65,10 @@ mod tests {
 
         // Unauthorzied err
         let info = mock_info("owner0000", &[]);
-        let msg = ExecuteMsg::UpdateConfig { owner: None, nebula_token: None };
+        let msg = ExecuteMsg::UpdateConfig {
+            owner: None,
+            nebula_token: None,
+        };
 
         let res = execute(deps.as_mut(), mock_env(), info, msg);
         match res {
@@ -216,7 +219,7 @@ mod tests {
             .is_claimed
         );
 
-        let res = execute(deps.as_mut(), mock_env(), info, msg.clone());
+        let res = execute(deps.as_mut(), mock_env(), info, msg);
         match res {
             Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Already claimed"),
             _ => panic!("DO NOT ENTER HERE"),
@@ -235,7 +238,7 @@ mod tests {
         };
 
         let info = mock_info("terra1qfqa2eu9wp272ha93lj4yhcenrc6ymng079nu8", &[]);
-        let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(
             res.messages,
             vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {

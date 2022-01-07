@@ -40,7 +40,7 @@ pub fn read_config(storage: &dyn Storage) -> StdResult<Config> {
 }
 
 pub fn cluster_exists(storage: &dyn Storage, contract_addr: &String) -> StdResult<bool> {
-    match ReadonlyBucket::new(storage, PREFIX_CLUSTERS).load(&contract_addr.as_str().as_bytes()) {
+    match ReadonlyBucket::new(storage, PREFIX_CLUSTERS).load(contract_addr.as_str().as_bytes()) {
         Ok(res) => Ok(res),
         Err(_) => Ok(false),
     }
@@ -80,11 +80,11 @@ pub fn read_tmp_cluster(storage: &dyn Storage) -> StdResult<String> {
 }
 
 pub fn record_cluster(storage: &mut dyn Storage, contract_addr: &String) -> StdResult<()> {
-    Bucket::new(storage, PREFIX_CLUSTERS).save(&contract_addr.as_str().as_bytes(), &true)
+    Bucket::new(storage, PREFIX_CLUSTERS).save(contract_addr.as_str().as_bytes(), &true)
 }
 
 pub fn deactivate_cluster(storage: &mut dyn Storage, contract_addr: &String) -> StdResult<()> {
-    Bucket::new(storage, PREFIX_CLUSTERS).save(&contract_addr.as_str().as_bytes(), &false)
+    Bucket::new(storage, PREFIX_CLUSTERS).save(contract_addr.as_str().as_bytes(), &false)
 }
 
 pub fn store_params(storage: &mut dyn Storage, init_data: &Params) -> StdResult<()> {

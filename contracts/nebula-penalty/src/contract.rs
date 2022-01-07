@@ -303,7 +303,7 @@ pub fn update_ema(
     cfg.ema = get_ema(deps.as_ref(), block_height, net_asset_val)?;
     cfg.last_block = block_height;
     store_config(deps.storage, &cfg)?;
-    Ok(Response::new().add_attributes(vec![attr("new_ema", &format!("{}", cfg.ema.to_string()))]))
+    Ok(Response::new().add_attributes(vec![attr("new_ema", &cfg.ema.to_string())]))
 }
 
 pub fn execute_mint(
@@ -346,7 +346,7 @@ pub fn execute(
     let cfg = read_config(deps.storage)?;
 
     // check permission
-    if info.sender.to_string() != cfg.owner {
+    if info.sender != cfg.owner {
         return Err(StdError::generic_err("unauthorized"));
     }
 

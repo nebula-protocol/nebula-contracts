@@ -76,7 +76,7 @@ impl WasmMockQuerier {
     pub fn execute_query(&self, request: &QueryRequest<Empty>) -> QuerierResult {
         match &request {
             QueryRequest::Wasm(WasmQuery::Smart { contract_addr, msg }) => {
-                match from_binary(&msg).unwrap() {
+                match from_binary(msg).unwrap() {
                     Cw20QueryMsg::TokenInfo {} => {
                         let balances: &HashMap<String, Uint128> =
                             match self.token_querier.balances.get(contract_addr) {
@@ -102,7 +102,7 @@ impl WasmMockQuerier {
                             name: "mAAPL".to_string(),
                             symbol: "mAAPL".to_string(),
                             decimals: 6,
-                            total_supply: total_supply,
+                            total_supply,
                         })))
                     }
                     Cw20QueryMsg::Balance { address } => {

@@ -113,7 +113,7 @@ pub fn contributions_store<'a>(
         storage,
         &[
             PREFIX_REWARD,
-            &contributor.as_str().as_bytes(),
+            contributor.as_str().as_bytes(),
             &pool_type.to_be_bytes(),
         ],
     )
@@ -130,7 +130,7 @@ pub fn contributions_read<'a>(
         storage,
         &[
             PREFIX_REWARD,
-            &contributor.as_str().as_bytes(),
+            contributor.as_str().as_bytes(),
             &pool_type.to_be_bytes(),
         ],
     )
@@ -160,27 +160,27 @@ pub fn contributions_to_pending_rewards(
     pool_type: u16,
     cluster_address: &String,
 ) -> StdResult<()> {
-    let contribution_bucket = contributions_read(storage, &contributor_address, pool_type);
-    let mut contribution = read_from_contribution_bucket(&contribution_bucket, &cluster_address);
+    let contribution_bucket = contributions_read(storage, contributor_address, pool_type);
+    let mut contribution = read_from_contribution_bucket(&contribution_bucket, cluster_address);
 
     let n = read_current_n(storage)?;
     if contribution.value_contributed != Uint128::zero() && contribution.n != n {
         let pool_bucket = pool_info_read(storage, pool_type, contribution.n);
-        let pool_info = read_from_pool_bucket(&pool_bucket, &cluster_address);
+        let pool_info = read_from_pool_bucket(&pool_bucket, cluster_address);
 
         // using integers here .. do we care if the remaining fractions of nebula stay in this contract?
-        let new_pending_reward = read_pending_rewards(storage, &contributor_address)
+        let new_pending_reward = read_pending_rewards(storage, contributor_address)
             + Uint128::new(
                 pool_info.reward_total.u128() * contribution.value_contributed.u128()
                     / pool_info.value_total.u128(),
             );
-        store_pending_rewards(storage, &contributor_address, new_pending_reward)?;
+        store_pending_rewards(storage, contributor_address, new_pending_reward)?;
 
         contribution.value_contributed = Uint128::zero();
     }
     contribution.n = n;
-    contributions_store(storage, &contributor_address, pool_type)
-        .save(&cluster_address.as_str().as_bytes(), &contribution)?;
+    contributions_store(storage, contributor_address, pool_type)
+        .save(cluster_address.as_str().as_bytes(), &contribution)?;
     Ok(())
 }
 
@@ -193,18 +193,18 @@ pub fn record_contribution(
 ) -> StdResult<()> {
     let n = read_current_n(deps.storage)?;
 
-    contributions_to_pending_rewards(deps.storage, &contributor, pool_type, &cluster_address)?;
+    contributions_to_pending_rewards(deps.storage, contributor, pool_type, cluster_address)?;
 
     let pool_bucket = pool_info_read(deps.storage, pool_type, n);
-    let mut pool_info = read_from_pool_bucket(&pool_bucket, &cluster_address);
+    let mut pool_info = read_from_pool_bucket(&pool_bucket, cluster_address);
 
-    let contribution_bucket = contributions_read(deps.storage, &contributor, pool_type);
-    let mut contributions = read_from_contribution_bucket(&contribution_bucket, &cluster_address);
+    let contribution_bucket = contributions_read(deps.storage, contributor, pool_type);
+    let mut contributions = read_from_contribution_bucket(&contribution_bucket, cluster_address);
 
     pool_info.value_total += contribution_amt;
     contributions.value_contributed += contribution_amt;
 
-    contributions_store(deps.storage, &contributor, pool_type)
+    contributions_store(deps.storage, contributor, pool_type)
         .save(cluster_address.as_str().as_bytes(), &contributions)?;
     pool_info_store(deps.storage, pool_type, n)
         .save(cluster_address.as_str().as_bytes(), &pool_info)?;

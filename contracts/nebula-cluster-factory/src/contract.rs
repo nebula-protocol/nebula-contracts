@@ -1,3 +1,7 @@
+use astroport::asset::{AssetInfo, PairInfo};
+use astroport::factory::{ExecuteMsg as AstroportFactoryExecuteMsg, PairType};
+use astroport::querier::query_pair_info;
+use astroport::token::InstantiateMsg as TokenInstantiateMsg;
 use cosmwasm_std::entry_point;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{
@@ -6,10 +10,6 @@ use cosmwasm_std::{
 };
 use cw20::{Cw20ExecuteMsg, MinterResponse};
 use protobuf::Message;
-use astroport::asset::{AssetInfo, PairInfo};
-use astroport::factory::{PairType, ExecuteMsg as AstroportFactoryExecuteMsg};
-use astroport::querier::query_pair_info;
-use astroport::token::InstantiateMsg as TokenInstantiateMsg;
 
 use cluster_math::FPDecimal;
 use nebula_protocol::cluster::{
@@ -153,7 +153,7 @@ pub fn update_config(
     distribution_schedule: Option<Vec<(u64, u64, Uint128)>>,
 ) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
-    if config.owner != info.sender.to_string() {
+    if config.owner != info.sender {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -185,7 +185,7 @@ pub fn update_weight(
     weight: u32,
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
-    if config.owner != info.sender.to_string() {
+    if config.owner != info.sender {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -210,7 +210,7 @@ pub fn pass_command(
     msg: Binary,
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
-    if config.owner != info.sender.to_string() {
+    if config.owner != info.sender {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -243,7 +243,7 @@ pub fn create_cluster(
     params: Params,
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
-    if config.owner != info.sender.to_string() {
+    if config.owner != info.sender {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -324,7 +324,11 @@ ClusterCreationHook
 1. Record cluster address
 2. Create token contract with `config.token_code_id`
 */
-pub fn cluster_creation_hook(deps: DepsMut, _env: Env, cluster_contract: String) -> StdResult<Response> {
+pub fn cluster_creation_hook(
+    deps: DepsMut,
+    _env: Env,
+    cluster_contract: String,
+) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
 
     // If the param storage exists, it means there is a cluster registration process in progress
@@ -446,7 +450,7 @@ pub fn cluster_token_creation_hook(
                             contract_addr: deps.api.addr_validate(cluster_token.as_str())?,
                         },
                     ],
-                    init_params: None
+                    init_params: None,
                 })?,
             }
             .into(),
@@ -586,12 +590,12 @@ pub fn decommission_cluster(
     cluster_token: String,
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
-    if config.owner != info.sender.to_string() {
+    if config.owner != info.sender {
         return Err(StdError::generic_err("unauthorized"));
     }
 
-    let weight = read_weight(deps.storage, &cluster_token.clone())?;
-    remove_weight(deps.storage, &cluster_token.clone());
+    let weight = read_weight(deps.storage, &cluster_token)?;
+    remove_weight(deps.storage, &cluster_token);
     decrease_total_weight(deps.storage, weight)?;
     deactivate_cluster(deps.storage, &cluster_contract)?;
 
@@ -603,7 +607,7 @@ pub fn decommission_cluster(
         })])
         .add_attributes(vec![
             attr("action", "decommission_asset"),
-            attr("cluster_token", cluster_token.to_string()),
+            attr("cluster_token", cluster_token),
             attr("cluster_contract", cluster_contract),
         ]))
 }

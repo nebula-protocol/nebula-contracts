@@ -220,7 +220,7 @@ fn test_mint_actions() {
 
     let res = query(
         deps.as_ref(),
-        env.clone(),
+        env,
         QueryMsg::PenaltyQueryCreate {
             block_height: 120,
             cluster_token_supply: Uint128::new(1000000),
@@ -307,7 +307,7 @@ fn test_redeem_actions() {
 
     let res = query(
         deps.as_ref(),
-        env.clone(),
+        env,
         QueryMsg::PenaltyQueryRedeem {
             block_height: 120,
             cluster_token_supply: Uint128::new(1000000),

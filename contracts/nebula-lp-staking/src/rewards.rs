@@ -18,7 +18,7 @@ pub fn deposit_reward(
     rewards_amount: Uint128,
 ) -> StdResult<Response> {
     for (asset_token, amount) in rewards.iter() {
-        let mut pool_info: PoolInfo = read_pool_info(deps.storage, &asset_token)?;
+        let mut pool_info: PoolInfo = read_pool_info(deps.storage, asset_token)?;
         let mut reward_amount = *amount;
 
         if pool_info.total_bond_amount.is_zero() {
@@ -31,7 +31,7 @@ pub fn deposit_reward(
             pool_info.pending_reward = Uint128::zero();
         }
 
-        store_pool_info(deps.storage, &asset_token, &pool_info)?;
+        store_pool_info(deps.storage, asset_token, &pool_info)?;
     }
 
     Ok(Response::new().add_attributes(vec![
@@ -52,7 +52,7 @@ pub fn withdraw_reward(
     let config: Config = read_config(deps.storage)?;
     Ok(Response::new()
         .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: config.nebula_token.to_string(),
+            contract_addr: config.nebula_token,
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: staker_addr.to_string(),
                 amount: reward_amount,
@@ -70,7 +70,7 @@ fn _withdraw_reward(
     staker_addr: &String,
     asset_token: &Option<String>,
 ) -> StdResult<Uint128> {
-    let rewards_bucket = rewards_read(storage, &staker_addr);
+    let rewards_bucket = rewards_read(storage, staker_addr);
 
     // single reward withdraw
     let reward_pairs: Vec<(String, RewardInfo)>;
@@ -108,9 +108,9 @@ fn _withdraw_reward(
 
         // Update rewards info
         if reward_info.pending_reward.is_zero() && reward_info.bond_amount.is_zero() {
-            rewards_store(storage, &staker_addr).remove(asset_token.as_str().as_bytes());
+            rewards_store(storage, staker_addr).remove(asset_token.as_str().as_bytes());
         } else {
-            rewards_store(storage, &staker_addr)
+            rewards_store(storage, staker_addr)
                 .save(asset_token.as_str().as_bytes(), &reward_info)?;
         }
     }

@@ -44,7 +44,7 @@ pub fn update_config(
 ) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
 
-    if config.owner != info.sender.to_string() {
+    if config.owner != info.sender {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -65,13 +65,13 @@ pub fn try_set_prices(
     let cfg = read_config(deps.storage)?;
 
     // check permission
-    if info.sender.to_string() != cfg.owner {
+    if info.sender != cfg.owner {
         return Err(StdError::generic_err("unauthorized"));
     }
 
     for (asset, price) in prices.iter() {
         let price = PriceInfo {
-            price: price.clone(),
+            price: *price,
             last_updated_time: env.block.time.seconds(),
         };
 

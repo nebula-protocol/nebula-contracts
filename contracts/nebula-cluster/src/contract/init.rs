@@ -6,11 +6,11 @@ use crate::{
     state::{store_config, store_target_asset_data},
     util::vec_to_string,
 };
+use astroport::asset::AssetInfo;
 use cosmwasm_std::{
     attr, DepsMut, Env, MessageInfo, QuerierWrapper, Response, StdError, StdResult, Uint128,
 };
 use nebula_protocol::cluster::{ClusterConfig, InstantiateMsg};
-use astroport::asset::AssetInfo;
 
 pub fn validate_targets(
     querier: QuerierWrapper,
@@ -30,7 +30,7 @@ pub fn validate_targets(
             }
         }
     }
-    return Ok(true);
+    Ok(true)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -58,11 +58,7 @@ pub fn instantiate(
         .map(|x| x.info.clone())
         .collect::<Vec<_>>();
 
-    let weights = msg
-        .target
-        .iter()
-        .map(|x| x.amount.clone())
-        .collect::<Vec<_>>();
+    let weights = msg.target.iter().map(|x| x.amount).collect::<Vec<_>>();
 
     for w in weights.iter() {
         if *w == Uint128::zero() {

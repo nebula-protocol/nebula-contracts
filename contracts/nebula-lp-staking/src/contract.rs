@@ -83,7 +83,7 @@ pub fn receive_cw20(
             let pool_info: PoolInfo = read_pool_info(deps.storage, &asset_token)?;
 
             // only staking token contract can execute this message
-            if pool_info.staking_token != info.sender.to_string() {
+            if pool_info.staking_token != info.sender {
                 return Err(StdError::generic_err("unauthorized"));
             }
 
@@ -91,7 +91,7 @@ pub fn receive_cw20(
         }
         Cw20HookMsg::DepositReward { rewards } => {
             // only reward token contract can execute this message
-            if config.nebula_token != info.sender.to_string() {
+            if config.nebula_token != info.sender {
                 return Err(StdError::generic_err("unauthorized"));
             }
 
@@ -136,7 +136,7 @@ fn register_asset(
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
 
-    if config.owner != info.sender.to_string() {
+    if config.owner != info.sender {
         return Err(StdError::generic_err("unauthorized"));
     }
 

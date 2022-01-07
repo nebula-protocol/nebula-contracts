@@ -12,10 +12,10 @@ use nebula_protocol::collector::{
 };
 use nebula_protocol::gov::Cw20HookMsg as GovCw20HookMsg;
 
-use cw20::Cw20ExecuteMsg;
 use astroport::asset::{Asset, AssetInfo, PairInfo};
 use astroport::pair::{Cw20HookMsg as AstroportCw20HookMsg, ExecuteMsg as AstroportExecuteMsg};
 use astroport::querier::{query_balance, query_pair_info, query_token_balance};
+use cw20::Cw20ExecuteMsg;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -71,7 +71,7 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> StdResult<Respon
 
     let pair_info: PairInfo = query_pair_info(
         &deps.querier,
-        Addr::unchecked(astroport_factory_raw.to_string()),
+        Addr::unchecked(astroport_factory_raw),
         &[
             AssetInfo::NativeToken {
                 denom: config.base_denom.to_string(),
@@ -157,7 +157,7 @@ pub fn distribute(deps: DepsMut, env: Env) -> StdResult<Response> {
         .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: config.nebula_token.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Send {
-                contract: config.distribution_contract.to_string(),
+                contract: config.distribution_contract,
                 amount,
                 msg: to_binary(&GovCw20HookMsg::DepositReward {})?,
             })?,
@@ -179,7 +179,7 @@ pub fn update_config(
     owner: Option<String>,
 ) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
-    if config.owner != info.sender.to_string() {
+    if config.owner != info.sender {
         return Err(StdError::generic_err("unauthorized"));
     }
 

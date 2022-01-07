@@ -28,7 +28,7 @@ pub fn deposit_reward(
             return Err(StdError::generic_err("pool type not found"));
         }
         let mut pool_info: PoolInfo =
-            read_from_pool_bucket(&pool_info_read(deps.storage, *pool_type, n), &asset_token);
+            read_from_pool_bucket(&pool_info_read(deps.storage, *pool_type, n), asset_token);
         pool_info.reward_total += *amount;
         pool_info_store(deps.storage, *pool_type, n)
             .save(asset_token.as_str().as_bytes(), &pool_info)?;

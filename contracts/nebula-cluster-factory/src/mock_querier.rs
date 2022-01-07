@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
+use astroport::asset::{AssetInfo, PairInfo};
+use astroport::factory::PairType;
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_binary, from_slice, to_binary, Coin, ContractResult, Empty, OwnedDeps, Querier,
-    QuerierResult, QueryRequest, SystemError, SystemResult, WasmQuery, Addr,
+    from_binary, from_slice, to_binary, Addr, Coin, ContractResult, Empty, OwnedDeps, Querier,
+    QuerierResult, QueryRequest, SystemError, SystemResult, WasmQuery,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use astroport::asset::{AssetInfo, PairInfo};
-use astroport::factory::PairType;
 
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies
 /// this uses our CustomQuerier.
@@ -80,7 +80,7 @@ impl WasmMockQuerier {
             QueryRequest::Wasm(WasmQuery::Smart {
                 contract_addr: _,
                 msg,
-            }) => match from_binary(&msg).unwrap() {
+            }) => match from_binary(msg).unwrap() {
                 QueryMsg::Pair { asset_infos } => {
                     let key = asset_infos[0].to_string() + asset_infos[1].to_string().as_str();
                     match self.astroport_factory_querier.pairs.get(&key) {
@@ -95,7 +95,7 @@ impl WasmMockQuerier {
                                     denom: "uusd".to_string(),
                                 },
                             ],
-                            pair_type: PairType::Xyk {}
+                            pair_type: PairType::Xyk {},
                         }))),
                         None => SystemResult::Err(SystemError::InvalidRequest {
                             error: "No pair info exists".to_string(),

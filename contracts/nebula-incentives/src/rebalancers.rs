@@ -51,7 +51,7 @@ pub fn cluster_imbalance(deps: Deps, cluster_contract: &String) -> StdResult<Uin
     let target_weights = cluster_state
         .target
         .iter()
-        .map(|x| x.amount.clone())
+        .map(|x| x.amount)
         .collect::<Vec<_>>();
 
     let w = int_vec_to_fpdec(&target_weights);
@@ -66,7 +66,7 @@ pub fn record_rebalancer_rewards(
     cluster_contract: String,
     original_imbalance: Uint128,
 ) -> StdResult<Response> {
-    if info.sender.to_string() != env.contract.address {
+    if info.sender != env.contract.address {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -100,7 +100,7 @@ pub fn internal_rewarded_create(
     asset_amounts: &[Asset],
     min_tokens: Option<Uint128>,
 ) -> StdResult<Response> {
-    if info.sender.to_string() != env.contract.address {
+    if info.sender != env.contract.address {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -173,7 +173,7 @@ pub fn internal_rewarded_redeem(
     max_tokens: Option<Uint128>,
     asset_amounts: Option<Vec<Asset>>,
 ) -> StdResult<Response> {
-    if info.sender.to_string() != env.contract.address {
+    if info.sender != env.contract.address {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -289,12 +289,10 @@ pub fn create(
         funds: vec![],
     }));
 
-    Ok(Response::new().add_messages(messages)
-        .add_attributes(vec![
-            attr("action", "incentives_create"),
-            attr("sender", info.sender.as_str())
-        ])
-    )
+    Ok(Response::new().add_messages(messages).add_attributes(vec![
+        attr("action", "incentives_create"),
+        attr("sender", info.sender.as_str()),
+    ]))
 }
 
 pub fn redeem(
@@ -365,7 +363,6 @@ pub fn redeem(
         ])
         .add_attributes(vec![
             attr("action", "incentives_redeem"),
-            attr("sender", info.sender.as_str())
-        ])
-    )
+            attr("sender", info.sender.as_str()),
+        ]))
 }

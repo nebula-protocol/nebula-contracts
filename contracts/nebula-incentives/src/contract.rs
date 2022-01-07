@@ -161,7 +161,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 pub fn update_owner(deps: DepsMut, info: MessageInfo, owner: &String) -> StdResult<Response> {
     let cfg = read_config(deps.storage)?;
 
-    if info.sender.to_string() != cfg.owner {
+    if info.sender != cfg.owner {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -183,7 +183,7 @@ pub fn receive_cw20(
     match from_binary(&msg)? {
         Cw20HookMsg::DepositReward { rewards } => {
             // only reward token contract can execute this message
-            if config.nebula_token != info.sender.to_string() {
+            if config.nebula_token != info.sender {
                 return Err(StdError::generic_err("unauthorized"));
             }
 
@@ -204,7 +204,7 @@ pub fn receive_cw20(
 pub fn new_penalty_period(deps: DepsMut, info: MessageInfo) -> StdResult<Response> {
     let cfg = read_config(deps.storage)?;
 
-    if info.sender.to_string() != cfg.owner {
+    if info.sender != cfg.owner {
         return Err(StdError::generic_err("unauthorized"));
     }
 

@@ -1,3 +1,4 @@
+use astroport::asset::AssetInfo;
 use cosmwasm_std::{
     to_binary, BalanceResponse, BankQuery, QuerierWrapper, QueryRequest, StdResult, Uint128,
     WasmQuery,
@@ -10,7 +11,6 @@ use nebula_protocol::{
     oracle::QueryMsg as OracleQueryMsg, penalty::PenaltyCreateResponse,
     penalty::PenaltyRedeemResponse, penalty::QueryMsg as PenaltyQueryMsg,
 };
-use astroport::asset::AssetInfo;
 
 /// EXTERNAL QUERY
 /// -- Queries the oracle contract for the current asset price
@@ -47,9 +47,9 @@ pub fn query_asset_balance(
 ) -> StdResult<Uint128> {
     match asset_info {
         AssetInfo::Token { contract_addr } => {
-            query_cw20_balance(querier, &contract_addr.to_string(), &account_address)
+            query_cw20_balance(querier, &contract_addr.to_string(), account_address)
         }
-        AssetInfo::NativeToken { denom } => query_balance(querier, &account_address, denom.clone()),
+        AssetInfo::NativeToken { denom } => query_balance(querier, account_address, denom.clone()),
     }
 }
 
@@ -125,7 +125,7 @@ pub fn query_create_amount(
     target_weights: Vec<Uint128>,
 ) -> StdResult<PenaltyCreateResponse> {
     let res: PenaltyCreateResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: penalty_address.to_string(),
+        contract_addr: penalty_address,
         msg: to_binary(&PenaltyQueryMsg::PenaltyQueryCreate {
             block_height,
             cluster_token_supply,
