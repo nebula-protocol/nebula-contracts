@@ -1,4 +1,3 @@
-use cluster_math::FPDecimal;
 use cosmwasm_std::{Binary, Decimal, Uint128};
 use cw20::Cw20ReceiveMsg;
 use schemars::JsonSchema;
@@ -41,7 +40,12 @@ pub enum ExecuteMsg {
     WithdrawVotingTokens {
         amount: Option<Uint128>,
     },
-    WithdrawVotingRewards {},
+    WithdrawVotingRewards {
+        poll_id: Option<u64>,
+    },
+    StakeVotingRewards {
+        poll_id: Option<u64>,
+    },
     EndPoll {
         poll_id: u64,
     },
@@ -51,18 +55,14 @@ pub enum ExecuteMsg {
     SnapshotPoll {
         poll_id: u64,
     },
-    IncreaseLockTime {
-        increase_weeks: u64,
-    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Cw20HookMsg {
-    /// USER-CALLABLE
     /// StakeVotingTokens a user can stake their nebula token to receive rewards
     /// or do vote on polls
-    StakeVotingTokens { lock_for_weeks: Option<u64> },
+    StakeVotingTokens {},
     /// CreatePoll need to receive deposit from a proposer
     CreatePoll {
         title: String,
@@ -89,10 +89,6 @@ pub enum QueryMsg {
     Staker {
         address: String,
     },
-    CurrentTotalVotingPower {},
-    VotingPower {
-        address: String,
-    },
     Poll {
         poll_id: u64,
     },
@@ -101,6 +97,10 @@ pub enum QueryMsg {
         start_after: Option<u64>,
         limit: Option<u32>,
         order_by: Option<OrderBy>,
+    },
+    Voter {
+        poll_id: u64,
+        address: String,
     },
     Voters {
         poll_id: u64,
@@ -141,7 +141,7 @@ pub struct PollResponse {
     pub id: u64,
     pub creator: String,
     pub status: PollStatus,
-    pub end_height: u64,
+    pub end_time: u64,
     pub title: String,
     pub description: String,
     pub link: Option<String>,
@@ -170,20 +170,8 @@ pub struct StakerResponse {
     pub balance: Uint128,
     pub share: Uint128,
     pub locked_balance: Vec<(u64, VoterInfo)>,
+    pub withdrawable_polls: Vec<(u64, Uint128)>,
     pub pending_voting_rewards: Uint128,
-    pub lock_end_week: Option<u64>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-pub struct VotingPowerResponse {
-    pub staker: String,
-    pub voting_power: FPDecimal,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
-pub struct CurrentTotalVotingPowerResponse {
-    pub current_power: FPDecimal,
-    pub current_week: u64,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
@@ -209,7 +197,6 @@ pub struct VotersResponse {
     pub voters: Vec<VotersResponseItem>,
 }
 
-/// Migrates the contract state, currently taking a state version argument
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct MigrateMsg {}
 
@@ -226,6 +213,7 @@ pub enum PollStatus {
     Passed,
     Rejected,
     Executed,
+    Expired,
     Failed,
 }
 
