@@ -605,6 +605,7 @@ pub mod consts {
 
 pub fn mock_init() -> (OwnedDeps<MockStorage, MockApi, WasmMockQuerier>, Response) {
     let mut deps = mock_dependencies(&[]);
+    deps = mock_querier_setup(deps);
     let msg = InstantiateMsg {
         name: consts::name().to_string(),
         description: consts::description().to_string(),
@@ -695,7 +696,24 @@ pub fn mock_querier_setup(
                 1_000_000_000_000,
                 vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
             ),
-        );
+        ).set_token(
+            "mGME",
+            token_data(
+                "Mirrored GME",
+                "mGME",
+                6,
+                1_000_000_000_000,
+                vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
+        )).set_token(
+            "mGE",
+            token_data(
+                "Mirrored GE",
+                "mGE",
+                6,
+                1_000_000_000_000,
+                vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
+            )
+    );
 
     deps.querier.set_oracle_prices(vec![
         ("uusd", Decimal::one()),
@@ -703,6 +721,8 @@ pub fn mock_querier_setup(
         ("mGOOG", Decimal::from_str("1.0").unwrap()),
         ("mMSFT", Decimal::from_str("1.0").unwrap()),
         ("mNFLX", Decimal::from_str("1.0").unwrap()),
+        ("mGME", Decimal::from_str("1.0").unwrap()),
+        ("mGE", Decimal::from_str("1.0").unwrap()),
     ]);
 
     deps
@@ -1148,7 +1168,6 @@ fn burn() {
 #[test]
 fn update_target() {
     let (mut deps, _init_res) = mock_init();
-    deps = mock_querier_setup(deps);
 
     deps.querier
         .set_token_supply(consts::cluster_token(), 100_000_000)
@@ -1192,7 +1211,13 @@ fn update_target() {
             info: AssetInfo::Token {
                 contract_addr: h("mGME"),
             },
-            amount: Uint128::new(50),
+            amount: Uint128::new(45),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: h("mGE"),
+            },
+            amount: Uint128::new(5),
         },
     ];
     let msg = ExecuteMsg::UpdateTarget { target: new_target };
@@ -1206,8 +1231,8 @@ fn update_target() {
             attr("action", "reset_target"),
             attr("prev_assets", "[mAAPL, mGOOG, mMSFT, mNFLX]"),
             attr("prev_targets", "[20, 20, 20, 20]"),
-            attr("updated_assets", "[mAAPL, mGOOG, mMSFT, mGME, mNFLX]"),
-            attr("updated_targets", "[10, 5, 35, 50, 0]"),
+            attr("updated_assets", "[mAAPL, mGOOG, mMSFT, mGME, mGE, mNFLX]"),
+            attr("updated_targets", "[10, 5, 35, 45, 5, 0]"),
         ]
     );
 
