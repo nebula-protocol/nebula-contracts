@@ -5,19 +5,19 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    coin, from_binary, from_slice, to_binary, Api, BalanceResponse, BankQuery, Binary,
+    coin, from_binary, from_slice, to_binary, Addr, Api, BalanceResponse, BankQuery, Binary,
     CanonicalAddr, Coin, ContractResult, Decimal, OwnedDeps, Querier, QuerierResult, QueryRequest,
-    SystemError, SystemResult, Uint128, WasmQuery, Addr,
+    SystemError, SystemResult, Uint128, WasmQuery,
 };
 use cosmwasm_storage::to_length_prefixed;
 use cw20::BalanceResponse as CW20BalanceResponse;
 
 use std::collections::HashMap;
 
-use terra_cosmwasm::{TaxCapResponse, TaxRateResponse, TerraQuery, TerraQueryWrapper, TerraRoute};
 use astroport::asset::{Asset, AssetInfo, PairInfo};
-use astroport::pair::PoolResponse as AstroportPoolResponse;
 use astroport::factory::PairType;
+use astroport::pair::PoolResponse as AstroportPoolResponse;
+use terra_cosmwasm::{TaxCapResponse, TaxRateResponse, TerraQuery, TerraQueryWrapper, TerraRoute};
 
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies
 /// this uses our CustomQuerier.

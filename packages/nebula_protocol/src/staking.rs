@@ -1,9 +1,9 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use astroport::asset::Asset;
 use cosmwasm_std::{Decimal, Uint128};
 use cw20::Cw20ReceiveMsg;
-use astroport::asset::Asset;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {

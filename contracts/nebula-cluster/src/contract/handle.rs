@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use astroport::asset::{Asset, AssetInfo};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
@@ -7,7 +8,6 @@ use cosmwasm_std::{
     Storage, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
-use astroport::asset::{Asset, AssetInfo};
 
 use cluster_math::FPDecimal;
 use nebula_protocol::cluster::ExecuteMsg;
@@ -173,7 +173,9 @@ pub fn update_target(
     // then set that not found item target to zero
     for prev_asset in prev_assets.iter() {
         let inv_balance = match prev_asset {
-            AssetInfo::Token { contract_addr } => read_asset_balance(deps.storage, &contract_addr.to_string()),
+            AssetInfo::Token { contract_addr } => {
+                read_asset_balance(deps.storage, &contract_addr.to_string())
+            }
             AssetInfo::NativeToken { denom } => read_asset_balance(deps.storage, denom),
         }?;
         if !inv_balance.is_zero() && !updated_asset_infos.contains(&prev_asset) {
@@ -335,7 +337,12 @@ pub fn create(
                     }));
 
                     // update asset inventory balance in cluster
-                    update_asset_balance(deps.storage, &contract_addr.to_string(), asset.amount, true)?;
+                    update_asset_balance(
+                        deps.storage,
+                        &contract_addr.to_string(),
+                        asset.amount,
+                        true,
+                    )?;
                 } else if let AssetInfo::NativeToken { denom } = &asset.info {
                     // validate that native token balance is correct
                     asset.assert_sent_native_token_balance(&info)?;

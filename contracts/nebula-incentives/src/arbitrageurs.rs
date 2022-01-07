@@ -11,11 +11,11 @@ use nebula_protocol::incentives::{ExecuteMsg, PoolType};
 use astroport::pair::PoolResponse as AstroportPoolResponse;
 use astroport::pair::QueryMsg as AstroportQueryMsg;
 
-use cw20::Cw20ExecuteMsg;
-use nebula_protocol::cluster::{ClusterStateResponse, QueryMsg as ClusterQueryMsg};
 use astroport::asset::{Asset, AssetInfo, PairInfo};
 use astroport::pair::{Cw20HookMsg as AstroportCw20HookMsg, ExecuteMsg as AstroportExecuteMsg};
 use astroport::querier::{query_balance, query_pair_info, query_token_balance};
+use cw20::Cw20ExecuteMsg;
+use nebula_protocol::cluster::{ClusterStateResponse, QueryMsg as ClusterQueryMsg};
 
 use cluster_math::FPDecimal;
 use std::str::FromStr;
@@ -147,12 +147,10 @@ pub fn arb_cluster_create(
         funds: vec![],
     }));
 
-    Ok(Response::new().add_messages(messages)
-        .add_attributes(vec![
-            attr("action", "arb_cluster_create"),
-            attr("sender", info.sender.as_str())
-        ])
-    )
+    Ok(Response::new().add_messages(messages).add_attributes(vec![
+        attr("action", "arb_cluster_create"),
+        attr("sender", info.sender.as_str()),
+    ]))
 }
 
 pub fn arb_cluster_redeem(
@@ -243,12 +241,10 @@ pub fn arb_cluster_redeem(
         funds: vec![],
     }));
 
-    Ok(Response::new().add_messages(messages)
-        .add_attributes(vec![
-            attr("action", "arb_cluster_redeem"),
-            attr("sender", info.sender.as_str())
-        ])
-    )
+    Ok(Response::new().add_messages(messages).add_attributes(vec![
+        attr("action", "arb_cluster_redeem"),
+        attr("sender", info.sender.as_str()),
+    ]))
 }
 
 pub fn record_astroport_impact(

@@ -1,3 +1,7 @@
+use astroport::asset::{AssetInfo, PairInfo};
+use astroport::factory::{ExecuteMsg as AstroportFactoryExecuteMsg, PairType};
+use astroport::querier::query_pair_info;
+use astroport::token::InstantiateMsg as TokenInstantiateMsg;
 use cosmwasm_std::entry_point;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{
@@ -6,10 +10,6 @@ use cosmwasm_std::{
 };
 use cw20::{Cw20ExecuteMsg, MinterResponse};
 use protobuf::Message;
-use astroport::asset::{AssetInfo, PairInfo};
-use astroport::factory::{PairType, ExecuteMsg as AstroportFactoryExecuteMsg};
-use astroport::querier::query_pair_info;
-use astroport::token::InstantiateMsg as TokenInstantiateMsg;
 
 use cluster_math::FPDecimal;
 use nebula_protocol::cluster::{
@@ -324,7 +324,11 @@ ClusterCreationHook
 1. Record cluster address
 2. Create token contract with `config.token_code_id`
 */
-pub fn cluster_creation_hook(deps: DepsMut, _env: Env, cluster_contract: String) -> StdResult<Response> {
+pub fn cluster_creation_hook(
+    deps: DepsMut,
+    _env: Env,
+    cluster_contract: String,
+) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
 
     // If the param storage exists, it means there is a cluster registration process in progress
@@ -446,7 +450,7 @@ pub fn cluster_token_creation_hook(
                             contract_addr: deps.api.addr_validate(cluster_token.as_str())?,
                         },
                     ],
-                    init_params: None
+                    init_params: None,
                 })?,
             }
             .into(),

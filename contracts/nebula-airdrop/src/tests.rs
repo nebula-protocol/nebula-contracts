@@ -52,7 +52,7 @@ mod tests {
         let info = mock_info("owner0000", &[]);
         let msg = ExecuteMsg::UpdateConfig {
             owner: Some("owner0001".to_string()),
-            nebula_token: Some(("nebula0000").to_string())
+            nebula_token: Some(("nebula0000").to_string()),
         };
 
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -65,7 +65,10 @@ mod tests {
 
         // Unauthorzied err
         let info = mock_info("owner0000", &[]);
-        let msg = ExecuteMsg::UpdateConfig { owner: None, nebula_token: None };
+        let msg = ExecuteMsg::UpdateConfig {
+            owner: None,
+            nebula_token: None,
+        };
 
         let res = execute(deps.as_mut(), mock_env(), info, msg);
         match res {

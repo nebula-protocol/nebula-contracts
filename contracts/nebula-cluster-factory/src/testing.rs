@@ -6,7 +6,10 @@ use crate::state::{
     store_total_weight, store_weight,
 };
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
-use cosmwasm_std::{attr, from_binary, to_binary, ContractResult, CosmosMsg, Env, Reply, ReplyOn, StdError, SubMsg, SubMsgExecutionResponse, Timestamp, Uint128, WasmMsg, Addr};
+use cosmwasm_std::{
+    attr, from_binary, to_binary, Addr, ContractResult, CosmosMsg, Env, Reply, ReplyOn, StdError,
+    SubMsg, SubMsgExecutionResponse, Timestamp, Uint128, WasmMsg,
+};
 use protobuf::Message;
 
 use crate::response::MsgInstantiateContractResponse;
@@ -16,6 +19,9 @@ use nebula_protocol::cluster_factory::{
     ConfigResponse, DistributionInfoResponse, ExecuteMsg, InstantiateMsg, Params, QueryMsg,
 };
 
+use astroport::asset::{Asset, AssetInfo};
+use astroport::factory::{ExecuteMsg as AstroportFactoryExecuteMsg, PairType};
+use astroport::token::InstantiateMsg as TokenInstantiateMsg;
 use nebula_protocol::cluster::{
     ExecuteMsg as ClusterExecuteMsg, InstantiateMsg as ClusterInstantiateMsg,
 };
@@ -23,9 +29,6 @@ use nebula_protocol::penalty::ExecuteMsg as PenaltyExecuteMsg;
 use nebula_protocol::staking::{
     Cw20HookMsg as StakingCw20HookMsg, ExecuteMsg as StakingExecuteMsg,
 };
-use astroport::asset::{Asset, AssetInfo};
-use astroport::factory::{PairType, ExecuteMsg as AstroportFactoryExecuteMsg};
-use astroport::token::InstantiateMsg as TokenInstantiateMsg;
 
 fn mock_env_time(time: u64) -> Env {
     let mut env = mock_env();
