@@ -1,9 +1,10 @@
 use cosmwasm_std::Decimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
-    pub terraswap_factory: String,
+    pub astroport_factory: String,
     pub base_denom: String,
 }
 

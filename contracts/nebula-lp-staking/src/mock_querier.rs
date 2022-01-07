@@ -1,14 +1,16 @@
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     from_binary, from_slice, to_binary, Coin, ContractResult, Decimal, OwnedDeps, Querier,
-    QuerierResult, QueryRequest, SystemError, SystemResult, Uint128, WasmQuery,
+    QuerierResult, QueryRequest, SystemError, SystemResult, Uint128, WasmQuery, Addr,
 };
 
 use cosmwasm_storage::to_length_prefixed;
 use nebula_protocol::oracle::PriceResponse;
 use serde::Deserialize;
 use terra_cosmwasm::{TaxCapResponse, TaxRateResponse, TerraQuery, TerraQueryWrapper, TerraRoute};
-use terraswap::{asset::Asset, asset::AssetInfo, asset::PairInfo, pair::PoolResponse};
+use astroport::asset::{Asset, AssetInfo, PairInfo};
+use astroport::pair::PoolResponse;
+use astroport::factory::PairType;
 
 pub struct WasmMockQuerier {
     base: MockQuerier<TerraQueryWrapper>,
@@ -39,7 +41,7 @@ impl Querier for WasmMockQuerier {
             Ok(v) => v,
             Err(e) => {
                 return SystemResult::Err(SystemError::InvalidRequest {
-                    error: format!("Parsing query request: {}", e),
+                    error: format!("Parsing query request: {:?}", e),
                     request: bin_request.into(),
                 })
             }
@@ -91,8 +93,9 @@ impl WasmMockQuerier {
                 MockQueryMsg::Pair { asset_infos } => {
                     SystemResult::Ok(ContractResult::from(to_binary(&PairInfo {
                         asset_infos: asset_infos.clone(),
-                        contract_addr: self.pair_addr.clone(),
-                        liquidity_token: "lptoken".to_string(),
+                        contract_addr: Addr::unchecked(self.pair_addr.clone()),
+                        liquidity_token: Addr::unchecked("lptoken"),
+                        pair_type: PairType::Xyk {},
                     })))
                 }
                 MockQueryMsg::Pool {} => {
@@ -146,7 +149,7 @@ impl WasmMockQuerier {
                 },
                 Asset {
                     info: AssetInfo::Token {
-                        contract_addr: "asset".to_string(),
+                        contract_addr: Addr::unchecked("asset"),
                     },
                     amount: Uint128::zero(),
                 },

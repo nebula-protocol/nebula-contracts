@@ -5,6 +5,7 @@ mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MOCK_CONTRACT_ADDR};
     use cosmwasm_std::{
         attr, from_binary, to_binary, Coin, CosmosMsg, Decimal, StdError, SubMsg, Uint128, WasmMsg,
+        Addr,
     };
     use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
     use nebula_protocol::staking::{
@@ -12,8 +13,8 @@ mod tests {
         RewardInfoResponseItem,
     };
 
-    use terraswap::asset::{Asset, AssetInfo};
-    use terraswap::pair::ExecuteMsg as PairExecuteMsg;
+    use astroport::asset::{Asset, AssetInfo};
+    use astroport::pair::ExecuteMsg as PairExecuteMsg;
 
     #[test]
     fn test_bond_tokens() {
@@ -22,7 +23,7 @@ mod tests {
         let msg = InstantiateMsg {
             owner: "owner".to_string(),
             nebula_token: "nebtoken".to_string(),
-            terraswap_factory: "terraswap-factory".to_string(),
+            astroport_factory: "astroport-factory".to_string(),
         };
 
         let info = mock_info("addr", &[]);
@@ -147,7 +148,7 @@ mod tests {
         let msg = InstantiateMsg {
             owner: "owner".to_string(),
             nebula_token: "nebtoken".to_string(),
-            terraswap_factory: "terraswap-factory".to_string(),
+            astroport_factory: "astroport-factory".to_string(),
         };
 
         let info = mock_info("addr", &[]);
@@ -262,7 +263,7 @@ mod tests {
             },
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: "asset".to_string(),
+                    contract_addr: Addr::unchecked("asset"),
                 },
                 amount: Uint128::from(1u128),
             },
@@ -271,7 +272,7 @@ mod tests {
         let msg = InstantiateMsg {
             owner: "owner".to_string(),
             nebula_token: "nebtoken".to_string(),
-            terraswap_factory: "terraswap_factory".to_string(),
+            astroport_factory: "astroport-factory".to_string(),
         };
 
         let info = mock_info("addr", &[]);
@@ -318,13 +319,13 @@ mod tests {
             assets: [
                 Asset {
                     info: AssetInfo::Token {
-                        contract_addr: "asset".to_string(),
+                        contract_addr: Addr::unchecked("asset"),
                     },
                     amount: Uint128::from(1u128),
                 },
                 Asset {
                     info: AssetInfo::Token {
-                        contract_addr: "asset".to_string(),
+                        contract_addr: Addr::unchecked("asset"),
                     },
                     amount: Uint128::from(1u128),
                 },
@@ -345,7 +346,7 @@ mod tests {
                 },
                 Asset {
                     info: AssetInfo::Token {
-                        contract_addr: "asset".to_string(),
+                        contract_addr: Addr::unchecked("asset"),
                     },
                     amount: Uint128::new(1u128),
                 },
@@ -406,12 +407,13 @@ mod tests {
                             },
                             Asset {
                                 info: AssetInfo::Token {
-                                    contract_addr: "asset".to_string()
+                                    contract_addr: Addr::unchecked("asset")
                                 },
                                 amount: Uint128::new(1u128),
                             },
                         ],
                         slippage_tolerance: None,
+                        auto_stake: None,
                         receiver: None
                     })
                     .unwrap(),

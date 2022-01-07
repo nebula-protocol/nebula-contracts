@@ -3,14 +3,14 @@ use serde::{Deserialize, Serialize};
 
 use cosmwasm_std::Uint128;
 use cw20::Cw20ReceiveMsg;
-use terraswap::asset::{Asset, AssetInfo};
-use terraswap::pair::PoolResponse as TerraswapPoolResponse;
+use astroport::asset::{Asset, AssetInfo};
+use astroport::pair::PoolResponse as AstroportPoolResponse;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     pub factory: String,
     pub custody: String,
-    pub terraswap_factory: String,
+    pub astroport_factory: String,
     pub nebula_token: String,
     pub base_denom: String,
     pub owner: String,
@@ -34,17 +34,17 @@ pub enum ExecuteMsg {
     },
 
     _SwapAll {
-        terraswap_pair: String,
+        astroport_pair: String,
         cluster_token: String,
         min_return: Uint128,
         to_ust: bool,
     },
 
-    _RecordTerraswapImpact {
+    _RecordAstroportImpact {
         arbitrageur: String,
-        terraswap_pair: String,
+        astroport_pair: String,
         cluster_contract: String,
-        pool_before: TerraswapPoolResponse,
+        pool_before: AstroportPoolResponse,
     },
 
     /// USER-CALLABLE
@@ -118,7 +118,7 @@ pub enum QueryMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ConfigResponse {
     pub factory: String,
-    pub terraswap_factory: String,
+    pub astroport_factory: String,
     pub nebula_token: String,
     pub base_denom: String,
     pub owner: String,

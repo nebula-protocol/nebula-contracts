@@ -3,11 +3,12 @@ use std::collections::HashMap;
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     from_binary, from_slice, to_binary, Coin, ContractResult, Empty, OwnedDeps, Querier,
-    QuerierResult, QueryRequest, SystemError, SystemResult, WasmQuery,
+    QuerierResult, QueryRequest, SystemError, SystemResult, WasmQuery, Addr,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use terraswap::asset::{AssetInfo, PairInfo};
+use astroport::asset::{AssetInfo, PairInfo};
+use astroport::factory::PairType;
 
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies
 /// this uses our CustomQuerier.
@@ -27,17 +28,17 @@ pub fn mock_dependencies(
 
 pub struct WasmMockQuerier {
     base: MockQuerier<Empty>,
-    terraswap_factory_querier: TerraswapFactoryQuerier,
+    astroport_factory_querier: AstroportFactoryQuerier,
 }
 
 #[derive(Clone, Default)]
-pub struct TerraswapFactoryQuerier {
+pub struct AstroportFactoryQuerier {
     pairs: HashMap<String, String>,
 }
 
-impl TerraswapFactoryQuerier {
+impl AstroportFactoryQuerier {
     pub fn new(pairs: &[(&String, &String)]) -> Self {
-        TerraswapFactoryQuerier {
+        AstroportFactoryQuerier {
             pairs: pairs_to_map(pairs),
         }
     }
@@ -58,7 +59,7 @@ impl Querier for WasmMockQuerier {
             Ok(v) => v,
             Err(e) => {
                 return SystemResult::Err(SystemError::InvalidRequest {
-                    error: format!("Parsing query request: {}", e),
+                    error: format!("Parsing query request: {:?}", e),
                     request: bin_request.into(),
                 });
             }
@@ -82,10 +83,10 @@ impl WasmMockQuerier {
             }) => match from_binary(&msg).unwrap() {
                 QueryMsg::Pair { asset_infos } => {
                     let key = asset_infos[0].to_string() + asset_infos[1].to_string().as_str();
-                    match self.terraswap_factory_querier.pairs.get(&key) {
+                    match self.astroport_factory_querier.pairs.get(&key) {
                         Some(v) => SystemResult::Ok(ContractResult::from(to_binary(&PairInfo {
-                            contract_addr: "pair".to_string(),
-                            liquidity_token: v.clone(),
+                            contract_addr: Addr::unchecked("pair"),
+                            liquidity_token: Addr::unchecked(v),
                             asset_infos: [
                                 AssetInfo::NativeToken {
                                     denom: "uusd".to_string(),
@@ -94,6 +95,7 @@ impl WasmMockQuerier {
                                     denom: "uusd".to_string(),
                                 },
                             ],
+                            pair_type: PairType::Xyk {}
                         }))),
                         None => SystemResult::Err(SystemError::InvalidRequest {
                             error: "No pair info exists".to_string(),
@@ -111,12 +113,12 @@ impl WasmMockQuerier {
     pub fn new(base: MockQuerier<Empty>) -> Self {
         WasmMockQuerier {
             base,
-            terraswap_factory_querier: TerraswapFactoryQuerier::default(),
+            astroport_factory_querier: AstroportFactoryQuerier::default(),
         }
     }
 
-    // configure the terraswap pair
-    pub fn with_terraswap_pairs(&mut self, pairs: &[(&String, &String)]) {
-        self.terraswap_factory_querier = TerraswapFactoryQuerier::new(pairs);
+    // configure the astroport pair
+    pub fn with_astroport_pairs(&mut self, pairs: &[(&String, &String)]) {
+        self.astroport_factory_querier = AstroportFactoryQuerier::new(pairs);
     }
 }

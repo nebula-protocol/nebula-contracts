@@ -7,7 +7,7 @@ use cosmwasm_std::{
     Storage, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
-use terraswap::asset::{Asset, AssetInfo};
+use astroport::asset::{Asset, AssetInfo};
 
 use cluster_math::FPDecimal;
 use nebula_protocol::cluster::ExecuteMsg;
@@ -173,7 +173,7 @@ pub fn update_target(
     // then set that not found item target to zero
     for prev_asset in prev_assets.iter() {
         let inv_balance = match prev_asset {
-            AssetInfo::Token { contract_addr } => read_asset_balance(deps.storage, contract_addr),
+            AssetInfo::Token { contract_addr } => read_asset_balance(deps.storage, &contract_addr.to_string()),
             AssetInfo::NativeToken { denom } => read_asset_balance(deps.storage, denom),
         }?;
         if !inv_balance.is_zero() && !updated_asset_infos.contains(&prev_asset) {
@@ -325,7 +325,7 @@ pub fn create(
                 // transfer assets from sender
                 if let AssetInfo::Token { contract_addr, .. } = &asset.info {
                     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                        contract_addr: contract_addr.clone(),
+                        contract_addr: contract_addr.to_string(),
                         msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
                             owner: info.sender.to_string(),
                             recipient: env.contract.address.to_string(),
@@ -335,7 +335,7 @@ pub fn create(
                     }));
 
                     // update asset inventory balance in cluster
-                    update_asset_balance(deps.storage, contract_addr, asset.amount, true)?;
+                    update_asset_balance(deps.storage, &contract_addr.to_string(), asset.amount, true)?;
                 } else if let AssetInfo::NativeToken { denom } = &asset.info {
                     // validate that native token balance is correct
                     asset.assert_sent_native_token_balance(&info)?;
@@ -585,7 +585,7 @@ pub fn receive_redeem(
         .filter(|(amt, _asset)| !amt.is_zero()) // remove 0 amounts
         .map(|(amt, asset_info)| {
             if let AssetInfo::Token { contract_addr, .. } = &asset_info {
-                update_asset_balance(deps.storage, contract_addr, amt.clone(), false)?;
+                update_asset_balance(deps.storage, &contract_addr.to_string(), amt.clone(), false)?;
             } else if let AssetInfo::NativeToken { denom } = &asset_info {
                 update_asset_balance(deps.storage, denom, amt.clone(), false)?;
             }

@@ -13,9 +13,9 @@ use nebula_protocol::collector::{
 use nebula_protocol::gov::Cw20HookMsg as GovCw20HookMsg;
 
 use cw20::Cw20ExecuteMsg;
-use terraswap::asset::{Asset, AssetInfo, PairInfo};
-use terraswap::pair::{Cw20HookMsg as TerraswapCw20HookMsg, ExecuteMsg as TerraswapExecuteMsg};
-use terraswap::querier::{query_balance, query_pair_info, query_token_balance};
+use astroport::asset::{Asset, AssetInfo, PairInfo};
+use astroport::pair::{Cw20HookMsg as AstroportCw20HookMsg, ExecuteMsg as AstroportExecuteMsg};
+use astroport::querier::{query_balance, query_pair_info, query_token_balance};
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -28,7 +28,7 @@ pub fn instantiate(
         deps.storage,
         &Config {
             distribution_contract: msg.distribution_contract,
-            terraswap_factory: msg.terraswap_factory,
+            astroport_factory: msg.astroport_factory,
             nebula_token: msg.nebula_token,
             base_denom: msg.base_denom,
             owner: msg.owner,
@@ -45,7 +45,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         ExecuteMsg::Distribute {} => distribute(deps, env),
         ExecuteMsg::UpdateConfig {
             distribution_contract,
-            terraswap_factory,
+            astroport_factory,
             nebula_token,
             base_denom,
             owner,
@@ -53,7 +53,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             deps,
             info,
             distribution_contract,
-            terraswap_factory,
+            astroport_factory,
             nebula_token,
             base_denom,
             owner,
@@ -67,17 +67,17 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 /// collateral token => NEB token
 pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
-    let terraswap_factory_raw = config.terraswap_factory;
+    let astroport_factory_raw = config.astroport_factory;
 
     let pair_info: PairInfo = query_pair_info(
         &deps.querier,
-        Addr::unchecked(terraswap_factory_raw.to_string()),
+        Addr::unchecked(astroport_factory_raw.to_string()),
         &[
             AssetInfo::NativeToken {
                 denom: config.base_denom.to_string(),
             },
             AssetInfo::Token {
-                contract_addr: asset_token.to_string(),
+                contract_addr: deps.api.addr_validate(asset_token.as_str())?,
             },
         ],
     )?;
@@ -100,8 +100,8 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> StdResult<Respon
         // deduct tax first
         let amount = (swap_asset.deduct_tax(&deps.querier)?).amount;
         messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: pair_info.contract_addr,
-            msg: to_binary(&TerraswapExecuteMsg::Swap {
+            contract_addr: pair_info.contract_addr.to_string(),
+            msg: to_binary(&AstroportExecuteMsg::Swap {
                 offer_asset: Asset {
                     amount,
                     ..swap_asset
@@ -126,9 +126,9 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> StdResult<Respon
         messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: asset_token.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Send {
-                contract: pair_info.contract_addr,
+                contract: pair_info.contract_addr.to_string(),
                 amount,
-                msg: to_binary(&TerraswapCw20HookMsg::Swap {
+                msg: to_binary(&AstroportCw20HookMsg::Swap {
                     max_spread: None,
                     belief_price: None,
                     to: None,
@@ -173,7 +173,7 @@ pub fn update_config(
     deps: DepsMut,
     info: MessageInfo,
     distribution_contract: Option<String>,
-    terraswap_factory: Option<String>,
+    astroport_factory: Option<String>,
     nebula_token: Option<String>,
     base_denom: Option<String>,
     owner: Option<String>,
@@ -191,8 +191,8 @@ pub fn update_config(
         config.distribution_contract = distribution_contract;
     }
 
-    if let Some(terraswap_factory) = terraswap_factory {
-        config.terraswap_factory = terraswap_factory;
+    if let Some(astroport_factory) = astroport_factory {
+        config.astroport_factory = astroport_factory;
     }
 
     if let Some(nebula_token) = nebula_token {
@@ -219,7 +219,7 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let state = read_config(deps.storage)?;
     let resp = ConfigResponse {
         distribution_contract: state.distribution_contract,
-        terraswap_factory: state.terraswap_factory,
+        astroport_factory: state.astroport_factory,
         nebula_token: state.nebula_token,
         base_denom: state.base_denom,
         owner: state.owner,

@@ -6,10 +6,10 @@ use cosmwasm_std::{
 };
 use cw20::{Cw20ExecuteMsg, MinterResponse};
 use protobuf::Message;
-use terraswap::asset::{AssetInfo, PairInfo};
-use terraswap::factory::ExecuteMsg as TerraswapFactoryExecuteMsg;
-use terraswap::querier::query_pair_info;
-use terraswap::token::InstantiateMsg as TokenInstantiateMsg;
+use astroport::asset::{AssetInfo, PairInfo};
+use astroport::factory::{PairType, ExecuteMsg as AstroportFactoryExecuteMsg};
+use astroport::querier::query_pair_info;
+use astroport::token::InstantiateMsg as TokenInstantiateMsg;
 
 use cluster_math::FPDecimal;
 use nebula_protocol::cluster::{
@@ -50,7 +50,7 @@ pub fn instantiate(
         &Config {
             owner: String::default(),
             nebula_token: String::default(),
-            terraswap_factory: String::default(),
+            astroport_factory: String::default(),
             staking_contract: String::default(),
             commission_collector: String::default(),
             protocol_fee_rate: msg.protocol_fee_rate,
@@ -73,7 +73,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
         ExecuteMsg::PostInitialize {
             owner,
             nebula_token,
-            terraswap_factory,
+            astroport_factory,
             staking_contract,
             commission_collector,
         } => post_initialize(
@@ -81,7 +81,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
             env,
             owner,
             nebula_token,
-            terraswap_factory,
+            astroport_factory,
             staking_contract,
             commission_collector,
         ),
@@ -120,7 +120,7 @@ pub fn post_initialize(
     env: Env,
     owner: String,
     nebula_token: String,
-    terraswap_factory: String,
+    astroport_factory: String,
     staking_contract: String,
     commission_collector: String,
 ) -> StdResult<Response> {
@@ -131,7 +131,7 @@ pub fn post_initialize(
 
     config.owner = owner;
     config.nebula_token = nebula_token;
-    config.terraswap_factory = terraswap_factory;
+    config.astroport_factory = astroport_factory;
     config.staking_contract = staking_contract;
     config.commission_collector = commission_collector;
     store_config(deps.storage, &config)?;
@@ -141,7 +141,7 @@ pub fn post_initialize(
 
     let neb_addr = config.nebula_token;
 
-    terraswap_creation_hook(deps, env, neb_addr)
+    astroport_creation_hook(deps, env, neb_addr)
 }
 
 pub fn update_config(
@@ -232,8 +232,8 @@ Whitelisting process
 3. ClusterTokenCreationHook
     3-1. Initialize distribution info
     3-2. Register cluster token to cluster contract and set owner of cluster contract to gov contract
-    3-3. Create terraswap pair through terraswap factory with `TerraswapCreationHook`
-4. Call `TerraswapCreationHook`
+    3-3. Create astroport pair through astroport factory with `AstroportCreationHook`
+4. Call `AstroportCreationHook`
     4-1. Register asset to staking contract
 */
 pub fn create_cluster(
@@ -313,7 +313,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
         }
         3 => {
             let cluster_token = read_tmp_asset(deps.storage)?;
-            terraswap_creation_hook(deps, env, cluster_token)
+            astroport_creation_hook(deps, env, cluster_token)
         }
         _ => Err(StdError::generic_err("reply id is invalid")),
     }
@@ -380,7 +380,7 @@ pub fn cluster_creation_hook(deps: DepsMut, _env: Env, cluster_contract: String)
 ClusterTokenCreationHook
 1. Initialize distribution info
 2. Register cluster token to cluster contract and set owner of cluster contract to gov contract
-3. Create terraswap pair through terraswap factory with `TerraswapCreationHook`
+3. Create astroport pair through astroport factory with `AstroportCreationHook`
 */
 pub fn cluster_token_creation_hook(
     deps: DepsMut,
@@ -432,19 +432,21 @@ pub fn cluster_token_creation_hook(
             }),
         ])
         .add_submessages(vec![SubMsg {
-            // set up terraswap pair
+            // set up astroport pair
             msg: WasmMsg::Execute {
-                contract_addr: config.terraswap_factory,
+                contract_addr: config.astroport_factory,
                 funds: vec![],
-                msg: to_binary(&TerraswapFactoryExecuteMsg::CreatePair {
+                msg: to_binary(&AstroportFactoryExecuteMsg::CreatePair {
+                    pair_type: PairType::Xyk {},
                     asset_infos: [
                         AssetInfo::NativeToken {
                             denom: config.base_denom,
                         },
                         AssetInfo::Token {
-                            contract_addr: cluster_token.clone(),
+                            contract_addr: deps.api.addr_validate(cluster_token.as_str())?,
                         },
                     ],
+                    init_params: None
                 })?,
             }
             .into(),
@@ -460,12 +462,12 @@ pub fn cluster_token_creation_hook(
 }
 
 /// 1. Register asset and liquidity (LP) token to staking contract
-pub fn terraswap_creation_hook(
+pub fn astroport_creation_hook(
     deps: DepsMut,
     _env: Env,
     cluster_token: String,
 ) -> StdResult<Response> {
-    // Now terraswap contract is already created,
+    // Now astroport contract is already created,
     // and liquidity token also created
     let config: Config = read_config(deps.storage)?;
 
@@ -474,14 +476,14 @@ pub fn terraswap_creation_hook(
             denom: "uusd".to_string(),
         },
         AssetInfo::Token {
-            contract_addr: cluster_token.clone(),
+            contract_addr: deps.api.addr_validate(cluster_token.as_str())?,
         },
     ];
 
-    // Load terraswap pair info
+    // Load astroport pair info
     let pair_info: PairInfo = query_pair_info(
         &deps.querier,
-        Addr::unchecked(config.terraswap_factory),
+        Addr::unchecked(config.astroport_factory),
         &asset_infos,
     )?;
 
@@ -492,7 +494,7 @@ pub fn terraswap_creation_hook(
             funds: vec![],
             msg: to_binary(&StakingExecuteMsg::RegisterAsset {
                 asset_token: cluster_token,
-                staking_token: pair_info.liquidity_token,
+                staking_token: pair_info.liquidity_token.to_string(),
             })?,
         })]),
     )
@@ -623,7 +625,7 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let resp = ConfigResponse {
         owner: state.owner,
         nebula_token: state.nebula_token,
-        terraswap_factory: state.terraswap_factory,
+        astroport_factory: state.astroport_factory,
         staking_contract: state.staking_contract,
         commission_collector: state.commission_collector,
         protocol_fee_rate: state.protocol_fee_rate,

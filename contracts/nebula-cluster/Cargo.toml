@@ -32,14 +32,14 @@ backtraces = ["cosmwasm-std/backtraces"]
 
 [dependencies]
 cosmwasm-std = { version = "0.16.0", default-features = false }
-cosmwasm-storage = { version = "0.16.0", default-features = false }
+cosmwasm-storage = { version = "0.16.0", default-features = false, features = ["iterator"] }
 terra-cosmwasm = { version = "2.0.0" }
 schemars = "0.8.1"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 snafu = { version = "0.6.3" }
-cw20 = { version = "0.8.0" } 
+cw20 = { version = "0.8.0" }
 base64 = "*"
-terraswap = "2.4.0"
+astroport = { path = "../../packages/astroport" }
 cluster-math = { path = "../../libraries/cluster-math" }
 nebula-protocol = { version = "2.0.0", path = "../../packages/nebula_protocol" }
 
