@@ -761,6 +761,7 @@ dependencies = [
 name = "nebula-cluster"
 version = "2.0.0"
 dependencies = [
+ "astroport",
  "base64",
  "cluster-math",
  "cosmwasm-schema",
@@ -774,13 +775,13 @@ dependencies = [
  "serde",
  "snafu",
  "terra-cosmwasm",
- "terraswap",
 ]
 
 [[package]]
 name = "nebula-cluster-factory"
 version = "2.0.0"
 dependencies = [
+ "astroport",
  "cluster-math",
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -791,13 +792,13 @@ dependencies = [
  "schemars",
  "serde",
  "snafu",
- "terraswap",
 ]
 
 [[package]]
 name = "nebula-collector"
 version = "2.0.0"
 dependencies = [
+ "astroport",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
@@ -806,7 +807,6 @@ dependencies = [
  "schemars",
  "serde",
  "terra-cosmwasm",
- "terraswap",
 ]
 
 [[package]]
@@ -841,6 +841,7 @@ dependencies = [
 name = "nebula-incentives"
 version = "2.0.0"
 dependencies = [
+ "astroport",
  "cluster-math",
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -850,7 +851,6 @@ dependencies = [
  "schemars",
  "serde",
  "terra-cosmwasm",
- "terraswap",
 ]
 
 [[package]]
@@ -871,6 +871,7 @@ dependencies = [
 name = "nebula-lp-staking"
 version = "2.0.0"
 dependencies = [
+ "astroport",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
@@ -879,7 +880,6 @@ dependencies = [
  "schemars",
  "serde",
  "terra-cosmwasm",
- "terraswap",
 ]
 
 [[package]]
@@ -912,6 +912,7 @@ dependencies = [
 name = "nebula-protocol"
 version = "2.0.0"
 dependencies = [
+ "astroport",
  "cluster-math",
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -919,7 +920,6 @@ dependencies = [
  "cw20",
  "schemars",
  "serde",
- "terraswap",
 ]
 
 [[package]]
@@ -1391,20 +1391,6 @@ dependencies = [
  "cosmwasm-std",
  "schemars",
  "serde",
-]
-
-[[package]]
-name = "terraswap"
-version = "2.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96f2c2a6371e9ddf2c942368e64645cc3e8fc2855da70c8c6bed238dcdd5522f"
-dependencies = [
- "cosmwasm-std",
- "cosmwasm-storage",
- "cw20",
- "schemars",
- "serde",
- "terra-cosmwasm",
 ]
 
 [[package]]
