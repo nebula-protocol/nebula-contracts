@@ -5,10 +5,10 @@ use cosmwasm_std::{to_binary, Binary, Deps, Env, StdError, StdResult, Uint128};
 
 use crate::ext_query::{query_cw20_token_supply, query_price};
 use crate::state::{read_asset_balance, read_config, read_target_asset_data};
+use astroport::asset::AssetInfo;
 use nebula_protocol::cluster::{
     ClusterInfoResponse, ClusterStateResponse, ConfigResponse, QueryMsg, TargetResponse,
 };
-use astroport::asset::AssetInfo;
 
 /// Convenience function for creating inline String
 pub fn h(s: &str) -> String {
@@ -88,7 +88,9 @@ pub fn query_cluster_state(
     let inv: Vec<Uint128> = asset_infos
         .iter()
         .map(|asset| match asset {
-            AssetInfo::Token { contract_addr } => read_asset_balance(deps.storage, &contract_addr.to_string()),
+            AssetInfo::Token { contract_addr } => {
+                read_asset_balance(deps.storage, &contract_addr.to_string())
+            }
             AssetInfo::NativeToken { denom } => read_asset_balance(deps.storage, denom),
         })
         .collect::<StdResult<Vec<Uint128>>>()?;

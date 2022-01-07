@@ -6,11 +6,11 @@ use crate::{
     state::{store_config, store_target_asset_data},
     util::vec_to_string,
 };
+use astroport::asset::AssetInfo;
 use cosmwasm_std::{
     attr, DepsMut, Env, MessageInfo, QuerierWrapper, Response, StdError, StdResult, Uint128,
 };
 use nebula_protocol::cluster::{ClusterConfig, InstantiateMsg};
-use astroport::asset::AssetInfo;
 
 pub fn validate_targets(
     querier: QuerierWrapper,

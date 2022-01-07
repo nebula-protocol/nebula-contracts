@@ -12,10 +12,10 @@ use nebula_protocol::collector::{
 };
 use nebula_protocol::gov::Cw20HookMsg as GovCw20HookMsg;
 
-use cw20::Cw20ExecuteMsg;
 use astroport::asset::{Asset, AssetInfo, PairInfo};
 use astroport::pair::{Cw20HookMsg as AstroportCw20HookMsg, ExecuteMsg as AstroportExecuteMsg};
 use astroport::querier::{query_balance, query_pair_info, query_token_balance};
+use cw20::Cw20ExecuteMsg;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(

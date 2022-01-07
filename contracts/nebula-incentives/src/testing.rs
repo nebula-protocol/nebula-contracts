@@ -3,19 +3,21 @@ use crate::mock_querier::mock_dependencies;
 use crate::state::{contributions_read, read_from_contribution_bucket, record_contribution};
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    attr, coins, from_binary, to_binary, BankMsg, CosmosMsg, Decimal, DepsMut, StdError, SubMsg,
-    Uint128, WasmMsg, Addr,
+    attr, coins, from_binary, to_binary, Addr, BankMsg, CosmosMsg, Decimal, DepsMut, StdError,
+    SubMsg, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use nebula_protocol::cluster::ExecuteMsg as ClusterExecuteMsg;
 
+use astroport::asset::{Asset, AssetInfo};
+use astroport::pair::{
+    Cw20HookMsg as AstroportCw20HookMsg, ExecuteMsg as AstroportExecuteMsg,
+    PoolResponse as AstroportPoolResponse,
+};
 use nebula_protocol::incentives::{
     ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, PenaltyPeriodResponse, PoolType,
     QueryMsg,
 };
-use astroport::asset::{Asset, AssetInfo};
-use astroport::pair::{PoolResponse as AstroportPoolResponse, Cw20HookMsg as AstroportCw20HookMsg,
-                      ExecuteMsg as AstroportExecuteMsg};
 
 const TEST_CREATOR: &str = "creator";
 
