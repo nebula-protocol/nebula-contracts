@@ -102,7 +102,7 @@ pub fn auto_stake(
     )?;
 
     // assert the token and lp token match with pool info
-    let pool_info: PoolInfo = read_pool_info(deps.storage, &String::from(&token_addr))?;
+    let pool_info: PoolInfo = read_pool_info(deps.storage, &token_addr.to_string())?;
 
     if pool_info.staking_token.to_string() != astroport_pair.liquidity_token.clone() {
         return Err(StdError::generic_err("Invalid staking token"));
@@ -136,14 +136,14 @@ pub fn auto_stake(
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: token_addr.to_string(),
                 msg: to_binary(&Cw20ExecuteMsg::IncreaseAllowance {
-                    spender: String::from(astroport_pair.contract_addr.clone()),
+                    spender: astroport_pair.contract_addr.to_string(),
                     amount: token_amount,
                     expires: None,
                 })?,
                 funds: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: String::from(astroport_pair.contract_addr),
+                contract_addr: astroport_pair.contract_addr.to_string(),
                 msg: to_binary(&PairExecuteMsg::ProvideLiquidity {
                     assets: [
                         Asset {
@@ -169,8 +169,8 @@ pub fn auto_stake(
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::AutoStakeHook {
-                    asset_token: String::from(token_addr.clone()),
-                    staking_token: String::from(astroport_pair.liquidity_token.clone()),
+                    asset_token: token_addr.to_string(),
+                    staking_token: astroport_pair.liquidity_token.to_string(),
                     staker_addr: info.sender.to_string(),
                     prev_staking_token_amount,
                 })?,

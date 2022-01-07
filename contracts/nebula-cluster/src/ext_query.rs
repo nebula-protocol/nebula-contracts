@@ -47,7 +47,7 @@ pub fn query_asset_balance(
 ) -> StdResult<Uint128> {
     match asset_info {
         AssetInfo::Token { contract_addr } => {
-            query_cw20_balance(querier, &String::from(contract_addr), &account_address)
+            query_cw20_balance(querier, &contract_addr.to_string(), &account_address)
         }
         AssetInfo::NativeToken { denom } => query_balance(querier, &account_address, denom.clone()),
     }

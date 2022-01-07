@@ -88,7 +88,7 @@ pub fn query_cluster_state(
     let inv: Vec<Uint128> = asset_infos
         .iter()
         .map(|asset| match asset {
-            AssetInfo::Token { contract_addr } => read_asset_balance(deps.storage, &String::from(contract_addr)),
+            AssetInfo::Token { contract_addr } => read_asset_balance(deps.storage, &contract_addr.to_string()),
             AssetInfo::NativeToken { denom } => read_asset_balance(deps.storage, denom),
         })
         .collect::<StdResult<Vec<Uint128>>>()?;

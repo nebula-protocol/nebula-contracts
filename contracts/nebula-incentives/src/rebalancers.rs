@@ -127,7 +127,7 @@ pub fn internal_rewarded_create(
             AssetInfo::Token { contract_addr } => {
                 create_asset_amounts.push(asset.clone());
                 messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: String::from(contract_addr),
+                    contract_addr: contract_addr.to_string(),
                     msg: to_binary(&Cw20ExecuteMsg::IncreaseAllowance {
                         spender: cluster_contract.clone(),
                         amount: asset.amount,
@@ -255,7 +255,7 @@ pub fn create(
             }
             AssetInfo::Token { contract_addr } => {
                 messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: String::from(contract_addr),
+                    contract_addr: contract_addr.to_string(),
                     msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
                         owner: info.sender.to_string(),
                         recipient: env.contract.address.to_string(),

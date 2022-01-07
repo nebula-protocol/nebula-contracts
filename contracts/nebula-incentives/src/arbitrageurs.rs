@@ -86,7 +86,7 @@ pub fn arb_cluster_create(
             }
             AssetInfo::Token { contract_addr } => {
                 messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: String::from(contract_addr),
+                    contract_addr: contract_addr.to_string(),
                     msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
                         owner: info.sender.to_string(),
                         recipient: contract.to_string(),
@@ -113,7 +113,7 @@ pub fn arb_cluster_create(
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.to_string(),
         msg: to_binary(&ExecuteMsg::_SwapAll {
-            astroport_pair: String::from(pair_info.contract_addr.clone()),
+            astroport_pair: pair_info.contract_addr.to_string(),
             cluster_token,
             to_ust: true, // how about changing this to to_base
             min_return: min_ust.unwrap_or(Uint128::zero()),
@@ -126,10 +126,10 @@ pub fn arb_cluster_create(
         contract_addr: contract.to_string(),
         msg: to_binary(&ExecuteMsg::_RecordAstroportImpact {
             arbitrageur: info.sender.to_string(),
-            astroport_pair: String::from(pair_info.contract_addr.clone()),
+            astroport_pair: pair_info.contract_addr.to_string(),
             cluster_contract,
             pool_before: deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-                contract_addr: String::from(pair_info.contract_addr),
+                contract_addr: pair_info.contract_addr.to_string(),
                 msg: to_binary(&AstroportQueryMsg::Pool {})?,
             }))?,
         })?,
@@ -191,7 +191,7 @@ pub fn arb_cluster_redeem(
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.to_string(),
         msg: to_binary(&ExecuteMsg::_SwapAll {
-            astroport_pair: String::from(pair_info.contract_addr.clone()),
+            astroport_pair: pair_info.contract_addr.to_string(),
             cluster_token: cluster_token.clone(),
             to_ust: false,
             min_return: min_cluster.unwrap_or(Uint128::zero()),
@@ -204,10 +204,10 @@ pub fn arb_cluster_redeem(
         contract_addr: contract.to_string(),
         msg: to_binary(&ExecuteMsg::_RecordAstroportImpact {
             arbitrageur: info.sender.to_string(),
-            astroport_pair: String::from(pair_info.contract_addr.clone()),
+            astroport_pair: pair_info.contract_addr.to_string(),
             cluster_contract: cluster_contract.clone(),
             pool_before: deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-                contract_addr: String::from(pair_info.contract_addr),
+                contract_addr: pair_info.contract_addr.to_string(),
                 msg: to_binary(&AstroportQueryMsg::Pool {})?,
             }))?,
         })?,

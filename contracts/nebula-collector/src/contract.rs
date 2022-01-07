@@ -100,7 +100,7 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> StdResult<Respon
         // deduct tax first
         let amount = (swap_asset.deduct_tax(&deps.querier)?).amount;
         messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: String::from(pair_info.contract_addr),
+            contract_addr: pair_info.contract_addr.to_string(),
             msg: to_binary(&AstroportExecuteMsg::Swap {
                 offer_asset: Asset {
                     amount,
@@ -126,7 +126,7 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> StdResult<Respon
         messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: asset_token.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Send {
-                contract: String::from(pair_info.contract_addr),
+                contract: pair_info.contract_addr.to_string(),
                 amount,
                 msg: to_binary(&AstroportCw20HookMsg::Swap {
                     max_spread: None,

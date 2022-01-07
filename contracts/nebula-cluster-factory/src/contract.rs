@@ -494,7 +494,7 @@ pub fn astroport_creation_hook(
             funds: vec![],
             msg: to_binary(&StakingExecuteMsg::RegisterAsset {
                 asset_token: cluster_token,
-                staking_token: String::from(pair_info.liquidity_token),
+                staking_token: pair_info.liquidity_token.to_string(),
             })?,
         })]),
     )
