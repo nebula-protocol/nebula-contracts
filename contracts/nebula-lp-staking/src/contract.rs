@@ -84,7 +84,7 @@ pub fn receive_cw20(
             let pool_info: PoolInfo = read_pool_info(deps.storage, &validated_asset_token)?;
 
             // only staking token contract can execute this message
-            if pool_info.staking_token != info.sender.to_string() {
+            if pool_info.staking_token != info.sender {
                 return Err(StdError::generic_err("unauthorized"));
             }
 

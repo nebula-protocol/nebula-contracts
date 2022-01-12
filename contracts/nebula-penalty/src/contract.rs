@@ -347,7 +347,7 @@ pub fn execute(
     let cfg = read_config(deps.storage)?;
 
     // check permission
-    if info.sender.to_string() != cfg.owner {
+    if info.sender != cfg.owner {
         return Err(StdError::generic_err("unauthorized"));
     }
 
