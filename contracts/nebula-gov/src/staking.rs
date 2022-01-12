@@ -6,8 +6,8 @@ use crate::state::{
 };
 
 use cosmwasm_std::{
-    attr, to_binary, CanonicalAddr, CosmosMsg, Deps, DepsMut, MessageInfo, Response, StdError,
-    StdResult, Storage, Uint128, WasmMsg,
+    attr, to_binary, Addr, CosmosMsg, Deps, DepsMut, MessageInfo, Response, StdError, StdResult,
+    Storage, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::common::OrderBy;
@@ -20,8 +20,8 @@ pub fn stake_voting_tokens(deps: DepsMut, sender: String, amount: Uint128) -> St
         return Err(StdError::generic_err("Insufficient funds sent"));
     }
 
-    let sender_address_raw = deps.api.addr_canonicalize(&sender)?;
-    let key = &sender_address_raw.as_slice();
+    let sender_address = deps.api.addr_validate(sender.as_str())?;
+    let key = sender_address.as_bytes();
 
     let mut token_manager = bank_read(deps.storage).may_load(key)?.unwrap_or_default();
     let config: Config = config_store(deps.storage).load()?;
@@ -30,12 +30,9 @@ pub fn stake_voting_tokens(deps: DepsMut, sender: String, amount: Uint128) -> St
     // balance already increased, so subtract deposit amount
     let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
 
-    let total_balance = load_token_balance(
-        &deps.querier,
-        deps.api.addr_humanize(&config.nebula_token)?.to_string(),
-        &state.contract_addr,
-    )?
-    .checked_sub(total_locked_balance + amount)?;
+    let total_balance =
+        load_token_balance(&deps.querier, &config.nebula_token, &state.contract_addr)?
+            .checked_sub(total_locked_balance + amount)?;
 
     let share = if total_balance.is_zero() || state.total_share.is_zero() {
         amount
@@ -63,8 +60,8 @@ pub fn withdraw_voting_tokens(
     info: MessageInfo,
     amount: Option<Uint128>,
 ) -> StdResult<Response> {
-    let sender_address_raw = deps.api.addr_canonicalize(info.sender.as_str())?;
-    let key = sender_address_raw.as_slice();
+    let sender_address = info.sender;
+    let key = sender_address.as_bytes();
 
     if let Some(mut token_manager) = bank_read(deps.storage).may_load(key)? {
         let config: Config = config_store(deps.storage).load()?;
@@ -73,16 +70,13 @@ pub fn withdraw_voting_tokens(
         // Load total share & total balance except proposal deposit amount
         let total_share = state.total_share.u128();
         let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
-        let total_balance = (load_token_balance(
-            &deps.querier,
-            deps.api.addr_humanize(&config.nebula_token)?.to_string(),
-            &state.contract_addr,
-        )?
-        .checked_sub(total_locked_balance))?
-        .u128();
+        let total_balance =
+            (load_token_balance(&deps.querier, &config.nebula_token, &state.contract_addr)?
+                .checked_sub(total_locked_balance))?
+            .u128();
 
         let user_locked_balance =
-            compute_locked_balance(deps.storage, &mut token_manager, &sender_address_raw)?;
+            compute_locked_balance(deps.storage, &mut token_manager, &sender_address)?;
         let user_locked_share = user_locked_balance * total_share / total_balance;
         let user_share = token_manager.share.u128();
 
@@ -107,9 +101,8 @@ pub fn withdraw_voting_tokens(
             state_store(deps.storage).save(&state)?;
 
             send_tokens(
-                deps,
                 &config.nebula_token,
-                &sender_address_raw,
+                &sender_address,
                 withdraw_amount,
                 "withdraw",
             )
@@ -123,7 +116,7 @@ pub fn withdraw_voting_tokens(
 fn compute_locked_balance(
     storage: &mut dyn Storage,
     token_manager: &mut TokenManager,
-    voter: &CanonicalAddr,
+    voter: &Addr,
 ) -> StdResult<u128> {
     // filter out not in-progress polls and get max locked
     let mut lock_entries_to_remove: Vec<u64> = vec![];
@@ -135,7 +128,7 @@ fn compute_locked_balance(
 
             // cleanup not needed information, voting info in polls with no rewards
             if poll.status != PollStatus::InProgress && poll.voters_reward.is_zero() {
-                poll_voter_store(storage, *poll_id).remove(voter.as_slice());
+                poll_voter_store(storage, *poll_id).remove(voter.as_bytes());
                 lock_entries_to_remove.push(*poll_id);
             }
 
@@ -202,15 +195,15 @@ pub fn withdraw_voting_rewards(
     poll_id: Option<u64>,
 ) -> StdResult<Response> {
     let config: Config = config_store(deps.storage).load()?;
-    let sender_address_raw = deps.api.addr_canonicalize(info.sender.as_str())?;
-    let key = sender_address_raw.as_slice();
+    let sender_address = info.sender;
+    let key = sender_address.as_bytes();
 
     let mut token_manager = bank_read(deps.storage)
         .load(key)
         .map_err(|_| StdError::generic_err("Nothing staked"))?;
 
     let (user_reward_amount, w_polls) =
-        withdraw_user_voting_rewards(deps.storage, &sender_address_raw, &token_manager, poll_id)?;
+        withdraw_user_voting_rewards(deps.storage, &sender_address, &token_manager, poll_id)?;
     if user_reward_amount.eq(&0u128) {
         return Err(StdError::generic_err("Nothing to withdraw"));
     }
@@ -229,9 +222,8 @@ pub fn withdraw_voting_rewards(
     })?;
 
     send_tokens(
-        deps,
         &config.nebula_token,
-        &sender_address_raw,
+        &sender_address,
         user_reward_amount,
         "withdraw_voting_rewards",
     )
@@ -244,27 +236,24 @@ pub fn stake_voting_rewards(
 ) -> StdResult<Response> {
     let config: Config = config_store(deps.storage).load()?;
     let mut state: State = state_store(deps.storage).load()?;
-    let sender_address_raw = deps.api.addr_canonicalize(info.sender.as_str())?;
-    let key = sender_address_raw.as_slice();
+    let sender_address = info.sender;
+    let key = sender_address.as_bytes();
 
     let mut token_manager = bank_read(deps.storage)
         .load(key)
         .map_err(|_| StdError::generic_err("Nothing staked"))?;
 
     let (user_reward_amount, w_polls) =
-        withdraw_user_voting_rewards(deps.storage, &sender_address_raw, &token_manager, poll_id)?;
+        withdraw_user_voting_rewards(deps.storage, &sender_address, &token_manager, poll_id)?;
     if user_reward_amount.eq(&0u128) {
         return Err(StdError::generic_err("Nothing to withdraw"));
     }
 
     // add the withdrawn rewards to stake pool and calculate share
     let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
-    let total_balance = load_token_balance(
-        &deps.querier,
-        deps.api.addr_humanize(&config.nebula_token)?.to_string(),
-        &state.contract_addr,
-    )?
-    .checked_sub(total_locked_balance)?;
+    let total_balance =
+        load_token_balance(&deps.querier, &config.nebula_token, &state.contract_addr)?
+            .checked_sub(total_locked_balance)?;
 
     state.pending_voting_rewards = state
         .pending_voting_rewards
@@ -289,7 +278,7 @@ pub fn stake_voting_rewards(
 
     Ok(Response::new().add_attributes(vec![
         attr("action", "stake_voting_rewards"),
-        attr("staker", info.sender.as_str()),
+        attr("staker", sender_address.to_string()),
         attr("share", share.to_string()),
         attr("amount", user_reward_amount.to_string()),
     ]))
@@ -297,14 +286,14 @@ pub fn stake_voting_rewards(
 
 fn withdraw_user_voting_rewards(
     storage: &mut dyn Storage,
-    user_address: &CanonicalAddr,
+    user_address: &Addr,
     token_manager: &TokenManager,
     poll_id: Option<u64>,
 ) -> StdResult<(u128, Vec<u64>)> {
     let w_polls: Vec<(Poll, VoterInfo)> = match poll_id {
         Some(poll_id) => {
             let poll: Poll = poll_read(storage).load(&poll_id.to_be_bytes())?;
-            let voter_info = poll_voter_read(storage, poll_id).load(user_address.as_slice())?;
+            let voter_info = poll_voter_read(storage, poll_id).load(user_address.as_bytes())?;
             if poll.status == PollStatus::InProgress {
                 return Err(StdError::generic_err("This poll is still in progress"));
             }
@@ -319,7 +308,7 @@ fn withdraw_user_voting_rewards(
         .iter()
         .map(|(poll, voting_info)| {
             // remove voter info from the poll
-            poll_voter_store(storage, poll.id).remove(user_address.as_slice());
+            poll_voter_store(storage, poll.id).remove(user_address.as_bytes());
 
             // calculate reward share
             let total_votes =
@@ -339,7 +328,7 @@ fn withdraw_user_voting_rewards(
 fn get_withdrawable_polls(
     storage: &dyn Storage,
     token_manager: &TokenManager,
-    user_address: &CanonicalAddr,
+    user_address: &Addr,
 ) -> Vec<(Poll, VoterInfo)> {
     let w_polls: Vec<(Poll, VoterInfo)> = token_manager
         .locked_balance
@@ -347,7 +336,7 @@ fn get_withdrawable_polls(
         .map(|(poll_id, _)| {
             let poll: Poll = poll_read(storage).load(&poll_id.to_be_bytes()).unwrap();
             let voter_info_res: StdResult<VoterInfo> =
-                poll_voter_read(storage, *poll_id).load(user_address.as_slice());
+                poll_voter_read(storage, *poll_id).load(user_address.as_bytes());
             (poll, voter_info_res)
         })
         .filter(|(poll, voter_info_res)| {
@@ -361,26 +350,23 @@ fn get_withdrawable_polls(
 }
 
 fn send_tokens(
-    deps: DepsMut,
-    asset_token: &CanonicalAddr,
-    recipient: &CanonicalAddr,
+    asset_token: &Addr,
+    recipient: &Addr,
     amount: u128,
     action: &str,
 ) -> StdResult<Response> {
-    let contract_human = deps.api.addr_humanize(asset_token)?.to_string();
-    let recipient_human = deps.api.addr_humanize(recipient)?.to_string();
     let attributes = vec![
         attr("action", action),
-        attr("recipient", recipient_human.as_str()),
+        attr("recipient", recipient.to_string().as_str()),
         attr("amount", &amount.to_string()),
     ];
 
     let r = Response::new()
         .add_attributes(attributes)
         .add_message(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: contract_human,
+            contract_addr: asset_token.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: recipient_human,
+                recipient: recipient.to_string(),
                 amount: Uint128::from(amount),
             })?,
             funds: vec![],
@@ -389,11 +375,11 @@ fn send_tokens(
 }
 
 pub fn query_staker(deps: Deps, address: String) -> StdResult<StakerResponse> {
-    let addr_raw = deps.api.addr_canonicalize(&address).unwrap();
+    let addr_raw = deps.api.addr_validate(address.as_str())?;
     let config: Config = config_read(deps.storage).load()?;
     let state: State = state_read(deps.storage).load()?;
     let mut token_manager = bank_read(deps.storage)
-        .may_load(addr_raw.as_slice())?
+        .may_load(addr_raw.as_bytes())?
         .unwrap_or_default();
 
     // calculate pending voting rewards
@@ -425,12 +411,9 @@ pub fn query_staker(deps: Deps, address: String) -> StdResult<StakerResponse> {
     });
 
     let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
-    let total_balance = load_token_balance(
-        &deps.querier,
-        deps.api.addr_humanize(&config.nebula_token)?.to_string(),
-        &state.contract_addr,
-    )?
-    .checked_sub(total_locked_balance)?;
+    let total_balance =
+        load_token_balance(&deps.querier, &config.nebula_token, &state.contract_addr)?
+            .checked_sub(total_locked_balance)?;
 
     Ok(StakerResponse {
         balance: if !state.total_share.is_zero() {
@@ -453,10 +436,10 @@ pub fn query_shares(
     limit: Option<u32>,
     order_by: Option<OrderBy>,
 ) -> StdResult<SharesResponse> {
-    let stakers: Vec<(CanonicalAddr, TokenManager)> = if let Some(start_after) = start_after {
+    let stakers: Vec<(Addr, TokenManager)> = if let Some(start_after) = start_after {
         read_bank_stakers(
             deps.storage,
-            Some(deps.api.addr_canonicalize(&start_after)?),
+            Some(deps.api.addr_validate(start_after.as_str())?),
             limit,
             order_by,
         )?
@@ -469,7 +452,7 @@ pub fn query_shares(
         .map(|item| {
             let (k, v) = item;
             SharesResponseItem {
-                staker: deps.api.addr_humanize(k).unwrap().to_string(),
+                staker: k.to_string(),
                 share: v.share,
             }
         })

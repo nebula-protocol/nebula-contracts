@@ -425,9 +425,9 @@ mod tests {
                 SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: MOCK_CONTRACT_ADDR.to_string(),
                     msg: to_binary(&ExecuteMsg::AutoStakeHook {
-                        asset_token: "asset".to_string(),
-                        staking_token: "lptoken".to_string(),
-                        staker_addr: "addr0000".to_string(),
+                        asset_token: Addr::unchecked("asset"),
+                        staking_token: Addr::unchecked("lptoken"),
+                        staker_addr: Addr::unchecked("addr0000"),
                         prev_staking_token_amount: Uint128::zero(),
                     })
                     .unwrap(),
@@ -440,9 +440,9 @@ mod tests {
 
         // wrong asset
         let msg = ExecuteMsg::AutoStakeHook {
-            asset_token: "asset1".to_string(),
-            staking_token: "lptoken".to_string(),
-            staker_addr: "addr0000".to_string(),
+            asset_token: Addr::unchecked("asset1"),
+            staking_token: Addr::unchecked("lptoken"),
+            staker_addr: Addr::unchecked("addr0000"),
             prev_staking_token_amount: Uint128::zero(),
         };
         let info = mock_info(MOCK_CONTRACT_ADDR, &[]);
@@ -450,9 +450,9 @@ mod tests {
 
         // valid msg
         let msg = ExecuteMsg::AutoStakeHook {
-            asset_token: "asset".to_string(),
-            staking_token: "lptoken".to_string(),
-            staker_addr: "addr0000".to_string(),
+            asset_token: Addr::unchecked("asset"),
+            staking_token: Addr::unchecked("lptoken"),
+            staker_addr: Addr::unchecked("addr0000"),
             prev_staking_token_amount: Uint128::zero(),
         };
 

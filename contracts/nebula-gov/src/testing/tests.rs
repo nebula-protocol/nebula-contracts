@@ -8,9 +8,8 @@ use crate::testing::mock_querier::mock_dependencies;
 
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    attr, coins, from_binary, to_binary, Addr, Api, CanonicalAddr, ContractResult, CosmosMsg,
-    Decimal, Deps, DepsMut, Env, Reply, ReplyOn, Response, StdError, SubMsg, Timestamp, Uint128,
-    WasmMsg,
+    attr, coins, from_binary, to_binary, Addr, Api, ContractResult, CosmosMsg, Decimal, Deps,
+    DepsMut, Env, Reply, ReplyOn, Response, StdError, SubMsg, Timestamp, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use nebula_protocol::common::OrderBy;
@@ -84,8 +83,8 @@ fn proper_initialization() {
     assert_eq!(
         config,
         Config {
-            nebula_token: deps.api.addr_canonicalize(VOTING_TOKEN).unwrap(),
-            owner: deps.api.addr_canonicalize(TEST_CREATOR).unwrap(),
+            nebula_token: deps.api.addr_validate(VOTING_TOKEN).unwrap(),
+            owner: deps.api.addr_validate(TEST_CREATOR).unwrap(),
             quorum: Decimal::percent(DEFAULT_QUORUM),
             threshold: Decimal::percent(DEFAULT_THRESHOLD),
             voting_period: DEFAULT_VOTING_PERIOD,
@@ -93,7 +92,7 @@ fn proper_initialization() {
             proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
             voter_weight: DEFAULT_VOTER_WEIGHT,
             snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
-            expiration_period: 0u64, // depcrecated
+            expiration_period: 0u64, // deprecated
         }
     );
 
@@ -101,7 +100,7 @@ fn proper_initialization() {
     assert_eq!(
         state,
         State {
-            contract_addr: deps.api.addr_canonicalize(MOCK_CONTRACT_ADDR).unwrap(),
+            contract_addr: deps.api.addr_validate(MOCK_CONTRACT_ADDR).unwrap(),
             poll_count: 0,
             total_share: Uint128::zero(),
             total_deposit: Uint128::zero(),
@@ -1560,7 +1559,7 @@ fn happy_days_withdraw_voting_tokens() {
     assert_eq!(
         state,
         State {
-            contract_addr: deps.api.addr_canonicalize(MOCK_CONTRACT_ADDR).unwrap(),
+            contract_addr: deps.api.addr_validate(MOCK_CONTRACT_ADDR).unwrap(),
             poll_count: 0,
             total_share: Uint128::from(11u128),
             total_deposit: Uint128::zero(),
@@ -1599,7 +1598,7 @@ fn happy_days_withdraw_voting_tokens() {
     assert_eq!(
         state,
         State {
-            contract_addr: deps.api.addr_canonicalize(MOCK_CONTRACT_ADDR).unwrap(),
+            contract_addr: deps.api.addr_validate(MOCK_CONTRACT_ADDR).unwrap(),
             poll_count: 0,
             total_share: Uint128::from(6u128),
             total_deposit: Uint128::zero(),
@@ -1632,7 +1631,7 @@ fn happy_days_withdraw_voting_tokens_all() {
     assert_eq!(
         state,
         State {
-            contract_addr: deps.api.addr_canonicalize(MOCK_CONTRACT_ADDR).unwrap(),
+            contract_addr: deps.api.addr_validate(MOCK_CONTRACT_ADDR).unwrap(),
             poll_count: 0,
             total_share: Uint128::from(11u128),
             total_deposit: Uint128::zero(),
@@ -1669,7 +1668,7 @@ fn happy_days_withdraw_voting_tokens_all() {
     assert_eq!(
         state,
         State {
-            contract_addr: deps.api.addr_canonicalize(MOCK_CONTRACT_ADDR).unwrap(),
+            contract_addr: deps.api.addr_validate(MOCK_CONTRACT_ADDR).unwrap(),
             poll_count: 0,
             total_share: Uint128::zero(),
             total_deposit: Uint128::zero(),
@@ -1704,7 +1703,7 @@ fn withdraw_voting_tokens() {
             &1u64.to_be_bytes(),
             &Poll {
                 id: 1u64,
-                creator: CanonicalAddr::from(vec![]),
+                creator: Addr::unchecked(""),
                 status: PollStatus::InProgress,
                 yes_votes: Uint128::zero(),
                 no_votes: Uint128::zero(),
@@ -1727,7 +1726,7 @@ fn withdraw_voting_tokens() {
             &2u64.to_be_bytes(),
             &Poll {
                 id: 1u64,
-                creator: CanonicalAddr::from(vec![]),
+                creator: Addr::unchecked(""),
                 status: PollStatus::Passed,
                 yes_votes: Uint128::zero(),
                 no_votes: Uint128::zero(),
@@ -1745,10 +1744,10 @@ fn withdraw_voting_tokens() {
         )
         .unwrap();
 
-    let voter_addr_raw = deps.api.addr_canonicalize(TEST_VOTER).unwrap();
+    let voter_addr_raw = deps.api.addr_validate(TEST_VOTER).unwrap();
     poll_voter_store(&mut deps.storage, 1u64)
         .save(
-            voter_addr_raw.as_slice(),
+            voter_addr_raw.as_bytes(),
             &VoterInfo {
                 vote: VoteOption::Yes,
                 balance: Uint128::new(5u128),
@@ -1757,7 +1756,7 @@ fn withdraw_voting_tokens() {
         .unwrap();
     poll_voter_store(&mut deps.storage, 2u64)
         .save(
-            voter_addr_raw.as_slice(),
+            voter_addr_raw.as_bytes(),
             &VoterInfo {
                 vote: VoteOption::Yes,
                 balance: Uint128::new(5u128),
@@ -1766,7 +1765,7 @@ fn withdraw_voting_tokens() {
         .unwrap();
     bank_store(&mut deps.storage)
         .save(
-            voter_addr_raw.as_slice(),
+            voter_addr_raw.as_bytes(),
             &TokenManager {
                 share: Uint128::new(11u128),
                 locked_balance: vec![
@@ -1797,7 +1796,7 @@ fn withdraw_voting_tokens() {
 
     let _ = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
     let voter = poll_voter_read(&deps.storage, 1u64)
-        .load(voter_addr_raw.as_slice())
+        .load(voter_addr_raw.as_bytes())
         .unwrap();
     assert_eq!(
         voter,
@@ -1808,7 +1807,7 @@ fn withdraw_voting_tokens() {
     );
 
     let token_manager = bank_read(&deps.storage)
-        .load(voter_addr_raw.as_slice())
+        .load(voter_addr_raw.as_bytes())
         .unwrap();
     assert_eq!(
         token_manager.locked_balance,
@@ -2292,7 +2291,7 @@ fn assert_create_poll_result(
     assert_eq!(
         state,
         State {
-            contract_addr: deps.api.addr_canonicalize(MOCK_CONTRACT_ADDR).unwrap(),
+            contract_addr: deps.api.addr_validate(MOCK_CONTRACT_ADDR).unwrap(),
             poll_count: 1,
             total_share: Uint128::zero(),
             total_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
@@ -2318,7 +2317,7 @@ fn assert_stake_tokens_result(
     assert_eq!(
         state,
         State {
-            contract_addr: deps.api.addr_canonicalize(MOCK_CONTRACT_ADDR).unwrap(),
+            contract_addr: deps.api.addr_validate(MOCK_CONTRACT_ADDR).unwrap(),
             poll_count,
             total_share: Uint128::new(total_share),
             total_deposit: Uint128::new(total_deposit),
@@ -2544,12 +2543,7 @@ fn distribute_voting_rewards() {
 
     // voting info has been deleted
     assert!(poll_voter_read(&deps.storage, 1u64)
-        .load(
-            deps.api
-                .addr_canonicalize(&TEST_VOTER.to_string())
-                .unwrap()
-                .as_slice()
-        )
+        .load(deps.api.addr_validate(TEST_VOTER).unwrap().as_bytes())
         .is_err())
 }
 
@@ -2677,12 +2671,7 @@ fn stake_voting_rewards() {
 
     // voting info has been deleted
     assert!(poll_voter_read(&deps.storage, 1u64)
-        .load(
-            deps.api
-                .addr_canonicalize(&TEST_VOTER.to_string())
-                .unwrap()
-                .as_slice()
-        )
+        .load(deps.api.addr_validate(TEST_VOTER).unwrap().as_bytes())
         .is_err());
 
     let res = query(
@@ -2918,7 +2907,7 @@ fn distribute_voting_rewards_only_to_polls_in_progress() {
             &1u64.to_be_bytes(),
             &Poll {
                 id: 1u64,
-                creator: deps.api.addr_canonicalize(TEST_CREATOR).unwrap(),
+                creator: deps.api.addr_validate(TEST_CREATOR).unwrap(),
                 status: PollStatus::InProgress,
                 yes_votes: Uint128::zero(),
                 no_votes: Uint128::zero(),
@@ -2941,7 +2930,7 @@ fn distribute_voting_rewards_only_to_polls_in_progress() {
             &2u64.to_be_bytes(),
             &Poll {
                 id: 2u64,
-                creator: deps.api.addr_canonicalize(TEST_CREATOR).unwrap(),
+                creator: deps.api.addr_validate(TEST_CREATOR).unwrap(),
                 status: PollStatus::Passed,
                 yes_votes: Uint128::zero(),
                 no_votes: Uint128::zero(),
@@ -3550,37 +3539,28 @@ fn test_query_shares() {
     let mut deps = mock_dependencies(&[]);
     mock_instantiate(deps.as_mut());
 
-    let voter_0_addr_raw = CanonicalAddr::from(vec![
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    ]);
-    let voter_1_addr_raw = CanonicalAddr::from(vec![
-        1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    ]);
-    let voter_2_addr_raw = CanonicalAddr::from(vec![
-        1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    ]);
+    let voter_0_addr_raw = Addr::unchecked("voter_0");
+    let voter_1_addr_raw = Addr::unchecked("voter_1");
+    let voter_2_addr_raw = Addr::unchecked("voter_2");
     let voter_0 = deps
         .api
-        .addr_humanize(&voter_0_addr_raw)
+        .addr_validate(voter_0_addr_raw.as_str())
         .unwrap()
         .to_string();
     let voter_1 = deps
         .api
-        .addr_humanize(&voter_1_addr_raw)
+        .addr_validate(&voter_1_addr_raw.as_str())
         .unwrap()
         .to_string();
     let voter_2 = deps
         .api
-        .addr_humanize(&voter_2_addr_raw)
+        .addr_validate(&voter_2_addr_raw.as_str())
         .unwrap()
         .to_string();
 
     bank_store(&mut deps.storage)
         .save(
-            voter_0_addr_raw.as_slice(),
+            voter_0_addr_raw.as_bytes(),
             &TokenManager {
                 share: Uint128::new(11u128),
                 locked_balance: vec![],
@@ -3590,7 +3570,7 @@ fn test_query_shares() {
         .unwrap();
     bank_store(&mut deps.storage)
         .save(
-            voter_1_addr_raw.as_slice(),
+            voter_1_addr_raw.as_bytes(),
             &TokenManager {
                 share: Uint128::new(22u128),
                 locked_balance: vec![],
@@ -3600,7 +3580,7 @@ fn test_query_shares() {
         .unwrap();
     bank_store(&mut deps.storage)
         .save(
-            voter_2_addr_raw.as_slice(),
+            voter_2_addr_raw.as_bytes(),
             &TokenManager {
                 share: Uint128::new(33u128),
                 locked_balance: vec![],
@@ -4310,11 +4290,8 @@ fn happy_days_end_poll_with_controlled_quorum() {
     // actual staked amount is 10 times bigger than staked amount
     let actual_staked_weight = load_token_balance(
         &deps.as_ref().querier,
-        VOTING_TOKEN.to_string(),
-        &deps
-            .api
-            .addr_canonicalize(&MOCK_CONTRACT_ADDR.to_string())
-            .unwrap(),
+        &deps.api.addr_validate(VOTING_TOKEN).unwrap(),
+        &deps.api.addr_validate(&MOCK_CONTRACT_ADDR).unwrap(),
     )
     .unwrap()
     .checked_sub(Uint128::new(DEFAULT_PROPOSAL_DEPOSIT))
@@ -4419,7 +4396,7 @@ fn test_unstake_before_claiming_voting_rewards() {
     );
 
     let token_manager = bank_read(&deps.storage)
-        .load(deps.api.addr_canonicalize(TEST_VOTER).unwrap().as_slice())
+        .load(deps.api.addr_validate(TEST_VOTER).unwrap().as_bytes())
         .unwrap();
     assert_eq!(
         token_manager.locked_balance,
@@ -4449,11 +4426,11 @@ fn test_unstake_before_claiming_voting_rewards() {
 
     // make sure now the state is clean
     let token_manager = bank_read(&deps.storage)
-        .load(deps.api.addr_canonicalize(TEST_VOTER).unwrap().as_slice())
+        .load(deps.api.addr_validate(TEST_VOTER).unwrap().as_bytes())
         .unwrap();
     assert_eq!(token_manager.locked_balance, vec![]);
     // expect err
     poll_voter_read(&deps.storage, 1u64)
-        .load(deps.api.addr_canonicalize(TEST_VOTER).unwrap().as_slice())
+        .load(deps.api.addr_validate(TEST_VOTER).unwrap().as_bytes())
         .unwrap_err();
 }
