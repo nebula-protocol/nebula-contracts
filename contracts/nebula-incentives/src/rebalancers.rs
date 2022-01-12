@@ -220,7 +220,7 @@ pub fn internal_rewarded_redeem(
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::_SendAll {
                     asset_infos: vec![AssetInfo::Token {
-                        contract_addr: deps.api.addr_validate(cluster_token.as_str())?,
+                        contract_addr: cluster_token,
                     }],
                     send_to: rebalancer,
                 })?,

@@ -54,7 +54,7 @@ pub fn update_config(
     spend_limit: Option<Uint128>,
 ) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
-    if config.owner != info.sender.to_string() {
+    if config.owner != info.sender {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -81,7 +81,7 @@ pub fn spend(
     amount: Uint128,
 ) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
-    if config.owner != info.sender.to_string() {
+    if config.owner != info.sender {
         return Err(StdError::generic_err("unauthorized"));
     }
 

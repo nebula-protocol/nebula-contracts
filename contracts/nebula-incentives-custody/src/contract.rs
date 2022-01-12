@@ -79,7 +79,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Balance { custody } => {
             let nebula_token = read_neb(deps.storage)?;
-            let balance = load_token_balance(deps, &nebula_token.to_string(), &custody)?;
+            let balance = load_token_balance(deps, &nebula_token, &deps.api.addr_validate(custody.as_str())?)?;
             Ok(to_binary(&to_binary(&balance).unwrap())?)
         }
     }

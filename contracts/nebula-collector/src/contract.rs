@@ -2,7 +2,7 @@
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    attr, to_binary, Addr, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response,
+    attr, to_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response,
     StdError, StdResult, WasmMsg,
 };
 
@@ -66,24 +66,25 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 /// asset token => collateral token
 /// collateral token => NEB token
 pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> StdResult<Response> {
+    let validated_asset_token = deps.api.addr_validate(asset_token.as_str())?;
     let config: Config = read_config(deps.storage)?;
     let astroport_factory_raw = config.astroport_factory;
 
     let pair_info: PairInfo = query_pair_info(
         &deps.querier,
-        Addr::unchecked(astroport_factory_raw.to_string()),
+        astroport_factory_raw,
         &[
             AssetInfo::NativeToken {
                 denom: config.base_denom.to_string(),
             },
             AssetInfo::Token {
-                contract_addr: deps.api.addr_validate(asset_token.as_str())?,
+                contract_addr: validated_asset_token.clone(),
             },
         ],
     )?;
 
     let messages: Vec<CosmosMsg>;
-    if config.nebula_token == asset_token {
+    if config.nebula_token == validated_asset_token {
         // collateral token => nebula token
         let amount = query_balance(
             &deps.querier,
@@ -119,12 +120,12 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> StdResult<Respon
         // asset token => collateral token
         let amount = query_token_balance(
             &deps.querier,
-            Addr::unchecked(asset_token.to_string()),
+            validated_asset_token.clone(),
             env.contract.address,
         )?;
 
         messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: asset_token.to_string(),
+            contract_addr: validated_asset_token.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Send {
                 contract: pair_info.contract_addr.to_string(),
                 amount,
@@ -140,7 +141,7 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> StdResult<Respon
 
     Ok(Response::new().add_messages(messages).add_attributes(vec![
         attr("action", "convert"),
-        attr("asset_token", asset_token.as_str()),
+        attr("asset_token", validated_asset_token.to_string()),
     ]))
 }
 
@@ -149,7 +150,7 @@ pub fn distribute(deps: DepsMut, env: Env) -> StdResult<Response> {
     let config: Config = read_config(deps.storage)?;
     let amount = query_token_balance(
         &deps.querier,
-        Addr::unchecked(config.nebula_token.to_string()),
+        config.nebula_token.clone(),
         env.contract.address,
     )?;
 
@@ -179,7 +180,7 @@ pub fn update_config(
     owner: Option<String>,
 ) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
-    if config.owner != info.sender.to_string() {
+    if config.owner != info.sender {
         return Err(StdError::generic_err("unauthorized"));
     }
 

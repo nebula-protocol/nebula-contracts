@@ -280,7 +280,7 @@ pub fn query_pool_info(
         None => read_current_n(deps.storage)?,
     };
     let pool_bucket = pool_info_read(deps.storage, pool_type, n);
-    let pool_info = read_from_pool_bucket(&pool_bucket, &cluster_address);
+    let pool_info = read_from_pool_bucket(&pool_bucket, &deps.api.addr_validate(cluster_address.as_str())?);
     let resp = IncentivesPoolInfoResponse {
         value_total: pool_info.value_total,
         reward_total: pool_info.reward_total,
