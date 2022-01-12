@@ -2,6 +2,7 @@ use super::*;
 pub use crate::contract::*;
 pub use crate::ext_query::*;
 pub use crate::state::*;
+use astroport::asset::{Asset, AssetInfo};
 pub use cluster_math::*;
 pub use cosmwasm_std::testing::{
     mock_env, mock_info, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR,
@@ -23,7 +24,6 @@ use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 pub use std::str::FromStr;
 use terra_cosmwasm::*;
-use astroport::asset::{Asset, AssetInfo};
 
 /// Convenience function for creating inline String
 pub fn h(s: &str) -> String {
@@ -696,7 +696,8 @@ pub fn mock_querier_setup(
                 1_000_000_000_000,
                 vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
             ),
-        ).set_token(
+        )
+        .set_token(
             "mGME",
             token_data(
                 "Mirrored GME",
@@ -704,7 +705,9 @@ pub fn mock_querier_setup(
                 6,
                 1_000_000_000_000,
                 vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
-        )).set_token(
+            ),
+        )
+        .set_token(
             "mGE",
             token_data(
                 "Mirrored GE",
@@ -712,8 +715,8 @@ pub fn mock_querier_setup(
                 6,
                 1_000_000_000_000,
                 vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
-            )
-    );
+            ),
+        );
 
     deps.querier.set_oracle_prices(vec![
         ("uusd", Decimal::one()),

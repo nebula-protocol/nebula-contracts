@@ -1,10 +1,10 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::Uint128;
-use cw20::Cw20ReceiveMsg;
 use astroport::asset::{Asset, AssetInfo};
 use astroport::pair::PoolResponse as AstroportPoolResponse;
+use cosmwasm_std::Uint128;
+use cw20::Cw20ReceiveMsg;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {

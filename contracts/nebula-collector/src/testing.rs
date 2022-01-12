@@ -1,12 +1,12 @@
 use crate::contract::{execute, instantiate, query_config};
 use crate::mock_querier::mock_dependencies;
+use astroport::asset::{Asset, AssetInfo};
+use astroport::pair::{Cw20HookMsg as AstroportCw20HookMsg, ExecuteMsg as AstroportExecuteMsg};
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{to_binary, Coin, CosmosMsg, Decimal, StdError, SubMsg, Uint128, WasmMsg};
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::collector::{ConfigResponse, ExecuteMsg, InstantiateMsg};
 use nebula_protocol::gov::Cw20HookMsg::DepositReward;
-use astroport::asset::{Asset, AssetInfo};
-use astroport::pair::{Cw20HookMsg as AstroportCw20HookMsg, ExecuteMsg as AstroportExecuteMsg};
 
 #[test]
 fn proper_initialization() {

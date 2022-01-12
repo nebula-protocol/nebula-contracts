@@ -1,3 +1,4 @@
+use astroport::asset::AssetInfo;
 use cosmwasm_std::{
     to_binary, BalanceResponse, BankQuery, QuerierWrapper, QueryRequest, StdResult, Uint128,
     WasmQuery,
@@ -10,7 +11,6 @@ use nebula_protocol::{
     oracle::QueryMsg as OracleQueryMsg, penalty::PenaltyCreateResponse,
     penalty::PenaltyRedeemResponse, penalty::QueryMsg as PenaltyQueryMsg,
 };
-use astroport::asset::AssetInfo;
 
 /// EXTERNAL QUERY
 /// -- Queries the oracle contract for the current asset price
