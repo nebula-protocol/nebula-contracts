@@ -47,9 +47,9 @@ pub fn get_input_params() -> Params {
         symbol: "TEST".to_string(),
         description: "Sample cluster for testing".to_string(),
         weight: Some(100u32),
-        penalty: h("penalty0000"),
-        pricing_oracle: h("pricing_oracle0000"),
-        target_oracle: h("comp_oracle0000"),
+        penalty: Addr::unchecked("penalty0000"),
+        pricing_oracle: Addr::unchecked("pricing_oracle0000"),
+        target_oracle: Addr::unchecked("comp_oracle0000"),
         target: vec![
             Asset {
                 info: AssetInfo::Token {
@@ -267,7 +267,7 @@ fn test_update_weight() {
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
     store_total_weight(deps.as_mut().storage, 100).unwrap();
-    store_weight(deps.as_mut().storage, &h("asset0000"), 10).unwrap();
+    store_weight(deps.as_mut().storage, &Addr::unchecked("asset0000"), 10).unwrap();
 
     // increase weight
     let msg = ExecuteMsg::UpdateWeight {
@@ -294,7 +294,7 @@ fn test_update_weight() {
     );
 
     assert_eq!(
-        read_weight(deps.as_mut().storage, &h("asset0000")).unwrap(),
+        read_weight(deps.as_mut().storage, &Addr::unchecked("asset0000")).unwrap(),
         20u32
     );
     assert_eq!(read_total_weight(deps.as_mut().storage).unwrap(), 110u32);
@@ -358,9 +358,9 @@ fn test_create_cluster() {
                     description: input_params.description.clone(),
                     owner: MOCK_CONTRACT_ADDR.to_string(),
                     factory: MOCK_CONTRACT_ADDR.to_string(),
-                    pricing_oracle: input_params.pricing_oracle.clone(),
-                    target_oracle: input_params.target_oracle.clone(),
-                    penalty: input_params.penalty.clone(),
+                    pricing_oracle: input_params.pricing_oracle.to_string(),
+                    target_oracle: input_params.target_oracle.to_string(),
+                    penalty: input_params.penalty.to_string(),
                     cluster_token: None,
                     target: input_params.target.clone(),
                 })
@@ -446,7 +446,7 @@ fn test_token_creation_hook() {
         res.messages,
         vec![
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: input_params.penalty.clone(),
+                contract_addr: input_params.penalty.to_string(),
                 funds: vec![],
                 msg: to_binary(&PenaltyExecuteMsg::UpdateConfig {
                     owner: Some(h("asset0000")),
@@ -482,7 +482,7 @@ fn test_token_creation_hook() {
 
     assert_eq!(res.attributes, vec![attr("cluster_addr", "asset0000")]);
 
-    assert_eq!(cluster_exists(&deps.storage, &h("asset0000")), Ok(true));
+    assert_eq!(cluster_exists(&deps.storage, &Addr::unchecked("asset0000")), Ok(true));
 }
 
 #[test]
@@ -1152,7 +1152,7 @@ fn test_decommission_cluster() {
     );
 
     assert_eq!(
-        cluster_exists(&deps.storage, &h("asset0000")).unwrap(),
+        cluster_exists(&deps.storage, &Addr::unchecked("asset0000")).unwrap(),
         false
     );
 
@@ -1167,7 +1167,7 @@ fn test_decommission_cluster() {
         }
     );
 
-    let res = read_weight(&deps.storage, &h("asset0000")).unwrap_err();
+    let res = read_weight(&deps.storage, &Addr::unchecked("asset0000")).unwrap_err();
     match res {
         StdError::GenericErr { msg, .. } => {
             assert_eq!(msg, "No distribution info stored")

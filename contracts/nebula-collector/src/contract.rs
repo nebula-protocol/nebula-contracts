@@ -27,11 +27,11 @@ pub fn instantiate(
     store_config(
         deps.storage,
         &Config {
-            distribution_contract: msg.distribution_contract,
-            astroport_factory: msg.astroport_factory,
-            nebula_token: msg.nebula_token,
+            distribution_contract: deps.api.addr_validate(msg.distribution_contract.as_str())?,
+            astroport_factory: deps.api.addr_validate(msg.astroport_factory.as_str())?,
+            nebula_token: deps.api.addr_validate(msg.nebula_token.as_str())?,
             base_denom: msg.base_denom,
-            owner: msg.owner,
+            owner: deps.api.addr_validate(msg.owner.as_str())?,
         },
     )?;
 
@@ -184,19 +184,19 @@ pub fn update_config(
     }
 
     if let Some(owner) = owner {
-        config.owner = owner;
+        config.owner = deps.api.addr_validate(owner.as_str())?;
     }
 
     if let Some(distribution_contract) = distribution_contract {
-        config.distribution_contract = distribution_contract;
+        config.distribution_contract = deps.api.addr_validate(distribution_contract.as_str())?;
     }
 
     if let Some(astroport_factory) = astroport_factory {
-        config.astroport_factory = astroport_factory;
+        config.astroport_factory = deps.api.addr_validate(astroport_factory.as_str())?;
     }
 
     if let Some(nebula_token) = nebula_token {
-        config.nebula_token = nebula_token;
+        config.nebula_token = deps.api.addr_validate(nebula_token.as_str())?;
     }
 
     if let Some(base_denom) = base_denom {
@@ -218,11 +218,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let state = read_config(deps.storage)?;
     let resp = ConfigResponse {
-        distribution_contract: state.distribution_contract,
-        astroport_factory: state.astroport_factory,
-        nebula_token: state.nebula_token,
+        distribution_contract: state.distribution_contract.to_string(),
+        astroport_factory: state.astroport_factory.to_string(),
+        nebula_token: state.nebula_token.to_string(),
         base_denom: state.base_denom,
-        owner: state.owner,
+        owner: state.owner.to_string(),
     };
 
     Ok(resp)

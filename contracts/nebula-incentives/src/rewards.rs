@@ -36,9 +36,9 @@ pub fn deposit_reward(
 
     Ok(Response::new()
         .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: cfg.nebula_token,
+            contract_addr: cfg.nebula_token.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: cfg.custody,
+                recipient: cfg.custody.to_string(),
                 amount: rewards_amount,
             })?,
             funds: vec![],
@@ -53,7 +53,7 @@ pub fn deposit_reward(
 pub fn withdraw_reward(deps: DepsMut, info: MessageInfo) -> StdResult<Response> {
     let cfg = read_config(deps.storage)?;
 
-    let reward_owner = info.sender.to_string();
+    let reward_owner = info.sender;
 
     let mut contribution_tuples = vec![];
 
@@ -62,9 +62,8 @@ pub fn withdraw_reward(deps: DepsMut, info: MessageInfo) -> StdResult<Response> 
         for kv in contribution_bucket.range(None, None, Order::Ascending) {
             let (k, _) = kv?;
 
-            let asset_address = std::str::from_utf8(&k)
-                .map_err(|_| StdError::invalid_utf8("invalid asset address"))?
-                .to_string();
+            let asset_address = deps.api.addr_validate(std::str::from_utf8(&k)
+                .map_err(|_| StdError::invalid_utf8("invalid asset address"))?)?;
             contribution_tuples.push((i, asset_address));
         }
     }
@@ -82,14 +81,14 @@ pub fn withdraw_reward(deps: DepsMut, info: MessageInfo) -> StdResult<Response> 
         .add_messages(vec![
             // withdraw reward amount from custody contract
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: cfg.custody,
+                contract_addr: cfg.custody.to_string(),
                 msg: to_binary(&ExtExecuteMsg::RequestNeb { amount: reward_amt })?,
                 funds: vec![],
             }),
             CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: config.nebula_token,
+                contract_addr: config.nebula_token.to_string(),
                 msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                    recipient: reward_owner,
+                    recipient: reward_owner.to_string(),
                     amount: reward_amt,
                 })?,
                 funds: vec![],

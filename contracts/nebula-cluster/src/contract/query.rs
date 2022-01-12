@@ -56,8 +56,6 @@ pub fn query_cluster_state(
         .map(|x| x.info.clone())
         .collect::<Vec<_>>();
 
-    let penalty: String = cfg.penalty.clone();
-
     let cluster_token = cfg
         .cluster_token
         .clone()
@@ -100,8 +98,8 @@ pub fn query_cluster_state(
         prices,
         inv,
         target: target_asset_data,
-        penalty,
-        cluster_token,
+        penalty: cfg.penalty.to_string(),
+        cluster_token: cluster_token.to_string(),
         cluster_contract_address: cluster_contract_address.clone(),
         active,
     })

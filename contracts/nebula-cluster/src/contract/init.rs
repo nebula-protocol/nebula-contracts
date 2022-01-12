@@ -21,7 +21,7 @@ pub fn validate_targets(
         // Check if asset is a valid CW20.
         query_asset_balance(
             &querier,
-            &env.contract.address.to_string(),
+            &env.contract.address,
             &target_assets[i],
         )?;
         for j in i + 1..target_assets.len() {
@@ -43,12 +43,12 @@ pub fn instantiate(
     let cfg = ClusterConfig {
         name: msg.name.clone(),
         description: msg.description.clone(),
-        owner: msg.owner.clone(),
-        cluster_token: msg.cluster_token,
-        factory: msg.factory,
-        pricing_oracle: msg.pricing_oracle.clone(),
-        target_oracle: msg.target_oracle.clone(),
-        penalty: msg.penalty.clone(),
+        owner: deps.api.addr_validate(msg.owner.as_str())?,
+        cluster_token: msg.cluster_token.map(|x| deps.api.addr_validate(x.as_str())).transpose()?,
+        factory: deps.api.addr_validate(msg.factory.as_str())?,
+        pricing_oracle: deps.api.addr_validate(msg.pricing_oracle.as_str())?,
+        target_oracle: deps.api.addr_validate(msg.target_oracle.as_str())?,
+        penalty: deps.api.addr_validate(msg.penalty.as_str())?,
         active: true,
     };
 

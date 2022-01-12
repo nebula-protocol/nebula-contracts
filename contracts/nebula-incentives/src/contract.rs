@@ -34,12 +34,12 @@ pub fn instantiate(
     store_config(
         deps.storage,
         &Config {
-            factory: msg.factory,
-            custody: msg.custody,
-            astroport_factory: msg.astroport_factory,
-            nebula_token: msg.nebula_token,
+            factory: deps.api.addr_validate(msg.factory.as_str())?,
+            custody: deps.api.addr_validate(msg.custody.as_str())?,
+            astroport_factory: deps.api.addr_validate(msg.astroport_factory.as_str())?,
+            nebula_token: deps.api.addr_validate(msg.nebula_token.as_str())?,
             base_denom: msg.base_denom,
-            owner: msg.owner,
+            owner: deps.api.addr_validate(msg.owner.as_str())?,
         },
     )?;
 
@@ -159,14 +159,15 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 }
 
 pub fn update_owner(deps: DepsMut, info: MessageInfo, owner: &String) -> StdResult<Response> {
+    let validated_owner = deps.api.addr_validate(owner.as_str())?;
     let cfg = read_config(deps.storage)?;
 
-    if info.sender.to_string() != cfg.owner {
+    if info.sender != cfg.owner {
         return Err(StdError::generic_err("unauthorized"));
     }
 
     let mut new_cfg = cfg;
-    new_cfg.owner = owner.clone();
+    new_cfg.owner = validated_owner;
     store_config(deps.storage, &new_cfg)?;
 
     Ok(Response::new().add_attributes(vec![attr("action", "update_owner")]))
@@ -183,7 +184,7 @@ pub fn receive_cw20(
     match from_binary(&msg)? {
         Cw20HookMsg::DepositReward { rewards } => {
             // only reward token contract can execute this message
-            if config.nebula_token != info.sender.to_string() {
+            if config.nebula_token != info.sender {
                 return Err(StdError::generic_err("unauthorized"));
             }
 
@@ -204,7 +205,7 @@ pub fn receive_cw20(
 pub fn new_penalty_period(deps: DepsMut, info: MessageInfo) -> StdResult<Response> {
     let cfg = read_config(deps.storage)?;
 
-    if info.sender.to_string() != cfg.owner {
+    if info.sender != cfg.owner {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -251,12 +252,12 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let state = read_config(deps.storage)?;
     let resp = ConfigResponse {
-        factory: state.factory,
-        custody: state.custody,
-        astroport_factory: state.astroport_factory,
-        nebula_token: state.nebula_token,
+        factory: state.factory.to_string(),
+        custody: state.custody.to_string(),
+        astroport_factory: state.astroport_factory.to_string(),
+        nebula_token: state.nebula_token.to_string(),
         base_denom: state.base_denom,
-        owner: state.owner,
+        owner: state.owner.to_string(),
     };
 
     Ok(resp)
@@ -293,8 +294,8 @@ pub fn query_contributor_info(
     contributor_address: String,
     cluster_address: String,
 ) -> StdResult<CurrentContributorInfoResponse> {
-    let contribution_bucket = contributions_read(deps.storage, &contributor_address, pool_type);
-    let contributions = read_from_contribution_bucket(&contribution_bucket, &cluster_address);
+    let contribution_bucket = contributions_read(deps.storage, &deps.api.addr_validate(contributor_address.as_str())?, pool_type);
+    let contributions = read_from_contribution_bucket(&contribution_bucket, &deps.api.addr_validate(cluster_address.as_str())?);
     let resp = CurrentContributorInfoResponse {
         n: read_current_n(deps.storage)?,
         value_contributed: contributions.value_contributed,
@@ -306,7 +307,7 @@ pub fn query_contributor_pending_rewards(
     deps: Deps,
     contributor_address: String,
 ) -> StdResult<ContributorPendingRewardsResponse> {
-    let pending_rewards = read_pending_rewards(deps.storage, &contributor_address);
+    let pending_rewards = read_pending_rewards(deps.storage, &deps.api.addr_validate(contributor_address.as_str())?);
     let resp = ContributorPendingRewardsResponse { pending_rewards };
     Ok(resp)
 }

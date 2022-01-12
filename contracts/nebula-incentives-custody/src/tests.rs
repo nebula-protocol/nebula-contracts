@@ -21,7 +21,7 @@ pub fn h(s: &str) -> String {
 fn proper_initialization() {
     let msg = InstantiateMsg {
         owner: h(OWNER),
-        neb_token: h(NEB_TOKEN),
+        nebula_token: h(NEB_TOKEN),
     };
 
     let info = mock_info(OWNER, &[]);
@@ -41,7 +41,7 @@ fn proper_initialization() {
 fn test_request_neb() {
     let msg = InstantiateMsg {
         owner: h(OWNER),
-        neb_token: h(NEB_TOKEN),
+        nebula_token: h(NEB_TOKEN),
     };
 
     let info = mock_info(OWNER, &[]);
@@ -97,7 +97,7 @@ fn test_request_neb() {
 fn test_query() {
     let msg = InstantiateMsg {
         owner: h(OWNER),
-        neb_token: h(NEB_TOKEN),
+        nebula_token: h(NEB_TOKEN),
     };
 
     let info = mock_info(OWNER, &[]);
@@ -122,7 +122,7 @@ fn test_query() {
 fn test_update_owner() {
     let msg = InstantiateMsg {
         owner: h(OWNER),
-        neb_token: h(NEB_TOKEN),
+        nebula_token: h(NEB_TOKEN),
     };
 
     let info = mock_info(OWNER, &[]);

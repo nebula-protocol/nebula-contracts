@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{Order, StdError, StdResult, Storage, Uint128};
+use cosmwasm_std::{Addr, Order, StdError, StdResult, Storage, Uint128};
 use cosmwasm_storage::{singleton, singleton_read, Bucket, ReadonlyBucket, Singleton};
 
 use nebula_protocol::cluster_factory::Params;
@@ -18,11 +18,11 @@ static PREFIX_CLUSTERS: &[u8] = b"clusters";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
-    pub owner: String,
-    pub nebula_token: String,
-    pub astroport_factory: String,
-    pub staking_contract: String,
-    pub commission_collector: String,
+    pub owner: Addr,
+    pub nebula_token: Addr,
+    pub astroport_factory: Addr,
+    pub staking_contract: Addr,
+    pub commission_collector: Addr,
     pub protocol_fee_rate: String,
     pub token_code_id: u64, // used to create asset token
     pub cluster_code_id: u64,
@@ -39,8 +39,8 @@ pub fn read_config(storage: &dyn Storage) -> StdResult<Config> {
     singleton_read(storage, KEY_CONFIG).load()
 }
 
-pub fn cluster_exists(storage: &dyn Storage, contract_addr: &String) -> StdResult<bool> {
-    match ReadonlyBucket::new(storage, PREFIX_CLUSTERS).load(&contract_addr.as_str().as_bytes()) {
+pub fn cluster_exists(storage: &dyn Storage, contract_addr: &Addr) -> StdResult<bool> {
+    match ReadonlyBucket::new(storage, PREFIX_CLUSTERS).load(&contract_addr.as_bytes()) {
         Ok(res) => Ok(res),
         Err(_) => Ok(false),
     }
@@ -54,8 +54,8 @@ pub fn get_cluster_data(storage: &dyn Storage) -> StdResult<Vec<(String, bool)>>
         .map(|item| {
             let (k, b) = item?;
             Ok((
-                std::str::from_utf8(&k)
-                    .map_err(|_| StdError::invalid_utf8("invalid cluster address"))?
+                Addr::unchecked(std::str::from_utf8(&k)
+                    .map_err(|_| StdError::invalid_utf8("invalid cluster address"))?)
                     .to_string(),
                 b,
             ))
@@ -63,28 +63,28 @@ pub fn get_cluster_data(storage: &dyn Storage) -> StdResult<Vec<(String, bool)>>
         .collect::<StdResult<Vec<(String, bool)>>>()
 }
 
-pub fn store_tmp_cluster(storage: &mut dyn Storage, contract_addr: &String) -> StdResult<()> {
+pub fn store_tmp_cluster(storage: &mut dyn Storage, contract_addr: &Addr) -> StdResult<()> {
     singleton(storage, KEY_TMP_CLUSTER).save(contract_addr)
 }
 
-pub fn read_tmp_asset(storage: &dyn Storage) -> StdResult<String> {
+pub fn read_tmp_asset(storage: &dyn Storage) -> StdResult<Addr> {
     singleton_read(storage, KEY_TMP_ASSET).load()
 }
 
-pub fn store_tmp_asset(storage: &mut dyn Storage, contract_addr: &String) -> StdResult<()> {
+pub fn store_tmp_asset(storage: &mut dyn Storage, contract_addr: &Addr) -> StdResult<()> {
     singleton(storage, KEY_TMP_ASSET).save(contract_addr)
 }
 
-pub fn read_tmp_cluster(storage: &dyn Storage) -> StdResult<String> {
+pub fn read_tmp_cluster(storage: &dyn Storage) -> StdResult<Addr> {
     singleton_read(storage, KEY_TMP_CLUSTER).load()
 }
 
-pub fn record_cluster(storage: &mut dyn Storage, contract_addr: &String) -> StdResult<()> {
-    Bucket::new(storage, PREFIX_CLUSTERS).save(&contract_addr.as_str().as_bytes(), &true)
+pub fn record_cluster(storage: &mut dyn Storage, contract_addr: &Addr) -> StdResult<()> {
+    Bucket::new(storage, PREFIX_CLUSTERS).save(&contract_addr.as_bytes(), &true)
 }
 
-pub fn deactivate_cluster(storage: &mut dyn Storage, contract_addr: &String) -> StdResult<()> {
-    Bucket::new(storage, PREFIX_CLUSTERS).save(&contract_addr.as_str().as_bytes(), &false)
+pub fn deactivate_cluster(storage: &mut dyn Storage, contract_addr: &Addr) -> StdResult<()> {
+    Bucket::new(storage, PREFIX_CLUSTERS).save(&contract_addr.as_bytes(), &false)
 }
 
 pub fn store_params(storage: &mut dyn Storage, init_data: &Params) -> StdResult<()> {
@@ -127,25 +127,25 @@ pub fn read_last_distributed(storage: &dyn Storage) -> StdResult<u64> {
     singleton_read(storage, KEY_LAST_DISTRIBUTED).load()
 }
 
-pub fn store_weight(storage: &mut dyn Storage, asset_token: &String, weight: u32) -> StdResult<()> {
+pub fn store_weight(storage: &mut dyn Storage, asset_token: &Addr, weight: u32) -> StdResult<()> {
     let mut weight_bucket: Bucket<u32> = Bucket::new(storage, PREFIX_WEIGHT);
-    weight_bucket.save(asset_token.as_str().as_bytes(), &weight)
+    weight_bucket.save(asset_token.as_bytes(), &weight)
 }
 
-pub fn read_weight(storage: &dyn Storage, asset_token: &String) -> StdResult<u32> {
+pub fn read_weight(storage: &dyn Storage, asset_token: &Addr) -> StdResult<u32> {
     let weight_bucket: ReadonlyBucket<u32> = ReadonlyBucket::new(storage, PREFIX_WEIGHT);
-    match weight_bucket.load(asset_token.as_str().as_bytes()) {
+    match weight_bucket.load(asset_token.as_bytes()) {
         Ok(v) => Ok(v),
         _ => Err(StdError::generic_err("No distribution info stored")),
     }
 }
 
-pub fn remove_weight(storage: &mut dyn Storage, asset_token: &String) {
+pub fn remove_weight(storage: &mut dyn Storage, asset_token: &Addr) {
     let mut weight_bucket: Bucket<u32> = Bucket::new(storage, PREFIX_WEIGHT);
-    weight_bucket.remove(asset_token.as_str().as_bytes());
+    weight_bucket.remove(asset_token.as_bytes());
 }
 
-pub fn read_all_weight(storage: &dyn Storage) -> StdResult<Vec<(String, u32)>> {
+pub fn read_all_weight(storage: &dyn Storage) -> StdResult<Vec<(Addr, u32)>> {
     let weight_bucket: ReadonlyBucket<u32> = ReadonlyBucket::new(storage, PREFIX_WEIGHT);
     weight_bucket
         .range(None, None, Order::Ascending)
@@ -153,9 +153,9 @@ pub fn read_all_weight(storage: &dyn Storage) -> StdResult<Vec<(String, u32)>> {
             let (k, v) = item?;
 
             Ok((
-                std::str::from_utf8(&k)
+                Addr::unchecked(std::str::from_utf8(&k)
                     .map_err(|_| StdError::invalid_utf8("invalid weight asset address"))?
-                    .to_string(),
+                    .to_string()),
                 v,
             ))
         })

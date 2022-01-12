@@ -1,4 +1,4 @@
-use cosmwasm_std::{Binary, CanonicalAddr, Decimal, StdResult, Storage, Uint128};
+use cosmwasm_std::{Addr, Binary, Decimal, StdError, StdResult, Storage, Uint128};
 use cosmwasm_storage::{
     bucket, bucket_read, singleton, singleton_read, Bucket, ReadonlyBucket, ReadonlySingleton,
     Singleton,
@@ -23,8 +23,8 @@ const DEFAULT_LIMIT: u32 = 10;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
-    pub owner: CanonicalAddr,
-    pub nebula_token: CanonicalAddr,
+    pub owner: Addr,
+    pub nebula_token: Addr,
     pub quorum: Decimal,
     pub threshold: Decimal,
     pub voting_period: u64,
@@ -37,7 +37,7 @@ pub struct Config {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
-    pub contract_addr: CanonicalAddr,
+    pub contract_addr: Addr,
     pub poll_count: u64,
     pub total_share: Uint128,
     pub total_deposit: Uint128,
@@ -54,7 +54,7 @@ pub struct TokenManager {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Poll {
     pub id: u64,
-    pub creator: CanonicalAddr,
+    pub creator: Addr,
     pub status: PollStatus,
     pub yes_votes: Uint128,
     pub no_votes: Uint128,
@@ -73,7 +73,7 @@ pub struct Poll {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ExecuteData {
-    pub contract: CanonicalAddr,
+    pub contract: Addr,
     pub msg: Binary,
 }
 
@@ -130,10 +130,10 @@ pub fn poll_voter_read(storage: &dyn Storage, poll_id: u64) -> ReadonlyBucket<Vo
 pub fn read_poll_voters<'a>(
     storage: &'a dyn Storage,
     poll_id: u64,
-    start_after: Option<CanonicalAddr>,
+    start_after: Option<Addr>,
     limit: Option<u32>,
     order_by: Option<OrderBy>,
-) -> StdResult<Vec<(CanonicalAddr, VoterInfo)>> {
+) -> StdResult<Vec<(Addr, VoterInfo)>> {
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
     let (start, end, order_by) = match order_by {
         Some(OrderBy::Asc) => (calc_range_start_addr(start_after), None, OrderBy::Asc),
@@ -147,7 +147,9 @@ pub fn read_poll_voters<'a>(
         .take(limit)
         .map(|item| {
             let (k, v) = item?;
-            Ok((CanonicalAddr::from(k), v))
+            Ok((Addr::unchecked(std::str::from_utf8(&k)
+                .map_err(|_| StdError::invalid_utf8("invalid address"))?
+                .to_string()), v))
         })
         .collect()
 }
@@ -208,10 +210,10 @@ pub fn bank_read(storage: &dyn Storage) -> ReadonlyBucket<TokenManager> {
 
 pub fn read_bank_stakers<'a>(
     storage: &'a dyn Storage,
-    start_after: Option<CanonicalAddr>,
+    start_after: Option<Addr>,
     limit: Option<u32>,
     order_by: Option<OrderBy>,
-) -> StdResult<Vec<(CanonicalAddr, TokenManager)>> {
+) -> StdResult<Vec<(Addr, TokenManager)>> {
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
     let (start, end, order_by) = match order_by {
         Some(OrderBy::Asc) => (calc_range_start_addr(start_after), None, OrderBy::Asc),
@@ -224,7 +226,9 @@ pub fn read_bank_stakers<'a>(
         .take(limit)
         .map(|item| {
             let (k, v) = item?;
-            Ok((CanonicalAddr::from(k), v))
+            Ok((Addr::unchecked(std::str::from_utf8(&k)
+                .map_err(|_| StdError::invalid_utf8("invalid address"))?
+                .to_string()), v))
         })
         .collect()
 }
@@ -244,15 +248,15 @@ fn calc_range_end(start_after: Option<u64>) -> Option<Vec<u8>> {
 }
 
 // this will set the first key after the provided key, by appending a 1 byte
-fn calc_range_start_addr(start_after: Option<CanonicalAddr>) -> Option<Vec<u8>> {
+fn calc_range_start_addr(start_after: Option<Addr>) -> Option<Vec<u8>> {
     start_after.map(|addr| {
-        let mut v = addr.as_slice().to_vec();
+        let mut v = addr.as_bytes().to_vec();
         v.push(1);
         v
     })
 }
 
 // this will set the first key after the provided key, by appending a 1 byte
-fn calc_range_end_addr(start_after: Option<CanonicalAddr>) -> Option<Vec<u8>> {
-    start_after.map(|addr| addr.as_slice().to_vec())
+fn calc_range_end_addr(start_after: Option<Addr>) -> Option<Vec<u8>> {
+    start_after.map(|addr| addr.as_bytes().to_vec())
 }

@@ -1,6 +1,6 @@
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_slice, to_binary, Addr, Api, CanonicalAddr, Coin, ContractResult, Empty, OwnedDeps,
+    from_slice, to_binary, Addr, Coin, ContractResult, Empty, OwnedDeps,
     Querier, QuerierResult, QueryRequest, SystemError, SystemResult, Uint128, WasmQuery,
 };
 use cosmwasm_storage::to_length_prefixed;
@@ -94,20 +94,9 @@ impl WasmMockQuerier {
                 let prefix_balance = to_length_prefixed(b"balance").to_vec();
                 if key[..prefix_balance.len()].to_vec() == prefix_balance {
                     let key_address: &[u8] = &key[prefix_balance.len()..];
-                    let address_raw: CanonicalAddr = CanonicalAddr::from(key_address);
+                    let address = Addr::unchecked(std::str::from_utf8(key_address).unwrap());
 
-                    let api: MockApi = MockApi::default();
-                    let address: Addr = match api.addr_humanize(&address_raw) {
-                        Ok(v) => v,
-                        Err(e) => {
-                            return SystemResult::Err(SystemError::InvalidRequest {
-                                error: format!("Parsing query request: {}", e),
-                                request: key.into(),
-                            })
-                        }
-                    };
-
-                    let balance = match balances.get(&address.to_string()) {
+                    let balance = match balances.get(address.as_str()) {
                         Some(v) => v,
                         None => {
                             return SystemResult::Err(SystemError::InvalidRequest {
