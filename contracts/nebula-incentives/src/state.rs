@@ -86,8 +86,7 @@ pub fn store_pending_rewards(
 }
 
 pub fn read_pending_rewards(storage: &dyn Storage, contributor: &Addr) -> Uint128 {
-    match ReadonlyBucket::new(storage, PREFIX_PENDING_REWARDS).load(contributor.as_bytes())
-    {
+    match ReadonlyBucket::new(storage, PREFIX_PENDING_REWARDS).load(contributor.as_bytes()) {
         Ok(pending_reward) => pending_reward,
         Err(_) => Uint128::zero(),
     }
@@ -206,7 +205,6 @@ pub fn record_contribution(
 
     contributions_store(deps.storage, &contributor, pool_type)
         .save(cluster_address.as_bytes(), &contributions)?;
-    pool_info_store(deps.storage, pool_type, n)
-        .save(cluster_address.as_bytes(), &pool_info)?;
+    pool_info_store(deps.storage, pool_type, n).save(cluster_address.as_bytes(), &pool_info)?;
     Ok(())
 }

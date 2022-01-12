@@ -482,7 +482,10 @@ fn test_token_creation_hook() {
 
     assert_eq!(res.attributes, vec![attr("cluster_addr", "asset0000")]);
 
-    assert_eq!(cluster_exists(&deps.storage, &Addr::unchecked("asset0000")), Ok(true));
+    assert_eq!(
+        cluster_exists(&deps.storage, &Addr::unchecked("asset0000")),
+        Ok(true)
+    );
 }
 
 #[test]

@@ -114,7 +114,7 @@ pub struct ClusterInfoResponse {
 pub struct ClusterConfig {
     pub name: String,
     pub description: String,
-    pub owner: Addr ,
+    pub owner: Addr,
     pub cluster_token: Option<Addr>,
     pub factory: Addr,
     pub pricing_oracle: Addr,

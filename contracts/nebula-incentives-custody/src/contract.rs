@@ -18,7 +18,10 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
     set_owner(deps.storage, &deps.api.addr_validate(msg.owner.as_str())?)?;
-    set_neb(deps.storage, &deps.api.addr_validate(msg.nebula_token.as_str())?)?;
+    set_neb(
+        deps.storage,
+        &deps.api.addr_validate(msg.nebula_token.as_str())?,
+    )?;
     Ok(Response::default())
 }
 
@@ -79,7 +82,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Balance { custody } => {
             let nebula_token = read_neb(deps.storage)?;
-            let balance = load_token_balance(deps, &nebula_token, &deps.api.addr_validate(custody.as_str())?)?;
+            let balance = load_token_balance(
+                deps,
+                &nebula_token,
+                &deps.api.addr_validate(custody.as_str())?,
+            )?;
             Ok(to_binary(&to_binary(&balance).unwrap())?)
         }
     }

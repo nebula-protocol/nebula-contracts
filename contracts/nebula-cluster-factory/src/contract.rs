@@ -310,7 +310,12 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
             let res: MsgInstantiateContractResponse = get_res_msg(msg)?;
             let cluster_token = res.get_contract_address();
 
-            cluster_token_creation_hook(deps, env, cluster_contract.to_string(), cluster_token.to_string())
+            cluster_token_creation_hook(
+                deps,
+                env,
+                cluster_contract.to_string(),
+                cluster_token.to_string(),
+            )
         }
         3 => {
             let cluster_token = read_tmp_asset(deps.storage)?;
@@ -379,7 +384,10 @@ pub fn cluster_creation_hook(
             id: 2,
             reply_on: ReplyOn::Success,
         }])
-        .add_attributes(vec![attr("cluster_addr", validated_cluster_contract.as_str())]))
+        .add_attributes(vec![attr(
+            "cluster_addr",
+            validated_cluster_contract.as_str(),
+        )]))
 }
 
 /*
@@ -490,11 +498,8 @@ pub fn astroport_creation_hook(
     ];
 
     // Load astroport pair info
-    let pair_info: PairInfo = query_pair_info(
-        &deps.querier,
-        config.astroport_factory,
-        &asset_infos,
-    )?;
+    let pair_info: PairInfo =
+        query_pair_info(&deps.querier, config.astroport_factory, &asset_infos)?;
 
     // Execute staking contract to register staking token of newly created asset
     Ok(
@@ -670,7 +675,10 @@ pub fn query_cluster_exists(
     cluster_address: String,
 ) -> StdResult<ClusterExistsResponse> {
     Ok(ClusterExistsResponse {
-        exists: cluster_exists(deps.storage, &deps.api.addr_validate(cluster_address.as_str())?)?,
+        exists: cluster_exists(
+            deps.storage,
+            &deps.api.addr_validate(cluster_address.as_str())?,
+        )?,
     })
 }
 

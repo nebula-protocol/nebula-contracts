@@ -6,8 +6,8 @@ use crate::state::{
 };
 
 use cosmwasm_std::{
-    Addr, attr, to_binary, CosmosMsg, Deps, DepsMut, MessageInfo, Response, StdError,
-    StdResult, Storage, Uint128, WasmMsg,
+    attr, to_binary, Addr, CosmosMsg, Deps, DepsMut, MessageInfo, Response, StdError, StdResult,
+    Storage, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::common::OrderBy;
@@ -30,12 +30,9 @@ pub fn stake_voting_tokens(deps: DepsMut, sender: String, amount: Uint128) -> St
     // balance already increased, so subtract deposit amount
     let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
 
-    let total_balance = load_token_balance(
-        &deps.querier,
-        &config.nebula_token,
-        &state.contract_addr,
-    )?
-    .checked_sub(total_locked_balance + amount)?;
+    let total_balance =
+        load_token_balance(&deps.querier, &config.nebula_token, &state.contract_addr)?
+            .checked_sub(total_locked_balance + amount)?;
 
     let share = if total_balance.is_zero() || state.total_share.is_zero() {
         amount
@@ -73,13 +70,10 @@ pub fn withdraw_voting_tokens(
         // Load total share & total balance except proposal deposit amount
         let total_share = state.total_share.u128();
         let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
-        let total_balance = (load_token_balance(
-            &deps.querier,
-            &config.nebula_token,
-            &state.contract_addr,
-        )?
-        .checked_sub(total_locked_balance))?
-        .u128();
+        let total_balance =
+            (load_token_balance(&deps.querier, &config.nebula_token, &state.contract_addr)?
+                .checked_sub(total_locked_balance))?
+            .u128();
 
         let user_locked_balance =
             compute_locked_balance(deps.storage, &mut token_manager, &sender_address)?;
@@ -257,12 +251,9 @@ pub fn stake_voting_rewards(
 
     // add the withdrawn rewards to stake pool and calculate share
     let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
-    let total_balance = load_token_balance(
-        &deps.querier,
-        &config.nebula_token,
-        &state.contract_addr,
-    )?
-    .checked_sub(total_locked_balance)?;
+    let total_balance =
+        load_token_balance(&deps.querier, &config.nebula_token, &state.contract_addr)?
+            .checked_sub(total_locked_balance)?;
 
     state.pending_voting_rewards = state
         .pending_voting_rewards
@@ -420,12 +411,9 @@ pub fn query_staker(deps: Deps, address: String) -> StdResult<StakerResponse> {
     });
 
     let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
-    let total_balance = load_token_balance(
-        &deps.querier,
-        &config.nebula_token,
-        &state.contract_addr,
-    )?
-    .checked_sub(total_locked_balance)?;
+    let total_balance =
+        load_token_balance(&deps.querier, &config.nebula_token, &state.contract_addr)?
+            .checked_sub(total_locked_balance)?;
 
     Ok(StakerResponse {
         balance: if !state.total_share.is_zero() {

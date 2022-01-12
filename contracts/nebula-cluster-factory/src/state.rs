@@ -54,9 +54,11 @@ pub fn get_cluster_data(storage: &dyn Storage) -> StdResult<Vec<(String, bool)>>
         .map(|item| {
             let (k, b) = item?;
             Ok((
-                Addr::unchecked(std::str::from_utf8(&k)
-                    .map_err(|_| StdError::invalid_utf8("invalid cluster address"))?)
-                    .to_string(),
+                Addr::unchecked(
+                    std::str::from_utf8(&k)
+                        .map_err(|_| StdError::invalid_utf8("invalid cluster address"))?,
+                )
+                .to_string(),
                 b,
             ))
         })
@@ -153,9 +155,11 @@ pub fn read_all_weight(storage: &dyn Storage) -> StdResult<Vec<(Addr, u32)>> {
             let (k, v) = item?;
 
             Ok((
-                Addr::unchecked(std::str::from_utf8(&k)
-                    .map_err(|_| StdError::invalid_utf8("invalid weight asset address"))?
-                    .to_string()),
+                Addr::unchecked(
+                    std::str::from_utf8(&k)
+                        .map_err(|_| StdError::invalid_utf8("invalid weight asset address"))?
+                        .to_string(),
+                ),
                 v,
             ))
         })

@@ -3,7 +3,9 @@ mod tests {
     use crate::contract::{execute, instantiate, query};
     use crate::state::{rewards_read, RewardInfo};
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{Addr, from_binary, to_binary, CosmosMsg, Decimal, SubMsg, Uint128, WasmMsg};
+    use cosmwasm_std::{
+        from_binary, to_binary, Addr, CosmosMsg, Decimal, SubMsg, Uint128, WasmMsg,
+    };
     use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
     use nebula_protocol::staking::{
         Cw20HookMsg, ExecuteMsg, InstantiateMsg, PoolInfoResponse, QueryMsg, RewardInfoResponse,

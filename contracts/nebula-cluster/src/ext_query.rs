@@ -1,6 +1,6 @@
 use astroport::asset::AssetInfo;
 use cosmwasm_std::{
-    Addr, to_binary, BalanceResponse, BankQuery, QuerierWrapper, QueryRequest, StdResult, Uint128,
+    to_binary, Addr, BalanceResponse, BankQuery, QuerierWrapper, QueryRequest, StdResult, Uint128,
     WasmQuery,
 };
 use cw20::Cw20QueryMsg;

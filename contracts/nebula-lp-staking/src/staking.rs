@@ -42,8 +42,12 @@ pub fn unbond(
     let validated_staker_addr = deps.api.addr_validate(staker_addr.as_str())?;
     let validated_asset_token = deps.api.addr_validate(asset_token.as_str())?;
 
-    let staking_token: Addr =
-        _decrease_bond_amount(deps.storage, &validated_staker_addr, &validated_asset_token, amount)?;
+    let staking_token: Addr = _decrease_bond_amount(
+        deps.storage,
+        &validated_staker_addr,
+        &validated_asset_token,
+        amount,
+    )?;
 
     Ok(Response::new()
         .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
@@ -98,11 +102,7 @@ pub fn auto_stake(
 
     // query pair info to obtain pair contract address
     let asset_infos: [AssetInfo; 2] = [assets[0].info.clone(), assets[1].info.clone()];
-    let astroport_pair: PairInfo = query_pair_info(
-        &deps.querier,
-        astroport_factory,
-        &asset_infos,
-    )?;
+    let astroport_pair: PairInfo = query_pair_info(&deps.querier, astroport_factory, &asset_infos)?;
 
     // assert the token and lp token match with pool info
     let pool_info: PoolInfo = read_pool_info(deps.storage, &token_addr)?;
@@ -202,11 +202,8 @@ pub fn auto_stake_hook(
     }
 
     // stake all lp tokens received, compare with staking token amount before liquidity provision was executed
-    let current_staking_token_amount = query_token_balance(
-        &deps.querier,
-        staking_token,
-        env.contract.address,
-    )?;
+    let current_staking_token_amount =
+        query_token_balance(&deps.querier, staking_token, env.contract.address)?;
     let amount_to_stake = current_staking_token_amount.checked_sub(prev_staking_token_amount)?;
 
     bond(deps, info, staker_addr, asset_token, amount_to_stake)

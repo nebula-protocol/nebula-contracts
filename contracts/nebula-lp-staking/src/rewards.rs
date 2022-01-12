@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    Addr, attr, to_binary, CosmosMsg, Decimal, Deps, DepsMut, MessageInfo, Order, Response, StdError,
-    StdResult, Storage, Uint128, WasmMsg,
+    attr, to_binary, Addr, CosmosMsg, Decimal, Deps, DepsMut, MessageInfo, Order, Response,
+    StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 
 use crate::state::{
@@ -47,7 +47,9 @@ pub fn withdraw_reward(
     info: MessageInfo,
     asset_token: Option<String>,
 ) -> StdResult<Response> {
-    let validated_asset_token = asset_token.map(|x| deps.api.addr_validate(x.as_str())).transpose()?;
+    let validated_asset_token = asset_token
+        .map(|x| deps.api.addr_validate(x.as_str()))
+        .transpose()?;
     let staker_addr = info.sender;
     let reward_amount = _withdraw_reward(deps.storage, &staker_addr, &validated_asset_token)?;
 
@@ -89,8 +91,10 @@ fn _withdraw_reward(
             .map(|item| {
                 let (k, v) = item?;
                 Ok((
-                    Addr::unchecked(std::str::from_utf8(&k)
-                        .map_err(|_| StdError::invalid_utf8("invalid reward pair address"))?),
+                    Addr::unchecked(
+                        std::str::from_utf8(&k)
+                            .map_err(|_| StdError::invalid_utf8("invalid reward pair address"))?,
+                    ),
                     v,
                 ))
             })
@@ -111,8 +115,7 @@ fn _withdraw_reward(
         if reward_info.pending_reward.is_zero() && reward_info.bond_amount.is_zero() {
             rewards_store(storage, &staker_addr).remove(asset_token.as_bytes());
         } else {
-            rewards_store(storage, &staker_addr)
-                .save(asset_token.as_bytes(), &reward_info)?;
+            rewards_store(storage, &staker_addr).save(asset_token.as_bytes(), &reward_info)?;
         }
     }
 
@@ -136,7 +139,9 @@ pub fn query_reward_info(
     asset_token: Option<String>,
 ) -> StdResult<RewardInfoResponse> {
     let validated_staker_addr = deps.api.addr_validate(staker_addr.as_str())?;
-    let validated_asset_token = asset_token.map(|x| deps.api.addr_validate(x.as_str())).transpose()?;
+    let validated_asset_token = asset_token
+        .map(|x| deps.api.addr_validate(x.as_str()))
+        .transpose()?;
 
     let reward_infos: Vec<RewardInfoResponseItem> =
         _read_reward_infos(deps.storage, &validated_staker_addr, &validated_asset_token)?;
@@ -155,27 +160,28 @@ fn _read_reward_infos(
     let rewards_bucket = rewards_read(storage, staker_addr);
     let reward_infos: Vec<RewardInfoResponseItem>;
     if let Some(asset_token) = asset_token {
-        reward_infos = if let Some(mut reward_info) =
-            rewards_bucket.may_load(asset_token.as_bytes())?
-        {
-            let pool_info = read_pool_info(storage, asset_token)?;
-            before_share_change(&pool_info, &mut reward_info)?;
+        reward_infos =
+            if let Some(mut reward_info) = rewards_bucket.may_load(asset_token.as_bytes())? {
+                let pool_info = read_pool_info(storage, asset_token)?;
+                before_share_change(&pool_info, &mut reward_info)?;
 
-            vec![RewardInfoResponseItem {
-                asset_token: asset_token.to_string(),
-                bond_amount: reward_info.bond_amount,
-                pending_reward: reward_info.pending_reward,
-            }]
-        } else {
-            vec![]
-        };
+                vec![RewardInfoResponseItem {
+                    asset_token: asset_token.to_string(),
+                    bond_amount: reward_info.bond_amount,
+                    pending_reward: reward_info.pending_reward,
+                }]
+            } else {
+                vec![]
+            };
     } else {
         reward_infos = rewards_bucket
             .range(None, None, Order::Ascending)
             .map(|item| {
                 let (k, v) = item?;
-                let asset_token = Addr::unchecked(std::str::from_utf8(&k)
-                    .map_err(|_| StdError::invalid_utf8("invalid asset token address"))?);
+                let asset_token = Addr::unchecked(
+                    std::str::from_utf8(&k)
+                        .map_err(|_| StdError::invalid_utf8("invalid asset token address"))?,
+                );
                 let mut reward_info = v;
                 let pool_info = read_pool_info(storage, &asset_token)?;
                 before_share_change(&pool_info, &mut reward_info)?;

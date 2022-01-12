@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, to_binary, Deps, QueryRequest, StdResult, Uint128, WasmQuery};
+use cosmwasm_std::{to_binary, Addr, Deps, QueryRequest, StdResult, Uint128, WasmQuery};
 
 use cw20::{BalanceResponse, Cw20QueryMsg};
 

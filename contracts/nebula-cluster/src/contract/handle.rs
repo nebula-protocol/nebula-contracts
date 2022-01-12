@@ -4,8 +4,8 @@ use astroport::asset::{Asset, AssetInfo};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    attr, to_binary, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
-    Storage, Uint128, WasmMsg,
+    attr, to_binary, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdError, StdResult, Storage,
+    Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 
@@ -99,7 +99,9 @@ pub fn update_config(
         }
 
         if cluster_token.is_some() {
-            config.cluster_token = cluster_token.map(|x| api.addr_validate(x.as_str())).transpose()?;
+            config.cluster_token = cluster_token
+                .map(|x| api.addr_validate(x.as_str()))
+                .transpose()?;
         }
 
         if let Some(pricing_oracle) = pricing_oracle {

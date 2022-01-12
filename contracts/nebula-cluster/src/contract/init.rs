@@ -19,11 +19,7 @@ pub fn validate_targets(
 ) -> StdResult<bool> {
     for i in 0..target_assets.len() {
         // Check if asset is a valid CW20.
-        query_asset_balance(
-            &querier,
-            &env.contract.address,
-            &target_assets[i],
-        )?;
+        query_asset_balance(&querier, &env.contract.address, &target_assets[i])?;
         for j in i + 1..target_assets.len() {
             if target_assets[i].equal(&target_assets[j]) {
                 return Ok(false);
@@ -44,7 +40,10 @@ pub fn instantiate(
         name: msg.name.clone(),
         description: msg.description.clone(),
         owner: deps.api.addr_validate(msg.owner.as_str())?,
-        cluster_token: msg.cluster_token.map(|x| deps.api.addr_validate(x.as_str())).transpose()?,
+        cluster_token: msg
+            .cluster_token
+            .map(|x| deps.api.addr_validate(x.as_str()))
+            .transpose()?,
         factory: deps.api.addr_validate(msg.factory.as_str())?,
         pricing_oracle: deps.api.addr_validate(msg.pricing_oracle.as_str())?,
         target_oracle: deps.api.addr_validate(msg.target_oracle.as_str())?,

@@ -75,7 +75,9 @@ pub fn arb_cluster_create(
 
     let cluster_state = get_cluster_state(deps.as_ref(), &validated_cluster_contract)?;
 
-    let cluster_token = deps.api.addr_validate(cluster_state.cluster_token.as_str())?;
+    let cluster_token = deps
+        .api
+        .addr_validate(cluster_state.cluster_token.as_str())?;
 
     let pair_info = get_pair_info(deps.as_ref(), &cluster_token)?;
 
@@ -185,7 +187,9 @@ pub fn arb_cluster_redeem(
 
     asset.assert_sent_native_token_balance(&info)?;
 
-    let cluster_token = deps.api.addr_validate(cluster_state.cluster_token.as_str())?;
+    let cluster_token = deps
+        .api
+        .addr_validate(cluster_state.cluster_token.as_str())?;
 
     let pair_info = get_pair_info(deps.as_ref(), &cluster_token)?;
 
@@ -368,11 +372,8 @@ pub fn swap_all(
     ];
 
     if to_ust {
-        let amount = query_token_balance(
-            &deps.querier,
-            cluster_token.clone(),
-            env.contract.address,
-        )?;
+        let amount =
+            query_token_balance(&deps.querier, cluster_token.clone(), env.contract.address)?;
         let belief_price = if min_return == Uint128::zero() {
             Decimal::zero()
         } else {

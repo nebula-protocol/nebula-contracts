@@ -1083,7 +1083,8 @@ fn test_record_rebalancer_rewards() {
         &Addr::unchecked("rebalancer"),
         PoolType::REBALANCE,
     );
-    let contribution = read_from_contribution_bucket(&contribution_bucket, &Addr::unchecked("cluster"));
+    let contribution =
+        read_from_contribution_bucket(&contribution_bucket, &Addr::unchecked("cluster"));
 
     assert_eq!(contribution.n, 1);
     assert_eq!(contribution.value_contributed, Uint128::new(49));
@@ -1147,7 +1148,8 @@ fn test_record_astroport_impact() {
         &Addr::unchecked("arbitrageur"),
         PoolType::ARBITRAGE,
     );
-    let contribution = read_from_contribution_bucket(&contribution_bucket, &Addr::unchecked("cluster"));
+    let contribution =
+        read_from_contribution_bucket(&contribution_bucket, &Addr::unchecked("cluster"));
 
     assert_eq!(contribution.n, 1);
     assert_eq!(contribution.value_contributed, Uint128::new(567));

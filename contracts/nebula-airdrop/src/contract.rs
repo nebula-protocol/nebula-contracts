@@ -237,7 +237,11 @@ pub fn query_latest_stage(deps: Deps) -> StdResult<LatestStageResponse> {
 
 pub fn query_is_claimed(deps: Deps, stage: u8, address: String) -> StdResult<IsClaimedResponse> {
     let resp = IsClaimedResponse {
-        is_claimed: read_claimed(deps.storage, &deps.api.addr_validate(address.as_str())?, stage)?,
+        is_claimed: read_claimed(
+            deps.storage,
+            &deps.api.addr_validate(address.as_str())?,
+            stage,
+        )?,
     };
 
     Ok(resp)

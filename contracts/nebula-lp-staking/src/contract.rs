@@ -2,7 +2,7 @@
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    Addr, attr, from_binary, to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response,
+    attr, from_binary, to_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response,
     StdError, StdResult, Uint128,
 };
 
@@ -88,7 +88,13 @@ pub fn receive_cw20(
                 return Err(StdError::generic_err("unauthorized"));
             }
 
-            bond(deps, info, Addr::unchecked(cw20_msg.sender), validated_asset_token, cw20_msg.amount)
+            bond(
+                deps,
+                info,
+                Addr::unchecked(cw20_msg.sender),
+                validated_asset_token,
+                cw20_msg.amount,
+            )
         }
         Cw20HookMsg::DepositReward { rewards } => {
             // only reward token contract can execute this message
@@ -188,7 +194,8 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
 }
 
 pub fn query_pool_info(deps: Deps, asset_token: String) -> StdResult<PoolInfoResponse> {
-    let pool_info: PoolInfo = read_pool_info(deps.storage, &deps.api.addr_validate(asset_token.as_str())?)?;
+    let pool_info: PoolInfo =
+        read_pool_info(deps.storage, &deps.api.addr_validate(asset_token.as_str())?)?;
     Ok(PoolInfoResponse {
         asset_token,
         staking_token: pool_info.staking_token.to_string(),

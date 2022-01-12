@@ -147,9 +147,14 @@ pub fn read_poll_voters<'a>(
         .take(limit)
         .map(|item| {
             let (k, v) = item?;
-            Ok((Addr::unchecked(std::str::from_utf8(&k)
-                .map_err(|_| StdError::invalid_utf8("invalid address"))?
-                .to_string()), v))
+            Ok((
+                Addr::unchecked(
+                    std::str::from_utf8(&k)
+                        .map_err(|_| StdError::invalid_utf8("invalid address"))?
+                        .to_string(),
+                ),
+                v,
+            ))
         })
         .collect()
 }
@@ -226,9 +231,14 @@ pub fn read_bank_stakers<'a>(
         .take(limit)
         .map(|item| {
             let (k, v) = item?;
-            Ok((Addr::unchecked(std::str::from_utf8(&k)
-                .map_err(|_| StdError::invalid_utf8("invalid address"))?
-                .to_string()), v))
+            Ok((
+                Addr::unchecked(
+                    std::str::from_utf8(&k)
+                        .map_err(|_| StdError::invalid_utf8("invalid address"))?
+                        .to_string(),
+                ),
+                v,
+            ))
         })
         .collect()
 }

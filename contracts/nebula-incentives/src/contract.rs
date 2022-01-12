@@ -280,7 +280,10 @@ pub fn query_pool_info(
         None => read_current_n(deps.storage)?,
     };
     let pool_bucket = pool_info_read(deps.storage, pool_type, n);
-    let pool_info = read_from_pool_bucket(&pool_bucket, &deps.api.addr_validate(cluster_address.as_str())?);
+    let pool_info = read_from_pool_bucket(
+        &pool_bucket,
+        &deps.api.addr_validate(cluster_address.as_str())?,
+    );
     let resp = IncentivesPoolInfoResponse {
         value_total: pool_info.value_total,
         reward_total: pool_info.reward_total,
@@ -294,8 +297,15 @@ pub fn query_contributor_info(
     contributor_address: String,
     cluster_address: String,
 ) -> StdResult<CurrentContributorInfoResponse> {
-    let contribution_bucket = contributions_read(deps.storage, &deps.api.addr_validate(contributor_address.as_str())?, pool_type);
-    let contributions = read_from_contribution_bucket(&contribution_bucket, &deps.api.addr_validate(cluster_address.as_str())?);
+    let contribution_bucket = contributions_read(
+        deps.storage,
+        &deps.api.addr_validate(contributor_address.as_str())?,
+        pool_type,
+    );
+    let contributions = read_from_contribution_bucket(
+        &contribution_bucket,
+        &deps.api.addr_validate(cluster_address.as_str())?,
+    );
     let resp = CurrentContributorInfoResponse {
         n: read_current_n(deps.storage)?,
         value_contributed: contributions.value_contributed,
@@ -307,7 +317,10 @@ pub fn query_contributor_pending_rewards(
     deps: Deps,
     contributor_address: String,
 ) -> StdResult<ContributorPendingRewardsResponse> {
-    let pending_rewards = read_pending_rewards(deps.storage, &deps.api.addr_validate(contributor_address.as_str())?);
+    let pending_rewards = read_pending_rewards(
+        deps.storage,
+        &deps.api.addr_validate(contributor_address.as_str())?,
+    );
     let resp = ContributorPendingRewardsResponse { pending_rewards };
     Ok(resp)
 }

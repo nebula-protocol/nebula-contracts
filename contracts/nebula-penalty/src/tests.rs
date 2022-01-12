@@ -9,7 +9,7 @@ use cluster_math::{
     dot, imbalance, int32_vec_to_fpdec, int_vec_to_fpdec, str_vec_to_fpdec, FPDecimal,
 };
 use cosmwasm_std::testing::{mock_env, mock_info};
-use cosmwasm_std::{attr, from_binary, DepsMut, Env, StdError, Timestamp, Uint128, Addr};
+use cosmwasm_std::{attr, from_binary, Addr, DepsMut, Env, StdError, Timestamp, Uint128};
 use nebula_protocol::penalty::{
     ExecuteMsg, InstantiateMsg, PenaltyCreateResponse, PenaltyParams, PenaltyRedeemResponse,
     QueryMsg,

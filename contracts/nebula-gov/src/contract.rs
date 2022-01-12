@@ -368,10 +368,7 @@ pub fn create_poll(
 
     let r = Response::new().add_attributes(vec![
         attr("action", "create_poll"),
-        attr(
-            "creator",
-            sender_address.to_string(),
-        ),
+        attr("creator", sender_address.to_string()),
         attr("poll_id", &poll_id.to_string()),
         attr("end_time", new_poll.end_time.to_string()),
     ]);
@@ -416,12 +413,9 @@ pub fn end_poll(deps: DepsMut, env: Env, poll_id: u64) -> StdResult<Response> {
         )
     } else {
         let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
-        let staked_weight = load_token_balance(
-            &deps.querier,
-            &config.nebula_token,
-            &state.contract_addr,
-        )?
-        .checked_sub(total_locked_balance)?;
+        let staked_weight =
+            load_token_balance(&deps.querier, &config.nebula_token, &state.contract_addr)?
+                .checked_sub(total_locked_balance)?;
         (
             Decimal::from_ratio(tallied_weight, staked_weight),
             staked_weight,
@@ -564,25 +558,18 @@ pub fn cast_vote(
     let key = sender_address.as_bytes();
 
     // Check the voter already has a vote on the poll
-    if poll_voter_read(deps.storage, poll_id)
-        .load(&key)
-        .is_ok()
-    {
+    if poll_voter_read(deps.storage, poll_id).load(&key).is_ok() {
         return Err(StdError::generic_err("User has already voted."));
     }
-
 
     let mut token_manager = bank_read(deps.storage).may_load(key)?.unwrap_or_default();
 
     // convert share to amount
     let total_share = state.total_share;
     let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
-    let total_balance = load_token_balance(
-        &deps.querier,
-        &config.nebula_token,
-        &state.contract_addr,
-    )?
-    .checked_sub(total_locked_balance)?;
+    let total_balance =
+        load_token_balance(&deps.querier, &config.nebula_token, &state.contract_addr)?
+            .checked_sub(total_locked_balance)?;
 
     if token_manager
         .share
@@ -657,12 +644,9 @@ pub fn snapshot_poll(deps: DepsMut, env: Env, poll_id: u64) -> StdResult<Respons
     let state: State = state_store(deps.storage).load()?;
 
     let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
-    let staked_amount = load_token_balance(
-        &deps.querier,
-        &config.nebula_token,
-        &state.contract_addr,
-    )?
-    .checked_sub(total_locked_balance)?;
+    let staked_amount =
+        load_token_balance(&deps.querier, &config.nebula_token, &state.contract_addr)?
+            .checked_sub(total_locked_balance)?;
 
     a_poll.staked_amount = Some(staked_amount);
 

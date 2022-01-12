@@ -28,8 +28,10 @@ pub fn deposit_reward(
         if !PoolType::ALL_TYPES.contains(&pool_type) {
             return Err(StdError::generic_err("pool type not found"));
         }
-        let mut pool_info: PoolInfo =
-            read_from_pool_bucket(&pool_info_read(deps.storage, *pool_type, n), &validated_asset_token);
+        let mut pool_info: PoolInfo = read_from_pool_bucket(
+            &pool_info_read(deps.storage, *pool_type, n),
+            &validated_asset_token,
+        );
         pool_info.reward_total += *amount;
         pool_info_store(deps.storage, *pool_type, n)
             .save(validated_asset_token.as_bytes(), &pool_info)?;
@@ -63,8 +65,10 @@ pub fn withdraw_reward(deps: DepsMut, info: MessageInfo) -> StdResult<Response> 
         for kv in contribution_bucket.range(None, None, Order::Ascending) {
             let (k, _) = kv?;
 
-            let asset_address = deps.api.addr_validate(std::str::from_utf8(&k)
-                .map_err(|_| StdError::invalid_utf8("invalid asset address"))?)?;
+            let asset_address = deps.api.addr_validate(
+                std::str::from_utf8(&k)
+                    .map_err(|_| StdError::invalid_utf8("invalid asset address"))?,
+            )?;
             contribution_tuples.push((i, asset_address));
         }
     }

@@ -244,7 +244,9 @@ pub fn create(
 
     let cluster_state = get_cluster_state(deps.as_ref(), &validated_cluster_contract)?;
 
-    let cluster_token = deps.api.addr_validate(cluster_state.cluster_token.as_str())?;
+    let cluster_token = deps
+        .api
+        .addr_validate(cluster_state.cluster_token.as_str())?;
 
     let mut messages = vec![];
 
@@ -317,15 +319,13 @@ pub fn redeem(
     } else {
         asset_amounts
     };
-    let cluster_token = deps.api.addr_validate(cluster_state.cluster_token.as_str())?;
+    let cluster_token = deps
+        .api
+        .addr_validate(cluster_state.cluster_token.as_str())?;
 
     let max_tokens = min(
         max_tokens,
-        query_token_balance(
-            &deps.querier,
-            cluster_token.clone(),
-            info.sender.clone(),
-        )?,
+        query_token_balance(&deps.querier, cluster_token.clone(), info.sender.clone())?,
     );
 
     let asset_infos = cluster_state

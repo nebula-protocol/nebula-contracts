@@ -8,9 +8,8 @@ use crate::testing::mock_querier::mock_dependencies;
 
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    attr, coins, from_binary, to_binary, Addr, Api, ContractResult, CosmosMsg,
-    Decimal, Deps, DepsMut, Env, Reply, ReplyOn, Response, StdError, SubMsg, Timestamp, Uint128,
-    WasmMsg,
+    attr, coins, from_binary, to_binary, Addr, Api, ContractResult, CosmosMsg, Decimal, Deps,
+    DepsMut, Env, Reply, ReplyOn, Response, StdError, SubMsg, Timestamp, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use nebula_protocol::common::OrderBy;
@@ -2544,12 +2543,7 @@ fn distribute_voting_rewards() {
 
     // voting info has been deleted
     assert!(poll_voter_read(&deps.storage, 1u64)
-        .load(
-            deps.api
-                .addr_validate(TEST_VOTER)
-                .unwrap()
-                .as_bytes()
-        )
+        .load(deps.api.addr_validate(TEST_VOTER).unwrap().as_bytes())
         .is_err())
 }
 
@@ -2677,12 +2671,7 @@ fn stake_voting_rewards() {
 
     // voting info has been deleted
     assert!(poll_voter_read(&deps.storage, 1u64)
-        .load(
-            deps.api
-                .addr_validate(TEST_VOTER)
-                .unwrap()
-                .as_bytes()
-        )
+        .load(deps.api.addr_validate(TEST_VOTER).unwrap().as_bytes())
         .is_err());
 
     let res = query(
@@ -4302,10 +4291,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
     let actual_staked_weight = load_token_balance(
         &deps.as_ref().querier,
         &deps.api.addr_validate(VOTING_TOKEN).unwrap(),
-        &deps
-            .api
-            .addr_validate(&MOCK_CONTRACT_ADDR)
-            .unwrap(),
+        &deps.api.addr_validate(&MOCK_CONTRACT_ADDR).unwrap(),
     )
     .unwrap()
     .checked_sub(Uint128::new(DEFAULT_PROPOSAL_DEPOSIT))

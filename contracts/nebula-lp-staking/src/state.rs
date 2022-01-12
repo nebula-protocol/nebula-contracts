@@ -58,9 +58,6 @@ pub fn rewards_store<'a>(storage: &'a mut dyn Storage, owner: &Addr) -> Bucket<'
 
 /// returns a bucket with all rewards owned by this owner (query it by owner)
 /// (read-only version for queries)
-pub fn rewards_read<'a>(
-    storage: &'a dyn Storage,
-    owner: &Addr,
-) -> ReadonlyBucket<'a, RewardInfo> {
+pub fn rewards_read<'a>(storage: &'a dyn Storage, owner: &Addr) -> ReadonlyBucket<'a, RewardInfo> {
     ReadonlyBucket::multilevel(storage, &[PREFIX_REWARD, owner.as_bytes()])
 }
