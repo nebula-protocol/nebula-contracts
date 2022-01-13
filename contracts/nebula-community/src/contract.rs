@@ -6,10 +6,10 @@ use cosmwasm_std::{
     attr, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
 };
 
+use astroport::asset::Asset;
 use nebula_protocol::community::{
     ConfigResponse, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
 };
-use astroport::asset::Asset;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -36,20 +36,12 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> StdResult<Response> {
     match msg {
-        ExecuteMsg::UpdateConfig { owner } => {
-            update_config(deps, info, owner)
-        }
-        ExecuteMsg::Spend { asset, recipient } => {
-            spend(deps, info, asset, recipient)
-        },
+        ExecuteMsg::UpdateConfig { owner } => update_config(deps, info, owner),
+        ExecuteMsg::Spend { asset, recipient } => spend(deps, info, asset, recipient),
     }
 }
 
-pub fn update_config(
-    deps: DepsMut,
-    info: MessageInfo,
-    owner: String,
-) -> StdResult<Response> {
+pub fn update_config(deps: DepsMut, info: MessageInfo, owner: String) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
     if config.owner != info.sender {
         return Err(StdError::generic_err("unauthorized"));
@@ -78,7 +70,9 @@ pub fn spend(
     }
 
     Ok(Response::new()
-        .add_messages(vec![asset.clone().into_msg(&deps.querier, validated_recipient)?])
+        .add_messages(vec![asset
+            .clone()
+            .into_msg(&deps.querier, validated_recipient)?])
         .add_attributes(vec![
             attr("action", "spend"),
             attr("asset", asset.to_string()),

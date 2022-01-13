@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_slice, to_binary, Coin, ContractResult, Decimal,
-    OwnedDeps, Querier, QuerierResult, QueryRequest, SystemError, SystemResult, Uint128,
+    from_slice, to_binary, Coin, ContractResult, Decimal, OwnedDeps, Querier, QuerierResult,
+    QueryRequest, SystemError, SystemResult, Uint128,
 };
 use terra_cosmwasm::{TaxCapResponse, TaxRateResponse, TerraQuery, TerraQueryWrapper, TerraRoute};
 

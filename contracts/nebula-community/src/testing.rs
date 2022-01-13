@@ -1,11 +1,13 @@
 use crate::contract::{execute, instantiate, query};
 use crate::mock_querier::mock_dependencies;
 
+use astroport::asset::{Asset, AssetInfo};
 use cosmwasm_std::testing::{mock_env, mock_info};
-use cosmwasm_std::{Addr, from_binary, to_binary, CosmosMsg, BankMsg, StdError, SubMsg, Uint128, WasmMsg, coins};
+use cosmwasm_std::{
+    coins, from_binary, to_binary, Addr, BankMsg, CosmosMsg, StdError, SubMsg, Uint128, WasmMsg,
+};
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::community::{ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
-use astroport::asset::{Asset, AssetInfo};
 
 #[test]
 fn proper_initialization() {
@@ -84,7 +86,7 @@ fn test_spend() {
     let msg = ExecuteMsg::Spend {
         asset: Asset {
             info: AssetInfo::Token {
-                contract_addr: Addr::unchecked("some_token_address")
+                contract_addr: Addr::unchecked("some_token_address"),
             },
             amount: Uint128::from(1000000u128),
         },
@@ -102,7 +104,7 @@ fn test_spend() {
     let msg = ExecuteMsg::Spend {
         asset: Asset {
             info: AssetInfo::NativeToken {
-                denom: "uusd".to_string()
+                denom: "uusd".to_string(),
             },
             amount: Uint128::from(1000000u128),
         },
@@ -141,7 +143,7 @@ fn test_spend() {
                 recipient: "addr0000".to_string(),
                 amount: Uint128::from(1000000u128),
             })
-                .unwrap(),
+            .unwrap(),
         }))]
     );
 }
