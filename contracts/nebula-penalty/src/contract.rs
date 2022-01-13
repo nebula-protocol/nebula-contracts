@@ -30,7 +30,7 @@ pub fn instantiate(
     // TODO: add logic that checks if penalty params result in attackable basket
 
     let cfg = PenaltyConfig {
-        owner: msg.owner,
+        owner: deps.api.addr_validate(msg.owner.as_str())?,
         penalty_params: msg.penalty_params,
 
         ema: FPDecimal::zero(),
@@ -279,9 +279,10 @@ pub fn update_config(
     owner: Option<String>,
     penalty_params: Option<PenaltyParams>,
 ) -> StdResult<Response> {
+    let api = deps.api;
     config_store(deps.storage).update(|mut config| -> StdResult<_> {
         if let Some(owner) = owner {
-            config.owner = owner;
+            config.owner = api.addr_validate(owner.as_str())?;
         }
 
         if let Some(penalty_params) = penalty_params {
@@ -346,7 +347,7 @@ pub fn execute(
     let cfg = read_config(deps.storage)?;
 
     // check permission
-    if info.sender.to_string() != cfg.owner {
+    if info.sender != cfg.owner {
         return Err(StdError::generic_err("unauthorized"));
     }
 

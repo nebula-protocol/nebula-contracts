@@ -2,7 +2,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use cluster_math::FPDecimal;
-use cosmwasm_std::{StdResult, Storage};
+use cosmwasm_std::{Addr, StdResult, Storage};
 use cosmwasm_storage::{singleton, singleton_read, Singleton};
 use nebula_protocol::penalty::PenaltyParams;
 
@@ -11,7 +11,7 @@ pub static CONFIG_KEY: &[u8] = b"config";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct PenaltyConfig {
-    pub owner: String,
+    pub owner: Addr,
     pub penalty_params: PenaltyParams,
 
     pub ema: FPDecimal,

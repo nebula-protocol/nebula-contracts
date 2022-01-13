@@ -1,9 +1,7 @@
+use astroport::asset::Asset;
+use cosmwasm_std::{Addr, Binary, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-use cosmwasm_std::{Binary, Uint128};
-
-use astroport::asset::Asset;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -102,26 +100,26 @@ pub struct MigrateMsg {}
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct Params {
-    // Name of cluster
+    /// Name of cluster
     pub name: String,
 
-    // Symbol of cluster
+    /// Symbol of cluster
     pub symbol: String,
 
-    // Description of cluster
+    /// Description of cluster
     pub description: String,
 
     /// Distribution weight (default is 30, which is 1/10 of NEB distribution weight)
     pub weight: Option<u32>,
 
-    // Corresponding penalty contract to query for mint/redeem
-    pub penalty: String,
+    /// Corresponding penalty contract to query for mint/redeem
+    pub penalty: Addr,
 
     /// Pricing oracle address
-    pub pricing_oracle: String,
+    pub pricing_oracle: Addr,
 
     /// Composition oracle address
-    pub target_oracle: String,
+    pub target_oracle: Addr,
 
     /// Target assets and weights
     pub target: Vec<Asset>,

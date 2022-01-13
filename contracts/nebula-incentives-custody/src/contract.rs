@@ -17,8 +17,11 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
-    set_owner(deps.storage, &msg.owner)?;
-    set_neb(deps.storage, &msg.neb_token)?;
+    set_owner(deps.storage, &deps.api.addr_validate(msg.owner.as_str())?)?;
+    set_neb(
+        deps.storage,
+        &deps.api.addr_validate(msg.nebula_token.as_str())?,
+    )?;
     Ok(Response::default())
 }
 
@@ -38,7 +41,7 @@ pub fn update_owner(deps: DepsMut, info: MessageInfo, owner: &String) -> StdResu
         return Err(StdError::generic_err("unauthorized"));
     }
 
-    set_owner(deps.storage, &owner)?;
+    set_owner(deps.storage, &deps.api.addr_validate(owner.as_str())?)?;
 
     Ok(Response::new().add_attributes(vec![
         attr("action", "update_owner"),
@@ -53,7 +56,7 @@ pub fn request_neb(
     info: MessageInfo,
     amount: Uint128,
 ) -> StdResult<Response> {
-    if info.sender.to_string() != read_owner(deps.storage)? {
+    if info.sender != read_owner(deps.storage)? {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -79,7 +82,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Balance { custody } => {
             let nebula_token = read_neb(deps.storage)?;
-            let balance = load_token_balance(deps, &nebula_token, &custody)?;
+            let balance = load_token_balance(
+                deps,
+                &nebula_token,
+                &deps.api.addr_validate(custody.as_str())?,
+            )?;
             Ok(to_binary(&to_binary(&balance).unwrap())?)
         }
     }
