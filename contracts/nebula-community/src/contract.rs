@@ -24,8 +24,6 @@ pub fn instantiate(
         deps.storage,
         &Config {
             owner: deps.api.addr_validate(msg.owner.as_str())?,
-            nebula_token: deps.api.addr_validate(msg.nebula_token.as_str())?,
-            spend_limit: msg.spend_limit,
         },
     )?;
 
@@ -40,32 +38,26 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> StdResult<Response> {
     match msg {
-        ExecuteMsg::UpdateConfig { owner, spend_limit } => {
-            update_config(deps, info, owner, spend_limit)
+        ExecuteMsg::UpdateConfig { owner } => {
+            update_config(deps, info, owner)
         }
-        ExecuteMsg::Spend { recipient, amount } => spend(deps, info, recipient, amount),
+        ExecuteMsg::Spend { asset_token, recipient, amount } => {
+            spend(deps, info, asset_token, recipient, amount)
+        },
     }
 }
 
 pub fn update_config(
     deps: DepsMut,
     info: MessageInfo,
-    owner: Option<String>,
-    spend_limit: Option<Uint128>,
+    owner: String,
 ) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
     if config.owner != info.sender {
         return Err(StdError::generic_err("unauthorized"));
     }
 
-    if let Some(owner) = owner {
-        config.owner = deps.api.addr_validate(owner.as_str())?;
-    }
-
-    if let Some(spend_limit) = spend_limit {
-        config.spend_limit = spend_limit;
-    }
-
+    config.owner = deps.api.addr_validate(owner.as_str())?;
     store_config(deps.storage, &config)?;
 
     Ok(Response::new().add_attributes(vec![attr("action", "update_config")]))
@@ -77,29 +69,30 @@ pub fn update_config(
 pub fn spend(
     deps: DepsMut,
     info: MessageInfo,
+    asset_token: String,
     recipient: String,
     amount: Uint128,
 ) -> StdResult<Response> {
+    let validated_asset_token = deps.api.addr_validate(asset_token.as_str())?;
+    let validated_recipient = deps.api.addr_validate(recipient.as_str())?;
+
     let config: Config = read_config(deps.storage)?;
     if config.owner != info.sender {
         return Err(StdError::generic_err("unauthorized"));
     }
 
-    if config.spend_limit < amount {
-        return Err(StdError::generic_err("Cannot spend more than spend_limit"));
-    }
-
     Ok(Response::new()
         .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: config.nebula_token.to_string(),
+            contract_addr: validated_asset_token.to_string(),
             funds: vec![],
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: recipient.clone(),
+                recipient: validated_recipient.to_string(),
                 amount,
             })?,
         })])
         .add_attributes(vec![
             attr("action", "spend"),
+            attr("asset_token", asset_token),
             attr("recipient", recipient),
             attr("amount", amount),
         ]))
@@ -116,8 +109,6 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let state = read_config(deps.storage)?;
     let resp = ConfigResponse {
         owner: state.owner.to_string(),
-        nebula_token: state.nebula_token.to_string(),
-        spend_limit: state.spend_limit,
     };
 
     Ok(resp)

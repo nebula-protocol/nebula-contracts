@@ -11,8 +11,6 @@ fn proper_initialization() {
 
     let msg = InstantiateMsg {
         owner: ("owner0000".to_string()),
-        nebula_token: ("nebula0000".to_string()),
-        spend_limit: Uint128::from(1000000u128),
     };
 
     let info = mock_info("addr0000", &[]);
@@ -24,8 +22,6 @@ fn proper_initialization() {
     let config: ConfigResponse =
         from_binary(&query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap()).unwrap();
     assert_eq!("owner0000", config.owner.as_str());
-    assert_eq!("nebula0000", config.nebula_token.as_str());
-    assert_eq!(Uint128::from(1000000u128), config.spend_limit);
 }
 
 #[test]
@@ -34,8 +30,6 @@ fn update_config() {
 
     let msg = InstantiateMsg {
         owner: ("owner0000".to_string()),
-        nebula_token: ("nebula0000".to_string()),
-        spend_limit: Uint128::from(1000000u128),
     };
 
     let info = mock_info("addr0000", &[]);
@@ -47,12 +41,9 @@ fn update_config() {
     let config: ConfigResponse =
         from_binary(&query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap()).unwrap();
     assert_eq!("owner0000", config.owner.as_str());
-    assert_eq!("nebula0000", config.nebula_token.as_str());
-    assert_eq!(Uint128::from(1000000u128), config.spend_limit);
 
     let msg = ExecuteMsg::UpdateConfig {
-        owner: Some("owner0001".to_string()),
-        spend_limit: None,
+        owner: "owner0001".to_string(),
     };
     let info = mock_info("addr0000", &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg.clone());
@@ -70,26 +61,6 @@ fn update_config() {
         config,
         ConfigResponse {
             owner: "owner0001".to_string(),
-            nebula_token: "nebula0000".to_string(),
-            spend_limit: Uint128::from(1000000u128),
-        }
-    );
-
-    // Update spend_limit
-    let msg = ExecuteMsg::UpdateConfig {
-        owner: None,
-        spend_limit: Some(Uint128::from(2000000u128)),
-    };
-    let info = mock_info("owner0001", &[]);
-    let _res = execute(deps.as_mut(), mock_env(), info, msg);
-    let config: ConfigResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap()).unwrap();
-    assert_eq!(
-        config,
-        ConfigResponse {
-            owner: "owner0001".to_string(),
-            nebula_token: "nebula0000".to_string(),
-            spend_limit: Uint128::from(2000000u128),
         }
     );
 }
@@ -100,8 +71,6 @@ fn test_spend() {
 
     let msg = InstantiateMsg {
         owner: ("owner0000".to_string()),
-        nebula_token: ("nebula0000".to_string()),
-        spend_limit: Uint128::from(1000000u128),
     };
 
     let info = mock_info("addr0000", &[]);
@@ -111,6 +80,7 @@ fn test_spend() {
 
     // permission failed
     let msg = ExecuteMsg::Spend {
+        asset_token: "some_token_address".to_string(),
         recipient: "addr0000".to_string(),
         amount: Uint128::from(1000000u128),
     };
@@ -122,22 +92,8 @@ fn test_spend() {
         _ => panic!("DO NOT ENTER HERE"),
     }
 
-    // failed due to spend limit
     let msg = ExecuteMsg::Spend {
-        recipient: "addr0000".to_string(),
-        amount: Uint128::from(2000000u128),
-    };
-
-    let info = mock_info("owner0000", &[]);
-    let res = execute(deps.as_mut(), mock_env(), info, msg);
-    match res {
-        Err(StdError::GenericErr { msg, .. }) => {
-            assert_eq!(msg, "Cannot spend more than spend_limit")
-        }
-        _ => panic!("DO NOT ENTER HERE"),
-    }
-
-    let msg = ExecuteMsg::Spend {
+        asset_token: "some_token_address".to_string(),
         recipient: "addr0000".to_string(),
         amount: Uint128::from(1000000u128),
     };
@@ -147,7 +103,7 @@ fn test_spend() {
     assert_eq!(
         res.messages,
         vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: "nebula0000".to_string(),
+            contract_addr: "some_token_address".to_string(),
             funds: vec![],
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: "addr0000".to_string(),

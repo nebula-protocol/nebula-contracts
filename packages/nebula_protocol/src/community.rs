@@ -6,8 +6,6 @@ use cosmwasm_std::Uint128;
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     pub owner: String,        // nebula gov contract
-    pub nebula_token: String, // nebula token address
-    pub spend_limit: Uint128, // spend limit per each `spend` request
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -15,10 +13,10 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     /// OWNER-CALLABLE
     UpdateConfig {
-        owner: Option<String>,
-        spend_limit: Option<Uint128>,
+        owner: String,
     },
     Spend {
+        asset_token: String,
         recipient: String,
         amount: Uint128,
     },
@@ -38,6 +36,4 @@ pub enum QueryMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ConfigResponse {
     pub owner: String,
-    pub nebula_token: String,
-    pub spend_limit: Uint128,
 }
