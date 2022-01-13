@@ -1,9 +1,11 @@
 use crate::contract::{execute, instantiate, query};
+use crate::mock_querier::mock_dependencies;
 
-use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-use cosmwasm_std::{from_binary, to_binary, CosmosMsg, StdError, SubMsg, Uint128, WasmMsg};
+use cosmwasm_std::testing::{mock_env, mock_info};
+use cosmwasm_std::{Addr, from_binary, to_binary, CosmosMsg, BankMsg, StdError, SubMsg, Uint128, WasmMsg, coins};
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::community::{ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
+use astroport::asset::{Asset, AssetInfo};
 
 #[test]
 fn proper_initialization() {
@@ -80,9 +82,13 @@ fn test_spend() {
 
     // permission failed
     let msg = ExecuteMsg::Spend {
-        asset_token: "some_token_address".to_string(),
+        asset: Asset {
+            info: AssetInfo::Token {
+                contract_addr: Addr::unchecked("some_token_address")
+            },
+            amount: Uint128::from(1000000u128),
+        },
         recipient: "addr0000".to_string(),
-        amount: Uint128::from(1000000u128),
     };
 
     let info = mock_info("addr0000", &[]);
@@ -92,10 +98,36 @@ fn test_spend() {
         _ => panic!("DO NOT ENTER HERE"),
     }
 
+    // successfully spend Native token
     let msg = ExecuteMsg::Spend {
-        asset_token: "some_token_address".to_string(),
+        asset: Asset {
+            info: AssetInfo::NativeToken {
+                denom: "uusd".to_string()
+            },
+            amount: Uint128::from(1000000u128),
+        },
         recipient: "addr0000".to_string(),
-        amount: Uint128::from(1000000u128),
+    };
+
+    let info = mock_info("owner0000", &[]);
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    assert_eq!(
+        res.messages,
+        vec![SubMsg::new(CosmosMsg::Bank(BankMsg::Send {
+            to_address: "addr0000".to_string(),
+            amount: coins(1000000u128, "uusd"),
+        }))],
+    );
+
+    // successfully spend CW20 token
+    let msg = ExecuteMsg::Spend {
+        asset: Asset {
+            info: AssetInfo::Token {
+                contract_addr: Addr::unchecked("some_token_address_01"),
+            },
+            amount: Uint128::from(1000000u128),
+        },
+        recipient: "addr0000".to_string(),
     };
 
     let info = mock_info("owner0000", &[]);
@@ -103,13 +135,13 @@ fn test_spend() {
     assert_eq!(
         res.messages,
         vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: "some_token_address".to_string(),
+            contract_addr: "some_token_address_01".to_string(),
             funds: vec![],
             msg: to_binary(&Cw20ExecuteMsg::Transfer {
                 recipient: "addr0000".to_string(),
                 amount: Uint128::from(1000000u128),
             })
-            .unwrap(),
+                .unwrap(),
         }))]
     );
 }

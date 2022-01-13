@@ -3,15 +3,13 @@ use cosmwasm_std::entry_point;
 
 use crate::state::{read_config, store_config, Config};
 use cosmwasm_std::{
-    attr, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, Uint128, WasmMsg,
+    attr, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
 };
 
 use nebula_protocol::community::{
     ConfigResponse, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
 };
-
-use cw20::Cw20ExecuteMsg;
+use astroport::asset::Asset;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -41,8 +39,8 @@ pub fn execute(
         ExecuteMsg::UpdateConfig { owner } => {
             update_config(deps, info, owner)
         }
-        ExecuteMsg::Spend { asset_token, recipient, amount } => {
-            spend(deps, info, asset_token, recipient, amount)
+        ExecuteMsg::Spend { asset, recipient } => {
+            spend(deps, info, asset, recipient)
         },
     }
 }
@@ -69,11 +67,9 @@ pub fn update_config(
 pub fn spend(
     deps: DepsMut,
     info: MessageInfo,
-    asset_token: String,
+    asset: Asset,
     recipient: String,
-    amount: Uint128,
 ) -> StdResult<Response> {
-    let validated_asset_token = deps.api.addr_validate(asset_token.as_str())?;
     let validated_recipient = deps.api.addr_validate(recipient.as_str())?;
 
     let config: Config = read_config(deps.storage)?;
@@ -82,19 +78,11 @@ pub fn spend(
     }
 
     Ok(Response::new()
-        .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: validated_asset_token.to_string(),
-            funds: vec![],
-            msg: to_binary(&Cw20ExecuteMsg::Transfer {
-                recipient: validated_recipient.to_string(),
-                amount,
-            })?,
-        })])
+        .add_messages(vec![asset.clone().into_msg(&deps.querier, validated_recipient)?])
         .add_attributes(vec![
             attr("action", "spend"),
-            attr("asset_token", asset_token),
+            attr("asset", asset.to_string()),
             attr("recipient", recipient),
-            attr("amount", amount),
         ]))
 }
 

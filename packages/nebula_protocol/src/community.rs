@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::Uint128;
+use astroport::asset::Asset;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -16,9 +16,8 @@ pub enum ExecuteMsg {
         owner: String,
     },
     Spend {
-        asset_token: String,
+        asset: Asset,
         recipient: String,
-        amount: Uint128,
     },
 }
 
