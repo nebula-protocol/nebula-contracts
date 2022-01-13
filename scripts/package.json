@@ -5,11 +5,10 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
-    "start": "npm run build-env && npm run build-app",
-    "build-app": "bash build_app.sh",
-    "build-env": "bash build_env.sh",
-    "build-artifacts": "bash build_artifacts.sh",
-    "migrate": "bash migrate.sh"
+    "start": "npm run deploy && npm run execute && npm run compile",
+    "deploy": "bash deploy.sh",
+    "execute": "bash execute.sh",
+    "compile": "python3 to_csv.py"
   },
   "dependencies": {
     "@terra-money/terra.js": "^2.0.14",

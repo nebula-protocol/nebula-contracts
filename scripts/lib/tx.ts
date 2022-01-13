@@ -7,7 +7,7 @@ import {
   executeContract,
 } from "./helpers.js";
 import { join } from "path";
-import { LCDClient, Coins } from "@terra-money/terra.js";
+import { LCDClient } from "@terra-money/terra.js";
 
 const ARTIFACTS_PATH = "../artifacts";
 
@@ -57,22 +57,17 @@ export async function execute(
   contractAddress: string,
   terra: LCDClient,
   wallet: any,
-  msg: any
+  msg: any,
+  coins?: any
 ) {
   let network = readArtifact(terra.config.chainID);
 
   console.log(`Executing ${func} on ${contractAddress}`);
 
-  let tx = await executeContract(
-    terra,
-    wallet,
-    contractAddress,
-    msg,
-    new Coins([])
-  );
+  let tx = await executeContract(terra, wallet, contractAddress, msg, coins);
 
   console.log(`${func} excuted: ${tx.txhash}`);
   await sleep(10000);
 
-  return tx.txhash;
+  return tx;
 }

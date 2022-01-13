@@ -6,23 +6,29 @@ import {
   instantiateContract,
   queryContract,
   uploadContract,
-} from "./helpers.js";
+  TokenAsset,
+  NativeAsset,
+} from "../lib/helpers.js";
+import { createPair, provideLiquidity } from "../lib/lp.js";
 
 const CW20_BINARY_PATH =
   process.env.CW20_BINARY_PATH! || "../artifacts/astroport_token.wasm";
 const TOKEN_INITIAL_AMOUNT =
   process.env.TOKEN_INITIAL_AMOUNT! || String(1_000_000_000_000000);
 
+const liquidity_amount = 10000000;
+
 // Main
 async function main() {
+  // Setup
   console.log("===CREATE_NEB_START===");
   const { terra, wallet } = newClient();
-  const network = readArtifact(terra.config.chainID);
+  let network = readArtifact(terra.config.chainID);
   console.log(
     `chainID: ${terra.config.chainID} wallet: ${wallet.key.accAddress}`
   );
 
-  // Upload contract code
+  // Upload token contract code
   network.tokenCodeID = await uploadContract(terra, wallet, CW20_BINARY_PATH!);
   console.log(`Token codeId: ${network.tokenCodeID}`);
   // Token info
@@ -42,7 +48,7 @@ async function main() {
     ],
   };
 
-  // Instantiate Astro token contract
+  // Instantiate NEB token contract
   let resp = await instantiateContract(
     terra,
     wallet,
@@ -50,17 +56,29 @@ async function main() {
     network.tokenCodeID,
     TOKEN_INFO
   );
-  network.tokenAddress = resp.shift();
-  console.log("NEB contract:", network.tokenAddress);
+  network.nebTokenAddress = resp.shift();
+  console.log("NEB contract:", network.nebTokenAddress);
   console.log(
-    await queryContract(terra, network.tokenAddress, { token_info: {} })
+    await queryContract(terra, network.nebTokenAddress, { token_info: {} })
   );
-  console.log(await queryContract(terra, network.tokenAddress, { minter: {} }));
+  console.log(
+    await queryContract(terra, network.nebTokenAddress, { minter: {} })
+  );
 
-  let balance = await queryContract(terra, network.tokenAddress, {
+  let balance = await queryContract(terra, network.nebTokenAddress, {
     balance: { address: TOKEN_INFO.initial_balances[0].address },
   });
   strictEqual(balance.balance, TOKEN_INFO.initial_balances[0].amount);
+
+  // create NEB-UST pair
+  network = await createPair(network, "neb");
+
+  // provide initial NEB-UST liquidity
+  await provideLiquidity(
+    network,
+    new NativeAsset("uusd", liquidity_amount.toString()),
+    new TokenAsset(network.nebTokenAddress, liquidity_amount.toString())
+  );
 
   writeArtifact(network, terra.config.chainID);
   console.log("===CREATE_NEB_FINISH===");

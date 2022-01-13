@@ -11,6 +11,8 @@ Cargo.lock
 **/*.rs.bk
 
 node_modules
+venv
+**.env
 
 *.vscode*
 *__pycache__*

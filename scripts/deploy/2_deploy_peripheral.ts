@@ -3,15 +3,12 @@ import {
   newClient,
   writeArtifact,
   readArtifact,
-  deployContract,
-  executeContract,
   uploadContract,
-  instantiateContract,
-} from "./helpers.js";
+} from "../lib/helpers.js";
 import { join } from "path";
 import { LCDClient } from "@terra-money/terra.js";
 
-import { uploadAndInit } from "./lib.js";
+import { uploadAndInit } from "../lib/tx.js";
 
 const ARTIFACTS_PATH = "../artifacts";
 
@@ -23,17 +20,13 @@ async function main() {
   );
   let network = readArtifact(terra.config.chainID);
 
-  if (!network.tokenAddress) {
-    console.log(
-      `Please deploy the CW20-base ASTRO token, and then set this address in the deploy config before running this script...`
-    );
-    return;
-  }
-
+  // Upload cluster and penalty code
   network = await uploadClusterTokenCode(terra, wallet);
+  network = await uploadPenaltyCode(terra, wallet);
 
+  // Upload and instantiate peripheral contract
   network = await uploadAndInit("gov", terra, wallet, {
-    nebula_token: network.tokenAddress,
+    nebula_token: network.nebTokenAddress,
     quorum: network.gov.quorum,
     threshold: network.gov.threshold,
     voting_period: network.gov.votingPeriod,
@@ -43,20 +36,19 @@ async function main() {
     snapshot_period: network.gov.snapshotPeriod,
   });
   network = await uploadAndInit("community", terra, wallet, {
-    nebula_token: network.tokenAddress,
+    nebula_token: network.nebTokenAddress,
     owner: network.govAddress,
     spend_limit: network.community.spendLimit,
   });
   network = await uploadAndInit("incentives_custody", terra, wallet, {
     owner: network.govAddress,
-    neb_token: network.tokenAddress,
+    neb_token: network.nebTokenAddress,
   });
   network = await uploadAndInit("oracle", terra, wallet, {
     owner: network.feederAddress,
   });
 
-  // Set new owner for admin
-  network = readArtifact(terra.config.chainID); // reload variables
+  writeArtifact(network, terra.config.chainID);
 
   console.log("===DEPLOY_PERIPHERAL_FINISH===");
 }
@@ -74,6 +66,23 @@ async function uploadClusterTokenCode(terra: LCDClient, wallet: any) {
 
   network["clusterTokenCodeID"] = resp;
   console.log(`Cluster Token Code ID: ${network["clusterTokenCodeID"]}`);
+  writeArtifact(network, terra.config.chainID);
+  return network;
+}
+
+async function uploadPenaltyCode(terra: LCDClient, wallet: any) {
+  let network = readArtifact(terra.config.chainID);
+
+  console.log("Uploading Penalty code...");
+
+  let resp = await uploadContract(
+    terra,
+    wallet,
+    join(ARTIFACTS_PATH, "nebula_penalty.wasm")
+  );
+
+  network["penaltyCodeID"] = resp;
+  console.log(`Penalty Code ID: ${network["penaltyCodeID"]}`);
   writeArtifact(network, terra.config.chainID);
   return network;
 }
