@@ -3,7 +3,8 @@ use cosmwasm_std::entry_point;
 
 use crate::state::{read_config, store_config, Config};
 use cosmwasm_std::{
-    attr, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
+    attr, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+    StdResult, WasmMsg,
 };
 
 use astroport::asset::Asset;
@@ -38,6 +39,9 @@ pub fn execute(
     match msg {
         ExecuteMsg::UpdateConfig { owner } => update_config(deps, info, owner),
         ExecuteMsg::Spend { asset, recipient } => spend(deps, info, asset, recipient),
+        ExecuteMsg::PassCommand { contract_addr, msg } => {
+            pass_command(deps, info, contract_addr, msg)
+        }
     }
 }
 
@@ -78,6 +82,26 @@ pub fn spend(
             attr("asset", asset.to_string()),
             attr("recipient", recipient),
         ]))
+}
+
+pub fn pass_command(
+    deps: DepsMut,
+    info: MessageInfo,
+    contract_addr: String,
+    msg: Binary,
+) -> StdResult<Response> {
+    let config: Config = read_config(deps.storage)?;
+    if config.owner != info.sender {
+        return Err(StdError::generic_err("unauthorized"));
+    }
+
+    Ok(
+        Response::new().add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr,
+            msg,
+            funds: vec![],
+        })]),
+    )
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

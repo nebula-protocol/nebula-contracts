@@ -4,7 +4,8 @@ use crate::mock_querier::mock_dependencies;
 use astroport::asset::{Asset, AssetInfo};
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{
-    coins, from_binary, to_binary, Addr, BankMsg, CosmosMsg, StdError, SubMsg, Uint128, WasmMsg,
+    coins, from_binary, to_binary, Addr, BankMsg, Binary, CosmosMsg, StdError, SubMsg, Uint128,
+    WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::community::{ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
@@ -144,6 +145,50 @@ fn test_spend() {
                 amount: Uint128::from(1000000u128),
             })
             .unwrap(),
+        }))]
+    );
+}
+
+#[test]
+fn test_pass_command() {
+    let mut deps = mock_dependencies(&[]);
+
+    let msg = InstantiateMsg {
+        owner: ("owner0000".to_string()),
+    };
+
+    let info = mock_info("addr0000", &[]);
+
+    // we can just call .unwrap() to assert this was a success
+    let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+    // failed non-owner call
+    let msg = ExecuteMsg::PassCommand {
+        contract_addr: "contract0001".to_string(),
+        msg: Binary::default(),
+    };
+
+    let info = mock_info("imposter0001", &[]);
+    let res = execute(deps.as_mut(), mock_env(), info, msg);
+    match res {
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized"),
+        _ => panic!("DO NOT ENTER HERE"),
+    }
+
+    // successfully pass command
+    let msg = ExecuteMsg::PassCommand {
+        contract_addr: "contract0001".to_string(),
+        msg: Binary::default(),
+    };
+
+    let info = mock_info("owner0000", &[]);
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    assert_eq!(
+        res.messages,
+        vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: "contract0001".to_string(),
+            funds: vec![],
+            msg: Binary::default(),
         }))]
     );
 }

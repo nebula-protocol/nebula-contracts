@@ -2,6 +2,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use astroport::asset::Asset;
+use cosmwasm_std::Binary;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -18,6 +19,10 @@ pub enum ExecuteMsg {
     Spend {
         asset: Asset,
         recipient: String,
+    },
+    PassCommand {
+        contract_addr: String,
+        msg: Binary,
     },
 }
 
