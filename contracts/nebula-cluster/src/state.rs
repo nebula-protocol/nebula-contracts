@@ -1,7 +1,7 @@
+use astroport::asset::Asset;
 use cosmwasm_std::{StdResult, Storage, Uint128};
 use cosmwasm_storage::{bucket, bucket_read, singleton, singleton_read, Singleton};
 use nebula_protocol::cluster::ClusterConfig;
-use terraswap::asset::Asset;
 
 /// config: ClusterConfig
 pub static CONFIG_KEY: &[u8] = b"config";
@@ -30,7 +30,10 @@ pub fn read_target_asset_data(storage: &dyn Storage) -> StdResult<Vec<Asset>> {
     singleton_read(storage, ASSET_DATA_KEY).load()
 }
 
-pub fn store_target_asset_data(storage: &mut dyn Storage, asset_data: &Vec<Asset>) -> StdResult<()> {
+pub fn store_target_asset_data(
+    storage: &mut dyn Storage,
+    asset_data: &Vec<Asset>,
+) -> StdResult<()> {
     singleton(storage, ASSET_DATA_KEY).save(asset_data)
 }
 

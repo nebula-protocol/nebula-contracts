@@ -1,7 +1,6 @@
+use cosmwasm_std::Uint128;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-use cosmwasm_std::Uint128;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -15,7 +14,7 @@ pub enum ExecuteMsg {
     /// OWNER-CALLABLE
     UpdateConfig {
         owner: Option<String>,
-        nebula_token: Option<String>
+        nebula_token: Option<String>,
     },
     RegisterMerkleRoot {
         merkle_root: String,

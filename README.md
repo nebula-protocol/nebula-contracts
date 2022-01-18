@@ -24,16 +24,14 @@ Some parts of Nebula such as a Cluster's penalty function or NEB incentive campa
 Nebula ships with a couple default ones, and their code is here.
 
 | Contract                    | Description                                                      |
-| --------------------------- | ---------------------------------------------------------------- |
+| --------------------------- |------------------------------------------------------------------|
 | `nebula-penalty`            | Implementation of a Cluster Penalty Function, used by default    |
-| `nebula-incentives`         | Implementation of a NEB incentive scheme for Terraswap arbitrage |
+| `nebula-incentives`         | Implementation of a NEB incentive scheme for Astroport arbitrage |
 | `nebula-incentives-custody` | Custody contract for NEB incentive scheme                        |
 | `nebula-oracle`             | Price oracle contract used by the Nebula Protocol                |
 
-### Testing
+[//]: # (### Testing)
 
-These contracts are solely used for testing purposes.
+[//]: # ()
+[//]: # (These contracts are solely used for testing purposes.)
 
-| Contract           | Description                                                     |
-| ------------------ | --------------------------------------------------------------- |
-| `terraswap-oracle` | Oracle feeder that uses liquidity from Terraswap to feed prices |

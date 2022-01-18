@@ -6,26 +6,20 @@ use crate::{
     state::{store_config, store_target_asset_data},
     util::vec_to_string,
 };
+use astroport::asset::AssetInfo;
 use cosmwasm_std::{
     attr, DepsMut, Env, MessageInfo, QuerierWrapper, Response, StdError, StdResult, Uint128,
 };
 use nebula_protocol::cluster::{ClusterConfig, InstantiateMsg};
-use terraswap::asset::AssetInfo;
 
 pub fn validate_targets(
     querier: QuerierWrapper,
     env: &Env,
     target_assets: Vec<AssetInfo>,
-    to_query: bool,
 ) -> StdResult<bool> {
-    for i in 0..target_assets.len() - 1 {
-        if to_query {
-            query_asset_balance(
-                &querier,
-                &env.contract.address.to_string(),
-                &target_assets[i],
-            )?;
-        }
+    for i in 0..target_assets.len() {
+        // Check if asset is a valid CW20.
+        query_asset_balance(&querier, &env.contract.address, &target_assets[i])?;
         for j in i + 1..target_assets.len() {
             if target_assets[i].equal(&target_assets[j]) {
                 return Ok(false);
@@ -45,12 +39,15 @@ pub fn instantiate(
     let cfg = ClusterConfig {
         name: msg.name.clone(),
         description: msg.description.clone(),
-        owner: msg.owner.clone(),
-        cluster_token: msg.cluster_token,
-        factory: msg.factory,
-        pricing_oracle: msg.pricing_oracle.clone(),
-        target_oracle: msg.target_oracle.clone(),
-        penalty: msg.penalty.clone(),
+        owner: deps.api.addr_validate(msg.owner.as_str())?,
+        cluster_token: msg
+            .cluster_token
+            .map(|x| deps.api.addr_validate(x.as_str()))
+            .transpose()?,
+        factory: deps.api.addr_validate(msg.factory.as_str())?,
+        pricing_oracle: deps.api.addr_validate(msg.pricing_oracle.as_str())?,
+        target_oracle: deps.api.addr_validate(msg.target_oracle.as_str())?,
+        penalty: deps.api.addr_validate(msg.penalty.as_str())?,
         active: true,
     };
 
@@ -72,7 +69,7 @@ pub fn instantiate(
         }
     }
 
-    if validate_targets(deps.querier, &env, asset_infos.clone(), false).is_err() {
+    if validate_targets(deps.querier, &env, asset_infos.clone()).is_err() {
         return Err(StdError::generic_err(
             "Cluster must contain valid assets and cannot contain duplicate assets",
         ));

@@ -1,16 +1,16 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::Uint128;
+use astroport::asset::{Asset, AssetInfo};
+use astroport::pair::PoolResponse as AstroportPoolResponse;
+use cosmwasm_std::{Addr, Uint128};
 use cw20::Cw20ReceiveMsg;
-use terraswap::asset::{Asset, AssetInfo};
-use terraswap::pair::PoolResponse as TerraswapPoolResponse;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     pub factory: String,
     pub custody: String,
-    pub terraswap_factory: String,
+    pub astroport_factory: String,
     pub nebula_token: String,
     pub base_denom: String,
     pub owner: String,
@@ -30,21 +30,41 @@ pub enum ExecuteMsg {
     /// INTERNAL
     _SendAll {
         asset_infos: Vec<AssetInfo>,
-        send_to: String,
+        send_to: Addr,
     },
 
     _SwapAll {
-        terraswap_pair: String,
-        cluster_token: String,
+        astroport_pair: Addr,
+        cluster_token: Addr,
         min_return: Uint128,
         to_ust: bool,
     },
 
-    _RecordTerraswapImpact {
-        arbitrageur: String,
-        terraswap_pair: String,
-        cluster_contract: String,
-        pool_before: TerraswapPoolResponse,
+    _RecordAstroportImpact {
+        arbitrageur: Addr,
+        astroport_pair: Addr,
+        cluster_contract: Addr,
+        pool_before: AstroportPoolResponse,
+    },
+    _InternalRewardedCreate {
+        rebalancer: Addr,
+        cluster_contract: Addr,
+        asset_amounts: Vec<Asset>,
+        min_tokens: Option<Uint128>,
+    },
+
+    _InternalRewardedRedeem {
+        rebalancer: Addr,
+        cluster_contract: Addr,
+        cluster_token: Addr,
+        max_tokens: Option<Uint128>,
+        asset_amounts: Option<Vec<Asset>>,
+    },
+
+    _RecordRebalancerRewards {
+        rebalancer: Addr,
+        cluster_contract: Addr,
+        original_imbalance: Uint128,
     },
 
     /// USER-CALLABLE
@@ -70,27 +90,6 @@ pub enum ExecuteMsg {
         cluster_contract: String,
         max_tokens: Uint128,
         asset_amounts: Option<Vec<Asset>>,
-    },
-
-    _InternalRewardedCreate {
-        rebalancer: String,
-        cluster_contract: String,
-        asset_amounts: Vec<Asset>,
-        min_tokens: Option<Uint128>,
-    },
-
-    _InternalRewardedRedeem {
-        rebalancer: String,
-        cluster_contract: String,
-        cluster_token: String,
-        max_tokens: Option<Uint128>,
-        asset_amounts: Option<Vec<Asset>>,
-    },
-
-    _RecordRebalancerRewards {
-        rebalancer: String,
-        cluster_contract: String,
-        original_imbalance: Uint128,
     },
 }
 
@@ -118,7 +117,7 @@ pub enum QueryMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ConfigResponse {
     pub factory: String,
-    pub terraswap_factory: String,
+    pub astroport_factory: String,
     pub nebula_token: String,
     pub base_denom: String,
     pub owner: String,

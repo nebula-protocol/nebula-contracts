@@ -1,7 +1,7 @@
-use cosmwasm_std::Uint128;
+use astroport::asset::Asset;
+use cosmwasm_std::{Addr, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use terraswap::asset::Asset;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -45,7 +45,7 @@ pub enum ExecuteMsg {
         pricing_oracle: Option<String>,
         target_oracle: Option<String>,
         penalty: Option<String>,
-        target: Option<Vec<Asset>>, // recomp oracle
+        target: Option<Vec<Asset>>, // recomposition oracle
     },
     /// Called by target oracle
     UpdateTarget { target: Vec<Asset> },
@@ -114,11 +114,11 @@ pub struct ClusterInfoResponse {
 pub struct ClusterConfig {
     pub name: String,
     pub description: String,
-    pub owner: String,
-    pub cluster_token: Option<String>,
-    pub factory: String,
-    pub pricing_oracle: String,
-    pub target_oracle: String,
-    pub penalty: String,
+    pub owner: Addr,
+    pub cluster_token: Option<Addr>,
+    pub factory: Addr,
+    pub pricing_oracle: Addr,
+    pub target_oracle: Addr,
+    pub penalty: Addr,
     pub active: bool,
 }

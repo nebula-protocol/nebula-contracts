@@ -4,7 +4,8 @@ mod tests {
     use crate::mock_querier::mock_dependencies_with_querier;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MOCK_CONTRACT_ADDR};
     use cosmwasm_std::{
-        attr, from_binary, to_binary, Coin, CosmosMsg, Decimal, StdError, SubMsg, Uint128, WasmMsg,
+        attr, from_binary, to_binary, Addr, Coin, CosmosMsg, Decimal, StdError, SubMsg, Uint128,
+        WasmMsg,
     };
     use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
     use nebula_protocol::staking::{
@@ -12,8 +13,8 @@ mod tests {
         RewardInfoResponseItem,
     };
 
-    use terraswap::asset::{Asset, AssetInfo};
-    use terraswap::pair::ExecuteMsg as PairExecuteMsg;
+    use astroport::asset::{Asset, AssetInfo};
+    use astroport::pair::ExecuteMsg as PairExecuteMsg;
 
     #[test]
     fn test_bond_tokens() {
@@ -22,7 +23,7 @@ mod tests {
         let msg = InstantiateMsg {
             owner: "owner".to_string(),
             nebula_token: "nebtoken".to_string(),
-            terraswap_factory: "terraswap-factory".to_string(),
+            astroport_factory: "astroport-factory".to_string(),
         };
 
         let info = mock_info("addr", &[]);
@@ -147,7 +148,7 @@ mod tests {
         let msg = InstantiateMsg {
             owner: "owner".to_string(),
             nebula_token: "nebtoken".to_string(),
-            terraswap_factory: "terraswap-factory".to_string(),
+            astroport_factory: "astroport-factory".to_string(),
         };
 
         let info = mock_info("addr", &[]);
@@ -262,7 +263,7 @@ mod tests {
             },
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: "asset".to_string(),
+                    contract_addr: Addr::unchecked("asset"),
                 },
                 amount: Uint128::from(1u128),
             },
@@ -271,7 +272,7 @@ mod tests {
         let msg = InstantiateMsg {
             owner: "owner".to_string(),
             nebula_token: "nebtoken".to_string(),
-            terraswap_factory: "terraswap_factory".to_string(),
+            astroport_factory: "astroport-factory".to_string(),
         };
 
         let info = mock_info("addr", &[]);
@@ -318,13 +319,13 @@ mod tests {
             assets: [
                 Asset {
                     info: AssetInfo::Token {
-                        contract_addr: "asset".to_string(),
+                        contract_addr: Addr::unchecked("asset"),
                     },
                     amount: Uint128::from(1u128),
                 },
                 Asset {
                     info: AssetInfo::Token {
-                        contract_addr: "asset".to_string(),
+                        contract_addr: Addr::unchecked("asset"),
                     },
                     amount: Uint128::from(1u128),
                 },
@@ -345,7 +346,7 @@ mod tests {
                 },
                 Asset {
                     info: AssetInfo::Token {
-                        contract_addr: "asset".to_string(),
+                        contract_addr: Addr::unchecked("asset"),
                     },
                     amount: Uint128::new(1u128),
                 },
@@ -406,12 +407,13 @@ mod tests {
                             },
                             Asset {
                                 info: AssetInfo::Token {
-                                    contract_addr: "asset".to_string()
+                                    contract_addr: Addr::unchecked("asset")
                                 },
                                 amount: Uint128::new(1u128),
                             },
                         ],
                         slippage_tolerance: None,
+                        auto_stake: None,
                         receiver: None
                     })
                     .unwrap(),
@@ -423,9 +425,9 @@ mod tests {
                 SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: MOCK_CONTRACT_ADDR.to_string(),
                     msg: to_binary(&ExecuteMsg::AutoStakeHook {
-                        asset_token: "asset".to_string(),
-                        staking_token: "lptoken".to_string(),
-                        staker_addr: "addr0000".to_string(),
+                        asset_token: Addr::unchecked("asset"),
+                        staking_token: Addr::unchecked("lptoken"),
+                        staker_addr: Addr::unchecked("addr0000"),
                         prev_staking_token_amount: Uint128::zero(),
                     })
                     .unwrap(),
@@ -438,9 +440,9 @@ mod tests {
 
         // wrong asset
         let msg = ExecuteMsg::AutoStakeHook {
-            asset_token: "asset1".to_string(),
-            staking_token: "lptoken".to_string(),
-            staker_addr: "addr0000".to_string(),
+            asset_token: Addr::unchecked("asset1"),
+            staking_token: Addr::unchecked("lptoken"),
+            staker_addr: Addr::unchecked("addr0000"),
             prev_staking_token_amount: Uint128::zero(),
         };
         let info = mock_info(MOCK_CONTRACT_ADDR, &[]);
@@ -448,9 +450,9 @@ mod tests {
 
         // valid msg
         let msg = ExecuteMsg::AutoStakeHook {
-            asset_token: "asset".to_string(),
-            staking_token: "lptoken".to_string(),
-            staker_addr: "addr0000".to_string(),
+            asset_token: Addr::unchecked("asset"),
+            staking_token: Addr::unchecked("lptoken"),
+            staker_addr: Addr::unchecked("addr0000"),
             prev_staking_token_amount: Uint128::zero(),
         };
 

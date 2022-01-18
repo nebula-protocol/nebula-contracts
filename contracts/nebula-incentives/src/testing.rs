@@ -3,19 +3,21 @@ use crate::mock_querier::mock_dependencies;
 use crate::state::{contributions_read, read_from_contribution_bucket, record_contribution};
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    attr, coins, from_binary, to_binary, BankMsg, CosmosMsg, Decimal, DepsMut, StdError, SubMsg,
-    Uint128, WasmMsg,
+    attr, coins, from_binary, to_binary, Addr, BankMsg, CosmosMsg, Decimal, DepsMut, StdError,
+    SubMsg, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use nebula_protocol::cluster::ExecuteMsg as ClusterExecuteMsg;
-use terraswap::pair::PoolResponse as TerraswapPoolResponse;
 
+use astroport::asset::{Asset, AssetInfo};
+use astroport::pair::{
+    Cw20HookMsg as AstroportCw20HookMsg, ExecuteMsg as AstroportExecuteMsg,
+    PoolResponse as AstroportPoolResponse,
+};
 use nebula_protocol::incentives::{
     ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, PenaltyPeriodResponse, PoolType,
     QueryMsg,
 };
-use terraswap::asset::{Asset, AssetInfo};
-use terraswap::pair::{Cw20HookMsg as TerraswapCw20HookMsg, ExecuteMsg as TerraswapExecuteMsg};
 
 const TEST_CREATOR: &str = "creator";
 
@@ -23,7 +25,7 @@ fn init_msg() -> InstantiateMsg {
     InstantiateMsg {
         factory: ("factory".to_string()),
         custody: ("custody".to_string()),
-        terraswap_factory: ("terraswap_factory".to_string()),
+        astroport_factory: ("astroport_factory".to_string()),
         nebula_token: ("nebula_token".to_string()),
         base_denom: "uusd".to_string(),
         owner: ("owner0000".to_string()),
@@ -57,7 +59,7 @@ fn proper_initialization() {
             factory: "factory".to_string(),
             custody: "custody".to_string(),
             nebula_token: "nebula_token".to_string(),
-            terraswap_factory: "terraswap_factory".to_string(),
+            astroport_factory: "astroport_factory".to_string(),
             base_denom: "uusd".to_string(),
         }
     );
@@ -91,7 +93,7 @@ fn proper_initialization() {
             factory: ("factory".to_string()),
             custody: ("custody".to_string()),
             nebula_token: "nebula_token".to_string(),
-            terraswap_factory: "terraswap_factory".to_string(),
+            astroport_factory: "astroport_factory".to_string(),
             base_denom: "uusd".to_string(),
         }
     );
@@ -186,27 +188,27 @@ fn test_withdraw_reward() {
     // Manually record contribution to pools; one pool has other contribution from another address, make sure ratio is correct
     record_contribution(
         deps.as_mut(),
-        &"contributor0000".to_string(),
+        &Addr::unchecked("contributor0000"),
         PoolType::REBALANCE,
-        &"cluster".to_string(),
+        &Addr::unchecked("cluster"),
         Uint128::new(25),
     )
     .unwrap();
 
     record_contribution(
         deps.as_mut(),
-        &"contributor0000".to_string(),
+        &Addr::unchecked("contributor0000"),
         PoolType::ARBITRAGE,
-        &"cluster".to_string(),
+        &Addr::unchecked("cluster"),
         Uint128::new(25),
     )
     .unwrap();
 
     record_contribution(
         deps.as_mut(),
-        &"contributor0001".to_string(),
+        &Addr::unchecked("contributor0001"),
         PoolType::ARBITRAGE,
-        &"cluster".to_string(),
+        &Addr::unchecked("cluster"),
         Uint128::new(25),
     )
     .unwrap();
@@ -263,13 +265,13 @@ fn test_incentives_mint() {
     let asset_amounts = vec![
         Asset {
             info: AssetInfo::Token {
-                contract_addr: "asset0000".to_string(),
+                contract_addr: Addr::unchecked("asset0000"),
             },
             amount: Uint128::new(100),
         },
         Asset {
             info: AssetInfo::Token {
-                contract_addr: "asset0001".to_string(),
+                contract_addr: Addr::unchecked("asset0001"),
             },
             amount: Uint128::new(100),
         },
@@ -316,8 +318,8 @@ fn test_incentives_mint() {
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::_InternalRewardedCreate {
-                    rebalancer: info.sender.to_string(),
-                    cluster_contract: "cluster".to_string(),
+                    rebalancer: info.sender.clone(),
+                    cluster_contract: Addr::unchecked("cluster"),
                     asset_amounts: asset_amounts,
                     min_tokens: None,
                 })
@@ -328,9 +330,9 @@ fn test_incentives_mint() {
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::_SendAll {
                     asset_infos: vec![AssetInfo::Token {
-                        contract_addr: "cluster_token".to_string(),
+                        contract_addr: Addr::unchecked("cluster_token"),
                     }],
-                    send_to: info.sender.to_string(),
+                    send_to: info.sender,
                 })
                 .unwrap(),
                 funds: vec![],
@@ -353,13 +355,13 @@ fn test_incentives_redeem() {
     let asset_amounts = vec![
         Asset {
             info: AssetInfo::Token {
-                contract_addr: "asset0000".to_string(),
+                contract_addr: Addr::unchecked("asset0000"),
             },
             amount: Uint128::new(100),
         },
         Asset {
             info: AssetInfo::Token {
-                contract_addr: "asset0001".to_string(),
+                contract_addr: Addr::unchecked("asset0001"),
             },
             amount: Uint128::new(100),
         },
@@ -373,10 +375,10 @@ fn test_incentives_redeem() {
 
     let asset_infos = vec![
         AssetInfo::Token {
-            contract_addr: "asset0000".to_string(),
+            contract_addr: Addr::unchecked("asset0000"),
         },
         AssetInfo::Token {
-            contract_addr: "asset0001".to_string(),
+            contract_addr: Addr::unchecked("asset0001"),
         },
         AssetInfo::NativeToken {
             denom: "native_asset0000".to_string(),
@@ -411,9 +413,9 @@ fn test_incentives_redeem() {
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::_InternalRewardedRedeem {
-                    rebalancer: info.sender.to_string(),
-                    cluster_contract: "cluster".to_string(),
-                    cluster_token: "cluster_token".to_string(),
+                    rebalancer: info.sender.clone(),
+                    cluster_contract: Addr::unchecked("cluster"),
+                    cluster_token: Addr::unchecked("cluster_token"),
                     max_tokens: Some(Uint128::new(1000)),
                     asset_amounts: Some(asset_amounts.clone()),
                 })
@@ -424,7 +426,7 @@ fn test_incentives_redeem() {
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::_SendAll {
                     asset_infos,
-                    send_to: info.sender.to_string(),
+                    send_to: info.sender,
                 })
                 .unwrap(),
                 funds: vec![],
@@ -439,7 +441,7 @@ fn test_incentives_arb_cluster_mint() {
 
     mock_init(deps.as_mut());
 
-    deps.querier.with_terraswap_pairs(&[(
+    deps.querier.with_astroport_pairs(&[(
         &"uusdcluster_token".to_string(),
         &"uusd_cluster_pair".to_string(),
     )]);
@@ -447,13 +449,13 @@ fn test_incentives_arb_cluster_mint() {
     let asset_amounts = vec![
         Asset {
             info: AssetInfo::Token {
-                contract_addr: "asset0000".to_string(),
+                contract_addr: Addr::unchecked("asset0000"),
             },
             amount: Uint128::new(100),
         },
         Asset {
             info: AssetInfo::Token {
-                contract_addr: "asset0001".to_string(),
+                contract_addr: Addr::unchecked("asset0001"),
             },
             amount: Uint128::new(100),
         },
@@ -501,8 +503,8 @@ fn test_incentives_arb_cluster_mint() {
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::_InternalRewardedCreate {
-                    rebalancer: info.sender.to_string(),
-                    cluster_contract: "cluster".to_string(),
+                    rebalancer: info.sender.clone(),
+                    cluster_contract: Addr::unchecked("cluster"),
                     asset_amounts: asset_amounts,
                     min_tokens: None,
                 })
@@ -512,8 +514,8 @@ fn test_incentives_arb_cluster_mint() {
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::_SwapAll {
-                    terraswap_pair: "uusd_cluster_pair".to_string(),
-                    cluster_token: "cluster_token".to_string(),
+                    astroport_pair: Addr::unchecked("uusd_cluster_pair"),
+                    cluster_token: Addr::unchecked("cluster_token"),
                     to_ust: true,
                     min_return: Uint128::zero()
                 })
@@ -522,15 +524,15 @@ fn test_incentives_arb_cluster_mint() {
             })),
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.to_string(),
-                msg: to_binary(&ExecuteMsg::_RecordTerraswapImpact {
-                    arbitrageur: info.sender.to_string(),
-                    terraswap_pair: "uusd_cluster_pair".to_string(),
-                    cluster_contract: "cluster".to_string(),
-                    pool_before: TerraswapPoolResponse {
+                msg: to_binary(&ExecuteMsg::_RecordAstroportImpact {
+                    arbitrageur: info.sender.clone(),
+                    astroport_pair: Addr::unchecked("uusd_cluster_pair"),
+                    cluster_contract: Addr::unchecked("cluster"),
+                    pool_before: AstroportPoolResponse {
                         assets: [
                             Asset {
                                 info: AssetInfo::Token {
-                                    contract_addr: "cluster_token".to_string(),
+                                    contract_addr: Addr::unchecked("cluster_token"),
                                 },
                                 amount: Uint128::new(100),
                             },
@@ -553,7 +555,7 @@ fn test_incentives_arb_cluster_mint() {
                     asset_infos: vec![AssetInfo::NativeToken {
                         denom: "uusd".to_string(),
                     }],
-                    send_to: info.sender.to_string(),
+                    send_to: info.sender,
                 })
                 .unwrap(),
                 funds: vec![],
@@ -568,7 +570,7 @@ fn test_incentives_arb_cluster_redeem() {
 
     mock_init(deps.as_mut());
 
-    deps.querier.with_terraswap_pairs(&[(
+    deps.querier.with_astroport_pairs(&[(
         &"uusdcluster_token".to_string(),
         &"uusd_cluster_pair".to_string(),
     )]);
@@ -577,7 +579,7 @@ fn test_incentives_arb_cluster_redeem() {
         cluster_contract: "cluster".to_string(),
         asset: Asset {
             info: AssetInfo::Token {
-                contract_addr: "asset0000".to_string(),
+                contract_addr: Addr::unchecked("asset0000"),
             },
             amount: Uint128::new(100),
         },
@@ -615,8 +617,8 @@ fn test_incentives_arb_cluster_redeem() {
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::_SwapAll {
-                    terraswap_pair: "uusd_cluster_pair".to_string(),
-                    cluster_token: "cluster_token".to_string(),
+                    astroport_pair: Addr::unchecked("uusd_cluster_pair"),
+                    cluster_token: Addr::unchecked("cluster_token"),
                     to_ust: false,
                     min_return: Uint128::zero()
                 })
@@ -625,15 +627,15 @@ fn test_incentives_arb_cluster_redeem() {
             })),
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.to_string(),
-                msg: to_binary(&ExecuteMsg::_RecordTerraswapImpact {
-                    arbitrageur: info.sender.to_string(),
-                    terraswap_pair: "uusd_cluster_pair".to_string(),
-                    cluster_contract: "cluster".to_string(),
-                    pool_before: TerraswapPoolResponse {
+                msg: to_binary(&ExecuteMsg::_RecordAstroportImpact {
+                    arbitrageur: info.sender.clone(),
+                    astroport_pair: Addr::unchecked("uusd_cluster_pair"),
+                    cluster_contract: Addr::unchecked("cluster"),
+                    pool_before: AstroportPoolResponse {
                         assets: [
                             Asset {
                                 info: AssetInfo::Token {
-                                    contract_addr: "cluster_token".to_string(),
+                                    contract_addr: Addr::unchecked("cluster_token"),
                                 },
                                 amount: Uint128::new(100),
                             },
@@ -653,9 +655,9 @@ fn test_incentives_arb_cluster_redeem() {
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::_InternalRewardedRedeem {
-                    rebalancer: info.sender.to_string(),
-                    cluster_contract: "cluster".to_string(),
-                    cluster_token: "cluster_token".to_string(),
+                    rebalancer: info.sender.clone(),
+                    cluster_contract: Addr::unchecked("cluster"),
+                    cluster_token: Addr::unchecked("cluster_token"),
                     max_tokens: None,
                     asset_amounts: None,
                 })
@@ -667,16 +669,16 @@ fn test_incentives_arb_cluster_redeem() {
                 msg: to_binary(&ExecuteMsg::_SendAll {
                     asset_infos: vec![
                         AssetInfo::Token {
-                            contract_addr: "asset0000".to_string(),
+                            contract_addr: Addr::unchecked("asset0000"),
                         },
                         AssetInfo::Token {
-                            contract_addr: "asset0001".to_string(),
+                            contract_addr: Addr::unchecked("asset0001"),
                         },
                         AssetInfo::NativeToken {
                             denom: "native_asset0000".to_string(),
                         },
                     ],
-                    send_to: info.sender.to_string(),
+                    send_to: info.sender,
                 })
                 .unwrap(),
                 funds: vec![],
@@ -714,7 +716,7 @@ fn test_send_all() {
 
     let asset_infos = vec![
         AssetInfo::Token {
-            contract_addr: "asset0000".to_string(),
+            contract_addr: Addr::unchecked("asset0000"),
         },
         AssetInfo::NativeToken {
             denom: "native_asset0000".to_string(),
@@ -723,7 +725,7 @@ fn test_send_all() {
 
     let msg = ExecuteMsg::_SendAll {
         asset_infos: asset_infos.clone(),
-        send_to: "owner0000".to_string(),
+        send_to: Addr::unchecked("owner0000"),
     };
 
     let info = mock_info(MOCK_CONTRACT_ADDR, &vec![]);
@@ -781,8 +783,8 @@ fn test_swap_all() {
     // Test to_ust is true
 
     let msg = ExecuteMsg::_SwapAll {
-        terraswap_pair: "terraswap_pair".to_string(),
-        cluster_token: "cluster_token".to_string(),
+        astroport_pair: Addr::unchecked("astroport_pair"),
+        cluster_token: Addr::unchecked("cluster_token"),
         to_ust: true,
         min_return: Uint128::zero(),
     };
@@ -795,9 +797,9 @@ fn test_swap_all() {
         vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: "cluster_token".to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Send {
-                contract: "terraswap_pair".to_string(),
+                contract: "astroport_pair".to_string(),
                 amount: Uint128::new(1000),
-                msg: to_binary(&TerraswapCw20HookMsg::Swap {
+                msg: to_binary(&AstroportCw20HookMsg::Swap {
                     max_spread: Some(Decimal::zero()),
                     belief_price: Some(Decimal::zero()),
                     to: None,
@@ -811,8 +813,8 @@ fn test_swap_all() {
 
     // Test to_ust is false
     let msg = ExecuteMsg::_SwapAll {
-        terraswap_pair: "terraswap_pair".to_string(),
-        cluster_token: "cluster_token".to_string(),
+        astroport_pair: Addr::unchecked("astroport_pair"),
+        cluster_token: Addr::unchecked("cluster_token"),
         to_ust: false,
         min_return: Uint128::zero(),
     };
@@ -823,8 +825,8 @@ fn test_swap_all() {
     assert_eq!(
         res.messages,
         vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: "terraswap_pair".to_string(),
-            msg: to_binary(&TerraswapExecuteMsg::Swap {
+            contract_addr: "astroport_pair".to_string(),
+            msg: to_binary(&AstroportExecuteMsg::Swap {
                 offer_asset: Asset {
                     amount: Uint128::new(990),
                     info: AssetInfo::NativeToken {
@@ -855,13 +857,13 @@ fn test_incentives_internal_rewarded_mint() {
     let asset_amounts = vec![
         Asset {
             info: AssetInfo::Token {
-                contract_addr: "asset0000".to_string(),
+                contract_addr: Addr::unchecked("asset0000"),
             },
             amount: Uint128::new(100),
         },
         Asset {
             info: AssetInfo::Token {
-                contract_addr: "asset0001".to_string(),
+                contract_addr: Addr::unchecked("asset0001"),
             },
             amount: Uint128::new(100),
         },
@@ -874,10 +876,10 @@ fn test_incentives_internal_rewarded_mint() {
     ];
 
     let msg = ExecuteMsg::_InternalRewardedCreate {
-        cluster_contract: "cluster".to_string(),
+        cluster_contract: Addr::unchecked("cluster"),
         asset_amounts: asset_amounts.clone(),
         min_tokens: None,
-        rebalancer: "rebalancer".to_string(),
+        rebalancer: Addr::unchecked("rebalancer"),
     };
     let info = mock_info(
         MOCK_CONTRACT_ADDR,
@@ -889,13 +891,13 @@ fn test_incentives_internal_rewarded_mint() {
     let create_asset_amounts_after_tax = vec![
         Asset {
             info: AssetInfo::Token {
-                contract_addr: "asset0000".to_string(),
+                contract_addr: Addr::unchecked("asset0000"),
             },
             amount: Uint128::new(100),
         },
         Asset {
             info: AssetInfo::Token {
-                contract_addr: "asset0001".to_string(),
+                contract_addr: Addr::unchecked("asset0001"),
             },
             amount: Uint128::new(100),
         },
@@ -942,8 +944,8 @@ fn test_incentives_internal_rewarded_mint() {
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::_RecordRebalancerRewards {
-                    rebalancer: "rebalancer".to_string(),
-                    cluster_contract: "cluster".to_string(),
+                    rebalancer: Addr::unchecked("rebalancer"),
+                    cluster_contract: Addr::unchecked("cluster"),
                     original_imbalance: Uint128::new(51),
                 })
                 .unwrap(),
@@ -970,13 +972,13 @@ fn test_incentives_internal_rewarded_redeem() {
     let asset_amounts = vec![
         Asset {
             info: AssetInfo::Token {
-                contract_addr: "asset0000".to_string(),
+                contract_addr: Addr::unchecked("asset0000"),
             },
             amount: Uint128::new(100),
         },
         Asset {
             info: AssetInfo::Token {
-                contract_addr: "asset0001".to_string(),
+                contract_addr: Addr::unchecked("asset0001"),
             },
             amount: Uint128::new(100),
         },
@@ -989,10 +991,10 @@ fn test_incentives_internal_rewarded_redeem() {
     ];
 
     let msg = ExecuteMsg::_InternalRewardedRedeem {
-        cluster_contract: "cluster".to_string(),
+        cluster_contract: Addr::unchecked("cluster"),
         asset_amounts: Some(asset_amounts.clone()),
-        rebalancer: "rebalancer".to_string(),
-        cluster_token: "cluster_token".to_string(),
+        rebalancer: Addr::unchecked("rebalancer"),
+        cluster_token: Addr::unchecked("cluster_token"),
         max_tokens: None,
     };
     let info = mock_info(
@@ -1027,8 +1029,8 @@ fn test_incentives_internal_rewarded_redeem() {
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::_RecordRebalancerRewards {
-                    rebalancer: "rebalancer".to_string(),
-                    cluster_contract: "cluster".to_string(),
+                    rebalancer: Addr::unchecked("rebalancer"),
+                    cluster_contract: Addr::unchecked("cluster"),
                     original_imbalance: Uint128::new(51),
                 })
                 .unwrap(),
@@ -1038,9 +1040,9 @@ fn test_incentives_internal_rewarded_redeem() {
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::_SendAll {
                     asset_infos: vec![AssetInfo::Token {
-                        contract_addr: "cluster_token".to_string(),
+                        contract_addr: Addr::unchecked("cluster_token"),
                     }],
-                    send_to: "rebalancer".to_string(),
+                    send_to: Addr::unchecked("rebalancer"),
                 })
                 .unwrap(),
                 funds: vec![],
@@ -1060,8 +1062,8 @@ fn test_record_rebalancer_rewards() {
     let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
 
     let msg = ExecuteMsg::_RecordRebalancerRewards {
-        cluster_contract: "cluster".to_string(),
-        rebalancer: "rebalancer".to_string(),
+        cluster_contract: Addr::unchecked("cluster"),
+        rebalancer: Addr::unchecked("rebalancer"),
         original_imbalance: Uint128::new(100),
     };
     let info = mock_info(MOCK_CONTRACT_ADDR, &[]);
@@ -1078,22 +1080,23 @@ fn test_record_rebalancer_rewards() {
     // See if stateful changes actually happens
     let contribution_bucket = contributions_read(
         &deps.storage,
-        &"rebalancer".to_string(),
+        &Addr::unchecked("rebalancer"),
         PoolType::REBALANCE,
     );
-    let contribution = read_from_contribution_bucket(&contribution_bucket, &"cluster".to_string());
+    let contribution =
+        read_from_contribution_bucket(&contribution_bucket, &Addr::unchecked("cluster"));
 
     assert_eq!(contribution.n, 1);
     assert_eq!(contribution.value_contributed, Uint128::new(49));
 }
 
 #[test]
-fn test_record_terraswap_impact() {
+fn test_record_astroport_impact() {
     let mut deps = mock_dependencies(&[]);
 
     mock_init(deps.as_mut());
 
-    deps.querier.with_terraswap_pairs(&[(
+    deps.querier.with_astroport_pairs(&[(
         &"uusdcluster_token".to_string(),
         &"uusd_cluster_pair".to_string(),
     )]);
@@ -1102,15 +1105,15 @@ fn test_record_terraswap_impact() {
     let info = mock_info("owner0000", &[]);
     let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
 
-    let msg = ExecuteMsg::_RecordTerraswapImpact {
-        cluster_contract: "cluster".to_string(),
-        arbitrageur: "arbitrageur".to_string(),
-        terraswap_pair: "uusd_cluster_pair".to_string(),
-        pool_before: TerraswapPoolResponse {
+    let msg = ExecuteMsg::_RecordAstroportImpact {
+        cluster_contract: Addr::unchecked("cluster"),
+        arbitrageur: Addr::unchecked("arbitrageur"),
+        astroport_pair: Addr::unchecked("uusd_cluster_pair"),
+        pool_before: AstroportPoolResponse {
             assets: [
                 Asset {
                     info: AssetInfo::Token {
-                        contract_addr: "cluster_token".to_string(),
+                        contract_addr: Addr::unchecked("cluster_token"),
                     },
                     amount: Uint128::new(100),
                 },
@@ -1130,7 +1133,7 @@ fn test_record_terraswap_impact() {
     assert_eq!(
         res.attributes,
         vec![
-            attr("action", "record_terraswap_arbitrageur_rewards"),
+            attr("action", "record_astroport_arbitrageur_rewards"),
             attr("fair_value", "1.6345"),
             attr("arbitrage_imbalance_fixed", "567.862934322973128547"),
             attr("arbitrage_imbalance_sign", "1"),
@@ -1142,10 +1145,11 @@ fn test_record_terraswap_impact() {
     // See if stateful changes actually happens
     let contribution_bucket = contributions_read(
         &deps.storage,
-        &"arbitrageur".to_string(),
+        &Addr::unchecked("arbitrageur"),
         PoolType::ARBITRAGE,
     );
-    let contribution = read_from_contribution_bucket(&contribution_bucket, &"cluster".to_string());
+    let contribution =
+        read_from_contribution_bucket(&contribution_bucket, &Addr::unchecked("cluster"));
 
     assert_eq!(contribution.n, 1);
     assert_eq!(contribution.value_contributed, Uint128::new(567));

@@ -2,6 +2,7 @@ use super::*;
 pub use crate::contract::*;
 pub use crate::ext_query::*;
 pub use crate::state::*;
+use astroport::asset::{Asset, AssetInfo};
 pub use cluster_math::*;
 pub use cosmwasm_std::testing::{
     mock_env, mock_info, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR,
@@ -23,7 +24,6 @@ use pretty_assertions::assert_eq;
 use std::collections::HashMap;
 pub use std::str::FromStr;
 use terra_cosmwasm::*;
-use terraswap::asset::{Asset, AssetInfo};
 
 /// Convenience function for creating inline String
 pub fn h(s: &str) -> String {
@@ -54,7 +54,7 @@ impl Querier for WasmMockQuerier {
             Ok(v) => v,
             Err(e) => {
                 return SystemResult::Err(SystemError::InvalidRequest {
-                    error: format!("Parsing query request: {}", e),
+                    error: format!("Parsing query request: {:?}", e),
                     request: bin_request.into(),
                 })
             }
@@ -441,7 +441,7 @@ pub fn mock_dependencies(
 
 pub mod consts {
 
-    use terraswap::asset::Asset;
+    use astroport::asset::Asset;
 
     use super::*;
 
@@ -472,25 +472,25 @@ pub mod consts {
         vec![
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: h("mAAPL"),
+                    contract_addr: Addr::unchecked("mAAPL"),
                 },
                 amount: Uint128::new(20),
             },
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: h("mGOOG"),
+                    contract_addr: Addr::unchecked("mGOOG"),
                 },
                 amount: Uint128::new(20),
             },
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: h("mMSFT"),
+                    contract_addr: Addr::unchecked("mMSFT"),
                 },
                 amount: Uint128::new(20),
             },
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: h("mNFLX"),
+                    contract_addr: Addr::unchecked("mNFLX"),
                 },
                 amount: Uint128::new(20),
             },
@@ -503,19 +503,19 @@ pub mod consts {
         vec![
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: h("mAAPL"),
+                    contract_addr: Addr::unchecked("mAAPL"),
                 },
                 amount: Uint128::new(20),
             },
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: h("mGOOG"),
+                    contract_addr: Addr::unchecked("mGOOG"),
                 },
                 amount: Uint128::new(20),
             },
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: h("mMSFT"),
+                    contract_addr: Addr::unchecked("mMSFT"),
                 },
                 amount: Uint128::new(20),
             },
@@ -558,7 +558,7 @@ pub mod consts {
             staking_contract: "staking".to_string(),
             commission_collector: h("collector"),
             protocol_fee_rate: "0.01".to_string(),
-            terraswap_factory: h("ts_factory"),
+            astroport_factory: h("ts_factory"),
             token_code_id: 1,
             cluster_code_id: 1,
             base_denom: "uusd".to_string(),
@@ -579,25 +579,25 @@ pub mod consts {
         vec![
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: h("mAAPL"),
+                    contract_addr: Addr::unchecked("mAAPL"),
                 },
                 amount: Uint128::new(125_000_000),
             },
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: h("mGOOG"),
+                    contract_addr: Addr::unchecked("mGOOG"),
                 },
                 amount: Uint128::zero(),
             },
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: h("mMSFT"),
+                    contract_addr: Addr::unchecked("mMSFT"),
                 },
                 amount: Uint128::new(149_000_000),
             },
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: h("mNFLX"),
+                    contract_addr: Addr::unchecked("mNFLX"),
                 },
                 amount: Uint128::new(50_090_272),
             },
@@ -607,6 +607,7 @@ pub mod consts {
 
 pub fn mock_init() -> (OwnedDeps<MockStorage, MockApi, WasmMockQuerier>, Response) {
     let mut deps = mock_dependencies(&[]);
+    deps = mock_querier_setup(deps);
     let msg = InstantiateMsg {
         name: consts::name().to_string(),
         description: consts::description().to_string(),
@@ -697,6 +698,26 @@ pub fn mock_querier_setup(
                 1_000_000_000_000,
                 vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
             ),
+        )
+        .set_token(
+            "mGME",
+            token_data(
+                "Mirrored GME",
+                "mGME",
+                6,
+                1_000_000_000_000,
+                vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
+            ),
+        )
+        .set_token(
+            "mGE",
+            token_data(
+                "Mirrored GE",
+                "mGE",
+                6,
+                1_000_000_000_000,
+                vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
+            ),
         );
 
     deps.querier.set_oracle_prices(vec![
@@ -705,6 +726,8 @@ pub fn mock_querier_setup(
         ("mGOOG", Decimal::from_str("1.0").unwrap()),
         ("mMSFT", Decimal::from_str("1.0").unwrap()),
         ("mNFLX", Decimal::from_str("1.0").unwrap()),
+        ("mGME", Decimal::from_str("1.0").unwrap()),
+        ("mGE", Decimal::from_str("1.0").unwrap()),
     ]);
 
     deps
@@ -762,25 +785,25 @@ fn proper_initialization() {
         vec![
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: h("mAAPL"),
+                    contract_addr: Addr::unchecked("mAAPL"),
                 },
                 amount: Uint128::new(20)
             },
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: h("mGOOG"),
+                    contract_addr: Addr::unchecked("mGOOG"),
                 },
                 amount: Uint128::new(20)
             },
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: h("mMSFT"),
+                    contract_addr: Addr::unchecked("mMSFT"),
                 },
                 amount: Uint128::new(20)
             },
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: h("mNFLX"),
+                    contract_addr: Addr::unchecked("mNFLX"),
                 },
                 amount: Uint128::new(20)
             },
@@ -953,25 +976,25 @@ fn mint() {
             target: vec![
                 Asset {
                     info: AssetInfo::Token {
-                        contract_addr: "mAAPL".to_string(),
+                        contract_addr: Addr::unchecked("mAAPL"),
                     },
                     amount: Uint128::new(20,),
                 },
                 Asset {
                     info: AssetInfo::Token {
-                        contract_addr: "mGOOG".to_string(),
+                        contract_addr: Addr::unchecked("mGOOG"),
                     },
                     amount: Uint128::new(20,),
                 },
                 Asset {
                     info: AssetInfo::Token {
-                        contract_addr: "mMSFT".to_string(),
+                        contract_addr: Addr::unchecked("mMSFT"),
                     },
                     amount: Uint128::new(20,),
                 },
                 Asset {
                     info: AssetInfo::Token {
-                        contract_addr: "mNFLX".to_string(),
+                        contract_addr: Addr::unchecked("mNFLX"),
                     },
                     amount: Uint128::new(20,),
                 },
@@ -1018,25 +1041,25 @@ fn burn() {
         asset_amounts: Some(vec![
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: "mAAPL".to_string(),
+                    contract_addr: Addr::unchecked("mAAPL"),
                 },
                 amount: Uint128::new(20),
             },
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: "mGOOG".to_string(),
+                    contract_addr: Addr::unchecked("mGOOG"),
                 },
                 amount: Uint128::new(0),
             },
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: "mMSFT".to_string(),
+                    contract_addr: Addr::unchecked("mMSFT"),
                 },
                 amount: Uint128::new(20),
             },
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: "mNFLX".to_string(),
+                    contract_addr: Addr::unchecked("mNFLX"),
                 },
                 amount: Uint128::new(20),
             },
@@ -1150,7 +1173,6 @@ fn burn() {
 #[test]
 fn update_target() {
     let (mut deps, _init_res) = mock_init();
-    deps = mock_querier_setup(deps);
 
     deps.querier
         .set_token_supply(consts::cluster_token(), 100_000_000)
@@ -1174,27 +1196,33 @@ fn update_target() {
     let new_target: Vec<Asset> = vec![
         Asset {
             info: AssetInfo::Token {
-                contract_addr: h("mAAPL"),
+                contract_addr: Addr::unchecked("mAAPL"),
             },
             amount: Uint128::new(10),
         },
         Asset {
             info: AssetInfo::Token {
-                contract_addr: h("mGOOG"),
+                contract_addr: Addr::unchecked("mGOOG"),
             },
             amount: Uint128::new(5),
         },
         Asset {
             info: AssetInfo::Token {
-                contract_addr: h("mMSFT"),
+                contract_addr: Addr::unchecked("mMSFT"),
             },
             amount: Uint128::new(35),
         },
         Asset {
             info: AssetInfo::Token {
-                contract_addr: h("mGME"),
+                contract_addr: Addr::unchecked("mGME"),
             },
-            amount: Uint128::new(50),
+            amount: Uint128::new(45),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: Addr::unchecked("mGE"),
+            },
+            amount: Uint128::new(5),
         },
     ];
     let msg = ExecuteMsg::UpdateTarget { target: new_target };
@@ -1208,8 +1236,8 @@ fn update_target() {
             attr("action", "reset_target"),
             attr("prev_assets", "[mAAPL, mGOOG, mMSFT, mNFLX]"),
             attr("prev_targets", "[20, 20, 20, 20]"),
-            attr("updated_assets", "[mAAPL, mGOOG, mMSFT, mGME, mNFLX]"),
-            attr("updated_targets", "[10, 5, 35, 50, 0]"),
+            attr("updated_assets", "[mAAPL, mGOOG, mMSFT, mGME, mGE, mNFLX]"),
+            attr("updated_targets", "[10, 5, 35, 45, 5, 0]"),
         ]
     );
 

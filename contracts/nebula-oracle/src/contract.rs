@@ -13,7 +13,7 @@ use tefi_oracle::hub::{
     HubQueryMsg as TeFiOracleQueryMsg, PriceResponse as TeFiOraclePriceResponse,
 };
 use terra_cosmwasm::{ExchangeRatesResponse, TerraQuerier};
-use terraswap::asset::AssetInfo;
+use astroport::asset::AssetInfo;
 
 const DECIMAL_FRACTIONAL: Uint128 = Uint128::new(1_000_000_000u128);
 
@@ -117,7 +117,7 @@ fn query_asset_price(deps: Deps, asset: AssetInfo) -> StdResult<(Decimal, u64)> 
 
     match asset {
         AssetInfo::NativeToken { denom } => query_native_price(deps, denom, &config),
-        AssetInfo::Token { contract_addr } => query_cw20_price(deps, contract_addr, &config),
+        AssetInfo::Token { contract_addr } => query_cw20_price(deps, contract_addr.to_string(), &config),
     }
 }
 

@@ -2,7 +2,7 @@
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    attr, from_binary, to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response,
+    attr, from_binary, to_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response,
     StdError, StdResult, Uint128,
 };
 
@@ -26,9 +26,9 @@ pub fn instantiate(
     store_config(
         deps.storage,
         &Config {
-            owner: msg.owner,
-            nebula_token: msg.nebula_token,
-            terraswap_factory: msg.terraswap_factory,
+            owner: deps.api.addr_validate(msg.owner.as_str())?,
+            nebula_token: deps.api.addr_validate(msg.nebula_token.as_str())?,
+            astroport_factory: deps.api.addr_validate(msg.astroport_factory.as_str())?,
         },
     )?;
 
@@ -80,14 +80,21 @@ pub fn receive_cw20(
 
     match from_binary(&msg)? {
         Cw20HookMsg::Bond { asset_token } => {
-            let pool_info: PoolInfo = read_pool_info(deps.storage, &asset_token)?;
+            let validated_asset_token = deps.api.addr_validate(asset_token.as_str())?;
+            let pool_info: PoolInfo = read_pool_info(deps.storage, &validated_asset_token)?;
 
             // only staking token contract can execute this message
-            if pool_info.staking_token != info.sender.to_string() {
+            if pool_info.staking_token != info.sender {
                 return Err(StdError::generic_err("unauthorized"));
             }
 
-            bond(deps, info, cw20_msg.sender, asset_token, cw20_msg.amount)
+            bond(
+                deps,
+                info,
+                Addr::unchecked(cw20_msg.sender),
+                validated_asset_token,
+                cw20_msg.amount,
+            )
         }
         Cw20HookMsg::DepositReward { rewards } => {
             // only reward token contract can execute this message
@@ -121,7 +128,7 @@ pub fn update_config(
     }
 
     if let Some(owner) = owner {
-        config.owner = owner;
+        config.owner = deps.api.addr_validate(owner.as_str())?;
     }
 
     store_config(deps.storage, &config)?;
@@ -134,21 +141,24 @@ fn register_asset(
     asset_token: String,
     staking_token: String,
 ) -> StdResult<Response> {
+    let validated_asset_token = deps.api.addr_validate(asset_token.as_str())?;
+    let validated_staking_token = deps.api.addr_validate(staking_token.as_str())?;
+
     let config: Config = read_config(deps.storage)?;
 
-    if config.owner != info.sender.to_string() {
+    if config.owner != info.sender {
         return Err(StdError::generic_err("unauthorized"));
     }
 
-    if read_pool_info(deps.storage, &asset_token).is_ok() {
+    if read_pool_info(deps.storage, &validated_asset_token).is_ok() {
         return Err(StdError::generic_err("Asset was already registered"));
     }
 
     store_pool_info(
         deps.storage,
-        &asset_token,
+        &validated_asset_token,
         &PoolInfo {
-            staking_token,
+            staking_token: validated_staking_token,
             total_bond_amount: Uint128::zero(),
             reward_index: Decimal::zero(),
             pending_reward: Uint128::zero(),
@@ -157,7 +167,7 @@ fn register_asset(
 
     Ok(Response::new().add_attributes(vec![
         attr("action", "register_asset"),
-        attr("asset_token", asset_token.as_str()),
+        attr("asset_token", validated_asset_token.to_string()),
     ]))
 }
 
@@ -176,18 +186,19 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let state = read_config(deps.storage)?;
     let resp = ConfigResponse {
-        owner: state.owner,
-        nebula_token: state.nebula_token,
+        owner: state.owner.to_string(),
+        nebula_token: state.nebula_token.to_string(),
     };
 
     Ok(resp)
 }
 
 pub fn query_pool_info(deps: Deps, asset_token: String) -> StdResult<PoolInfoResponse> {
-    let pool_info: PoolInfo = read_pool_info(deps.storage, &asset_token)?;
+    let pool_info: PoolInfo =
+        read_pool_info(deps.storage, &deps.api.addr_validate(asset_token.as_str())?)?;
     Ok(PoolInfoResponse {
         asset_token,
-        staking_token: pool_info.staking_token,
+        staking_token: pool_info.staking_token.to_string(),
         total_bond_amount: pool_info.total_bond_amount,
         reward_index: pool_info.reward_index,
         pending_reward: pool_info.pending_reward,

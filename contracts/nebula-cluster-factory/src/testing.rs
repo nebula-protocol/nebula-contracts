@@ -7,8 +7,8 @@ use crate::state::{
 };
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    attr, from_binary, to_binary, ContractResult, CosmosMsg, Env, Reply, ReplyOn, StdError, SubMsg,
-    SubMsgExecutionResponse, Timestamp, Uint128, WasmMsg,
+    attr, from_binary, to_binary, Addr, ContractResult, CosmosMsg, Env, Reply, ReplyOn, StdError,
+    SubMsg, SubMsgExecutionResponse, Timestamp, Uint128, WasmMsg,
 };
 use protobuf::Message;
 
@@ -19,6 +19,9 @@ use nebula_protocol::cluster_factory::{
     ConfigResponse, DistributionInfoResponse, ExecuteMsg, InstantiateMsg, Params, QueryMsg,
 };
 
+use astroport::asset::{Asset, AssetInfo};
+use astroport::factory::{ExecuteMsg as AstroportFactoryExecuteMsg, PairType};
+use astroport::token::InstantiateMsg as TokenInstantiateMsg;
 use nebula_protocol::cluster::{
     ExecuteMsg as ClusterExecuteMsg, InstantiateMsg as ClusterInstantiateMsg,
 };
@@ -26,9 +29,6 @@ use nebula_protocol::penalty::ExecuteMsg as PenaltyExecuteMsg;
 use nebula_protocol::staking::{
     Cw20HookMsg as StakingCw20HookMsg, ExecuteMsg as StakingExecuteMsg,
 };
-use terraswap::asset::{Asset, AssetInfo};
-use terraswap::factory::ExecuteMsg as TerraswapFactoryExecuteMsg;
-use terraswap::token::InstantiateMsg as TokenInstantiateMsg;
 
 fn mock_env_time(time: u64) -> Env {
     let mut env = mock_env();
@@ -47,31 +47,31 @@ pub fn get_input_params() -> Params {
         symbol: "TEST".to_string(),
         description: "Sample cluster for testing".to_string(),
         weight: Some(100u32),
-        penalty: h("penalty0000"),
-        pricing_oracle: h("pricing_oracle0000"),
-        target_oracle: h("comp_oracle0000"),
+        penalty: Addr::unchecked("penalty0000"),
+        pricing_oracle: Addr::unchecked("pricing_oracle0000"),
+        target_oracle: Addr::unchecked("comp_oracle0000"),
         target: vec![
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: h("mAAPL"),
+                    contract_addr: Addr::unchecked("mAAPL"),
                 },
                 amount: Uint128::new(20),
             },
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: h("mGOOG"),
+                    contract_addr: Addr::unchecked("mGOOG"),
                 },
                 amount: Uint128::new(20),
             },
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: h("mMSFT"),
+                    contract_addr: Addr::unchecked("mMSFT"),
                 },
                 amount: Uint128::new(20),
             },
             Asset {
                 info: AssetInfo::Token {
-                    contract_addr: h("mNFLX"),
+                    contract_addr: Addr::unchecked("mNFLX"),
                 },
                 amount: Uint128::new(20),
             },
@@ -88,7 +88,7 @@ static PROTOCOL_FEE_RATE: &str = "0.01";
 fn proper_initialization() {
     let mut deps = mock_dependencies(&[]);
     deps.querier
-        .with_terraswap_pairs(&[(&"uusdnebula0000".to_string(), &"NEBLP0000".to_string())]);
+        .with_astroport_pairs(&[(&"uusdnebula0000".to_string(), &"NEBLP0000".to_string())]);
 
     let msg = InstantiateMsg {
         base_denom: BASE_DENOM.to_string(),
@@ -103,7 +103,7 @@ fn proper_initialization() {
 
     let msg = ExecuteMsg::PostInitialize {
         owner: "owner0000".to_string(),
-        terraswap_factory: "terraswapfactory".to_string(),
+        astroport_factory: "astroportfactory".to_string(),
         nebula_token: "nebula0000".to_string(),
         staking_contract: "staking0000".to_string(),
         commission_collector: "collector0000".to_string(),
@@ -113,7 +113,7 @@ fn proper_initialization() {
     // cannot update mirror token after initialization
     let msg = ExecuteMsg::PostInitialize {
         owner: "owner0000".to_string(),
-        terraswap_factory: "terraswapfactory".to_string(),
+        astroport_factory: "astroportfactory".to_string(),
         nebula_token: "nebula0000".to_string(),
         staking_contract: "staking0000".to_string(),
         commission_collector: "collector0000".to_string(),
@@ -131,7 +131,7 @@ fn proper_initialization() {
             staking_contract: "staking0000".to_string(),
             commission_collector: "collector0000".to_string(),
             protocol_fee_rate: PROTOCOL_FEE_RATE.to_string(),
-            terraswap_factory: "terraswapfactory".to_string(),
+            astroport_factory: "astroportfactory".to_string(),
             base_denom: BASE_DENOM.to_string(),
             token_code_id: TOKEN_CODE_ID,
             cluster_code_id: CLUSTER_CODE_ID,
@@ -145,7 +145,7 @@ fn proper_initialization() {
 fn test_update_config() {
     let mut deps = mock_dependencies(&[]);
     deps.querier
-        .with_terraswap_pairs(&[(&"uusdnebula0000".to_string(), &"NEBLP0000".to_string())]);
+        .with_astroport_pairs(&[(&"uusdnebula0000".to_string(), &"NEBLP0000".to_string())]);
 
     let msg = InstantiateMsg {
         base_denom: BASE_DENOM.to_string(),
@@ -163,11 +163,11 @@ fn test_update_config() {
         nebula_token: "nebula0000".to_string(),
         staking_contract: "staking0000".to_string(),
         commission_collector: "collector0000".to_string(),
-        terraswap_factory: "terraswapfactory".to_string(),
+        astroport_factory: "astroportfactory".to_string(),
     };
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-    // upate owner
+    // update owner
     let msg = ExecuteMsg::UpdateConfig {
         owner: Some("owner0001".to_string()),
         distribution_schedule: None,
@@ -187,7 +187,7 @@ fn test_update_config() {
             staking_contract: "staking0000".to_string(),
             commission_collector: "collector0000".to_string(),
             protocol_fee_rate: PROTOCOL_FEE_RATE.to_string(),
-            terraswap_factory: "terraswapfactory".to_string(),
+            astroport_factory: "astroportfactory".to_string(),
             base_denom: BASE_DENOM.to_string(),
             token_code_id: TOKEN_CODE_ID,
             cluster_code_id: CLUSTER_CODE_ID,
@@ -216,7 +216,7 @@ fn test_update_config() {
             staking_contract: "staking0000".to_string(),
             commission_collector: "collector0000".to_string(),
             protocol_fee_rate: PROTOCOL_FEE_RATE.to_string(),
-            terraswap_factory: "terraswapfactory".to_string(),
+            astroport_factory: "astroportfactory".to_string(),
             base_denom: BASE_DENOM.to_string(),
             token_code_id: TOKEN_CODE_ID + 1,
             cluster_code_id: CLUSTER_CODE_ID + 1,
@@ -225,7 +225,7 @@ fn test_update_config() {
         }
     );
 
-    // failed unauthoirzed
+    // failed unauthorized
     let msg = ExecuteMsg::UpdateConfig {
         owner: None,
         distribution_schedule: None,
@@ -245,7 +245,7 @@ fn test_update_config() {
 fn test_update_weight() {
     let mut deps = mock_dependencies(&[]);
     deps.querier
-        .with_terraswap_pairs(&[(&"uusdnebula0000".to_string(), &"NEBLP0000".to_string())]);
+        .with_astroport_pairs(&[(&"uusdnebula0000".to_string(), &"NEBLP0000".to_string())]);
     let msg = InstantiateMsg {
         base_denom: BASE_DENOM.to_string(),
         token_code_id: TOKEN_CODE_ID,
@@ -262,14 +262,14 @@ fn test_update_weight() {
         nebula_token: "nebula0000".to_string(),
         staking_contract: "staking0000".to_string(),
         commission_collector: "collector0000".to_string(),
-        terraswap_factory: "terraswapfactory".to_string(),
+        astroport_factory: "astroportfactory".to_string(),
     };
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
     store_total_weight(deps.as_mut().storage, 100).unwrap();
-    store_weight(deps.as_mut().storage, &h("asset0000"), 10).unwrap();
+    store_weight(deps.as_mut().storage, &Addr::unchecked("asset0000"), 10).unwrap();
 
-    // incrase weight
+    // increase weight
     let msg = ExecuteMsg::UpdateWeight {
         asset_token: h("asset0000"),
         weight: 20,
@@ -294,7 +294,7 @@ fn test_update_weight() {
     );
 
     assert_eq!(
-        read_weight(deps.as_mut().storage, &h("asset0000")).unwrap(),
+        read_weight(deps.as_mut().storage, &Addr::unchecked("asset0000")).unwrap(),
         20u32
     );
     assert_eq!(read_total_weight(deps.as_mut().storage).unwrap(), 110u32);
@@ -304,7 +304,7 @@ fn test_update_weight() {
 fn test_create_cluster() {
     let mut deps = mock_dependencies(&[]);
     deps.querier
-        .with_terraswap_pairs(&[(&"uusdnebula0000".to_string(), &"NEBLP0000".to_string())]);
+        .with_astroport_pairs(&[(&"uusdnebula0000".to_string(), &"NEBLP0000".to_string())]);
 
     let msg = InstantiateMsg {
         base_denom: BASE_DENOM.to_string(),
@@ -322,7 +322,7 @@ fn test_create_cluster() {
         nebula_token: "nebula0000".to_string(),
         staking_contract: "staking0000".to_string(),
         commission_collector: "collector0000".to_string(),
-        terraswap_factory: "terraswapfactory".to_string(),
+        astroport_factory: "astroportfactory".to_string(),
     };
 
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -358,9 +358,9 @@ fn test_create_cluster() {
                     description: input_params.description.clone(),
                     owner: MOCK_CONTRACT_ADDR.to_string(),
                     factory: MOCK_CONTRACT_ADDR.to_string(),
-                    pricing_oracle: input_params.pricing_oracle.clone(),
-                    target_oracle: input_params.target_oracle.clone(),
-                    penalty: input_params.penalty.clone(),
+                    pricing_oracle: input_params.pricing_oracle.to_string(),
+                    target_oracle: input_params.target_oracle.to_string(),
+                    penalty: input_params.penalty.to_string(),
                     cluster_token: None,
                     target: input_params.target.clone(),
                 })
@@ -396,7 +396,7 @@ fn test_create_cluster() {
 fn test_token_creation_hook() {
     let mut deps = mock_dependencies(&[]);
     deps.querier
-        .with_terraswap_pairs(&[(&"uusdnebula0000".to_string(), &"NEBLP0000".to_string())]);
+        .with_astroport_pairs(&[(&"uusdnebula0000".to_string(), &"NEBLP0000".to_string())]);
 
     let msg = InstantiateMsg {
         base_denom: BASE_DENOM.to_string(),
@@ -414,7 +414,7 @@ fn test_token_creation_hook() {
         nebula_token: "nebula0000".to_string(),
         staking_contract: "staking0000".to_string(),
         commission_collector: "collector0000".to_string(),
-        terraswap_factory: "terraswapfactory".to_string(),
+        astroport_factory: "astroportfactory".to_string(),
     };
 
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -446,7 +446,7 @@ fn test_token_creation_hook() {
         res.messages,
         vec![
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: input_params.penalty.clone(),
+                contract_addr: input_params.penalty.to_string(),
                 funds: vec![],
                 msg: to_binary(&PenaltyExecuteMsg::UpdateConfig {
                     owner: Some(h("asset0000")),
@@ -482,14 +482,17 @@ fn test_token_creation_hook() {
 
     assert_eq!(res.attributes, vec![attr("cluster_addr", "asset0000")]);
 
-    assert_eq!(cluster_exists(&deps.storage, &h("asset0000")), Ok(true));
+    assert_eq!(
+        cluster_exists(&deps.storage, &Addr::unchecked("asset0000")),
+        Ok(true)
+    );
 }
 
 #[test]
 fn test_set_cluster_token_hook() {
     let mut deps = mock_dependencies(&[]);
     deps.querier
-        .with_terraswap_pairs(&[(&"uusdnebula0000".to_string(), &"NEBLP0000".to_string())]);
+        .with_astroport_pairs(&[(&"uusdnebula0000".to_string(), &"NEBLP0000".to_string())]);
 
     let msg = InstantiateMsg {
         base_denom: BASE_DENOM.to_string(),
@@ -507,7 +510,7 @@ fn test_set_cluster_token_hook() {
         nebula_token: "nebula0000".to_string(),
         staking_contract: "staking0000".to_string(),
         commission_collector: "collector0000".to_string(),
-        terraswap_factory: "terraswapfactory".to_string(),
+        astroport_factory: "astroportfactory".to_string(),
     };
 
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -573,20 +576,22 @@ fn test_set_cluster_token_hook() {
                 })
                 .unwrap(),
             })),
-            // set up terraswap pair
+            // set up astroport pair
             SubMsg {
                 msg: WasmMsg::Execute {
-                    contract_addr: h("terraswapfactory"),
+                    contract_addr: h("astroportfactory"),
                     funds: vec![],
-                    msg: to_binary(&TerraswapFactoryExecuteMsg::CreatePair {
+                    msg: to_binary(&AstroportFactoryExecuteMsg::CreatePair {
+                        pair_type: PairType::Xyk {},
                         asset_infos: [
                             AssetInfo::NativeToken {
                                 denom: BASE_DENOM.to_string(),
                             },
                             AssetInfo::Token {
-                                contract_addr: h("cluster_token0000"),
+                                contract_addr: Addr::unchecked("cluster_token0000"),
                             },
                         ],
+                        init_params: None
                     })
                     .unwrap(),
                 }
@@ -624,7 +629,7 @@ fn test_set_cluster_token_hook() {
 fn test_set_cluster_token_hook_without_weight() {
     let mut deps = mock_dependencies(&[]);
     deps.querier
-        .with_terraswap_pairs(&[(&"uusdnebula0000".to_string(), &"NEBLP0000".to_string())]);
+        .with_astroport_pairs(&[(&"uusdnebula0000".to_string(), &"NEBLP0000".to_string())]);
 
     let msg = InstantiateMsg {
         base_denom: BASE_DENOM.to_string(),
@@ -642,7 +647,7 @@ fn test_set_cluster_token_hook_without_weight() {
         nebula_token: "nebula0000".to_string(),
         staking_contract: "staking0000".to_string(),
         commission_collector: "collector0000".to_string(),
-        terraswap_factory: "terraswapfactory".to_string(),
+        astroport_factory: "astroportfactory".to_string(),
     };
 
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -706,20 +711,22 @@ fn test_set_cluster_token_hook_without_weight() {
                 })
                 .unwrap(),
             })),
-            // set up terraswap pair
+            // set up astroport pair
             SubMsg {
                 msg: WasmMsg::Execute {
-                    contract_addr: h("terraswapfactory"),
+                    contract_addr: h("astroportfactory"),
                     funds: vec![],
-                    msg: to_binary(&TerraswapFactoryExecuteMsg::CreatePair {
+                    msg: to_binary(&AstroportFactoryExecuteMsg::CreatePair {
+                        pair_type: PairType::Xyk {},
                         asset_infos: [
                             AssetInfo::NativeToken {
                                 denom: BASE_DENOM.to_string(),
                             },
                             AssetInfo::Token {
-                                contract_addr: h("cluster_token0000"),
+                                contract_addr: Addr::unchecked("cluster_token0000"),
                             },
                         ],
+                        init_params: None
                     })
                     .unwrap(),
                 }
@@ -754,9 +761,9 @@ fn test_set_cluster_token_hook_without_weight() {
 }
 
 #[test]
-fn test_terraswap_creation_hook() {
+fn test_astroport_creation_hook() {
     let mut deps = mock_dependencies(&[]);
-    deps.querier.with_terraswap_pairs(&[
+    deps.querier.with_astroport_pairs(&[
         (&"uusdnebula0000".to_string(), &"NEBLP000".to_string()),
         (&"uusdcluster_token0000".to_string(), &"LP0000".to_string()),
     ]);
@@ -777,7 +784,7 @@ fn test_terraswap_creation_hook() {
         nebula_token: "nebula0000".to_string(),
         staking_contract: "staking0000".to_string(),
         commission_collector: "collector0000".to_string(),
-        terraswap_factory: "terraswapfactory".to_string(),
+        astroport_factory: "astroportfactory".to_string(),
     };
 
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -848,7 +855,7 @@ fn test_terraswap_creation_hook() {
 #[test]
 fn test_distribute() {
     let mut deps = mock_dependencies(&[]);
-    deps.querier.with_terraswap_pairs(&[
+    deps.querier.with_astroport_pairs(&[
         (&"uusdnebula0000".to_string(), &"NEBLP000".to_string()),
         (&"uusdcluster_token0000".to_string(), &h("LP0000")),
         (&"uusdcluster_token0001".to_string(), &h("LP0001")),
@@ -873,7 +880,7 @@ fn test_distribute() {
         nebula_token: "nebula0000".to_string(),
         staking_contract: "staking0000".to_string(),
         commission_collector: "collector0000".to_string(),
-        terraswap_factory: "terraswapfactory".to_string(),
+        astroport_factory: "astroportfactory".to_string(),
     };
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
@@ -1036,7 +1043,7 @@ fn test_distribute() {
 #[test]
 fn test_decommission_cluster() {
     let mut deps = mock_dependencies(&[]);
-    deps.querier.with_terraswap_pairs(&[
+    deps.querier.with_astroport_pairs(&[
         (&"uusdnebula0000".to_string(), &"NEBLP000".to_string()),
         (&"uusdcluster_token0000".to_string(), &h("LP0000")),
         (&"uusdcluster_token0001".to_string(), &h("LP0001")),
@@ -1061,7 +1068,7 @@ fn test_decommission_cluster() {
         nebula_token: "nebula0000".to_string(),
         staking_contract: "staking0000".to_string(),
         commission_collector: "collector0000".to_string(),
-        terraswap_factory: "terraswapfactory".to_string(),
+        astroport_factory: "astroportfactory".to_string(),
     };
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
@@ -1148,7 +1155,7 @@ fn test_decommission_cluster() {
     );
 
     assert_eq!(
-        cluster_exists(&deps.storage, &h("asset0000")).unwrap(),
+        cluster_exists(&deps.storage, &Addr::unchecked("asset0000")).unwrap(),
         false
     );
 
@@ -1163,7 +1170,7 @@ fn test_decommission_cluster() {
         }
     );
 
-    let res = read_weight(&deps.storage, &h("asset0000")).unwrap_err();
+    let res = read_weight(&deps.storage, &Addr::unchecked("asset0000")).unwrap_err();
     match res {
         StdError::GenericErr { msg, .. } => {
             assert_eq!(msg, "No distribution info stored")

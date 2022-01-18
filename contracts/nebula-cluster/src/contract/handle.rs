@@ -1,13 +1,13 @@
 use std::str::FromStr;
 
+use astroport::asset::{Asset, AssetInfo};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    attr, to_binary, Addr, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
-    Storage, Uint128, WasmMsg,
+    attr, to_binary, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdError, StdResult, Storage,
+    Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
-use terraswap::asset::{Asset, AssetInfo};
 
 use cluster_math::FPDecimal;
 use nebula_protocol::cluster::ExecuteMsg;
@@ -79,14 +79,15 @@ pub fn update_config(
     penalty: Option<String>,
     target: Option<Vec<Asset>>,
 ) -> StdResult<Response> {
+    let api = deps.api;
     // Update cluster config
     config_store(deps.storage).update(|mut config| {
-        if config.owner != info.sender.to_string() {
+        if config.owner != info.sender {
             return Err(StdError::generic_err("unauthorized"));
         }
 
         if let Some(owner) = owner {
-            config.owner = owner;
+            config.owner = api.addr_validate(owner.as_str())?;
         }
 
         if let Some(name) = name {
@@ -98,19 +99,21 @@ pub fn update_config(
         }
 
         if cluster_token.is_some() {
-            config.cluster_token = cluster_token;
+            config.cluster_token = cluster_token
+                .map(|x| api.addr_validate(x.as_str()))
+                .transpose()?;
         }
 
         if let Some(pricing_oracle) = pricing_oracle {
-            config.pricing_oracle = pricing_oracle;
+            config.pricing_oracle = api.addr_validate(pricing_oracle.as_str())?;
         }
 
         if let Some(target_oracle) = target_oracle {
-            config.target_oracle = target_oracle;
+            config.target_oracle = api.addr_validate(target_oracle.as_str())?;
         }
 
         if let Some(penalty) = penalty {
-            config.penalty = penalty;
+            config.penalty = api.addr_validate(penalty.as_str())?;
         }
 
         Ok(config)
@@ -141,7 +144,7 @@ pub fn update_target(
     }
 
     // check permission
-    if (info.sender.to_string() != cfg.owner) && (info.sender.to_string() != cfg.target_oracle) {
+    if (info.sender != cfg.owner) && (info.sender != cfg.target_oracle) {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -156,7 +159,7 @@ pub fn update_target(
             .map(|x| (x.info.clone(), x.amount.clone()))
             .unzip();
 
-    if validate_targets(deps.querier, &env, updated_asset_infos.clone(), true).is_err() {
+    if validate_targets(deps.querier, &env, updated_asset_infos.clone()).is_err() {
         return Err(StdError::generic_err(
             "Cluster must contain valid assets and cannot contain duplicate assets",
         ));
@@ -173,7 +176,9 @@ pub fn update_target(
     // then set that not found item target to zero
     for prev_asset in prev_assets.iter() {
         let inv_balance = match prev_asset {
-            AssetInfo::Token { contract_addr } => read_asset_balance(deps.storage, contract_addr),
+            AssetInfo::Token { contract_addr } => {
+                read_asset_balance(deps.storage, &contract_addr.to_string())
+            }
             AssetInfo::NativeToken { denom } => read_asset_balance(deps.storage, denom),
         }?;
         if !inv_balance.is_zero() && !updated_asset_infos.contains(&prev_asset) {
@@ -210,7 +215,7 @@ pub fn decommission(deps: DepsMut, info: MessageInfo) -> StdResult<Response> {
         return Err(error::cluster_token_not_set());
     }
     // check permission for factory
-    if info.sender.to_string() != cfg.factory {
+    if info.sender != cfg.factory {
         return Err(StdError::generic_err("unauthorized"));
     }
 
@@ -246,7 +251,6 @@ pub fn create(
         deps.querier,
         &env,
         asset_amounts.iter().map(|a| a.info.clone()).collect(),
-        true,
     )
     .is_err()
     {
@@ -299,7 +303,7 @@ pub fn create(
 
     // Vector to store create asset weights
     let mut asset_weights = vec![Uint128::zero(); target_infos.len()];
-    
+
     let mut messages = vec![];
 
     // Return an error if assets not in target are sent to the create function
@@ -326,7 +330,7 @@ pub fn create(
                 // transfer assets from sender
                 if let AssetInfo::Token { contract_addr, .. } = &asset.info {
                     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-                        contract_addr: contract_addr.clone(),
+                        contract_addr: contract_addr.to_string(),
                         msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
                             owner: info.sender.to_string(),
                             recipient: env.contract.address.to_string(),
@@ -336,7 +340,12 @@ pub fn create(
                     }));
 
                     // update asset inventory balance in cluster
-                    update_asset_balance(deps.storage, contract_addr, asset.amount, true)?;
+                    update_asset_balance(
+                        deps.storage,
+                        &contract_addr.to_string(),
+                        asset.amount,
+                        true,
+                    )?;
                 } else if let AssetInfo::NativeToken { denom } = &asset.info {
                     // validate that native token balance is correct
                     asset.assert_sent_native_token_balance(&info)?;
@@ -360,7 +369,7 @@ pub fn create(
         // perform a normal mint
         let create_response = query_create_amount(
             &deps.querier,
-            cfg.penalty.clone(),
+            &cfg.penalty,
             env.block.height,
             cluster_token_supply,
             inv.clone(),
@@ -490,7 +499,7 @@ pub fn receive_redeem(
     max_tokens: Uint128,
     asset_amounts: Option<Vec<Asset>>,
 ) -> StdResult<Response> {
-    let sender = info.sender.to_string();
+    let sender = info.sender;
 
     let cfg = read_config(deps.storage)?;
 
@@ -586,7 +595,7 @@ pub fn receive_redeem(
         .filter(|(amt, _asset)| !amt.is_zero()) // remove 0 amounts
         .map(|(amt, asset_info)| {
             if let AssetInfo::Token { contract_addr, .. } = &asset_info {
-                update_asset_balance(deps.storage, contract_addr, amt.clone(), false)?;
+                update_asset_balance(deps.storage, &contract_addr.to_string(), amt.clone(), false)?;
             } else if let AssetInfo::NativeToken { denom } = &asset_info {
                 update_asset_balance(deps.storage, denom, amt.clone(), false)?;
             }
@@ -595,7 +604,7 @@ pub fn receive_redeem(
                 amount: amt.clone(),
             };
 
-            asset.into_msg(&deps.querier, Addr::unchecked(sender.clone()))
+            asset.into_msg(&deps.querier, sender.clone())
         })
         .collect::<StdResult<Vec<CosmosMsg>>>()?;
 
@@ -612,7 +621,7 @@ pub fn receive_redeem(
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: cluster_token.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
-                owner: sender.clone(),
+                owner: sender.to_string(),
                 amount: fee_amt,
                 recipient: collector_address.to_string(),
             })?,
@@ -624,7 +633,7 @@ pub fn receive_redeem(
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: cluster_token.to_string(),
         msg: to_binary(&Cw20ExecuteMsg::BurnFrom {
-            owner: sender.clone(),
+            owner: sender.to_string(),
             amount: token_cost.checked_sub(fee_amt)?,
         })?,
         funds: vec![],

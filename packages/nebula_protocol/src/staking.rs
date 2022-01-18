@@ -1,15 +1,15 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use cosmwasm_std::{Decimal, Uint128};
+use astroport::asset::Asset;
+use cosmwasm_std::{Addr, Decimal, Uint128};
 use cw20::Cw20ReceiveMsg;
-use terraswap::asset::Asset;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     pub owner: String,
     pub nebula_token: String,
-    pub terraswap_factory: String,
+    pub astroport_factory: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -45,11 +45,15 @@ pub enum ExecuteMsg {
         assets: [Asset; 2],
         slippage_tolerance: Option<Decimal>,
     },
+
+    ////////////////////////
+    /// Internal operations ///
+    ////////////////////////
     /// Hook to stake the minted LP tokens
     AutoStakeHook {
-        asset_token: String,
-        staking_token: String,
-        staker_addr: String,
+        asset_token: Addr,
+        staking_token: Addr,
+        staker_addr: Addr,
         prev_staking_token_amount: Uint128,
     },
 }
