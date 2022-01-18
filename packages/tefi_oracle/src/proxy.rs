@@ -13,3 +13,9 @@ pub struct ProxyPriceResponse {
     pub rate: Decimal,     // rate denominated in base_denom
     pub last_updated: u64, // timestamp in seconds
 }
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
+#[serde(rename_all = "snake_case")]
+pub enum ProxyBaseQuery {
+    Base(ProxyQueryMsg),
+}

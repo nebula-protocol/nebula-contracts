@@ -6,8 +6,19 @@ use astroport::asset::AssetInfo;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
-    pub astroport_factory: String,
+    pub owner: String,
+    pub oracle_addr: String,
     pub base_denom: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum ExecuteMsg {
+    UpdateConfig {
+        owner: Option<String>,
+        oracle_addr: Option<String>,
+        base_denom: Option<String>,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
@@ -18,10 +29,6 @@ pub enum QueryMsg {
         quote_asset: AssetInfo,
     },
 }
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ExecuteMsg {}
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct PriceResponse {

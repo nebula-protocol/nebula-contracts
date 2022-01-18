@@ -1,19 +1,18 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-
 use cosmwasm_std::{
-    attr, to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, QueryRequest, Response,
-    StdError, StdResult, Uint128, WasmQuery,
+    attr, to_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, QueryRequest,
+    Response, StdError, StdResult, Uint128, WasmQuery,
 };
 
-use crate::msg::{ExecuteMsg, InstantiateMsg, PriceResponse, QueryMsg};
 use crate::state::{read_config, store_config, Config};
 
+use astroport::asset::AssetInfo;
+use nebula_protocol::oracle::{ExecuteMsg, InstantiateMsg, PriceResponse, QueryMsg};
 use tefi_oracle::hub::{
     HubQueryMsg as TeFiOracleQueryMsg, PriceResponse as TeFiOraclePriceResponse,
 };
 use terra_cosmwasm::{ExchangeRatesResponse, TerraQuerier};
-use astroport::asset::AssetInfo;
 
 const DECIMAL_FRACTIONAL: Uint128 = Uint128::new(1_000_000_000u128);
 
@@ -25,8 +24,8 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
     let cfg = Config {
-        owner: msg.owner.clone(),
-        oracle_addr: msg.oracle_addr,
+        owner: deps.api.addr_validate(msg.owner.as_str())?,
+        oracle_addr: deps.api.addr_validate(msg.oracle_addr.as_str())?,
         base_denom: msg.base_denom,
     };
 
@@ -62,16 +61,16 @@ pub fn update_config(
 ) -> StdResult<Response> {
     let mut config: Config = read_config(deps.storage)?;
 
-    if config.owner != info.sender.to_string() {
+    if config.owner != info.sender {
         return Err(StdError::generic_err("unauthorized"));
     }
 
     if let Some(owner) = owner {
-        config.owner = owner;
+        config.owner = deps.api.addr_validate(owner.as_str())?;
     }
 
     if let Some(oracle_addr) = oracle_addr {
-        config.oracle_addr = oracle_addr;
+        config.oracle_addr = deps.api.addr_validate(oracle_addr.as_str())?;
     }
 
     if let Some(base_denom) = base_denom {
@@ -117,7 +116,7 @@ fn query_asset_price(deps: Deps, asset: AssetInfo) -> StdResult<(Decimal, u64)> 
 
     match asset {
         AssetInfo::NativeToken { denom } => query_native_price(deps, denom, &config),
-        AssetInfo::Token { contract_addr } => query_cw20_price(deps, contract_addr.to_string(), &config),
+        AssetInfo::Token { contract_addr } => query_cw20_price(deps, contract_addr, &config),
     }
 }
 
@@ -129,11 +128,7 @@ fn query_native_price(deps: Deps, denom: String, config: &Config) -> StdResult<(
     Ok((res.exchange_rates[0].exchange_rate, u64::MAX))
 }
 
-fn query_cw20_price(
-    deps: Deps,
-    contract_addr: String,
-    config: &Config,
-) -> StdResult<(Decimal, u64)> {
+fn query_cw20_price(deps: Deps, contract_addr: Addr, config: &Config) -> StdResult<(Decimal, u64)> {
     let res: TeFiOraclePriceResponse =
         deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
             contract_addr: config.oracle_addr.to_string(),

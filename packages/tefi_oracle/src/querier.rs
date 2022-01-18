@@ -1,7 +1,7 @@
 use cosmwasm_std::{to_binary, Addr, QuerierWrapper, QueryRequest, StdResult, WasmQuery};
 
 use crate::hub::{HubQueryMsg, PriceResponse};
-use crate::proxy::{ProxyPriceResponse, ProxyQueryMsg};
+use crate::proxy::{ProxyBaseQuery, ProxyPriceResponse, ProxyQueryMsg};
 
 /// @dev Queries an asset token price from the orcle proxy contract, price is given in the base denomination
 /// @param proxy_addr : Proxy contract address
@@ -13,9 +13,9 @@ pub fn query_proxy_asset_price(
 ) -> StdResult<ProxyPriceResponse> {
     let res: ProxyPriceResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: String::from(proxy_addr),
-        msg: to_binary(&ProxyQueryMsg::Price {
+        msg: to_binary(&ProxyBaseQuery::Base(ProxyQueryMsg::Price {
             asset_token: String::from(asset_token),
-        })?,
+        }))?,
     }))?;
 
     Ok(res)
