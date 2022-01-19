@@ -1,7 +1,9 @@
 #[cfg(test)]
 mod tests {
     use crate::contract::{execute, instantiate, query};
-    use crate::mock_querier::mock_dependencies_with_querier;
+    use crate::testing::mock_querier::mock_dependencies_with_querier;
+    use astroport::asset::{Asset, AssetInfo};
+    use astroport::pair::ExecuteMsg as PairExecuteMsg;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MOCK_CONTRACT_ADDR};
     use cosmwasm_std::{
         attr, from_binary, to_binary, Addr, Coin, CosmosMsg, Decimal, StdError, SubMsg, Uint128,
@@ -12,9 +14,6 @@ mod tests {
         Cw20HookMsg, ExecuteMsg, InstantiateMsg, PoolInfoResponse, QueryMsg, RewardInfoResponse,
         RewardInfoResponseItem,
     };
-
-    use astroport::asset::{Asset, AssetInfo};
-    use astroport::pair::ExecuteMsg as PairExecuteMsg;
 
     #[test]
     fn test_bond_tokens() {

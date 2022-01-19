@@ -1,6 +1,5 @@
 use crate::contract::{execute, instantiate, query};
-use crate::mock_querier::mock_dependencies;
-
+use crate::testing::mock_querier::mock_dependencies;
 use astroport::asset::{Asset, AssetInfo};
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{

@@ -63,18 +63,15 @@ mod tests {
         let config: ConfigResponse = from_binary(&res).unwrap();
         assert_eq!("owner0001", config.owner.as_str());
 
-        // Unauthorzied err
+        // unauthorized err
         let info = mock_info("owner0000", &[]);
         let msg = ExecuteMsg::UpdateConfig {
             owner: None,
             nebula_token: None,
         };
 
-        let res = execute(deps.as_mut(), mock_env(), info, msg);
-        match res {
-            Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized"),
-            _ => panic!("Must return unauthorized error"),
-        }
+        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+        assert_eq!(res, StdError::generic_err("unauthorized"));
     }
 
     #[test]
@@ -89,17 +86,21 @@ mod tests {
         let info = mock_info("addr0000", &[]);
         let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        //Try invalid merkle root
+        // unauthorized msg sender
+        let info = mock_info("imposter0000", &[]);
+        let msg = ExecuteMsg::RegisterMerkleRoot {
+            merkle_root: "634de21cde1044f41d90373733b0f0fb1c1c71f9652b905cdf159e73c4cf0d37".to_string(),
+        };
+        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+        assert_eq!(res, StdError::generic_err("unauthorized"));
+
+        // try invalid merkle root
         let info = mock_info("owner0000", &[]);
         let msg = ExecuteMsg::RegisterMerkleRoot {
             merkle_root: "invalidroot".to_string(),
         };
-
-        let res = execute(deps.as_mut(), mock_env(), info, msg);
-        match res {
-            Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Invalid merkle root"),
-            _ => panic!("DO NOT ENTER HERE"),
-        }
+        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+        assert_eq!(res, StdError::generic_err("Invalid merkle root"));
 
         let info = mock_info("owner0000", &[]);
         // register new merkle root
@@ -151,7 +152,7 @@ mod tests {
         let info = mock_info("addr0000", &[]);
         let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        // Register merkle roots
+        // register merkle roots
         let info = mock_info("owner0000", &[]);
         let msg = ExecuteMsg::RegisterMerkleRoot {
             merkle_root: "85e33930e7a8f015316cb4a53a4c45d26a69f299fc4c83f17357e1fd62e8fd95"
@@ -166,6 +167,22 @@ mod tests {
         };
         let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
+        // try invalid proof
+        let info = mock_info("owner0000", &[]);
+        let msg = ExecuteMsg::Claim {
+            amount: Uint128::from(1000001u128),
+            stage: 1u8,
+            proof: vec![
+                "b8ee25ffbee5ee215c4ad992fe582f20112368bc310ad9b2b7bdf440a224b2df".to_string(),
+                "98d73e0a035f23c490fef5e307f6e74652b9d3688c2aa5bff70eaa65956a24e1".to_string(),
+                "f328b89c766a62b8f1c768fefa1139c9562c6e05bab57a2afa7f35e83f9e9dcf".to_string(),
+                "fe19ca2434f87cadb0431311ac9a484792525eb66a952e257f68bf02b4561950".to_string(),
+            ]
+        };
+        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+        assert_eq!(res, StdError::generic_err("Verification is failed"));
+
+        // now the right one
         let msg = ExecuteMsg::Claim {
             amount: Uint128::from(1000001u128),
             stage: 1u8,
@@ -219,13 +236,10 @@ mod tests {
             .is_claimed
         );
 
-        let res = execute(deps.as_mut(), mock_env(), info, msg.clone());
-        match res {
-            Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Already claimed"),
-            _ => panic!("DO NOT ENTER HERE"),
-        }
+        let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
+        assert_eq!(res, StdError::generic_err("Already claimed"));
 
-        // Claim next airdrop
+        // claim next airdrop
         let msg = ExecuteMsg::Claim {
             amount: Uint128::from(2000001u128),
             stage: 2u8,
