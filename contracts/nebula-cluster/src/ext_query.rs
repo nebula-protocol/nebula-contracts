@@ -26,8 +26,10 @@ pub fn query_price(
     let res: PriceResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: pricing_oracle_address.to_string(),
         msg: to_binary(&OracleQueryMsg::Price {
-            base_asset: asset_info.to_string(),
-            quote_asset: "uusd".to_string(),
+            base_asset: asset_info.clone(),
+            quote_asset: AssetInfo::NativeToken {
+                denom: "uusd".to_string(),
+            },
         })?,
     }))?;
 
