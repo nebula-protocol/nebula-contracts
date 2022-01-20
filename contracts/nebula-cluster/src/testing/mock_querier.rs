@@ -191,8 +191,8 @@ impl WasmMockQuerier {
                     Ok(OracleQueryMsg::Price {
                            base_asset,
                            quote_asset,
-                       }) => match self.oracle_querier.assets.get(&base_asset) {
-                        Some(base_price) => match self.oracle_querier.assets.get(&quote_asset) {
+                       }) => match self.oracle_querier.assets.get(&base_asset.to_string()) {
+                        Some(base_price) => match self.oracle_querier.assets.get(&quote_asset.to_string()) {
                             Some(quote_price) => {
                                 SystemResult::Ok(ContractResult::from(to_binary(&PriceResponse {
                                     rate: decimal_division(*base_price, *quote_price),

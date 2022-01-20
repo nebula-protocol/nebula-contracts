@@ -1,5 +1,6 @@
 use crate::contract::*;
 use crate::state::*;
+use crate::testing::mock_querier::{consts, mock_init, mock_querier_setup};
 use astroport::asset::{Asset, AssetInfo};
 use cosmwasm_std::testing::{
     mock_env, mock_info, MOCK_CONTRACT_ADDR,
@@ -15,7 +16,6 @@ use nebula_protocol::{
 };
 use pretty_assertions::assert_eq;
 use std::str::FromStr;
-use crate::testing::mock_querier::{consts, mock_init, mock_querier_setup};
 
 /// Convenience function for creating inline String
 pub fn h(s: &str) -> String {
