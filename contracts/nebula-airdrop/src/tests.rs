@@ -89,7 +89,8 @@ mod tests {
         // unauthorized msg sender
         let info = mock_info("imposter0000", &[]);
         let msg = ExecuteMsg::RegisterMerkleRoot {
-            merkle_root: "634de21cde1044f41d90373733b0f0fb1c1c71f9652b905cdf159e73c4cf0d37".to_string(),
+            merkle_root: "634de21cde1044f41d90373733b0f0fb1c1c71f9652b905cdf159e73c4cf0d37"
+                .to_string(),
         };
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
         assert_eq!(res, StdError::generic_err("unauthorized"));
@@ -177,7 +178,7 @@ mod tests {
                 "98d73e0a035f23c490fef5e307f6e74652b9d3688c2aa5bff70eaa65956a24e1".to_string(),
                 "f328b89c766a62b8f1c768fefa1139c9562c6e05bab57a2afa7f35e83f9e9dcf".to_string(),
                 "fe19ca2434f87cadb0431311ac9a484792525eb66a952e257f68bf02b4561950".to_string(),
-            ]
+            ],
         };
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
         assert_eq!(res, StdError::generic_err("Verification is failed"));

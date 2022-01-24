@@ -1,6 +1,6 @@
 use crate::contract::{execute, instantiate, query, query_config};
-use crate::testing::mock_querier::mock_dependencies;
 use crate::state::{contributions_read, read_from_contribution_bucket, record_contribution};
+use crate::testing::mock_querier::mock_dependencies;
 use astroport::asset::{Asset, AssetInfo};
 use astroport::pair::{
     Cw20HookMsg as AstroportCw20HookMsg, ExecuteMsg as AstroportExecuteMsg,

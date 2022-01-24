@@ -1,15 +1,13 @@
 use crate::contract::*;
 use astroport::asset::{Asset, AssetInfo};
-use cosmwasm_std::*;
 use cosmwasm_std::testing::{
     mock_env, mock_info, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR,
 };
+use cosmwasm_std::*;
 use cw20::BalanceResponse as Cw20BalanceResponse;
 use cw20::{Cw20QueryMsg, TokenInfoResponse};
 use nebula_protocol::{
-    cluster::{
-        InstantiateMsg, QueryMsg as ClusterQueryMsg,
-    },
+    cluster::{InstantiateMsg, QueryMsg as ClusterQueryMsg},
     cluster_factory::ConfigResponse as FactoryConfigResponse,
     oracle::{PriceResponse, QueryMsg as OracleQueryMsg},
     penalty::{PenaltyCreateResponse, PenaltyRedeemResponse, QueryMsg as PenaltyQueryMsg},
@@ -164,9 +162,9 @@ impl WasmMockQuerier {
     pub fn execute_query(&self, request: &QueryRequest<TerraQueryWrapper>) -> QuerierResult {
         match &request {
             QueryRequest::Custom(TerraQueryWrapper {
-                                     route: _,
-                                     query_data: _,
-                                 }) => panic!("Tried to access Terra query -- not implemented"),
+                route: _,
+                query_data: _,
+            }) => panic!("Tried to access Terra query -- not implemented"),
             QueryRequest::Bank(BankQuery::Balance { address, denom }) => {
                 // Do for native
                 let denom_data = match self.balance_querier.balances.get(denom) {
@@ -189,22 +187,24 @@ impl WasmMockQuerier {
             QueryRequest::Wasm(WasmQuery::Smart { contract_addr, msg }) => {
                 match from_binary(&msg) {
                     Ok(OracleQueryMsg::Price {
-                           base_asset,
-                           quote_asset,
-                       }) => match self.oracle_querier.assets.get(&base_asset.to_string()) {
-                        Some(base_price) => match self.oracle_querier.assets.get(&quote_asset.to_string()) {
-                            Some(quote_price) => {
-                                SystemResult::Ok(ContractResult::from(to_binary(&PriceResponse {
-                                    rate: decimal_division(*base_price, *quote_price),
-                                    last_updated_base: u64::MAX,
-                                    last_updated_quote: u64::MAX,
-                                })))
+                        base_asset,
+                        quote_asset,
+                    }) => match self.oracle_querier.assets.get(&base_asset.to_string()) {
+                        Some(base_price) => {
+                            match self.oracle_querier.assets.get(&quote_asset.to_string()) {
+                                Some(quote_price) => SystemResult::Ok(ContractResult::from(
+                                    to_binary(&PriceResponse {
+                                        rate: decimal_division(*base_price, *quote_price),
+                                        last_updated_base: u64::MAX,
+                                        last_updated_quote: u64::MAX,
+                                    }),
+                                )),
+                                None => SystemResult::Err(SystemError::InvalidRequest {
+                                    error: "No oracle price exists".to_string(),
+                                    request: msg.as_slice().into(),
+                                }),
                             }
-                            None => SystemResult::Err(SystemError::InvalidRequest {
-                                error: "No oracle price exists".to_string(),
-                                request: msg.as_slice().into(),
-                            }),
-                        },
+                        }
                         None => SystemResult::Err(SystemError::InvalidRequest {
                             error: "No oracle price exists".to_string(),
                             request: msg.as_slice().into(),
@@ -259,25 +259,25 @@ impl WasmMockQuerier {
                             }
                             _ => match from_binary(&msg) {
                                 Ok(PenaltyQueryMsg::PenaltyQueryCreate {
-                                       block_height: _,
-                                       cluster_token_supply: _,
-                                       inventory: _,
-                                       create_asset_amounts: _,
-                                       asset_prices: _,
-                                       target_weights: _,
-                                   }) => {
+                                    block_height: _,
+                                    cluster_token_supply: _,
+                                    inventory: _,
+                                    create_asset_amounts: _,
+                                    asset_prices: _,
+                                    target_weights: _,
+                                }) => {
                                     let response = consts::mint_response();
                                     SystemResult::Ok(ContractResult::from(to_binary(&response)))
                                 }
                                 Ok(PenaltyQueryMsg::PenaltyQueryRedeem {
-                                       block_height: _,
-                                       cluster_token_supply: _,
-                                       inventory: _,
-                                       max_tokens: _,
-                                       asset_prices: _,
-                                       target_weights: _,
-                                       redeem_asset_amounts: _,
-                                   }) => {
+                                    block_height: _,
+                                    cluster_token_supply: _,
+                                    inventory: _,
+                                    max_tokens: _,
+                                    asset_prices: _,
+                                    target_weights: _,
+                                    redeem_asset_amounts: _,
+                                }) => {
                                     let response = PenaltyRedeemResponse {
                                         redeem_assets: vec![
                                             Uint128::new(99),
@@ -317,9 +317,9 @@ pub fn token_data<T, U>(
     total_supply: u128,
     balances: T,
 ) -> TokenData
-    where
-        T: IntoIterator<Item = (U, u128)>,
-        U: Into<String>,
+where
+    T: IntoIterator<Item = (U, u128)>,
+    U: Into<String>,
 {
     let mut balances_map: HashMap<String, Uint128> = HashMap::new();
     for (account_addr, balance) in balances.into_iter() {
@@ -376,16 +376,16 @@ impl WasmMockQuerier {
     }
 
     pub fn set_token<T>(&mut self, token_address: T, data: TokenData) -> &mut Self
-        where
-            T: Into<String>,
+    where
+        T: Into<String>,
     {
         self.token_querier.tokens.insert(token_address.into(), data);
         self
     }
 
     pub fn set_token_supply<T>(&mut self, token_address: T, supply: u128) -> &mut Self
-        where
-            T: Into<String>,
+    where
+        T: Into<String>,
     {
         if let Some(token) = self.token_querier.tokens.get_mut(&token_address.into()) {
             token.info.total_supply = Uint128::new(supply);
@@ -399,9 +399,9 @@ impl WasmMockQuerier {
         account_address: U,
         balance: u128,
     ) -> &mut Self
-        where
-            T: Into<String>,
-            U: Into<String>,
+    where
+        T: Into<String>,
+        U: Into<String>,
     {
         if let Some(token) = self.token_querier.tokens.get_mut(&token_address.into()) {
             token
@@ -417,9 +417,9 @@ impl WasmMockQuerier {
     }
 
     pub fn set_oracle_prices<T, U>(&mut self, price_data: T) -> &mut Self
-        where
-            T: IntoIterator<Item = (U, Decimal)>,
-            U: ToString,
+    where
+        T: IntoIterator<Item = (U, Decimal)>,
+        U: ToString,
     {
         for (asset, price) in price_data.into_iter() {
             self.set_oracle_price(asset.to_string(), price);
@@ -431,7 +431,6 @@ impl WasmMockQuerier {
         self.penalty_querier.create_tokens = create_tokens;
         self
     }
-
 }
 
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies

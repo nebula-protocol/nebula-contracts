@@ -1,21 +1,18 @@
 use crate::contract::*;
+use crate::error;
 use crate::state::*;
 use crate::testing::mock_querier::{consts, mock_dependencies, mock_init, mock_querier_setup};
 use astroport::asset::{Asset, AssetInfo};
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::*;
 use cw20::Cw20ExecuteMsg;
-use nebula_protocol::penalty::ExecuteMsg as PenaltyExecuteMsg;
-use nebula_protocol::{
-    cluster::{
-        ClusterStateResponse, ExecuteMsg, QueryMsg as ClusterQueryMsg,
-        TargetResponse,
-    }
+use nebula_protocol::cluster::{ClusterConfig, InstantiateMsg};
+use nebula_protocol::cluster::{
+    ClusterStateResponse, ExecuteMsg, QueryMsg as ClusterQueryMsg, TargetResponse,
 };
+use nebula_protocol::penalty::ExecuteMsg as PenaltyExecuteMsg;
 use pretty_assertions::assert_eq;
 use std::str::FromStr;
-use nebula_protocol::cluster::{ClusterConfig, InstantiateMsg};
-use crate::error;
 
 /// Convenience function for creating inline String
 pub fn h(s: &str) -> String {
@@ -89,34 +86,32 @@ fn update_config() {
         pricing_oracle: Some("oracle0001".to_string()),
         target_oracle: Some("owner".to_string()),
         penalty: Some("penalty0001".to_string()),
-        target: Some(
-            vec![
-                Asset {
-                    info: AssetInfo::Token {
-                        contract_addr: Addr::unchecked("mAAPL"),
-                    },
-                    amount: Uint128::new(20),
+        target: Some(vec![
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: Addr::unchecked("mAAPL"),
                 },
-                Asset {
-                    info: AssetInfo::Token {
-                        contract_addr: Addr::unchecked("mGOOG"),
-                    },
-                    amount: Uint128::new(20),
+                amount: Uint128::new(20),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: Addr::unchecked("mGOOG"),
                 },
-                Asset {
-                    info: AssetInfo::Token {
-                        contract_addr: Addr::unchecked("mMSFT"),
-                    },
-                    amount: Uint128::new(20),
+                amount: Uint128::new(20),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: Addr::unchecked("mMSFT"),
                 },
-                Asset {
-                    info: AssetInfo::Token {
-                        contract_addr: Addr::unchecked("mNFLX"),
-                    },
-                    amount: Uint128::new(20),
+                amount: Uint128::new(20),
+            },
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: Addr::unchecked("mNFLX"),
                 },
-            ]
-        ),
+                amount: Uint128::new(20),
+            },
+        ]),
     };
     let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
     assert_eq!(res, StdError::generic_err("unauthorized"));
@@ -551,7 +546,9 @@ fn update_target() {
     let info = mock_info(consts::pricing_oracle().as_str(), &[]);
     let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-    let msg = ExecuteMsg::UpdateTarget { target: new_target.clone() };
+    let msg = ExecuteMsg::UpdateTarget {
+        target: new_target.clone(),
+    };
 
     let info = mock_info(consts::owner().as_str(), &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
@@ -580,19 +577,21 @@ fn update_target() {
 
     // invalid assets update
     let msg = ExecuteMsg::UpdateTarget {
-        target: vec![
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: Addr::unchecked("token0001")
-                },
-                amount: Uint128::new(20)
-            }
-        ]
+        target: vec![Asset {
+            info: AssetInfo::Token {
+                contract_addr: Addr::unchecked("token0001"),
+            },
+            amount: Uint128::new(20),
+        }],
     };
     let info = mock_info(consts::owner().as_str(), &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-    assert_eq!(res, StdError::generic_err(
-        "Cluster must contain valid assets and cannot contain duplicate assets"));
+    assert_eq!(
+        res,
+        StdError::generic_err(
+            "Cluster must contain valid assets and cannot contain duplicate assets"
+        )
+    );
 
     let msg = ExecuteMsg::UpdateTarget { target: new_target };
 

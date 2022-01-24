@@ -1,16 +1,16 @@
 use crate::contract::{execute, instantiate, query};
-use crate::state::{Config, read_config};
+use crate::state::{read_config, Config};
 use crate::testing::mock_querier::mock_dependencies;
 use astroport::asset::AssetInfo;
-use cosmwasm_std::{Addr, Decimal, from_binary, StdError};
-use cosmwasm_std::testing::{mock_info, mock_env};
+use cosmwasm_std::testing::{mock_env, mock_info};
+use cosmwasm_std::{from_binary, Addr, Decimal, StdError};
 use nebula_protocol::oracle::{ExecuteMsg, InstantiateMsg, PriceResponse, QueryMsg};
 
 fn init_msg() -> InstantiateMsg {
     InstantiateMsg {
         owner: "owner0000".to_string(),
         oracle_addr: "oracle0000".to_string(),
-        base_denom: "uusd".to_string()
+        base_denom: "uusd".to_string(),
     }
 }
 
@@ -79,8 +79,12 @@ fn query_price() {
     assert_eq!(0, res.messages.len());
 
     let msg = QueryMsg::Price {
-        base_asset: AssetInfo::Token { contract_addr: Addr::unchecked("contractaddress0001") },
-        quote_asset: AssetInfo::NativeToken { denom: "uusd".to_string() },
+        base_asset: AssetInfo::Token {
+            contract_addr: Addr::unchecked("contractaddress0001"),
+        },
+        quote_asset: AssetInfo::NativeToken {
+            denom: "uusd".to_string(),
+        },
     };
     let res = query(deps.as_ref(), mock_env(), msg).unwrap();
     let price: PriceResponse = from_binary(&res).unwrap();

@@ -6,7 +6,9 @@ use cosmwasm_std::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tefi_oracle::hub::PriceResponse;
-use terra_cosmwasm::{ExchangeRateItem, ExchangeRatesResponse, TerraQuery, TerraQueryWrapper, TerraRoute};
+use terra_cosmwasm::{
+    ExchangeRateItem, ExchangeRatesResponse, TerraQuery, TerraQueryWrapper, TerraRoute,
+};
 
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies
 /// this uses our CustomQuerier.
@@ -50,7 +52,7 @@ pub enum QueryMsg {
     Price {
         asset_token: String,
         timeframe: Option<u64>,
-    }
+    },
 }
 
 impl WasmMockQuerier {
@@ -59,15 +61,19 @@ impl WasmMockQuerier {
             QueryRequest::Custom(TerraQueryWrapper { route, query_data }) => {
                 if route == &TerraRoute::Oracle {
                     match query_data {
-                        TerraQuery::ExchangeRates { base_denom, quote_denoms } => {
+                        TerraQuery::ExchangeRates {
+                            base_denom,
+                            quote_denoms,
+                        } => {
                             let res = ExchangeRatesResponse {
                                 base_denom: base_denom.to_string(),
-                                exchange_rates: quote_denoms.iter().map(|x| {
-                                    ExchangeRateItem {
+                                exchange_rates: quote_denoms
+                                    .iter()
+                                    .map(|x| ExchangeRateItem {
                                         quote_denom: x.clone(),
                                         exchange_rate: Decimal::one(),
-                                    }
-                                }).collect::<Vec<_>>()
+                                    })
+                                    .collect::<Vec<_>>(),
                             };
                             SystemResult::Ok(ContractResult::from(to_binary(&res)))
                         }
@@ -77,13 +83,14 @@ impl WasmMockQuerier {
                     panic!("DO NOT ENTER HERE")
                 }
             }
-            QueryRequest::Wasm(WasmQuery::Smart { contract_addr: _, msg }) => match from_binary(&msg)
-                .unwrap()
-            {
+            QueryRequest::Wasm(WasmQuery::Smart {
+                contract_addr: _,
+                msg,
+            }) => match from_binary(&msg).unwrap() {
                 QueryMsg::Price { .. } => {
                     SystemResult::Ok(ContractResult::from(to_binary(&PriceResponse {
                         rate: Decimal::one(),
-                        last_updated: u64::MAX
+                        last_updated: u64::MAX,
                     })))
                 }
             },
@@ -94,8 +101,6 @@ impl WasmMockQuerier {
 
 impl WasmMockQuerier {
     pub fn new(base: MockQuerier<TerraQueryWrapper>) -> Self {
-        WasmMockQuerier {
-            base,
-        }
+        WasmMockQuerier { base }
     }
 }
