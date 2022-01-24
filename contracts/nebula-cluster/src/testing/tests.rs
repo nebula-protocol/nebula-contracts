@@ -1,10 +1,8 @@
 use crate::contract::*;
 use crate::state::*;
-use crate::testing::mock_querier::{consts, mock_init, mock_querier_setup};
+use crate::testing::mock_querier::{consts, mock_dependencies, mock_init, mock_querier_setup};
 use astroport::asset::{Asset, AssetInfo};
-use cosmwasm_std::testing::{
-    mock_env, mock_info, MOCK_CONTRACT_ADDR,
-};
+use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::*;
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::penalty::ExecuteMsg as PenaltyExecuteMsg;
@@ -16,6 +14,8 @@ use nebula_protocol::{
 };
 use pretty_assertions::assert_eq;
 use std::str::FromStr;
+use nebula_protocol::cluster::{ClusterConfig, InstantiateMsg};
+use crate::error;
 
 /// Convenience function for creating inline String
 pub fn h(s: &str) -> String {
@@ -72,6 +72,73 @@ fn proper_initialization() {
         ],
         value.target
     );
+}
+
+#[test]
+fn update_config() {
+    let (mut deps, init_res) = mock_init();
+    assert_eq!(0, init_res.messages.len());
+
+    // unauthorized update
+    let info = mock_info("sender0001", &[]);
+    let msg = ExecuteMsg::UpdateConfig {
+        owner: Some("owner0001".to_string()),
+        name: Some("cluster0001".to_string()),
+        description: Some("description".to_string()),
+        cluster_token: Some("token0001".to_string()),
+        pricing_oracle: Some("oracle0001".to_string()),
+        target_oracle: Some("owner".to_string()),
+        penalty: Some("penalty0001".to_string()),
+        target: Some(
+            vec![
+                Asset {
+                    info: AssetInfo::Token {
+                        contract_addr: Addr::unchecked("mAAPL"),
+                    },
+                    amount: Uint128::new(20),
+                },
+                Asset {
+                    info: AssetInfo::Token {
+                        contract_addr: Addr::unchecked("mGOOG"),
+                    },
+                    amount: Uint128::new(20),
+                },
+                Asset {
+                    info: AssetInfo::Token {
+                        contract_addr: Addr::unchecked("mMSFT"),
+                    },
+                    amount: Uint128::new(20),
+                },
+                Asset {
+                    info: AssetInfo::Token {
+                        contract_addr: Addr::unchecked("mNFLX"),
+                    },
+                    amount: Uint128::new(20),
+                },
+            ]
+        ),
+    };
+    let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
+    assert_eq!(res, StdError::generic_err("unauthorized"));
+
+    // successful update
+    let info = mock_info("owner", &[]);
+    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    let config = read_config(&deps.storage).unwrap();
+    assert_eq!(
+        config,
+        ClusterConfig {
+            name: "cluster0001".to_string(),
+            description: "description".to_string(),
+            owner: Addr::unchecked("owner0001"),
+            cluster_token: Some(Addr::unchecked("token0001")),
+            factory: Addr::unchecked("factory"),
+            pricing_oracle: Addr::unchecked("oracle0001"),
+            target_oracle: Addr::unchecked("owner"),
+            penalty: Addr::unchecked("penalty0001"),
+            active: true
+        }
+    )
 }
 
 #[test]
@@ -434,27 +501,6 @@ fn burn() {
 
 #[test]
 fn update_target() {
-    let (mut deps, _init_res) = mock_init();
-
-    deps.querier
-        .set_token_supply(consts::cluster_token(), 100_000_000)
-        .set_token_balance(consts::cluster_token(), "addr0000", 20_000_000);
-
-    // mint first
-    let asset_amounts = consts::asset_amounts();
-
-    deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
-
-    let mint_msg = ExecuteMsg::RebalanceCreate {
-        asset_amounts: asset_amounts.clone(),
-        min_tokens: None,
-    };
-
-    let addr = "addr0000";
-    let info = mock_info(addr, &[]);
-    let env = mock_env();
-    let _res = execute(deps.as_mut(), env.clone(), info, mint_msg).unwrap();
-
     let new_target: Vec<Asset> = vec![
         Asset {
             info: AssetInfo::Token {
@@ -487,7 +533,73 @@ fn update_target() {
             amount: Uint128::new(5),
         },
     ];
+
+    // cluster token not set
+    let mut deps = mock_dependencies(&[]);
+    deps = mock_querier_setup(deps);
+    let msg = InstantiateMsg {
+        name: consts::name().to_string(),
+        description: consts::description().to_string(),
+        owner: consts::owner(),
+        cluster_token: None,
+        target: consts::target_assets_stage(),
+        pricing_oracle: consts::pricing_oracle(),
+        target_oracle: consts::target_oracle(),
+        penalty: consts::penalty(),
+        factory: consts::factory(),
+    };
+    let info = mock_info(consts::pricing_oracle().as_str(), &[]);
+    let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+    let msg = ExecuteMsg::UpdateTarget { target: new_target.clone() };
+
+    let info = mock_info(consts::owner().as_str(), &[]);
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(res, error::cluster_token_not_set());
+
+    let (mut deps, _init_res) = mock_init();
+
+    deps.querier
+        .set_token_supply(consts::cluster_token(), 100_000_000)
+        .set_token_balance(consts::cluster_token(), "addr0000", 20_000_000);
+
+    // mint first
+    let asset_amounts = consts::asset_amounts();
+
+    deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
+
+    let mint_msg = ExecuteMsg::RebalanceCreate {
+        asset_amounts: asset_amounts.clone(),
+        min_tokens: None,
+    };
+
+    let addr = "addr0000";
+    let info = mock_info(addr, &[]);
+    let env = mock_env();
+    let _res = execute(deps.as_mut(), env.clone(), info, mint_msg).unwrap();
+
+    // invalid assets update
+    let msg = ExecuteMsg::UpdateTarget {
+        target: vec![
+            Asset {
+                info: AssetInfo::Token {
+                    contract_addr: Addr::unchecked("token0001")
+                },
+                amount: Uint128::new(20)
+            }
+        ]
+    };
+    let info = mock_info(consts::owner().as_str(), &[]);
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(res, StdError::generic_err(
+        "Cluster must contain valid assets and cannot contain duplicate assets"));
+
     let msg = ExecuteMsg::UpdateTarget { target: new_target };
+
+    // unauthorized update
+    let info = mock_info("imposter0001", &[]);
+    let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
+    assert_eq!(res, StdError::generic_err("unauthorized"));
 
     let info = mock_info(consts::owner().as_str(), &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
