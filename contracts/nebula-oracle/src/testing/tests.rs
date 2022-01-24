@@ -5,6 +5,7 @@ use astroport::asset::AssetInfo;
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{from_binary, Addr, Decimal, StdError};
 use nebula_protocol::oracle::{ExecuteMsg, InstantiateMsg, PriceResponse, QueryMsg};
+use std::str::FromStr;
 
 fn init_msg() -> InstantiateMsg {
     InstantiateMsg {
@@ -78,9 +79,19 @@ fn query_price() {
     let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
     assert_eq!(0, res.messages.len());
 
+    deps.querier.set_tefi_oracle_prices(vec![
+        ("token0001", Decimal::from_str("765.52").unwrap()),
+        ("token0002", Decimal::from_str("1.9234").unwrap()),
+    ]);
+
+    deps.querier.set_terra_oracle_prices(vec![
+        ("uluna", Decimal::from_str("66.435110305004678719").unwrap()),
+        ("uusd", Decimal::from_str("1.00").unwrap()),
+    ]);
+
     let msg = QueryMsg::Price {
         base_asset: AssetInfo::Token {
-            contract_addr: Addr::unchecked("contractaddress0001"),
+            contract_addr: Addr::unchecked("token0001"),
         },
         quote_asset: AssetInfo::NativeToken {
             denom: "uusd".to_string(),
@@ -88,5 +99,20 @@ fn query_price() {
     };
     let res = query(deps.as_ref(), mock_env(), msg).unwrap();
     let price: PriceResponse = from_binary(&res).unwrap();
-    assert_eq!(price.rate, Decimal::one());
+    assert_eq!(price.rate, Decimal::from_str("765.52").unwrap());
+
+    let msg = QueryMsg::Price {
+        base_asset: AssetInfo::NativeToken {
+            denom: "uusd".to_string(),
+        },
+        quote_asset: AssetInfo::NativeToken {
+            denom: "uluna".to_string(),
+        },
+    };
+    let res = query(deps.as_ref(), mock_env(), msg).unwrap();
+    let price: PriceResponse = from_binary(&res).unwrap();
+    assert_eq!(
+        price.rate,
+        Decimal::from_str("0.015052281774035657").unwrap()
+    );
 }
