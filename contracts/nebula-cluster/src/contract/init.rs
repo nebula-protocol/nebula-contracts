@@ -3,20 +3,19 @@ use cosmwasm_std::entry_point;
 
 use crate::ext_query::query_asset_balance;
 use crate::{
+    error::ContractError,
     state::{store_config, store_target_asset_data},
     util::vec_to_string,
 };
 use astroport::asset::AssetInfo;
-use cosmwasm_std::{
-    attr, DepsMut, Env, MessageInfo, QuerierWrapper, Response, StdError, StdResult, Uint128,
-};
+use cosmwasm_std::{attr, DepsMut, Env, MessageInfo, QuerierWrapper, Response, Uint128};
 use nebula_protocol::cluster::{ClusterConfig, InstantiateMsg};
 
 pub fn validate_targets(
     querier: QuerierWrapper,
     env: &Env,
     target_assets: Vec<AssetInfo>,
-) -> StdResult<bool> {
+) -> Result<bool, ContractError> {
     for i in 0..target_assets.len() {
         // Check if asset is a valid CW20.
         query_asset_balance(&querier, &env.contract.address, &target_assets[i])?;
@@ -35,7 +34,7 @@ pub fn instantiate(
     env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let cfg = ClusterConfig {
         name: msg.name.clone(),
         description: msg.description.clone(),
@@ -65,13 +64,15 @@ pub fn instantiate(
 
     for w in weights.iter() {
         if *w == Uint128::zero() {
-            return Err(StdError::generic_err("Initial weights cannot contain zero"));
+            return Err(ContractError::Generic(
+                "Initial weights cannot contain zero".to_string(),
+            ));
         }
     }
 
     if validate_targets(deps.querier, &env, asset_infos.clone()).is_err() {
-        return Err(StdError::generic_err(
-            "Cluster must contain valid assets and cannot contain duplicate assets",
+        return Err(ContractError::Generic(
+            "Cluster must contain valid assets and cannot contain duplicate assets".to_string(),
         ));
     }
 

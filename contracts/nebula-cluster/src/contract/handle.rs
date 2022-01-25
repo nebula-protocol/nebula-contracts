@@ -4,7 +4,7 @@ use astroport::asset::{Asset, AssetInfo};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    attr, to_binary, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdError, StdResult, Storage,
+    attr, to_binary, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult, Storage,
     Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
@@ -14,7 +14,7 @@ use nebula_protocol::cluster::ExecuteMsg;
 use nebula_protocol::penalty::ExecuteMsg as PenaltyExecuteMsg;
 
 use crate::contract::{query_cluster_state, validate_targets};
-use crate::error;
+use crate::error::ContractError;
 use crate::ext_query::{
     query_collector_contract_address, query_create_amount, query_redeem_amount,
 };
@@ -28,7 +28,12 @@ use crate::util::vec_to_string;
 const FRESH_TIMESPAN: u64 = 30;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
+pub fn execute(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: ExecuteMsg,
+) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::UpdateConfig {
             owner,
@@ -78,12 +83,12 @@ pub fn update_config(
     target_oracle: Option<String>,
     penalty: Option<String>,
     target: Option<Vec<Asset>>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let api = deps.api;
     // Update cluster config
     config_store(deps.storage).update(|mut config| {
         if config.owner != info.sender {
-            return Err(StdError::generic_err("unauthorized"));
+            return Err(ContractError::Unauthorized {});
         }
 
         if let Some(owner) = owner {
@@ -137,15 +142,15 @@ pub fn update_target(
     env: Env,
     info: MessageInfo,
     target: &Vec<Asset>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let cfg = read_config(deps.storage)?;
     if let None = cfg.cluster_token {
-        return Err(error::cluster_token_not_set());
+        return Err(ContractError::ClusterTokenNotSet {});
     }
 
     // check permission
     if (info.sender != cfg.owner) && (info.sender != cfg.target_oracle) {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     let mut asset_data = target.clone();
@@ -160,9 +165,7 @@ pub fn update_target(
             .unzip();
 
     if validate_targets(deps.querier, &env, updated_asset_infos.clone()).is_err() {
-        return Err(StdError::generic_err(
-            "Cluster must contain valid assets and cannot contain duplicate assets",
-        ));
+        return Err(ContractError::InvalidAssets {});
     }
 
     // Load previous assets & target
@@ -208,22 +211,20 @@ pub fn update_target(
     Decommissions an active cluster, disabling mints, and only allowing
     pro-rata redeems
 */
-pub fn decommission(deps: DepsMut, info: MessageInfo) -> StdResult<Response> {
+pub fn decommission(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
     // allow removal / adding
     let cfg = read_config(deps.storage)?;
     if let None = cfg.cluster_token {
-        return Err(error::cluster_token_not_set());
+        return Err(ContractError::ClusterTokenNotSet {});
     }
     // check permission for factory
     if info.sender != cfg.factory {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     // can only decommission an active cluster
     if !cfg.active {
-        return Err(StdError::generic_err(
-            "Cannot decommission an already decommissioned cluster",
-        ));
+        return Err(ContractError::ClusterAlreadyDecommissioned {});
     }
 
     config_store(deps.storage).update(|mut config| -> StdResult<_> {
@@ -245,7 +246,7 @@ pub fn create(
     info: MessageInfo,
     asset_amounts: Vec<Asset>,
     min_tokens: Option<Uint128>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     // check asset_amounts for duplicate and unsupported assets
     if validate_targets(
         deps.querier,
@@ -254,17 +255,13 @@ pub fn create(
     )
     .is_err()
     {
-        return Err(StdError::generic_err(
-            "Input asset_amounts contain invalid or duplicate assets",
-        ));
+        return Err(ContractError::InvalidAssets {});
     }
 
     let cfg = read_config(deps.storage)?;
 
     if !cfg.active {
-        return Err(StdError::generic_err(
-            "Cannot call create on a decommissioned cluster",
-        ));
+        return Err(ContractError::ClusterAlreadyDecommissioned {});
     }
 
     let cluster_state = query_cluster_state(
@@ -286,8 +283,8 @@ pub fn create(
         .map(|info| {
             match info {
                 AssetInfo::NativeToken { denom } => Ok(denom.clone()),
-                _ => Err(StdError::generic_err(
-                    "Filtered list cannot contain non-native denoms",
+                _ => Err(ContractError::Generic(
+                    "Filtered list cannot contain non-native denoms".to_string(),
                 )),
             }
             .unwrap()
@@ -299,7 +296,7 @@ pub fn create(
     let cluster_token = cfg
         .cluster_token
         .clone()
-        .ok_or_else(|| error::cluster_token_not_set())?;
+        .ok_or_else(|| ContractError::ClusterTokenNotSet {})?;
 
     // Vector to store create asset weights
     let mut asset_weights = vec![Uint128::zero(); target_infos.len()];
@@ -309,8 +306,8 @@ pub fn create(
     // Return an error if assets not in target are sent to the create function
     for coin in info.funds.iter() {
         if !native_coin_denoms.contains(&coin.denom) {
-            return Err(StdError::generic_err(
-                "Unsupported assets were sent to the create function",
+            return Err(ContractError::Generic(
+                "Unsupported assets were sent to the create function".to_string(),
             ));
         }
     }
@@ -320,7 +317,7 @@ pub fn create(
         for asset in asset_amounts.iter() {
             if asset.info.clone() == asset_info.clone() {
                 if target_weights[i] == Uint128::zero() && asset.amount > Uint128::zero() {
-                    return Err(StdError::generic_err(
+                    return Err(ContractError::Generic(
                         format!("Cannot call create with non-zero asset amount when target weight is zero for asset {}", asset.info.to_string()),
                     ));
                 };
@@ -430,7 +427,7 @@ pub fn create(
                 if (create_asset_amounts[i].u128() % target_weights[i].u128() != 0)
                     || create_asset_amounts[i] == Uint128::zero()
                 {
-                    return Err(StdError::generic_err(format!(
+                    return Err(ContractError::Generic(format!(
                         "Initial cluster assets must be a nonzero multiple of target weights at index {}",
                         i
                     )));
@@ -442,7 +439,7 @@ pub fn create(
                 }
 
                 if div != val {
-                    return Err(StdError::generic_err(format!(
+                    return Err(ContractError::Generic(format!(
                         "Initial cluster assets have weight invariant at index {}",
                         i
                     )));
@@ -451,17 +448,20 @@ pub fn create(
 
             mint_amount_to_sender = proposed_mint_total;
         } else {
-            return Err(StdError::generic_err(
+            return Err(ContractError::Generic(
                 "Cluster is uninitialized. \
             To initialize it with your mint cluster, \
-            provide min_tokens as the amount of cluster tokens you want to start with.",
+            provide min_tokens as the amount of cluster tokens you want to start with.".to_string(),
             ));
         }
     }
 
     if let Some(min_tokens) = min_tokens {
         if mint_amount_to_sender < min_tokens {
-            return Err(error::below_min_tokens(mint_amount_to_sender, min_tokens));
+            return Err(ContractError::BelowMinTokens(
+                mint_amount_to_sender,
+                min_tokens,
+            ));
         }
     }
 
@@ -498,15 +498,15 @@ pub fn receive_redeem(
     info: MessageInfo,
     max_tokens: Uint128,
     asset_amounts: Option<Vec<Asset>>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let sender = info.sender;
 
     let cfg = read_config(deps.storage)?;
 
     // If cluster is not active, must do pro rata redeem
     if !cfg.active && asset_amounts.is_some() {
-        return Err(StdError::generic_err(
-            "Cannot call non pro-rata redeem on a decommissioned cluster",
+        return Err(ContractError::Generic(
+            "Cannot call non pro-rata redeem on a decommissioned cluster".to_string(),
         ));
     }
 
@@ -514,7 +514,7 @@ pub fn receive_redeem(
 
     let cluster_token = cfg
         .cluster_token
-        .ok_or_else(|| error::cluster_token_not_set())?;
+        .ok_or_else(|| ContractError::ClusterTokenNotSet {})?;
 
     // Use min as stale threshold if pro-rata redeem
     let stale_threshold = match asset_amounts {
@@ -585,7 +585,7 @@ pub fn receive_redeem(
 
     let token_cost: Uint128 = Uint128::from(token_cost);
     if token_cost > max_tokens {
-        return Err(error::above_max_tokens(token_cost, max_tokens));
+        return Err(ContractError::AboveMaxTokens(token_cost, max_tokens));
     }
 
     // send redeem_totals to sender
@@ -604,9 +604,12 @@ pub fn receive_redeem(
                 amount: amt.clone(),
             };
 
-            asset.into_msg(&deps.querier, sender.clone())
+            match asset.into_msg(&deps.querier, sender.clone()) {
+                Ok(msg) => Ok(msg),
+                Err(e) => Err(ContractError::Std(e)),
+            }
         })
-        .collect::<StdResult<Vec<CosmosMsg>>>()?;
+        .collect::<Result<Vec<CosmosMsg>, ContractError>>()?;
 
     // compute fee_amt
     let _fee_amt: FPDecimal = FPDecimal::from(token_cost.u128()) * fee_rate;
@@ -677,7 +680,7 @@ fn update_asset_balance(
     asset_id: &String,
     amount: Uint128,
     mint: bool,
-) -> StdResult<()> {
+) -> Result<(), ContractError> {
     let mut asset_amount = match read_asset_balance(storage, &asset_id) {
         Ok(amount) => amount,
         Err(_) => Uint128::zero(),

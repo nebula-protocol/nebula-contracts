@@ -2,10 +2,11 @@
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    attr, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, Uint128, WasmMsg,
+    attr, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    Uint128, WasmMsg,
 };
 
+use crate::error::ContractError;
 use crate::state::{
     read_claimed, read_config, read_latest_stage, read_merkle_root, store_claimed, store_config,
     store_latest_stage, store_merkle_root, Config,
@@ -25,7 +26,7 @@ pub fn instantiate(
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     store_config(
         deps.storage,
         &Config {
@@ -46,7 +47,7 @@ pub fn execute(
     _env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::UpdateConfig {
             owner,
@@ -68,10 +69,10 @@ pub fn update_config(
     info: MessageInfo,
     owner: Option<String>,
     nebula_token: Option<String>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let mut config: Config = read_config(deps.storage)?;
     if info.sender != config.owner {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     if let Some(owner) = owner {
@@ -85,11 +86,11 @@ pub fn update_config(
     Ok(Response::new().add_attributes(vec![attr("action", "update_config")]))
 }
 
-fn validate_merkle_root(merkle_root: String) -> StdResult<()> {
+fn validate_merkle_root(merkle_root: String) -> Result<(), ContractError> {
     let mut root_buf: [u8; 32] = [0; 32];
     match hex::decode_to_slice(merkle_root, &mut root_buf) {
         Ok(_) => Ok(()),
-        Err(_) => Err(StdError::generic_err("Invalid merkle root")),
+        Err(_) => Err(ContractError::InvalidMerkle {}),
     }
 }
 
@@ -97,10 +98,10 @@ pub fn register_merkle_root(
     deps: DepsMut,
     info: MessageInfo,
     merkle_root: String,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let config: Config = read_config(deps.storage)?;
     if info.sender != config.owner {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     validate_merkle_root(merkle_root.clone())?;
@@ -124,13 +125,13 @@ pub fn claim(
     stage: u8,
     amount: Uint128,
     proof: Vec<String>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let config: Config = read_config(deps.storage)?;
     let merkle_root: String = read_merkle_root(deps.storage, stage)?;
 
     // If user claimed target stage, return err
     if read_claimed(deps.storage, &info.sender, stage)? {
-        return Err(StdError::generic_err("Already claimed"));
+        return Err(ContractError::AlreadyClaimed {});
     }
 
     let user_input: String = info.sender.to_string() + &amount.to_string();
@@ -159,7 +160,7 @@ pub fn claim(
     hex::decode_to_slice(merkle_root, &mut root_buf).unwrap();
 
     if root_buf != hash {
-        return Err(StdError::generic_err("Verification is failed"));
+        return Err(ContractError::MerkleVerification {});
     }
 
     // Update claim index to the current stage
