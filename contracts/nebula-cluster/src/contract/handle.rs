@@ -4,8 +4,8 @@ use astroport::asset::{Asset, AssetInfo};
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    attr, to_binary, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult, Storage,
-    Uint128, WasmMsg,
+    attr, to_binary, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult, Storage, Uint128,
+    WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 
@@ -449,9 +449,9 @@ pub fn create(
             mint_amount_to_sender = proposed_mint_total;
         } else {
             return Err(ContractError::Generic(
-                "Cluster is uninitialized. \
-            To initialize it with your mint cluster, \
-            provide min_tokens as the amount of cluster tokens you want to start with.".to_string(),
+                "Cluster is uninitialized. To initialize it with your mint cluster, \
+                provide min_tokens as the amount of cluster tokens you want to start with."
+                    .to_string(),
             ));
         }
     }
