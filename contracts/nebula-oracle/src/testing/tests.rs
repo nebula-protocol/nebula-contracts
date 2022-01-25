@@ -116,7 +116,9 @@ fn query_price() {
     let res = query(deps.as_ref(), mock_env(), msg).unwrap_err();
     assert_eq!(
         res,
-        StdError::generic_err("Querier system error: Cannot parse request: No native denom exists in: ")
+        StdError::generic_err(
+            "Querier system error: Cannot parse request: No native denom exists in: "
+        )
     );
 
     // successful queries
