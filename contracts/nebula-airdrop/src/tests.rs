@@ -62,7 +62,7 @@ mod tests {
         let config: ConfigResponse = from_binary(&res).unwrap();
         assert_eq!("owner0001", config.owner.as_str());
 
-        // Unauthorzied err
+        // unauthorized err
         let info = mock_info("owner0000", &[]);
         let msg = ExecuteMsg::UpdateConfig {
             owner: None,
@@ -153,7 +153,7 @@ mod tests {
         let info = mock_info("addr0000", &[]);
         let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-        // Register merkle roots
+        // register merkle roots
         let info = mock_info("owner0000", &[]);
         let msg = ExecuteMsg::RegisterMerkleRoot {
             merkle_root: "85e33930e7a8f015316cb4a53a4c45d26a69f299fc4c83f17357e1fd62e8fd95"
@@ -240,7 +240,7 @@ mod tests {
         let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
         assert_eq!(res, ContractError::AlreadyClaimed {});
 
-        // Claim next airdrop
+        // claim next airdrop
         let msg = ExecuteMsg::Claim {
             amount: Uint128::from(2000001u128),
             stage: 2u8,

@@ -1,6 +1,11 @@
 use crate::contract::{execute, instantiate, query, query_config};
-use crate::mock_querier::mock_dependencies;
 use crate::state::{contributions_read, read_from_contribution_bucket, record_contribution};
+use crate::testing::mock_querier::mock_dependencies;
+use astroport::asset::{Asset, AssetInfo};
+use astroport::pair::{
+    Cw20HookMsg as AstroportCw20HookMsg, ExecuteMsg as AstroportExecuteMsg,
+    PoolResponse as AstroportPoolResponse,
+};
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     attr, coins, from_binary, to_binary, Addr, BankMsg, CosmosMsg, Decimal, DepsMut, StdError,
@@ -8,12 +13,6 @@ use cosmwasm_std::{
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use nebula_protocol::cluster::ExecuteMsg as ClusterExecuteMsg;
-
-use astroport::asset::{Asset, AssetInfo};
-use astroport::pair::{
-    Cw20HookMsg as AstroportCw20HookMsg, ExecuteMsg as AstroportExecuteMsg,
-    PoolResponse as AstroportPoolResponse,
-};
 use nebula_protocol::incentives::{
     ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, PenaltyPeriodResponse, PoolType,
     QueryMsg,

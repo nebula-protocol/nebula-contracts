@@ -4,7 +4,6 @@ mod tests {
     use crate::contract::{execute, instantiate, query};
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{attr, from_binary, Decimal, StdError, Uint128};
-
     use nebula_protocol::staking::{
         ConfigResponse, ExecuteMsg, InstantiateMsg, PoolInfoResponse, QueryMsg,
     };
