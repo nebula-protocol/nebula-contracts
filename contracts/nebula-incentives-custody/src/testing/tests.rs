@@ -1,10 +1,9 @@
 use crate::contract::{execute, instantiate, query};
+use crate::error::ContractError;
 use crate::state::{read_neb, read_owner};
 use crate::testing::mock_querier::mock_dependencies;
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
-use cosmwasm_std::{
-    attr, from_binary, to_binary, Binary, CosmosMsg, StdError, SubMsg, Uint128, WasmMsg,
-};
+use cosmwasm_std::{attr, from_binary, to_binary, Binary, CosmosMsg, SubMsg, Uint128, WasmMsg};
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::incentives_custody::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
@@ -55,12 +54,8 @@ fn test_request_neb() {
     )]);
     let info = mock_info("random", &[]);
     let msg = ExecuteMsg::RequestNeb { amount: neb_amount };
-    let res = execute(deps.as_mut(), mock_env(), info, msg);
-
-    match res {
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized"),
-        _ => panic!("Must return unauthorized error"),
-    }
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(res, ContractError::Unauthorized {});
 
     let info = mock_info(OWNER, &[]);
     let msg = ExecuteMsg::RequestNeb {
@@ -133,12 +128,8 @@ fn test_update_owner() {
     let msg = ExecuteMsg::UpdateOwner {
         owner: h("owner0001"),
     };
-    let res = execute(deps.as_mut(), mock_env(), info, msg);
-
-    match res {
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized"),
-        _ => panic!("Must return unauthorized error"),
-    }
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(res, ContractError::Unauthorized {});
 
     let info = mock_info(OWNER, &[]);
     let msg = ExecuteMsg::UpdateOwner {

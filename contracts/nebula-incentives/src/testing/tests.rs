@@ -1,4 +1,5 @@
 use crate::contract::{execute, instantiate, query, query_config};
+use crate::error::ContractError;
 use crate::state::{contributions_read, read_from_contribution_bucket, record_contribution};
 use crate::testing::mock_querier::mock_dependencies;
 use astroport::asset::{Asset, AssetInfo};
@@ -8,8 +9,8 @@ use astroport::pair::{
 };
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    attr, coins, from_binary, to_binary, Addr, BankMsg, CosmosMsg, Decimal, DepsMut, StdError,
-    SubMsg, Uint128, WasmMsg,
+    attr, coins, from_binary, to_binary, Addr, BankMsg, CosmosMsg, Decimal, DepsMut, SubMsg,
+    Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use nebula_protocol::cluster::ExecuteMsg as ClusterExecuteMsg;
@@ -68,12 +69,8 @@ fn proper_initialization() {
     };
 
     let info = mock_info("owner0001", &[]);
-    let res = execute(deps.as_mut(), mock_env(), info, msg);
-
-    match res {
-        Ok(_) => panic!("Must return error"),
-        Err(e) => assert_eq!(e, StdError::generic_err("unauthorized")),
-    }
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(res, ContractError::Unauthorized {});
 
     let msg = ExecuteMsg::UpdateOwner {
         owner: "owner0001".to_string(),
@@ -587,13 +584,8 @@ fn test_incentives_arb_cluster_redeem() {
 
     let info = mock_info("owner0000", &coins(100, &"uusd".to_string()));
     let env = mock_env();
-    let res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
-
-    match res {
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "not native token"),
-        Err(e) => panic!("Unexpected error: {:?}", e),
-        _ => panic!("Must return error"),
-    }
+    let res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap_err();
+    assert_eq!(res, ContractError::Generic("Not native token".to_string()));
 
     let msg = ExecuteMsg::ArbClusterRedeem {
         cluster_contract: "cluster".to_string(),

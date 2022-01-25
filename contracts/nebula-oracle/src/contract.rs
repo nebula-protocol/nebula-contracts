@@ -2,11 +2,12 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     attr, to_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, QueryRequest,
-    Response, StdError, StdResult, Uint128, WasmQuery,
+    Response, StdResult, Uint128, WasmQuery,
 };
 
 use crate::state::{read_config, store_config, Config};
 
+use crate::error::ContractError;
 use astroport::asset::AssetInfo;
 use nebula_protocol::oracle::{ExecuteMsg, InstantiateMsg, PriceResponse, QueryMsg};
 use tefi_oracle::hub::{
@@ -22,7 +23,7 @@ pub fn instantiate(
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let cfg = Config {
         owner: deps.api.addr_validate(msg.owner.as_str())?,
         oracle_addr: deps.api.addr_validate(msg.oracle_addr.as_str())?,
@@ -42,7 +43,7 @@ pub fn execute(
     _env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::UpdateConfig {
             owner,
@@ -58,11 +59,11 @@ pub fn update_config(
     owner: Option<String>,
     oracle_addr: Option<String>,
     base_denom: Option<String>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let mut config: Config = read_config(deps.storage)?;
 
     if config.owner != info.sender {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     if let Some(owner) = owner {

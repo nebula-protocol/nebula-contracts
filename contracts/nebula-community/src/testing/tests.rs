@@ -1,10 +1,10 @@
 use crate::contract::{execute, instantiate, query};
+use crate::error::ContractError;
 use crate::testing::mock_querier::mock_dependencies;
 use astroport::asset::{Asset, AssetInfo};
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{
-    coins, from_binary, to_binary, Addr, BankMsg, Binary, CosmosMsg, StdError, SubMsg, Uint128,
-    WasmMsg,
+    coins, from_binary, to_binary, Addr, BankMsg, Binary, CosmosMsg, SubMsg, Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::community::{ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
@@ -50,12 +50,8 @@ fn update_config() {
         owner: "owner0001".to_string(),
     };
     let info = mock_info("addr0000", &[]);
-    let res = execute(deps.as_mut(), mock_env(), info, msg.clone());
-
-    match res {
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized"),
-        _ => panic!("DO NOT ENTER HERE"),
-    }
+    let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
+    assert_eq!(res, ContractError::Unauthorized {});
 
     let info = mock_info("owner0000", &[]);
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -94,11 +90,8 @@ fn test_spend() {
     };
 
     let info = mock_info("addr0000", &[]);
-    let res = execute(deps.as_mut(), mock_env(), info, msg);
-    match res {
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized"),
-        _ => panic!("DO NOT ENTER HERE"),
-    }
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(res, ContractError::Unauthorized {});
 
     // successfully spend Native token
     let msg = ExecuteMsg::Spend {
@@ -168,11 +161,8 @@ fn test_pass_command() {
     };
 
     let info = mock_info("imposter0001", &[]);
-    let res = execute(deps.as_mut(), mock_env(), info, msg);
-    match res {
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized"),
-        _ => panic!("DO NOT ENTER HERE"),
-    }
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(res, ContractError::Unauthorized {});
 
     // successfully pass command
     let msg = ExecuteMsg::PassCommand {

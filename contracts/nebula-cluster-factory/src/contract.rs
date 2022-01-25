@@ -2,12 +2,12 @@ use astroport::asset::{AssetInfo, PairInfo};
 use astroport::factory::{ExecuteMsg as AstroportFactoryExecuteMsg, PairType};
 use astroport::querier::query_pair_info;
 use astroport::token::InstantiateMsg as TokenInstantiateMsg;
-use cosmwasm_std::entry_point;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::{
     attr, to_binary, Addr, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Reply,
-    ReplyOn, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg,
+    ReplyOn, Response, StdResult, Storage, SubMsg, Uint128, WasmMsg,
 };
+use cosmwasm_std::{entry_point, StdError};
 use cw20::{Cw20ExecuteMsg, MinterResponse};
 use protobuf::Message;
 
@@ -24,6 +24,7 @@ use nebula_protocol::staking::{
     Cw20HookMsg as StakingCw20HookMsg, ExecuteMsg as StakingExecuteMsg,
 };
 
+use crate::error::ContractError;
 use crate::response::MsgInstantiateContractResponse;
 use crate::state::{
     cluster_exists, deactivate_cluster, decrease_total_weight, get_cluster_data,
@@ -44,7 +45,7 @@ pub fn instantiate(
     env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     store_config(
         deps.storage,
         &Config {
@@ -68,7 +69,12 @@ pub fn instantiate(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
+pub fn execute(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: ExecuteMsg,
+) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::PostInitialize {
             owner,
@@ -123,10 +129,10 @@ pub fn post_initialize(
     astroport_factory: String,
     staking_contract: String,
     commission_collector: String,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let mut config: Config = read_config(deps.storage)?;
     if config.owner != Addr::unchecked(String::default()) {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     config.owner = deps.api.addr_validate(owner.as_str())?;
@@ -151,10 +157,10 @@ pub fn update_config(
     token_code_id: Option<u64>,
     cluster_code_id: Option<u64>,
     distribution_schedule: Option<Vec<(u64, u64, Uint128)>>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let mut config: Config = read_config(deps.storage)?;
     if config.owner != info.sender {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     if let Some(owner) = owner {
@@ -183,11 +189,11 @@ pub fn update_weight(
     info: MessageInfo,
     asset_token: String,
     weight: u32,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let validated_asset_token = deps.api.addr_validate(asset_token.as_str())?;
     let config: Config = read_config(deps.storage)?;
     if config.owner != info.sender {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     let origin_weight = read_weight(deps.storage, &validated_asset_token)?;
@@ -209,10 +215,10 @@ pub fn pass_command(
     info: MessageInfo,
     contract_addr: String,
     msg: Binary,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let config: Config = read_config(deps.storage)?;
     if config.owner != info.sender {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     Ok(
@@ -242,16 +248,16 @@ pub fn create_cluster(
     env: Env,
     info: MessageInfo,
     params: Params,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let config: Config = read_config(deps.storage)?;
     if config.owner != info.sender {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     // If the param storage exists, it means there is a cluster registration process in progress
     if read_params(deps.storage).is_ok() {
-        return Err(StdError::generic_err(
-            "A cluster registration process is in progress",
+        return Err(ContractError::Generic(
+            "A cluster registration process is in progress".to_string(),
         ));
     }
 
@@ -288,13 +294,17 @@ pub fn create_cluster(
         ]))
 }
 
-fn get_res_msg(msg: Reply) -> StdResult<MsgInstantiateContractResponse> {
-    Message::parse_from_bytes(msg.result.unwrap().data.unwrap().as_slice())
-        .map_err(|_| StdError::parse_err("MsgInstantiateContractResponse", "failed to parse data"))
+fn get_res_msg(msg: Reply) -> Result<MsgInstantiateContractResponse, ContractError> {
+    Message::parse_from_bytes(msg.result.unwrap().data.unwrap().as_slice()).map_err(|_| {
+        ContractError::Std(StdError::parse_err(
+            "MsgInstantiateContractResponse",
+            "failed to parse data",
+        ))
+    })
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
+pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractError> {
     match msg.id {
         1 => {
             // get new cluster token's contract address
@@ -321,7 +331,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
             let cluster_token = read_tmp_asset(deps.storage)?;
             astroport_creation_hook(deps, env, cluster_token)
         }
-        _ => Err(StdError::generic_err("reply id is invalid")),
+        _ => Err(ContractError::Generic("reply id is invalid".to_string())),
     }
 }
 
@@ -334,7 +344,7 @@ pub fn cluster_creation_hook(
     deps: DepsMut,
     _env: Env,
     cluster_contract: String,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let validated_cluster_contract = deps.api.addr_validate(cluster_contract.as_str())?;
     let config: Config = read_config(deps.storage)?;
 
@@ -342,9 +352,7 @@ pub fn cluster_creation_hook(
     let params: Params = match read_params(deps.storage) {
         Ok(v) => v,
         Err(_) => {
-            return Err(StdError::generic_err(
-                "No cluster registration process in progress",
-            ));
+            return Err(ContractError::NoRegistrationInProgress {});
         }
     };
 
@@ -401,7 +409,7 @@ pub fn cluster_token_creation_hook(
     _env: Env,
     cluster_contract: String,
     cluster_token: String,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let validated_cluster_contract = deps.api.addr_validate(cluster_contract.as_str())?;
     let validated_cluster_token = deps.api.addr_validate(cluster_token.as_str())?;
 
@@ -411,9 +419,7 @@ pub fn cluster_token_creation_hook(
     let params: Params = match read_params(deps.storage) {
         Ok(v) => v,
         Err(_) => {
-            return Err(StdError::generic_err(
-                "No cluster registration process in progress",
-            ));
+            return Err(ContractError::NoRegistrationInProgress {});
         }
     };
 
@@ -483,7 +489,7 @@ pub fn astroport_creation_hook(
     deps: DepsMut,
     _env: Env,
     cluster_token: Addr,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     // Now astroport contract is already created,
     // and liquidity token also created
     let config: Config = read_config(deps.storage)?;
@@ -519,11 +525,11 @@ Distribute
 Anyone can execute distribute operation to distribute
 nebula inflation rewards on the staking pool
 */
-pub fn distribute(deps: DepsMut, env: Env) -> StdResult<Response> {
+pub fn distribute(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let last_distributed = read_last_distributed(deps.storage)?;
     if last_distributed + DISTRIBUTION_INTERVAL > env.block.time.seconds() {
-        return Err(StdError::generic_err(
-            "Cannot distribute nebula token before interval",
+        return Err(ContractError::Generic(
+            "Cannot distribute nebula token before interval".to_string(),
         ));
     }
 
@@ -572,7 +578,7 @@ pub fn distribute(deps: DepsMut, env: Env) -> StdResult<Response> {
 pub fn _compute_rewards(
     storage: &dyn Storage,
     target_distribution_amount: Uint128,
-) -> StdResult<(Vec<(String, Uint128)>, Uint128)> {
+) -> Result<(Vec<(String, Uint128)>, Uint128), ContractError> {
     let total_weight: u32 = read_total_weight(storage)?;
     let mut distribution_amount: FPDecimal = FPDecimal::zero();
     let weights: Vec<(Addr, u32)> = read_all_weight(storage)?;
@@ -582,14 +588,16 @@ pub fn _compute_rewards(
             let mut amount =
                 FPDecimal::from(target_distribution_amount.u128()) * FPDecimal::from(w.1 as u128);
             if amount == FPDecimal::zero() {
-                return Err(StdError::generic_err("cannot distribute zero amount"));
+                return Err(ContractError::Generic(
+                    "cannot distribute zero amount".to_string(),
+                ));
             }
             amount = amount / FPDecimal::from(total_weight as u128);
             distribution_amount = distribution_amount + amount;
             Ok((w.0.to_string(), Uint128::new(u128::from(amount))))
         })
         .filter(|m| m.is_ok())
-        .collect::<StdResult<Vec<(String, Uint128)>>>()?;
+        .collect::<Result<Vec<(String, Uint128)>, ContractError>>()?;
     Ok((rewards, Uint128::new(u128::from(distribution_amount))))
 }
 
@@ -598,13 +606,13 @@ pub fn decommission_cluster(
     info: MessageInfo,
     cluster_contract: String,
     cluster_token: String,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let validated_cluster_contract = deps.api.addr_validate(cluster_contract.as_str())?;
     let validated_cluster_token = deps.api.addr_validate(cluster_token.as_str())?;
 
     let config: Config = read_config(deps.storage)?;
     if config.owner != info.sender {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     let weight = read_weight(deps.storage, &validated_cluster_token)?;

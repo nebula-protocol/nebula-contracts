@@ -32,6 +32,7 @@ cosmwasm-storage = { version = "0.16.2", default-features = false, features = ["
 schemars = "0.8.1"
 nebula-protocol = { version = "2.0.0", path = "../../packages/nebula_protocol" }
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+thiserror = { version = "1.0.30" }
 
 [dev-dependencies]
 cosmwasm-schema = "0.16.0"

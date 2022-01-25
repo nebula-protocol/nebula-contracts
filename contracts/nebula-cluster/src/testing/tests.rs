@@ -1,5 +1,5 @@
 use crate::contract::*;
-use crate::error;
+use crate::error::ContractError;
 use crate::state::*;
 use crate::testing::mock_querier::{consts, mock_dependencies, mock_init, mock_querier_setup};
 use astroport::asset::{Asset, AssetInfo};
@@ -114,7 +114,7 @@ fn update_config() {
         ]),
     };
     let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
-    assert_eq!(res, StdError::generic_err("unauthorized"));
+    assert_eq!(res, ContractError::Unauthorized {});
 
     // successful update
     let info = mock_info("owner", &[]);
@@ -551,7 +551,7 @@ fn update_target() {
 
     let info = mock_info(consts::owner().as_str(), &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-    assert_eq!(res, error::cluster_token_not_set());
+    assert_eq!(res, ContractError::ClusterTokenNotSet {});
 
     let (mut deps, _init_res) = mock_init();
 
@@ -585,19 +585,14 @@ fn update_target() {
     };
     let info = mock_info(consts::owner().as_str(), &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-    assert_eq!(
-        res,
-        StdError::generic_err(
-            "Cluster must contain valid assets and cannot contain duplicate assets"
-        )
-    );
+    assert_eq!(res, ContractError::InvalidAssets {});
 
     let msg = ExecuteMsg::UpdateTarget { target: new_target };
 
     // unauthorized update
     let info = mock_info("imposter0001", &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
-    assert_eq!(res, StdError::generic_err("unauthorized"));
+    assert_eq!(res, ContractError::Unauthorized {});
 
     let info = mock_info(consts::owner().as_str(), &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -648,7 +643,7 @@ fn decommission_cluster() {
     let info = mock_info("owner0001", &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
 
-    assert_eq!(res, StdError::generic_err("unauthorized"));
+    assert_eq!(res, ContractError::Unauthorized {});
 
     let info = mock_info(consts::factory().as_str(), &[]);
 
@@ -662,13 +657,7 @@ fn decommission_cluster() {
     assert_eq!(res.messages, vec![]);
 
     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
-
-    match res {
-        StdError::GenericErr { msg, .. } => {
-            assert_eq!(msg, "Cannot decommission an already decommissioned cluster")
-        }
-        _ => panic!("DO NOT ENTER HERE"),
-    }
+    assert_eq!(res, ContractError::ClusterAlreadyDecommissioned {});
 
     let asset_amounts = consts::asset_amounts();
     deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
@@ -679,10 +668,7 @@ fn decommission_cluster() {
     };
 
     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
-    assert_eq!(
-        res,
-        StdError::generic_err("Cannot call create on a decommissioned cluster")
-    );
+    assert_eq!(res, ContractError::ClusterAlreadyDecommissioned {});
 
     let msg = ExecuteMsg::RebalanceRedeem {
         max_tokens: Uint128::new(20_000_000),
@@ -692,7 +678,9 @@ fn decommission_cluster() {
     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
     assert_eq!(
         res,
-        StdError::generic_err("Cannot call non pro-rata redeem on a decommissioned cluster")
+        ContractError::Generic(
+            "Cannot call non pro-rata redeem on a decommissioned cluster".to_string()
+        )
     );
 
     let msg = ExecuteMsg::RebalanceRedeem {

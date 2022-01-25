@@ -2,8 +2,9 @@
 mod tests {
 
     use crate::contract::{execute, instantiate, query};
+    use crate::error::ContractError;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{attr, from_binary, Decimal, StdError, Uint128};
+    use cosmwasm_std::{attr, from_binary, Decimal, Uint128};
     use nebula_protocol::staking::{
         ConfigResponse, ExecuteMsg, InstantiateMsg, PoolInfoResponse, QueryMsg,
     };
@@ -72,11 +73,8 @@ mod tests {
         let info = mock_info("owner", &[]);
         let msg = ExecuteMsg::UpdateConfig { owner: None };
 
-        let res = execute(deps.as_mut(), mock_env(), info, msg);
-        match res {
-            Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized"),
-            _ => panic!("Must return unauthorized error"),
-        }
+        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+        assert_eq!(res, ContractError::Unauthorized {});
     }
 
     #[test]
@@ -102,10 +100,7 @@ mod tests {
         // failed with unauthorized error
         let info = mock_info("addr", &[]);
         let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
-        match res {
-            StdError::GenericErr { msg, .. } => assert_eq!(msg, "unauthorized"),
-            _ => panic!("DO NOT ENTER HERE"),
-        }
+        assert_eq!(res, ContractError::Unauthorized {});
 
         let info = mock_info("owner", &[]);
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();

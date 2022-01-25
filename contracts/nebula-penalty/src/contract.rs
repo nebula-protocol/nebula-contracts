@@ -6,6 +6,7 @@ use cosmwasm_std::{
     Uint128,
 };
 
+use crate::error::ContractError;
 use crate::state::{config_store, read_config, store_config, PenaltyConfig};
 use cluster_math::{
     add, div_const, dot, imbalance, int_vec_to_fpdec, mul_const, str_vec_to_fpdec, sub, FPDecimal,
@@ -22,9 +23,11 @@ pub fn instantiate(
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     if msg.penalty_params.penalty_amt_hi != FPDecimal::one() {
-        return Err(StdError::generic_err("penalty amount must reach one"));
+        return Err(ContractError::Generic(
+            "penalty amount must reach one".to_string(),
+        ));
     }
 
     // TODO: add logic that checks if penalty params result in attackable basket
@@ -278,7 +281,7 @@ pub fn update_config(
     deps: DepsMut,
     owner: Option<String>,
     penalty_params: Option<PenaltyParams>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let api = deps.api;
     config_store(deps.storage).update(|mut config| -> StdResult<_> {
         if let Some(owner) = owner {
@@ -299,7 +302,7 @@ pub fn update_ema(
     deps: DepsMut,
     block_height: u64,
     net_asset_val: FPDecimal,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let mut cfg = read_config(deps.storage)?;
     cfg.ema = get_ema(deps.as_ref(), block_height, net_asset_val)?;
     cfg.last_block = block_height;
@@ -315,7 +318,7 @@ pub fn execute_mint(
     _create_asset_amounts: &Vec<Uint128>,
     asset_prices: &Vec<String>,
     _target_weights: &Vec<Uint128>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let i = int_vec_to_fpdec(inventory);
     let p = str_vec_to_fpdec(asset_prices)?;
     update_ema(deps, block_height, dot(&i, &p))
@@ -331,7 +334,7 @@ pub fn execute_redeem(
     _redeem_asset_amounts: &[Uint128],
     asset_prices: &[String],
     _target_weights: &[Uint128],
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let i = int_vec_to_fpdec(inventory);
     let p = str_vec_to_fpdec(asset_prices)?;
     update_ema(deps, block_height, dot(&i, &p))
@@ -343,12 +346,12 @@ pub fn execute(
     _env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let cfg = read_config(deps.storage)?;
 
     // check permission
     if info.sender != cfg.owner {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     match msg {

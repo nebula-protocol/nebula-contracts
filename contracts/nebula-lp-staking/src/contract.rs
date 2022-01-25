@@ -3,13 +3,14 @@ use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
     attr, from_binary, to_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response,
-    StdError, StdResult, Uint128,
+    StdResult, Uint128,
 };
 
 use nebula_protocol::staking::{
     ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, PoolInfoResponse, QueryMsg,
 };
 
+use crate::error::ContractError;
 use crate::rewards::{deposit_reward, query_reward_info, withdraw_reward};
 use crate::staking::{auto_stake, auto_stake_hook, bond, unbond};
 use crate::state::{read_config, read_pool_info, store_config, store_pool_info, Config, PoolInfo};
@@ -22,7 +23,7 @@ pub fn instantiate(
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     store_config(
         deps.storage,
         &Config {
@@ -36,7 +37,12 @@ pub fn instantiate(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
+pub fn execute(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: ExecuteMsg,
+) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::Receive(msg) => receive_cw20(deps, info, msg),
         ExecuteMsg::UpdateConfig { owner } => update_config(deps, info, owner),
@@ -74,7 +80,7 @@ pub fn receive_cw20(
     deps: DepsMut,
     info: MessageInfo,
     cw20_msg: Cw20ReceiveMsg,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let msg = cw20_msg.msg;
     let config: Config = read_config(deps.storage)?;
 
@@ -85,7 +91,7 @@ pub fn receive_cw20(
 
             // only staking token contract can execute this message
             if pool_info.staking_token != info.sender {
-                return Err(StdError::generic_err("unauthorized"));
+                return Err(ContractError::Unauthorized {});
             }
 
             bond(
@@ -99,7 +105,7 @@ pub fn receive_cw20(
         Cw20HookMsg::DepositReward { rewards } => {
             // only reward token contract can execute this message
             if config.nebula_token != info.sender.to_string() {
-                return Err(StdError::generic_err("unauthorized"));
+                return Err(ContractError::Unauthorized {});
             }
 
             let mut rewards_amount = Uint128::zero();
@@ -108,7 +114,9 @@ pub fn receive_cw20(
             }
 
             if rewards_amount != cw20_msg.amount {
-                return Err(StdError::generic_err("rewards amount miss matched"));
+                return Err(ContractError::Generic(
+                    "Rewards amount miss matched".to_string(),
+                ));
             }
 
             deposit_reward(deps, rewards, rewards_amount)
@@ -120,11 +128,11 @@ pub fn update_config(
     deps: DepsMut,
     info: MessageInfo,
     owner: Option<String>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let mut config: Config = read_config(deps.storage)?;
 
     if info.sender != config.owner {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     if let Some(owner) = owner {
@@ -140,18 +148,20 @@ fn register_asset(
     info: MessageInfo,
     asset_token: String,
     staking_token: String,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let validated_asset_token = deps.api.addr_validate(asset_token.as_str())?;
     let validated_staking_token = deps.api.addr_validate(staking_token.as_str())?;
 
     let config: Config = read_config(deps.storage)?;
 
     if config.owner != info.sender {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     if read_pool_info(deps.storage, &validated_asset_token).is_ok() {
-        return Err(StdError::generic_err("Asset was already registered"));
+        return Err(ContractError::Generic(
+            "Asset was already registered".to_string(),
+        ));
     }
 
     store_pool_info(

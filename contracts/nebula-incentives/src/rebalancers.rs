@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     attr, to_binary, Addr, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, QueryRequest,
-    Response, StdError, StdResult, Uint128, WasmMsg, WasmQuery,
+    Response, StdResult, Uint128, WasmMsg, WasmQuery,
 };
 
 use crate::state::{read_config, record_contribution};
@@ -14,6 +14,7 @@ use nebula_protocol::cluster::{
 use astroport::asset::{Asset, AssetInfo};
 use astroport::querier::query_token_balance;
 
+use crate::error::ContractError;
 use cluster_math::{imbalance, int_vec_to_fpdec, str_vec_to_fpdec};
 use nebula_protocol::cluster_factory::ClusterExistsResponse;
 use nebula_protocol::cluster_factory::QueryMsg::ClusterExists;
@@ -26,7 +27,7 @@ pub fn get_cluster_state(deps: Deps, cluster: &Addr) -> StdResult<ClusterStateRe
     }))
 }
 
-pub fn assert_cluster_exists(deps: Deps, cluster: &Addr) -> StdResult<bool> {
+pub fn assert_cluster_exists(deps: Deps, cluster: &Addr) -> Result<bool, ContractError> {
     let cfg = read_config(deps.storage)?;
     let res: ClusterExistsResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: cfg.factory.to_string(),
@@ -38,7 +39,9 @@ pub fn assert_cluster_exists(deps: Deps, cluster: &Addr) -> StdResult<bool> {
     if res.exists {
         Ok(true)
     } else {
-        Err(StdError::generic_err("specified cluster does not exist"))
+        Err(ContractError::Generic(
+            "Specified cluster does not exist".to_string(),
+        ))
     }
 }
 
@@ -65,9 +68,9 @@ pub fn record_rebalancer_rewards(
     rebalancer: Addr,
     cluster_contract: Addr,
     original_imbalance: Uint128,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     if info.sender != env.contract.address {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     let new_imbalance = cluster_imbalance(deps.as_ref(), &cluster_contract)?;
@@ -99,9 +102,9 @@ pub fn internal_rewarded_create(
     cluster_contract: Addr,
     asset_amounts: &[Asset],
     min_tokens: Option<Uint128>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     if info.sender != env.contract.address {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     let original_imbalance = cluster_imbalance(deps.as_ref(), &cluster_contract)?;
@@ -172,9 +175,9 @@ pub fn internal_rewarded_redeem(
     cluster_token: Addr,
     max_tokens: Option<Uint128>,
     asset_amounts: Option<Vec<Asset>>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     if info.sender != env.contract.address {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     let max_tokens = match max_tokens {
@@ -237,7 +240,7 @@ pub fn create(
     cluster_contract: String,
     asset_amounts: &[Asset],
     min_tokens: Option<Uint128>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let validated_cluster_contract = deps.api.addr_validate(cluster_contract.as_str())?;
 
     assert_cluster_exists(deps.as_ref(), &validated_cluster_contract)?;
@@ -306,7 +309,7 @@ pub fn redeem(
     cluster_contract: String,
     max_tokens: Uint128,
     asset_amounts: Option<Vec<Asset>>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let validated_cluster_contract = deps.api.addr_validate(cluster_contract.as_str())?;
 
     assert_cluster_exists(deps.as_ref(), &validated_cluster_contract)?;

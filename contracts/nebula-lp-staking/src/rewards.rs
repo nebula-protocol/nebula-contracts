@@ -3,6 +3,7 @@ use cosmwasm_std::{
     StdError, StdResult, Storage, Uint128, WasmMsg,
 };
 
+use crate::error::ContractError;
 use crate::state::{
     read_config, read_pool_info, rewards_read, rewards_store, store_pool_info, Config, PoolInfo,
     RewardInfo,
@@ -16,7 +17,7 @@ pub fn deposit_reward(
     deps: DepsMut,
     rewards: Vec<(String, Uint128)>,
     rewards_amount: Uint128,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     for (asset_token, amount) in rewards.iter() {
         let validated_asset_token = deps.api.addr_validate(asset_token.as_str())?;
         let mut pool_info: PoolInfo = read_pool_info(deps.storage, &validated_asset_token)?;
@@ -46,7 +47,7 @@ pub fn withdraw_reward(
     deps: DepsMut,
     info: MessageInfo,
     asset_token: Option<String>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let validated_asset_token = asset_token
         .map(|x| deps.api.addr_validate(x.as_str()))
         .transpose()?;
@@ -73,7 +74,7 @@ fn _withdraw_reward(
     storage: &mut dyn Storage,
     staker_addr: &Addr,
     asset_token: &Option<Addr>,
-) -> StdResult<Uint128> {
+) -> Result<Uint128, ContractError> {
     let rewards_bucket = rewards_read(storage, &staker_addr);
 
     // single reward withdraw
@@ -86,19 +87,19 @@ fn _withdraw_reward(
             vec![]
         };
     } else {
-        reward_pairs = rewards_bucket
-            .range(None, None, Order::Ascending)
-            .map(|item| {
-                let (k, v) = item?;
-                Ok((
-                    Addr::unchecked(
-                        std::str::from_utf8(&k)
-                            .map_err(|_| StdError::invalid_utf8("invalid reward pair address"))?,
-                    ),
-                    v,
-                ))
-            })
-            .collect::<StdResult<Vec<(Addr, RewardInfo)>>>()?;
+        reward_pairs =
+            rewards_bucket
+                .range(None, None, Order::Ascending)
+                .map(|item| {
+                    let (k, v) = item?;
+                    Ok((
+                        Addr::unchecked(std::str::from_utf8(&k).map_err(|_| {
+                            ContractError::Invalid("reward pair address".to_string())
+                        })?),
+                        v,
+                    ))
+                })
+                .collect::<Result<Vec<(Addr, RewardInfo)>, ContractError>>()?;
     }
 
     let mut amount: Uint128 = Uint128::zero();

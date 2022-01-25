@@ -2,13 +2,14 @@
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    attr, from_binary, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, Uint128,
+    attr, from_binary, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    Uint128,
 };
 
 use crate::arbitrageurs::{
     arb_cluster_create, arb_cluster_redeem, record_astroport_impact, send_all, swap_all,
 };
+use crate::error::ContractError;
 use crate::rebalancers::{
     create, internal_rewarded_create, internal_rewarded_redeem, record_rebalancer_rewards, redeem,
 };
@@ -30,7 +31,7 @@ pub fn instantiate(
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     store_config(
         deps.storage,
         &Config {
@@ -48,7 +49,12 @@ pub fn instantiate(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
+pub fn execute(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: ExecuteMsg,
+) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::UpdateOwner { owner } => update_owner(deps, info, &owner),
         ExecuteMsg::Receive(msg) => receive_cw20(deps, info, msg),
@@ -158,12 +164,16 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
     }
 }
 
-pub fn update_owner(deps: DepsMut, info: MessageInfo, owner: &String) -> StdResult<Response> {
+pub fn update_owner(
+    deps: DepsMut,
+    info: MessageInfo,
+    owner: &String,
+) -> Result<Response, ContractError> {
     let validated_owner = deps.api.addr_validate(owner.as_str())?;
     let cfg = read_config(deps.storage)?;
 
     if info.sender != cfg.owner {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     let mut new_cfg = cfg;
@@ -177,7 +187,7 @@ pub fn receive_cw20(
     deps: DepsMut,
     info: MessageInfo,
     cw20_msg: Cw20ReceiveMsg,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let msg = cw20_msg.msg;
     let config: Config = read_config(deps.storage)?;
 
@@ -185,7 +195,7 @@ pub fn receive_cw20(
         Cw20HookMsg::DepositReward { rewards } => {
             // only reward token contract can execute this message
             if config.nebula_token != info.sender {
-                return Err(StdError::generic_err("unauthorized"));
+                return Err(ContractError::Unauthorized {});
             }
 
             let mut rewards_amount = Uint128::zero();
@@ -194,7 +204,9 @@ pub fn receive_cw20(
             }
 
             if rewards_amount != cw20_msg.amount {
-                return Err(StdError::generic_err("rewards amount miss matched"));
+                return Err(ContractError::Generic(
+                    "Rewards amount miss matched".to_string(),
+                ));
             }
 
             deposit_reward(deps, rewards, cw20_msg.amount)
@@ -202,11 +214,11 @@ pub fn receive_cw20(
     }
 }
 
-pub fn new_penalty_period(deps: DepsMut, info: MessageInfo) -> StdResult<Response> {
+pub fn new_penalty_period(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
     let cfg = read_config(deps.storage)?;
 
     if info.sender != cfg.owner {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     let n = read_current_n(deps.storage)?;
