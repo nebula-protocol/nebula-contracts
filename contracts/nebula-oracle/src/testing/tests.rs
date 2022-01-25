@@ -89,6 +89,37 @@ fn query_price() {
         ("uusd", Decimal::from_str("1.00").unwrap()),
     ]);
 
+    // no cw20 oracle price exists
+    let msg = QueryMsg::Price {
+        base_asset: AssetInfo::Token {
+            contract_addr: Addr::unchecked("nebulatoken"),
+        },
+        quote_asset: AssetInfo::NativeToken {
+            denom: "uusd".to_string(),
+        },
+    };
+    let res = query(deps.as_ref(), mock_env(), msg).unwrap_err();
+    assert_eq!(
+        res,
+        StdError::generic_err("Querier system error: Cannot parse request: No oracle price exists in: {\"price\":{\"asset_token\":\"nebulatoken\",\"timeframe\":null}}")
+    );
+
+    // no native oracle price exists
+    let msg = QueryMsg::Price {
+        base_asset: AssetInfo::NativeToken {
+            denom: "ukrw".to_string(),
+        },
+        quote_asset: AssetInfo::NativeToken {
+            denom: "uusd".to_string(),
+        },
+    };
+    let res = query(deps.as_ref(), mock_env(), msg).unwrap_err();
+    assert_eq!(
+        res,
+        StdError::generic_err("Querier system error: Cannot parse request: No native denom exists in: ")
+    );
+
+    // successful queries
     let msg = QueryMsg::Price {
         base_asset: AssetInfo::Token {
             contract_addr: Addr::unchecked("token0001"),

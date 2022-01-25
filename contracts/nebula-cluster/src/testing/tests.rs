@@ -147,7 +147,6 @@ fn mint() {
     // mMSFT ::  222.42   :: 14_219_281_228  (+ 149_000_000) :: 0.65364669475 -> 0.65013907200
     // mNFLX ::  540.82   ::    224_212_221  (+  50_090_272) :: 0.02506130106 -> 0.03016943389
 
-    // The set token balance should include the amount we would also like to stage
     deps.querier.set_oracle_prices(vec![
         ("mAAPL", Decimal::from_str("135.18").unwrap()),
         ("mGOOG", Decimal::from_str("1780.03").unwrap()),
@@ -649,10 +648,7 @@ fn decommission_cluster() {
     let info = mock_info("owner0001", &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
 
-    match res {
-        StdError::GenericErr { msg, .. } => assert_eq!(msg, "unauthorized"),
-        _ => panic!("DO NOT ENTER HERE"),
-    }
+    assert_eq!(res, StdError::generic_err("unauthorized"));
 
     let info = mock_info(consts::factory().as_str(), &[]);
 
@@ -683,12 +679,10 @@ fn decommission_cluster() {
     };
 
     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
-    match res {
-        StdError::GenericErr { msg, .. } => {
-            assert_eq!(msg, "Cannot call create on a decommissioned cluster")
-        }
-        _ => panic!("DO NOT ENTER HERE"),
-    }
+    assert_eq!(
+        res,
+        StdError::generic_err("Cannot call create on a decommissioned cluster")
+    );
 
     let msg = ExecuteMsg::RebalanceRedeem {
         max_tokens: Uint128::new(20_000_000),
@@ -696,15 +690,10 @@ fn decommission_cluster() {
     };
 
     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
-    match res {
-        StdError::GenericErr { msg, .. } => {
-            assert_eq!(
-                msg,
-                "Cannot call non pro-rata redeem on a decommissioned cluster"
-            )
-        }
-        _ => panic!("DO NOT ENTER HERE"),
-    }
+    assert_eq!(
+        res,
+        StdError::generic_err("Cannot call non pro-rata redeem on a decommissioned cluster")
+    );
 
     let msg = ExecuteMsg::RebalanceRedeem {
         max_tokens: Uint128::new(20_000_000),
