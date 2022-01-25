@@ -117,7 +117,7 @@ fn query_price() {
     assert_eq!(
         res,
         StdError::generic_err(
-            "Querier system error: Cannot parse request: No native denom exists in: "
+            "Querier system error: Cannot parse request: No native denom exists in: \"ukrw\""
         )
     );
 
