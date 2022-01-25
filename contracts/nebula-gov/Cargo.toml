@@ -31,6 +31,7 @@ nebula-protocol = { version = "2.0.0", path = "../../packages/nebula_protocol" }
 schemars = "0.8.1"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 hex = "0.4"
+thiserror = { version = "1.0.30" }
 
 [dev-dependencies]
 cosmwasm-schema = "0.16.0"

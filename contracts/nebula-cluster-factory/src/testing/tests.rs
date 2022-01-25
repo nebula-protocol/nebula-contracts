@@ -1,4 +1,5 @@
 use crate::contract::{execute, instantiate, query, reply};
+use crate::error::ContractError;
 use crate::response::MsgInstantiateContractResponse;
 use crate::state::{
     cluster_exists, read_params, read_tmp_asset, read_tmp_cluster, read_total_weight, read_weight,
@@ -231,10 +232,7 @@ fn test_update_config() {
 
     let info = mock_info("owner0000", &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-    match res {
-        StdError::GenericErr { msg, .. } => assert_eq!(msg, "unauthorized"),
-        _ => panic!("DO NOT ENTER HERE"),
-    }
+    assert_eq!(res, ContractError::Unauthorized {});
 }
 
 #[test]
@@ -272,10 +270,7 @@ fn test_update_weight() {
     };
     let info = mock_info("owner0001", &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
-    match res {
-        StdError::GenericErr { msg, .. } => assert_eq!(msg, "unauthorized"),
-        _ => panic!("DO NOT ENTER HERE"),
-    }
+    assert_eq!(res, ContractError::Unauthorized {});
 
     let info = mock_info("owner0000", &[]);
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -373,19 +368,14 @@ fn test_create_cluster() {
     assert_eq!(params, input_params);
 
     let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
-    match res {
-        StdError::GenericErr { msg, .. } => {
-            assert_eq!(msg, "A cluster registration process is in progress")
-        }
-        _ => panic!("DO NOT ENTER HERE"),
-    }
+    assert_eq!(
+        res,
+        ContractError::Generic("A cluster registration process is in progress".to_string())
+    );
 
     let info = mock_info("addr0001", &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-    match res {
-        StdError::GenericErr { msg, .. } => assert_eq!(msg, "unauthorized"),
-        _ => panic!("DO NOT ENTER HERE"),
-    }
+    assert_eq!(res, ContractError::Unauthorized {});
 }
 
 #[test]
@@ -979,13 +969,11 @@ fn test_distribute() {
     // height is not increased so zero amount will be minted
     let msg = ExecuteMsg::Distribute {};
     let info = mock_info("anyone", &[]);
-    let res = execute(deps.as_mut(), mock_env(), info, msg);
-    match res {
-        Err(StdError::GenericErr { msg, .. }) => {
-            assert_eq!(msg, "Cannot distribute nebula token before interval")
-        }
-        _ => panic!("DO NOT ENTER HERE"),
-    }
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(
+        res,
+        ContractError::Generic("Cannot distribute nebula token before interval".to_string())
+    );
 
     // one height increase
     let msg = ExecuteMsg::Distribute {};
@@ -1124,10 +1112,7 @@ fn test_decommission_cluster() {
     let info = mock_info("owner0001", &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
 
-    match res {
-        StdError::GenericErr { msg, .. } => assert_eq!(msg, "unauthorized"),
-        _ => panic!("DO NOT ENTER HERE"),
-    }
+    assert_eq!(res, ContractError::Unauthorized {});
 
     let info = mock_info("owner0000", &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
@@ -1167,12 +1152,7 @@ fn test_decommission_cluster() {
     );
 
     let res = read_weight(&deps.storage, &Addr::unchecked("asset0000")).unwrap_err();
-    match res {
-        StdError::GenericErr { msg, .. } => {
-            assert_eq!(msg, "No distribution info stored")
-        }
-        _ => panic!("DO NOT ENTER HERE"),
-    }
+    assert_eq!(res, StdError::generic_err("No distribution info stored"));
 
     assert_eq!(read_total_weight(&deps.storage).unwrap(), 300u32);
 }

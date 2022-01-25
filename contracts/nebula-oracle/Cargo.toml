@@ -29,6 +29,7 @@ nebula-protocol = { version = "2.0.0", path = "../../packages/nebula_protocol" }
 astroport = { path = "../../packages/astroport" }
 terra-cosmwasm = "2.2.0"
 tefi-oracle = { version = "0.1.0", path = "../../packages/tefi_oracle" }
+thiserror = { version = "1.0.30" }
 
 [dev-dependencies]
 cosmwasm-schema = { version = "0.16.0" }

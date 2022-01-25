@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::contract::{execute, instantiate, query};
+    use crate::error::ContractError;
     use crate::testing::mock_querier::mock_dependencies_with_querier;
     use astroport::asset::{Asset, AssetInfo};
     use astroport::pair::ExecuteMsg as PairExecuteMsg;
@@ -133,11 +134,8 @@ mod tests {
         });
 
         let info = mock_info("staking2", &[]);
-        let res = execute(deps.as_mut(), mock_env(), info, msg);
-        match res {
-            Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized"),
-            _ => panic!("Must return unauthorized error"),
-        }
+        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+        assert_eq!(res, ContractError::Unauthorized {});
     }
 
     #[test]
@@ -182,12 +180,10 @@ mod tests {
 
         let info = mock_info("addr", &[]);
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-        match res {
-            StdError::GenericErr { msg, .. } => {
-                assert_eq!(msg, "Cannot unbond more than bond amount");
-            }
-            _ => panic!("Must return generic error"),
-        };
+        assert_eq!(
+            res,
+            ContractError::Generic("Cannot unbond more than bond amount".to_string())
+        );
 
         // normal unbond
         let msg = ExecuteMsg::Unbond {
@@ -311,7 +307,7 @@ mod tests {
             }],
         );
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-        assert_eq!(res, StdError::generic_err("Missing token asset"));
+        assert_eq!(res, ContractError::Missing("token asset".to_string()));
 
         // no native asset
         let msg = ExecuteMsg::AutoStake {
@@ -333,7 +329,7 @@ mod tests {
         };
         let info = mock_info("addr0000", &[]);
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-        assert_eq!(res, StdError::generic_err("Missing native asset"));
+        assert_eq!(res, ContractError::Missing("native asset".to_string()));
 
         let msg = ExecuteMsg::AutoStake {
             assets: [
@@ -358,9 +354,9 @@ mod tests {
         let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
         assert_eq!(
             res,
-            StdError::generic_err(
+            ContractError::Std(StdError::generic_err(
                 "Native token balance mismatch between the argument and the transferred"
-            )
+            ))
         );
 
         let info = mock_info(
@@ -458,7 +454,7 @@ mod tests {
         // unauthorized attempt
         let info = mock_info("addr0000", &[]);
         let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
-        assert_eq!(res, StdError::generic_err("unauthorized"));
+        assert_eq!(res, ContractError::Unauthorized {});
 
         // successfull attempt
         let info = mock_info(MOCK_CONTRACT_ADDR, &[]);

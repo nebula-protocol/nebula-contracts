@@ -1,9 +1,10 @@
 use crate::contract::{execute, instantiate, query_config};
+use crate::error::ContractError;
 use crate::testing::mock_querier::mock_dependencies;
 use astroport::asset::{Asset, AssetInfo};
 use astroport::pair::{Cw20HookMsg as AstroportCw20HookMsg, ExecuteMsg as AstroportExecuteMsg};
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
-use cosmwasm_std::{to_binary, Coin, CosmosMsg, Decimal, StdError, SubMsg, Uint128, WasmMsg};
+use cosmwasm_std::{to_binary, Coin, CosmosMsg, Decimal, SubMsg, Uint128, WasmMsg};
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::collector::{ConfigResponse, ExecuteMsg, InstantiateMsg};
 use nebula_protocol::gov::Cw20HookMsg::DepositReward;
@@ -192,7 +193,7 @@ fn test_update_config() {
     assert_eq!("uusd1", config.base_denom.as_str());
     assert_eq!("owner0001", config.owner.as_str());
 
-    // failed unauthoirzed
+    // failed unauthorized
     let msg = ExecuteMsg::UpdateConfig {
         owner: None,
         astroport_factory: Some("astroportfactory1".to_string()),
@@ -203,8 +204,5 @@ fn test_update_config() {
 
     let info = mock_info("owner0000", &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-    match res {
-        StdError::GenericErr { msg, .. } => assert_eq!(msg, "unauthorized"),
-        _ => panic!("DO NOT ENTER HERE"),
-    }
+    assert_eq!(res, ContractError::Unauthorized {})
 }

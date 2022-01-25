@@ -1,4 +1,5 @@
 use crate::contract::{execute, instantiate, query};
+use crate::error::ContractError;
 use crate::state::{read_config, Config};
 use crate::testing::mock_querier::mock_dependencies;
 use astroport::asset::AssetInfo;
@@ -50,7 +51,7 @@ fn update_config() {
         base_denom: None,
     };
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-    assert_eq!(res, StdError::generic_err("unauthorized"));
+    assert_eq!(res, ContractError::Unauthorized {});
 
     // successful update
     let info = mock_info("owner0000", &[]);

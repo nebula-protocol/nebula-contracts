@@ -1,8 +1,9 @@
 use cosmwasm_std::{
-    attr, to_binary, Addr, Coin, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, Storage, Uint128, WasmMsg,
+    attr, to_binary, Addr, Coin, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Response, Storage,
+    Uint128, WasmMsg,
 };
 
+use crate::error::ContractError;
 use crate::rewards::before_share_change;
 use crate::state::{
     read_config, read_pool_info, rewards_read, rewards_store, store_pool_info, Config, PoolInfo,
@@ -22,7 +23,7 @@ pub fn bond(
     staker_addr: Addr,
     asset_token: Addr,
     amount: Uint128,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     _increase_bond_amount(deps.storage, &staker_addr, &asset_token, amount)?;
 
     Ok(Response::new().add_attributes(vec![
@@ -38,7 +39,7 @@ pub fn unbond(
     staker_addr: String,
     asset_token: String,
     amount: Uint128,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let validated_staker_addr = deps.api.addr_validate(staker_addr.as_str())?;
     let validated_asset_token = deps.api.addr_validate(asset_token.as_str())?;
 
@@ -72,7 +73,7 @@ pub fn auto_stake(
     info: MessageInfo,
     assets: [Asset; 2],
     slippage_tolerance: Option<Decimal>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let config: Config = read_config(deps.storage)?;
     let astroport_factory: Addr = config.astroport_factory;
 
@@ -93,11 +94,11 @@ pub fn auto_stake(
     // will fail if one of them is missing
     let native_asset: Asset = match native_asset_op {
         Some(v) => v,
-        None => return Err(StdError::generic_err("Missing native asset")),
+        None => return Err(ContractError::Missing("native asset".to_string())),
     };
     let (token_addr, token_amount) = match token_info_op {
         Some(v) => v,
-        None => return Err(StdError::generic_err("Missing token asset")),
+        None => return Err(ContractError::Missing("token asset".to_string())),
     };
 
     // query pair info to obtain pair contract address
@@ -108,7 +109,7 @@ pub fn auto_stake(
     let pool_info: PoolInfo = read_pool_info(deps.storage, &token_addr)?;
 
     if pool_info.staking_token != astroport_pair.liquidity_token.clone() {
-        return Err(StdError::generic_err("Invalid staking token"));
+        return Err(ContractError::Invalid("staking token".to_string()));
     }
 
     // get current lp token amount to later compute the recived amount
@@ -195,10 +196,10 @@ pub fn auto_stake_hook(
     staking_token: Addr,
     staker_addr: Addr,
     prev_staking_token_amount: Uint128,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     // only can be called by itself
     if info.sender != env.contract.address {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     // stake all lp tokens received, compare with staking token amount before liquidity provision was executed
@@ -214,7 +215,7 @@ fn _increase_bond_amount(
     staker_addr: &Addr,
     asset_token: &Addr,
     amount: Uint128,
-) -> StdResult<()> {
+) -> Result<(), ContractError> {
     let mut pool_info: PoolInfo = read_pool_info(storage, asset_token)?;
     let mut reward_info: RewardInfo = rewards_read(storage, staker_addr)
         .load(asset_token.as_bytes())
@@ -242,13 +243,15 @@ fn _decrease_bond_amount(
     staker_addr: &Addr,
     asset_token: &Addr,
     amount: Uint128,
-) -> StdResult<Addr> {
+) -> Result<Addr, ContractError> {
     let mut pool_info: PoolInfo = read_pool_info(storage, &asset_token)?;
     let mut reward_info: RewardInfo =
         rewards_read(storage, &staker_addr).load(asset_token.as_bytes())?;
 
     if reward_info.bond_amount < amount {
-        return Err(StdError::generic_err("Cannot unbond more than bond amount"));
+        return Err(ContractError::Generic(
+            "Cannot unbond more than bond amount".to_string(),
+        ));
     }
 
     // Distribute reward to pending reward; before changing share

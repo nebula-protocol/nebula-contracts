@@ -1,10 +1,9 @@
 #[cfg(test)]
 mod tests {
     use crate::contract::{execute, instantiate, query};
+    use crate::error::ContractError;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
-    use cosmwasm_std::{
-        attr, from_binary, to_binary, CosmosMsg, StdError, SubMsg, Uint128, WasmMsg,
-    };
+    use cosmwasm_std::{attr, from_binary, to_binary, CosmosMsg, SubMsg, Uint128, WasmMsg};
     use cw20::Cw20ExecuteMsg;
     use nebula_protocol::airdrop::{
         ConfigResponse, ExecuteMsg, InstantiateMsg, IsClaimedResponse, LatestStageResponse,
@@ -71,7 +70,7 @@ mod tests {
         };
 
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-        assert_eq!(res, StdError::generic_err("unauthorized"));
+        assert_eq!(res, ContractError::Unauthorized {});
     }
 
     #[test]
@@ -93,15 +92,16 @@ mod tests {
                 .to_string(),
         };
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-        assert_eq!(res, StdError::generic_err("unauthorized"));
+        assert_eq!(res, ContractError::Unauthorized {});
 
         // try invalid merkle root
         let info = mock_info("owner0000", &[]);
         let msg = ExecuteMsg::RegisterMerkleRoot {
             merkle_root: "invalidroot".to_string(),
         };
+
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-        assert_eq!(res, StdError::generic_err("Invalid merkle root"));
+        assert_eq!(res, ContractError::InvalidMerkle {});
 
         let info = mock_info("owner0000", &[]);
         // register new merkle root
@@ -181,7 +181,7 @@ mod tests {
             ],
         };
         let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-        assert_eq!(res, StdError::generic_err("Verification is failed"));
+        assert_eq!(res, ContractError::MerkleVerification {});
 
         // now the right one
         let msg = ExecuteMsg::Claim {
@@ -238,7 +238,7 @@ mod tests {
         );
 
         let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
-        assert_eq!(res, StdError::generic_err("Already claimed"));
+        assert_eq!(res, ContractError::AlreadyClaimed {});
 
         // claim next airdrop
         let msg = ExecuteMsg::Claim {

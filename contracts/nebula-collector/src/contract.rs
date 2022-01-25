@@ -2,10 +2,11 @@
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    attr, to_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, WasmMsg,
+    attr, to_binary, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    WasmMsg,
 };
 
+use crate::error::ContractError;
 use crate::state::{read_config, store_config, Config};
 use nebula_protocol::collector::{
     ConfigResponse, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
@@ -23,7 +24,7 @@ pub fn instantiate(
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     store_config(
         deps.storage,
         &Config {
@@ -39,7 +40,12 @@ pub fn instantiate(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
+pub fn execute(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: ExecuteMsg,
+) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::Convert { asset_token } => convert(deps, env, asset_token),
         ExecuteMsg::Distribute {} => distribute(deps, env),
@@ -65,7 +71,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
 /// Anyone can execute convert function to swap
 /// asset token => collateral token
 /// collateral token => NEB token
-pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> StdResult<Response> {
+pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> Result<Response, ContractError> {
     let validated_asset_token = deps.api.addr_validate(asset_token.as_str())?;
     let config: Config = read_config(deps.storage)?;
     let astroport_factory_raw = config.astroport_factory;
@@ -146,7 +152,7 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> StdResult<Respon
 }
 
 // Anyone can execute send function to receive staking token rewards
-pub fn distribute(deps: DepsMut, env: Env) -> StdResult<Response> {
+pub fn distribute(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
     let config: Config = read_config(deps.storage)?;
     let amount = query_token_balance(
         &deps.querier,
@@ -178,10 +184,10 @@ pub fn update_config(
     nebula_token: Option<String>,
     base_denom: Option<String>,
     owner: Option<String>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let mut config: Config = read_config(deps.storage)?;
     if config.owner != info.sender {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     if let Some(owner) = owner {

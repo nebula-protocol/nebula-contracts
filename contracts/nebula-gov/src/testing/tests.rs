@@ -1,4 +1,5 @@
 use crate::contract::{execute, instantiate, query, reply};
+use crate::error::ContractError;
 use crate::querier::load_token_balance;
 use crate::state::{
     bank_read, bank_store, config_read, poll_indexer_store, poll_store, poll_voter_read,
@@ -113,13 +114,8 @@ fn poll_not_found() {
     let mut deps = mock_dependencies(&[]);
     mock_instantiate(deps.as_mut());
 
-    let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: 1 });
-
-    match res {
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Poll does not exist"),
-        Err(e) => panic!("Unexpected error: {:?}", e),
-        _ => panic!("Must return error"),
-    }
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: 1 }).unwrap_err();
+    assert_eq!(res, StdError::generic_err("Poll does not exist"))
 }
 
 #[test]
@@ -137,13 +133,11 @@ fn fails_create_poll_invalid_quorum() {
         snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
     };
 
-    let res = instantiate(deps.as_mut(), mock_env(), info, msg);
-
-    match res {
-        Ok(_) => panic!("Must return error"),
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "quorum must be 0 to 1"),
-        Err(e) => panic!("Unexpected error: {:?}", e),
-    }
+    let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(
+        res,
+        ContractError::ValueOutOfRange("quorum".to_string(), Uint128::zero(), Uint128::new(1))
+    )
 }
 
 #[test]
@@ -161,13 +155,11 @@ fn fails_create_poll_invalid_threshold() {
         snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
     };
 
-    let res = instantiate(deps.as_mut(), mock_env(), info, msg);
-
-    match res {
-        Ok(_) => panic!("Must return error"),
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "threshold must be 0 to 1"),
-        Err(e) => panic!("Unexpected error: {:?}", e),
-    }
+    let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(
+        res,
+        ContractError::ValueOutOfRange("threshold".to_string(), Uint128::zero(), Uint128::new(1))
+    )
 }
 
 #[test]
@@ -177,11 +169,8 @@ fn fails_create_poll_invalid_title() {
 
     let msg = create_poll_msg("a".to_string(), "test".to_string(), None, None);
     let info = mock_info(VOTING_TOKEN, &[]);
-    match execute(deps.as_mut(), mock_env(), info.clone(), msg) {
-        Ok(_) => panic!("Must return error"),
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Title too short"),
-        Err(_) => panic!("Unknown error"),
-    }
+    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
+    assert_eq!(res, ContractError::ValueTooShort("Title".to_string()));
 
     let msg = create_poll_msg(
             "0123456789012345678901234567890123456789012345678901234567890123401234567890123456789012345678901234567890123456789012345678901234012345678901234567890123456789012345678901234567890123456789012340123456789012345678901234567890123456789012345678901234567890123401234567890123456789012345678901234567890123456789012345678901234".to_string(),
@@ -190,11 +179,8 @@ fn fails_create_poll_invalid_title() {
             None,
         );
 
-    match execute(deps.as_mut(), mock_env(), info, msg) {
-        Ok(_) => panic!("Must return error"),
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Title too long"),
-        Err(_) => panic!("Unknown error"),
-    }
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(res, ContractError::ValueTooLong("Title".to_string()));
 }
 
 #[test]
@@ -204,11 +190,8 @@ fn fails_create_poll_invalid_description() {
 
     let msg = create_poll_msg("test".to_string(), "a".to_string(), None, None);
     let info = mock_info(VOTING_TOKEN, &[]);
-    match execute(deps.as_mut(), mock_env(), info.clone(), msg) {
-        Ok(_) => panic!("Must return error"),
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Description too short"),
-        Err(_) => panic!("Unknown error"),
-    }
+    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
+    assert_eq!(res, ContractError::ValueTooShort("Description".to_string()));
 
     let msg = create_poll_msg(
             "test".to_string(),
@@ -217,11 +200,8 @@ fn fails_create_poll_invalid_description() {
             None,
         );
 
-    match execute(deps.as_mut(), mock_env(), info, msg) {
-        Ok(_) => panic!("Must return error"),
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Description too long"),
-        Err(_) => panic!("Unknown error"),
-    }
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(res, ContractError::ValueTooLong("Description".to_string()));
 }
 
 #[test]
@@ -236,11 +216,8 @@ fn fails_create_poll_invalid_link() {
         None,
     );
     let info = mock_info(VOTING_TOKEN, &[]);
-    match execute(deps.as_mut(), mock_env(), info.clone(), msg) {
-        Ok(_) => panic!("Must return error"),
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Link too short"),
-        Err(_) => panic!("Unknown error"),
-    }
+    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
+    assert_eq!(res, ContractError::ValueTooShort("Link".to_string()));
 
     let msg = create_poll_msg(
             "test".to_string(),
@@ -249,11 +226,8 @@ fn fails_create_poll_invalid_link() {
             None,
         );
 
-    match execute(deps.as_mut(), mock_env(), info, msg) {
-        Ok(_) => panic!("Must return error"),
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Link too long"),
-        Err(_) => panic!("Unknown error"),
-    }
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(res, ContractError::ValueTooLong("Link".to_string()));
 }
 
 #[test]
@@ -273,14 +247,14 @@ fn fails_create_poll_invalid_deposit() {
         .unwrap(),
     });
     let info = mock_info(VOTING_TOKEN, &[]);
-    match execute(deps.as_mut(), mock_env(), info, msg) {
-        Ok(_) => panic!("Must return error"),
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(
-            msg,
-            format!("Must deposit more than {} token", DEFAULT_PROPOSAL_DEPOSIT)
-        ),
-        Err(_) => panic!("Unknown error"),
-    }
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(
+        res,
+        ContractError::Generic(format!(
+            "Must deposit more than {} token",
+            DEFAULT_PROPOSAL_DEPOSIT
+        ))
+    );
 }
 
 fn create_poll_msg(
@@ -548,13 +522,11 @@ fn fails_end_poll_before_end_time() {
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
     let env = mock_env_height(0, 0);
     let info = mock_info(TEST_CREATOR, &[]);
-    let execute_res = execute(deps.as_mut(), env, info, msg);
-
-    match execute_res {
-        Ok(_) => panic!("Must return error"),
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Voting period has not expired"),
-        Err(e) => panic!("Unexpected error: {:?}", e),
-    }
+    let execute_res = execute(deps.as_mut(), env, info, msg).unwrap_err();
+    assert_eq!(
+        execute_res,
+        ContractError::ValueHasNotExpired("Voting period".to_string())
+    );
 }
 
 #[test]
@@ -657,10 +629,10 @@ fn happy_days_end_poll() {
         msg,
     )
     .unwrap_err();
-    match execute_res {
-        StdError::GenericErr { msg, .. } => assert_eq!(msg, "Poll is not in passed status"),
-        _ => panic!("DO NOT ENTER HERE"),
-    }
+    assert_eq!(
+        execute_res,
+        ContractError::Generic("Poll is not in passed status".to_string())
+    );
 
     creator_info.sender = Addr::unchecked(TEST_CREATOR);
     creator_env.block.time = creator_env.block.time.plus_seconds(DEFAULT_VOTING_PERIOD);
@@ -714,10 +686,10 @@ fn happy_days_end_poll() {
         msg,
     )
     .unwrap_err();
-    match execute_res {
-        StdError::GenericErr { msg, .. } => assert_eq!(msg, "Effective delay has not expired"),
-        _ => panic!("DO NOT ENTER HERE"),
-    }
+    assert_eq!(
+        execute_res,
+        ContractError::ValueHasNotExpired("Effective delay".to_string())
+    );
 
     creator_env.block.time = creator_env.block.time.plus_seconds(DEFAULT_EFFECTIVE_DELAY);
     let msg = ExecuteMsg::ExecutePoll { poll_id: 1 };
@@ -1395,15 +1367,11 @@ fn fails_cast_vote_not_enough_staked() {
         amount: Uint128::from(11u128),
     };
 
-    let res = execute(deps.as_mut(), env, info, msg);
-
-    match res {
-        Ok(_) => panic!("Must return error"),
-        Err(StdError::GenericErr { msg, .. }) => {
-            assert_eq!(msg, "User does not have enough staked tokens.")
-        }
-        Err(e) => panic!("Unexpected error: {:?}", e),
-    }
+    let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
+    assert_eq!(
+        res,
+        ContractError::Generic("User does not have enough staked tokens".to_string())
+    );
 }
 
 #[test]
@@ -1830,13 +1798,8 @@ fn fails_withdraw_voting_tokens_no_stake() {
         amount: Some(Uint128::from(11u128)),
     };
 
-    let res = execute(deps.as_mut(), mock_env(), info, msg);
-
-    match res {
-        Ok(_) => panic!("Must return error"),
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Nothing staked"),
-        Err(e) => panic!("Unexpected error: {:?}", e),
-    }
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(res, ContractError::NothingStaked {});
 }
 
 #[test]
@@ -1864,15 +1827,11 @@ fn fails_withdraw_too_many_tokens() {
         amount: Some(Uint128::from(11u128)),
     };
 
-    let res = execute(deps.as_mut(), mock_env(), info, msg);
-
-    match res {
-        Ok(_) => panic!("Must return error"),
-        Err(StdError::GenericErr { msg, .. }) => {
-            assert_eq!(msg, "User is trying to withdraw too many tokens.")
-        }
-        Err(e) => panic!("Unexpected error: {:?}", e),
-    }
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(
+        res,
+        ContractError::Generic("User is trying to withdraw too many tokens".to_string())
+    );
 }
 
 #[test]
@@ -1935,13 +1894,11 @@ fn fails_cast_vote_twice() {
         vote: VoteOption::Yes,
         amount: Uint128::from(amount),
     };
-    let res = execute(deps.as_mut(), env, info, msg);
-
-    match res {
-        Ok(_) => panic!("Must return error"),
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "User has already voted."),
-        Err(e) => panic!("Unexpected error: {:?}", e),
-    }
+    let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
+    assert_eq!(
+        res,
+        ContractError::Generic("User has already voted".to_string())
+    );
 }
 
 #[test]
@@ -1956,13 +1913,8 @@ fn fails_cast_vote_without_poll() {
     };
     let info = mock_info(TEST_VOTER, &coins(11, VOTING_TOKEN));
 
-    let res = execute(deps.as_mut(), mock_env(), info, msg);
-
-    match res {
-        Ok(_) => panic!("Must return error"),
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Poll does not exist"),
-        Err(e) => panic!("Unexpected error: {:?}", e),
-    }
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(res, ContractError::PollNotExists {});
 }
 
 #[test]
@@ -2004,13 +1956,11 @@ fn fails_insufficient_funds() {
     });
 
     let info = mock_info(VOTING_TOKEN, &[]);
-    let res = execute(deps.as_mut(), mock_env(), info, msg);
-
-    match res {
-        Ok(_) => panic!("Must return error"),
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "Insufficient funds sent"),
-        Err(e) => panic!("Unexpected error: {:?}", e),
-    }
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(
+        res,
+        ContractError::Generic("Insufficient funds sent".to_string())
+    );
 }
 
 #[test]
@@ -2036,13 +1986,8 @@ fn fails_staking_wrong_token() {
     });
 
     let info = mock_info(&(VOTING_TOKEN.to_string() + "2"), &[]);
-    let res = execute(deps.as_mut(), mock_env(), info, msg);
-
-    match res {
-        Ok(_) => panic!("Must return error"),
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized"),
-        Err(e) => panic!("Unexpected error: {:?}", e),
-    }
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(res, ContractError::Unauthorized {});
 }
 
 #[test]
@@ -2416,11 +2361,8 @@ fn update_config() {
         snapshot_period: None,
     };
 
-    let res = execute(deps.as_mut(), mock_env(), info, msg);
-    match res {
-        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "unauthorized"),
-        _ => panic!("Must return unauthorized error"),
-    }
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(res, ContractError::Unauthorized {});
 }
 
 #[test]
@@ -2505,7 +2447,7 @@ fn distribute_voting_rewards() {
     let env = mock_env_height(0, 10000);
     let info = mock_info(TEST_VOTER, &[]);
     let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
-    assert_eq!(res, StdError::generic_err("Nothing to withdraw"));
+    assert_eq!(res, ContractError::NothingToWithdraw {});
 
     let env = mock_env_height(0, poll_end_time);
     let info = mock_info(TEST_VOTER, &[]);
@@ -2628,7 +2570,7 @@ fn stake_voting_rewards() {
     let env = mock_env_height(0, 10000);
     let info = mock_info(TEST_VOTER, &[]);
     let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
-    assert_eq!(res, StdError::generic_err("Nothing to withdraw"));
+    assert_eq!(res, ContractError::NothingToWithdraw {});
 
     let env = mock_env_height(0, poll_end_time);
     let info = mock_info(TEST_VOTER, &[]);
@@ -2666,7 +2608,7 @@ fn stake_voting_rewards() {
     let env = mock_env_height(0, 10000);
     let info = mock_info(TEST_VOTER, &[]);
     let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
-    assert_eq!(res, StdError::generic_err("Nothing to withdraw"));
+    assert_eq!(res, ContractError::NothingToWithdraw {});
 
     // voting info has been deleted
     assert!(poll_voter_read(&deps.storage, 1u64)
@@ -3737,7 +3679,7 @@ fn snapshot_poll() {
     )
     .unwrap_err();
     assert_eq!(
-        StdError::generic_err("Cannot snapshot at this height",),
+        ContractError::Generic("Cannot snapshot at this height".to_string()),
         snapshot_err
     );
 
@@ -3781,7 +3723,7 @@ fn snapshot_poll() {
     )
     .unwrap_err();
     assert_eq!(
-        StdError::generic_err("Snapshot has already occurred"),
+        ContractError::Generic("Snapshot has already occurred".to_string()),
         snapshot_error
     );
 }
@@ -3891,7 +3833,7 @@ fn happy_days_cast_vote_with_snapshot() {
     )
     .unwrap_err();
     assert_eq!(
-        StdError::generic_err("Snapshot has already occurred"),
+        ContractError::Generic("Snapshot has already occurred".to_string()),
         snap_error
     );
 

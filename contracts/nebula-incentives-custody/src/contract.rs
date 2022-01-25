@@ -1,11 +1,12 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
+use crate::error::ContractError;
 use crate::querier::load_token_balance;
 use crate::state::{read_neb, read_owner, set_neb, set_owner};
 use cosmwasm_std::{
-    attr, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, Uint128, WasmMsg,
+    attr, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::incentives_custody::{ExecuteMsg, InstantiateMsg, QueryMsg};
@@ -16,7 +17,7 @@ pub fn instantiate(
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     set_owner(deps.storage, &deps.api.addr_validate(msg.owner.as_str())?)?;
     set_neb(
         deps.storage,
@@ -26,19 +27,28 @@ pub fn instantiate(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response> {
+pub fn execute(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: ExecuteMsg,
+) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::RequestNeb { amount } => request_neb(deps, env, info, amount),
         ExecuteMsg::UpdateOwner { owner } => update_owner(deps, info, &owner),
     }
 }
 
-pub fn update_owner(deps: DepsMut, info: MessageInfo, owner: &String) -> StdResult<Response> {
+pub fn update_owner(
+    deps: DepsMut,
+    info: MessageInfo,
+    owner: &String,
+) -> Result<Response, ContractError> {
     let old_owner = read_owner(deps.storage)?;
 
     // check permission
     if info.sender != old_owner {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     set_owner(deps.storage, &deps.api.addr_validate(owner.as_str())?)?;
@@ -55,9 +65,9 @@ pub fn request_neb(
     env: Env,
     info: MessageInfo,
     amount: Uint128,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     if info.sender != read_owner(deps.storage)? {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     Ok(Response::new()

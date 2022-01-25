@@ -1,10 +1,11 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
+use crate::error::ContractError;
 use crate::state::{read_config, store_config, Config};
 use cosmwasm_std::{
-    attr, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError,
-    StdResult, WasmMsg,
+    attr, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+    WasmMsg,
 };
 
 use astroport::asset::Asset;
@@ -18,7 +19,7 @@ pub fn instantiate(
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     store_config(
         deps.storage,
         &Config {
@@ -35,7 +36,7 @@ pub fn execute(
     _env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::UpdateConfig { owner } => update_config(deps, info, owner),
         ExecuteMsg::Spend { asset, recipient } => spend(deps, info, asset, recipient),
@@ -45,10 +46,14 @@ pub fn execute(
     }
 }
 
-pub fn update_config(deps: DepsMut, info: MessageInfo, owner: String) -> StdResult<Response> {
+pub fn update_config(
+    deps: DepsMut,
+    info: MessageInfo,
+    owner: String,
+) -> Result<Response, ContractError> {
     let mut config: Config = read_config(deps.storage)?;
     if config.owner != info.sender {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     config.owner = deps.api.addr_validate(owner.as_str())?;
@@ -65,12 +70,12 @@ pub fn spend(
     info: MessageInfo,
     asset: Asset,
     recipient: String,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let validated_recipient = deps.api.addr_validate(recipient.as_str())?;
 
     let config: Config = read_config(deps.storage)?;
     if config.owner != info.sender {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     Ok(Response::new()
@@ -89,10 +94,10 @@ pub fn pass_command(
     info: MessageInfo,
     contract_addr: String,
     msg: Binary,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let config: Config = read_config(deps.storage)?;
     if config.owner != info.sender {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     Ok(

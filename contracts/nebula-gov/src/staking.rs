@@ -1,3 +1,4 @@
+use crate::error::ContractError;
 use crate::querier::load_token_balance;
 use crate::state::{
     bank_read, bank_store, config_read, config_store, poll_read, poll_store, poll_voter_read,
@@ -6,8 +7,8 @@ use crate::state::{
 };
 
 use cosmwasm_std::{
-    attr, to_binary, Addr, CosmosMsg, Deps, DepsMut, MessageInfo, Response, StdError, StdResult,
-    Storage, Uint128, WasmMsg,
+    attr, to_binary, Addr, CosmosMsg, Deps, DepsMut, MessageInfo, Response, StdResult, Storage,
+    Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::common::OrderBy;
@@ -15,9 +16,15 @@ use nebula_protocol::gov::{
     PollStatus, SharesResponse, SharesResponseItem, StakerResponse, VoterInfo,
 };
 
-pub fn stake_voting_tokens(deps: DepsMut, sender: String, amount: Uint128) -> StdResult<Response> {
+pub fn stake_voting_tokens(
+    deps: DepsMut,
+    sender: String,
+    amount: Uint128,
+) -> Result<Response, ContractError> {
     if amount.is_zero() {
-        return Err(StdError::generic_err("Insufficient funds sent"));
+        return Err(ContractError::Generic(
+            "Insufficient funds sent".to_string(),
+        ));
     }
 
     let sender_address = deps.api.addr_validate(sender.as_str())?;
@@ -59,7 +66,7 @@ pub fn withdraw_voting_tokens(
     deps: DepsMut,
     info: MessageInfo,
     amount: Option<Uint128>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let sender_address = info.sender;
     let key = sender_address.as_bytes();
 
@@ -88,8 +95,8 @@ pub fn withdraw_voting_tokens(
             .unwrap_or_else(|| withdraw_share * total_balance / total_share);
 
         if user_locked_share + withdraw_share > user_share {
-            Err(StdError::generic_err(
-                "User is trying to withdraw too many tokens.",
+            Err(ContractError::Generic(
+                "User is trying to withdraw too many tokens".to_string(),
             ))
         } else {
             let share = user_share - withdraw_share;
@@ -108,7 +115,7 @@ pub fn withdraw_voting_tokens(
             )
         }
     } else {
-        Err(StdError::generic_err("Nothing staked"))
+        Err(ContractError::NothingStaked {})
     }
 }
 
@@ -117,7 +124,7 @@ fn compute_locked_balance(
     storage: &mut dyn Storage,
     token_manager: &mut TokenManager,
     voter: &Addr,
-) -> StdResult<u128> {
+) -> Result<u128, ContractError> {
     // filter out not in-progress polls and get max locked
     let mut lock_entries_to_remove: Vec<u64> = vec![];
     let max_locked = token_manager
@@ -146,7 +153,7 @@ fn compute_locked_balance(
     Ok(max_locked)
 }
 
-pub fn deposit_reward(deps: DepsMut, amount: Uint128) -> StdResult<Response> {
+pub fn deposit_reward(deps: DepsMut, amount: Uint128) -> Result<Response, ContractError> {
     let config = config_read(deps.storage).load()?;
 
     let mut polls_in_progress = read_polls(
@@ -169,7 +176,9 @@ pub fn deposit_reward(deps: DepsMut, amount: Uint128) -> StdResult<Response> {
     let rewards_per_poll =
         voter_rewards.multiply_ratio(Uint128::new(1), polls_in_progress.len() as u128);
     if rewards_per_poll.is_zero() {
-        return Err(StdError::generic_err("Reward deposited is too small"));
+        return Err(ContractError::Generic(
+            "Reward deposited is too small".to_string(),
+        ));
     }
     for poll in polls_in_progress.iter_mut() {
         poll.voters_reward += rewards_per_poll;
@@ -193,19 +202,19 @@ pub fn withdraw_voting_rewards(
     deps: DepsMut,
     info: MessageInfo,
     poll_id: Option<u64>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let config: Config = config_store(deps.storage).load()?;
     let sender_address = info.sender;
     let key = sender_address.as_bytes();
 
     let mut token_manager = bank_read(deps.storage)
         .load(key)
-        .map_err(|_| StdError::generic_err("Nothing staked"))?;
+        .map_err(|_| ContractError::NothingStaked {})?;
 
     let (user_reward_amount, w_polls) =
         withdraw_user_voting_rewards(deps.storage, &sender_address, &token_manager, poll_id)?;
     if user_reward_amount.eq(&0u128) {
-        return Err(StdError::generic_err("Nothing to withdraw"));
+        return Err(ContractError::NothingToWithdraw {});
     }
 
     // cleanup, remove from locked_balance the polls from which we withdrew the rewards
@@ -233,7 +242,7 @@ pub fn stake_voting_rewards(
     deps: DepsMut,
     info: MessageInfo,
     poll_id: Option<u64>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let config: Config = config_store(deps.storage).load()?;
     let mut state: State = state_store(deps.storage).load()?;
     let sender_address = info.sender;
@@ -241,12 +250,12 @@ pub fn stake_voting_rewards(
 
     let mut token_manager = bank_read(deps.storage)
         .load(key)
-        .map_err(|_| StdError::generic_err("Nothing staked"))?;
+        .map_err(|_| ContractError::NothingStaked {})?;
 
     let (user_reward_amount, w_polls) =
         withdraw_user_voting_rewards(deps.storage, &sender_address, &token_manager, poll_id)?;
     if user_reward_amount.eq(&0u128) {
-        return Err(StdError::generic_err("Nothing to withdraw"));
+        return Err(ContractError::NothingToWithdraw {});
     }
 
     // add the withdrawn rewards to stake pool and calculate share
@@ -289,16 +298,20 @@ fn withdraw_user_voting_rewards(
     user_address: &Addr,
     token_manager: &TokenManager,
     poll_id: Option<u64>,
-) -> StdResult<(u128, Vec<u64>)> {
+) -> Result<(u128, Vec<u64>), ContractError> {
     let w_polls: Vec<(Poll, VoterInfo)> = match poll_id {
         Some(poll_id) => {
             let poll: Poll = poll_read(storage).load(&poll_id.to_be_bytes())?;
             let voter_info = poll_voter_read(storage, poll_id).load(user_address.as_bytes())?;
             if poll.status == PollStatus::InProgress {
-                return Err(StdError::generic_err("This poll is still in progress"));
+                return Err(ContractError::Generic(
+                    "This poll is still in progress".to_string(),
+                ));
             }
             if poll.voters_reward.is_zero() {
-                return Err(StdError::generic_err("This poll has no voting rewards"));
+                return Err(ContractError::Generic(
+                    "This poll has no voting rewards".to_string(),
+                ));
             }
             vec![(poll, voter_info)]
         }
@@ -354,7 +367,7 @@ fn send_tokens(
     recipient: &Addr,
     amount: u128,
     action: &str,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let attributes = vec![
         attr("action", action),
         attr("recipient", recipient.to_string().as_str()),

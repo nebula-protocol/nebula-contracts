@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     attr, to_binary, Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, QueryRequest,
-    Response, StdError, StdResult, Uint128, WasmMsg, WasmQuery,
+    Response, StdResult, Uint128, WasmMsg, WasmQuery,
 };
 
 use crate::rebalancers::{assert_cluster_exists, get_cluster_state};
@@ -17,6 +17,7 @@ use astroport::querier::{query_balance, query_pair_info, query_token_balance};
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::cluster::{ClusterStateResponse, QueryMsg as ClusterQueryMsg};
 
+use crate::error::ContractError;
 use cluster_math::FPDecimal;
 use std::str::FromStr;
 
@@ -63,7 +64,7 @@ pub fn arb_cluster_create(
     cluster_contract: String,
     assets: &[Asset],
     min_ust: Option<Uint128>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let validated_cluster_contract = deps.api.addr_validate(cluster_contract.as_str())?;
 
     assert_cluster_exists(deps.as_ref(), &validated_cluster_contract)?;
@@ -164,7 +165,7 @@ pub fn arb_cluster_redeem(
     cluster_contract: String,
     asset: Asset,
     min_cluster: Option<Uint128>,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let validated_cluster_contract = deps.api.addr_validate(cluster_contract.as_str())?;
 
     assert_cluster_exists(deps.as_ref(), &validated_cluster_contract)?;
@@ -177,10 +178,12 @@ pub fn arb_cluster_redeem(
     let cfg: Config = read_config(deps.storage)?;
 
     match asset.info {
-        AssetInfo::Token { .. } => return Err(StdError::generic_err("not native token")),
+        AssetInfo::Token { .. } => {
+            return Err(ContractError::Generic("Not native token".to_string()))
+        }
         AssetInfo::NativeToken { ref denom } => {
             if denom.clone() != cfg.base_denom {
-                return Err(StdError::generic_err("wrong base denom"));
+                return Err(ContractError::Generic("Wrong base denom".to_string()));
             }
         }
     };
@@ -263,9 +266,9 @@ pub fn record_astroport_impact(
     astroport_pair: Addr,
     cluster_contract: Addr,
     pool_before: AstroportPoolResponse,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     if info.sender != env.contract.address {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     let pool_now: AstroportPoolResponse =
@@ -358,9 +361,9 @@ pub fn swap_all(
     cluster_token: Addr,
     to_ust: bool,
     min_return: Uint128,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     if info.sender != env.contract.address {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     let config: Config = read_config(deps.storage)?;
@@ -443,9 +446,9 @@ pub fn send_all(
     info: MessageInfo,
     asset_infos: &[AssetInfo],
     send_to: Addr,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     if info.sender != env.contract.address {
-        return Err(StdError::generic_err("unauthorized"));
+        return Err(ContractError::Unauthorized {});
     }
 
     let mut messages = vec![];

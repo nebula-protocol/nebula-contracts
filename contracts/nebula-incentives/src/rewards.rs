@@ -1,8 +1,9 @@
 use cosmwasm_std::{
-    attr, to_binary, CosmosMsg, DepsMut, MessageInfo, Order, Response, StdError, StdResult,
-    Storage, Uint128, WasmMsg,
+    attr, to_binary, CosmosMsg, DepsMut, MessageInfo, Order, Response, StdResult, Storage, Uint128,
+    WasmMsg,
 };
 
+use crate::error::ContractError;
 use crate::state::{
     contributions_read, contributions_to_pending_rewards, pool_info_read, pool_info_store,
     read_config, read_current_n, read_from_pool_bucket, read_pending_rewards, store_current_n,
@@ -19,14 +20,14 @@ pub fn deposit_reward(
     // pool_type, asset_address, amount
     rewards: Vec<(u16, String, Uint128)>,
     rewards_amount: Uint128,
-) -> StdResult<Response> {
+) -> Result<Response, ContractError> {
     let cfg = read_config(deps.storage)?;
     let n = read_current_n(deps.storage)?;
 
     for (pool_type, asset_token, amount) in rewards.iter() {
         let validated_asset_token = deps.api.addr_validate(asset_token.as_str())?;
         if !PoolType::ALL_TYPES.contains(&pool_type) {
-            return Err(StdError::generic_err("pool type not found"));
+            return Err(ContractError::Generic("Pool type not found".to_string()));
         }
         let mut pool_info: PoolInfo = read_from_pool_bucket(
             &pool_info_read(deps.storage, *pool_type, n),
@@ -53,7 +54,7 @@ pub fn deposit_reward(
 }
 
 // withdraw all rewards or single reward depending on asset_token
-pub fn withdraw_reward(deps: DepsMut, info: MessageInfo) -> StdResult<Response> {
+pub fn withdraw_reward(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
     let cfg = read_config(deps.storage)?;
 
     let reward_owner = info.sender;
@@ -67,7 +68,7 @@ pub fn withdraw_reward(deps: DepsMut, info: MessageInfo) -> StdResult<Response> 
 
             let asset_address = deps.api.addr_validate(
                 std::str::from_utf8(&k)
-                    .map_err(|_| StdError::invalid_utf8("invalid asset address"))?,
+                    .map_err(|_| ContractError::Invalid("asset address".to_string()))?,
             )?;
             contribution_tuples.push((i, asset_address));
         }
