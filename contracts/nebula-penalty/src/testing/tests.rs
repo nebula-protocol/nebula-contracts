@@ -1,10 +1,6 @@
-use std::str::FromStr;
-
-use crate::contract::{execute, instantiate, query};
-use crate::contract::{get_ema, notional_penalty, update_ema};
-use crate::mock_querier::mock_dependencies;
+use crate::contract::{execute, get_ema, instantiate, notional_penalty, query, update_ema};
 use crate::state::{read_config, PenaltyConfig};
-
+use crate::testing::mock_querier::mock_dependencies;
 use cluster_math::{
     dot, imbalance, int32_vec_to_fpdec, int_vec_to_fpdec, str_vec_to_fpdec, FPDecimal,
 };
@@ -14,6 +10,7 @@ use nebula_protocol::penalty::{
     ExecuteMsg, InstantiateMsg, PenaltyCreateResponse, PenaltyParams, PenaltyRedeemResponse,
     QueryMsg,
 };
+use std::str::FromStr;
 
 const TEST_CREATOR: &str = "creator";
 

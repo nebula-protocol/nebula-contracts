@@ -1,34 +1,30 @@
 use crate::contract::{execute, instantiate, query, reply};
-use crate::mock_querier::mock_dependencies;
-
+use crate::response::MsgInstantiateContractResponse;
 use crate::state::{
     cluster_exists, read_params, read_tmp_asset, read_tmp_cluster, read_total_weight, read_weight,
     store_total_weight, store_weight,
 };
+use crate::testing::mock_querier::mock_dependencies;
+use astroport::asset::{Asset, AssetInfo};
+use astroport::factory::{ExecuteMsg as AstroportFactoryExecuteMsg, PairType};
+use astroport::token::InstantiateMsg as TokenInstantiateMsg;
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     attr, from_binary, to_binary, Addr, ContractResult, CosmosMsg, Env, Reply, ReplyOn, StdError,
     SubMsg, SubMsgExecutionResponse, Timestamp, Uint128, WasmMsg,
 };
-use protobuf::Message;
-
-use crate::response::MsgInstantiateContractResponse;
 use cw20::{Cw20ExecuteMsg, MinterResponse};
-
-use nebula_protocol::cluster_factory::{
-    ConfigResponse, DistributionInfoResponse, ExecuteMsg, InstantiateMsg, Params, QueryMsg,
-};
-
-use astroport::asset::{Asset, AssetInfo};
-use astroport::factory::{ExecuteMsg as AstroportFactoryExecuteMsg, PairType};
-use astroport::token::InstantiateMsg as TokenInstantiateMsg;
 use nebula_protocol::cluster::{
     ExecuteMsg as ClusterExecuteMsg, InstantiateMsg as ClusterInstantiateMsg,
+};
+use nebula_protocol::cluster_factory::{
+    ConfigResponse, DistributionInfoResponse, ExecuteMsg, InstantiateMsg, Params, QueryMsg,
 };
 use nebula_protocol::penalty::ExecuteMsg as PenaltyExecuteMsg;
 use nebula_protocol::staking::{
     Cw20HookMsg as StakingCw20HookMsg, ExecuteMsg as StakingExecuteMsg,
 };
+use protobuf::Message;
 
 fn mock_env_time(time: u64) -> Env {
     let mut env = mock_env();

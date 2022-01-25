@@ -41,7 +41,7 @@ impl TokenQuerier {
     }
 }
 
-pub(crate) fn balances_to_map(
+pub fn balances_to_map(
     balances: &[(&String, &[(&String, &Uint128)])],
 ) -> HashMap<String, HashMap<String, Uint128>> {
     let mut balances_map: HashMap<String, HashMap<String, Uint128>> = HashMap::new();

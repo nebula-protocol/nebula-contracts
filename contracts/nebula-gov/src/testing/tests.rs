@@ -5,7 +5,6 @@ use crate::state::{
     poll_voter_store, state_read, Config, Poll, State, TokenManager,
 };
 use crate::testing::mock_querier::mock_dependencies;
-
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     attr, coins, from_binary, to_binary, Addr, Api, ContractResult, CosmosMsg, Decimal, Deps,
