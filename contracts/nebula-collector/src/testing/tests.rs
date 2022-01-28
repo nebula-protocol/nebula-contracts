@@ -1,12 +1,12 @@
-use crate::contract::{execute, instantiate, query_config};
+use crate::contract::{execute, instantiate, query, query_config};
 use crate::error::ContractError;
 use crate::testing::mock_querier::mock_dependencies;
 use astroport::asset::{Asset, AssetInfo};
 use astroport::pair::{Cw20HookMsg as AstroportCw20HookMsg, ExecuteMsg as AstroportExecuteMsg};
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
-use cosmwasm_std::{to_binary, Coin, CosmosMsg, Decimal, SubMsg, Uint128, WasmMsg};
+use cosmwasm_std::{from_binary, to_binary, Coin, CosmosMsg, Decimal, SubMsg, Uint128, WasmMsg};
 use cw20::Cw20ExecuteMsg;
-use nebula_protocol::collector::{ConfigResponse, ExecuteMsg, InstantiateMsg};
+use nebula_protocol::collector::{ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
 use nebula_protocol::gov::Cw20HookMsg::DepositReward;
 
 #[test]
@@ -27,9 +27,11 @@ fn proper_initialization() {
     let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
     // it worked, let's query the state
-    let config: ConfigResponse = query_config(deps.as_ref()).unwrap();
-    assert_eq!("astroportfactory", config.astroport_factory.as_str());
-    assert_eq!("uusd", config.base_denom.as_str());
+    let msg = QueryMsg::Config {};
+    let res = query(deps.as_ref(), mock_env(), msg).unwrap();
+    let decoded_res: ConfigResponse = from_binary(&res).unwrap();
+    assert_eq!("astroportfactory", decoded_res.astroport_factory.as_str());
+    assert_eq!("uusd", decoded_res.base_denom.as_str());
 }
 
 #[test]

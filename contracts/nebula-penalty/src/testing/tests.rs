@@ -1,4 +1,5 @@
 use crate::contract::{execute, get_ema, instantiate, notional_penalty, query, update_ema};
+use crate::error::ContractError;
 use crate::state::{read_config, PenaltyConfig};
 use crate::testing::mock_querier::mock_dependencies;
 use cluster_math::{
@@ -75,6 +76,29 @@ fn proper_initialization() {
             ema: FPDecimal::zero(),
             last_block: 0u64,
         }
+    );
+}
+
+#[test]
+fn bad_initialization() {
+    let mut deps = mock_dependencies(&[]);
+
+    let msg = InstantiateMsg {
+        owner: "".to_string(),
+        penalty_params: PenaltyParams {
+            penalty_amt_lo: FPDecimal::from_str("0.1").unwrap(),
+            penalty_cutoff_lo: FPDecimal::from_str("0.01").unwrap(),
+            penalty_amt_hi: FPDecimal::from_str("0.9").unwrap(),
+            penalty_cutoff_hi: FPDecimal::from_str("0.1").unwrap(),
+            reward_amt: FPDecimal::from_str("0.05").unwrap(),
+            reward_cutoff: FPDecimal::from_str("0.02").unwrap(),
+        },
+    };
+    let info = mock_info("addr0000", &[]);
+    let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(
+        res,
+        ContractError::Generic("penalty amount must reach one".to_string())
     );
 }
 
