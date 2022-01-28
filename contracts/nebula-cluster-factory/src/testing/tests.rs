@@ -11,8 +11,8 @@ use astroport::factory::{ExecuteMsg as AstroportFactoryExecuteMsg, PairType};
 use astroport::token::InstantiateMsg as TokenInstantiateMsg;
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    attr, from_binary, to_binary, Addr, ContractResult, CosmosMsg, Env, Reply, ReplyOn, StdError,
-    SubMsg, SubMsgExecutionResponse, Timestamp, Uint128, WasmMsg,
+    attr, from_binary, to_binary, Addr, Binary, ContractResult, CosmosMsg, Env, Reply, ReplyOn,
+    StdError, SubMsg, SubMsgExecutionResponse, Timestamp, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, MinterResponse};
 use nebula_protocol::cluster::{
@@ -870,7 +870,7 @@ fn test_distribute() {
     };
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-    // create first cluter with weight 100
+    // create first cluster with weight 100
     let input_params: Params = get_input_params();
     let msg = ExecuteMsg::CreateCluster {
         params: input_params.clone(),
@@ -918,7 +918,7 @@ fn test_distribute() {
 
     let _res = reply(deps.as_mut(), mock_env(), reply_msg3).unwrap();
 
-    // create second cluter with weight 30
+    // create second cluster with weight 30
     let mut input_params: Params = get_input_params();
     input_params.weight = Some(30u32);
     input_params.name = "Test Cluster 2".to_string();
@@ -1155,4 +1155,66 @@ fn test_decommission_cluster() {
     assert_eq!(res, StdError::generic_err("No distribution info stored"));
 
     assert_eq!(read_total_weight(&deps.storage).unwrap(), 300u32);
+}
+
+#[test]
+fn test_pass_command() {
+    let mut deps = mock_dependencies(&[]);
+    deps.querier.with_astroport_pairs(&[
+        (&"uusdnebula0000".to_string(), &"NEBLP000".to_string()),
+        (&"uusdcluster_token0000".to_string(), &h("LP0000")),
+        (&"uusdcluster_token0001".to_string(), &h("LP0001")),
+    ]);
+
+    let msg = InstantiateMsg {
+        base_denom: BASE_DENOM.to_string(),
+        token_code_id: TOKEN_CODE_ID,
+        cluster_code_id: CLUSTER_CODE_ID,
+        protocol_fee_rate: PROTOCOL_FEE_RATE.to_string(),
+        distribution_schedule: vec![
+            (1800, 3600, Uint128::from(3600u128)),
+            (3600, 3600 + 3600, Uint128::from(7200u128)),
+        ],
+    };
+
+    let info = mock_info("addr0000", &[]);
+
+    // we can just call .unwrap() to assert this was a success
+    let _res = instantiate(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+
+    let msg = ExecuteMsg::PostInitialize {
+        owner: "owner0000".to_string(),
+        nebula_token: "nebula0000".to_string(),
+        staking_contract: "staking0000".to_string(),
+        commission_collector: "collector0000".to_string(),
+        astroport_factory: "astroportfactory".to_string(),
+    };
+    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+    // failed non-owner call
+    let msg = ExecuteMsg::PassCommand {
+        contract_addr: "contract0001".to_string(),
+        msg: Binary::default(),
+    };
+
+    let info = mock_info("imposter0001", &[]);
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(res, ContractError::Unauthorized {});
+
+    // successfully pass command
+    let msg = ExecuteMsg::PassCommand {
+        contract_addr: "contract0001".to_string(),
+        msg: Binary::default(),
+    };
+
+    let info = mock_info("owner0000", &[]);
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    assert_eq!(
+        res.messages,
+        vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: "contract0001".to_string(),
+            funds: vec![],
+            msg: Binary::default(),
+        }))]
+    );
 }
