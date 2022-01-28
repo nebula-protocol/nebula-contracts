@@ -6,3 +6,4 @@ ignore:
   - ^libraries.*
   - ^packages.*
   - ^response.rs.*
+  - ^response.proto.*
