@@ -19,7 +19,8 @@ use nebula_protocol::cluster::{
     ExecuteMsg as ClusterExecuteMsg, InstantiateMsg as ClusterInstantiateMsg,
 };
 use nebula_protocol::cluster_factory::{
-    ConfigResponse, DistributionInfoResponse, ExecuteMsg, InstantiateMsg, Params, QueryMsg,
+    ClusterExistsResponse, ClusterListResponse, ConfigResponse, DistributionInfoResponse,
+    ExecuteMsg, InstantiateMsg, Params, QueryMsg,
 };
 use nebula_protocol::penalty::ExecuteMsg as PenaltyExecuteMsg;
 use nebula_protocol::staking::{
@@ -468,9 +469,22 @@ fn test_token_creation_hook() {
 
     assert_eq!(res.attributes, vec![attr("cluster_addr", "asset0000")]);
 
+    // let's try some queries
+    let msg = QueryMsg::ClusterExists {
+        contract_addr: "asset0000".to_string(),
+    };
+    let res: ClusterExistsResponse =
+        from_binary(&query(deps.as_ref(), mock_env(), msg).unwrap()).unwrap();
+    assert_eq!(res, ClusterExistsResponse { exists: true });
+
+    let msg = QueryMsg::ClusterList {};
+    let res: ClusterListResponse =
+        from_binary(&query(deps.as_ref(), mock_env(), msg).unwrap()).unwrap();
     assert_eq!(
-        cluster_exists(&deps.storage, &Addr::unchecked("asset0000")),
-        Ok(true)
+        res,
+        ClusterListResponse {
+            contract_infos: vec![("asset0000".to_string(), true)]
+        }
     );
 }
 
