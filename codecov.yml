@@ -7,3 +7,4 @@ ignore:
   - ^packages.*
   - ^response.rs.*
   - ^response.proto.*
+  - (?s:.*/response\.rs.*)\Z
