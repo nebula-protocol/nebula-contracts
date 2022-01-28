@@ -293,10 +293,7 @@ pub fn create(
 
     let target_weights = target.iter().map(|x| x.amount.clone()).collect::<Vec<_>>();
 
-    let cluster_token = cfg
-        .cluster_token
-        .clone()
-        .ok_or_else(|| ContractError::ClusterTokenNotSet {})?;
+    let cluster_token = cluster_state.cluster_token;
 
     // Vector to store create asset weights
     let mut asset_weights = vec![Uint128::zero(); target_infos.len()];

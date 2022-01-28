@@ -15,17 +15,17 @@ pub fn validate_targets(
     querier: QuerierWrapper,
     env: &Env,
     target_assets: Vec<AssetInfo>,
-) -> Result<bool, ContractError> {
+) -> Result<(), ContractError> {
     for i in 0..target_assets.len() {
         // Check if asset is a valid CW20.
         query_asset_balance(&querier, &env.contract.address, &target_assets[i])?;
         for j in i + 1..target_assets.len() {
             if target_assets[i].equal(&target_assets[j]) {
-                return Ok(false);
+                return Err(ContractError::InvalidAssets {});
             }
         }
     }
-    return Ok(true);
+    return Ok(());
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
