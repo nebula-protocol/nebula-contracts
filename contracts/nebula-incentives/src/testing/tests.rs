@@ -135,7 +135,7 @@ fn test_deposit_reward() {
         }))]
     );
 
-    // let's query
+    // now we can query the pool info with the new reward amount
     let msg = QueryMsg::PoolInfo {
         pool_type: PoolType::REBALANCE,
         cluster_address: "cluster".to_string(),

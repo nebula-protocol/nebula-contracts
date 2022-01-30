@@ -429,6 +429,25 @@ fn test_token_creation_hook() {
     let cluster = read_tmp_cluster(&deps.storage).unwrap();
     assert_eq!(cluster, "asset0000");
 
+    // query to see if the created cluster exists
+    let msg = QueryMsg::ClusterExists {
+        contract_addr: "asset0000".to_string(),
+    };
+    let res: ClusterExistsResponse =
+        from_binary(&query(deps.as_ref(), mock_env(), msg).unwrap()).unwrap();
+    assert_eq!(res, ClusterExistsResponse { exists: true });
+
+    // and we can also get a list of all clusters
+    let msg = QueryMsg::ClusterList {};
+    let res: ClusterListResponse =
+        from_binary(&query(deps.as_ref(), mock_env(), msg).unwrap()).unwrap();
+    assert_eq!(
+        res,
+        ClusterListResponse {
+            contract_infos: vec![("asset0000".to_string(), true)]
+        }
+    );
+
     assert_eq!(
         res.messages,
         vec![
@@ -468,24 +487,6 @@ fn test_token_creation_hook() {
     );
 
     assert_eq!(res.attributes, vec![attr("cluster_addr", "asset0000")]);
-
-    // let's try some queries
-    let msg = QueryMsg::ClusterExists {
-        contract_addr: "asset0000".to_string(),
-    };
-    let res: ClusterExistsResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), msg).unwrap()).unwrap();
-    assert_eq!(res, ClusterExistsResponse { exists: true });
-
-    let msg = QueryMsg::ClusterList {};
-    let res: ClusterListResponse =
-        from_binary(&query(deps.as_ref(), mock_env(), msg).unwrap()).unwrap();
-    assert_eq!(
-        res,
-        ClusterListResponse {
-            contract_infos: vec![("asset0000".to_string(), true)]
-        }
-    );
 }
 
 #[test]
@@ -1193,7 +1194,7 @@ fn test_pass_command() {
 
     let info = mock_info("addr0000", &[]);
 
-    // we can just call .unwrap() to assert this was a success
+    // we can call .unwrap() to assert this was a success
     let _res = instantiate(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
     let msg = ExecuteMsg::PostInitialize {
