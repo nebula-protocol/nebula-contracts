@@ -30,7 +30,7 @@ pub fn instantiate(
         ));
     }
 
-    // TODO: add logic that checks if penalty params result in attackable basket
+    // TODO: add logic that checks if penalty params result in attackable basket (should also be in cluster-factory)
 
     let cfg = PenaltyConfig {
         owner: deps.api.addr_validate(msg.owner.as_str())?,

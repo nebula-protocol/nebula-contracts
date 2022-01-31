@@ -1,12 +1,16 @@
 use crate::contract::*;
 use crate::error::ContractError;
 use crate::state::*;
-use crate::testing::mock_querier::{consts, mock_dependencies, mock_init, mock_querier_setup};
+use crate::testing::mock_querier::{
+    consts, mock_dependencies, mock_init, mock_querier_setup, token_data,
+};
 use astroport::asset::{Asset, AssetInfo};
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::*;
 use cw20::Cw20ExecuteMsg;
-use nebula_protocol::cluster::{ClusterConfig, InstantiateMsg};
+use nebula_protocol::cluster::{
+    ClusterConfig, ClusterInfoResponse, ConfigResponse, InstantiateMsg,
+};
 use nebula_protocol::cluster::{
     ClusterStateResponse, ExecuteMsg, QueryMsg as ClusterQueryMsg, TargetResponse,
 };
@@ -64,10 +68,123 @@ fn proper_initialization() {
                 info: AssetInfo::Token {
                     contract_addr: Addr::unchecked("mNFLX"),
                 },
-                amount: Uint128::new(20)
+                amount: Uint128::new(15)
+            },
+            Asset {
+                info: AssetInfo::NativeToken {
+                    denom: "uluna".to_string(),
+                },
+                amount: Uint128::new(5)
             },
         ],
         value.target
+    );
+
+    let config = q!(
+        deps.as_ref(),
+        ConfigResponse,
+        mock_env(),
+        ClusterQueryMsg::Config {}
+    );
+    assert_eq!(
+        ClusterConfig {
+            name: String::from("test_cluster"),
+            description: String::from("description"),
+            owner: Addr::unchecked("owner"),
+            cluster_token: Some(Addr::unchecked("cluster")),
+            pricing_oracle: Addr::unchecked("pricing_oracle"),
+            target_oracle: Addr::unchecked("target_oracle"),
+            penalty: Addr::unchecked("penalty"),
+            factory: Addr::unchecked("factory"),
+            active: true,
+        },
+        config.config,
+    );
+
+    let info = q!(
+        deps.as_ref(),
+        ClusterInfoResponse,
+        mock_env(),
+        ClusterQueryMsg::ClusterInfo {}
+    );
+    assert_eq!(
+        ClusterInfoResponse {
+            name: "test_cluster".to_string(),
+            description: "description".to_string()
+        },
+        info,
+    )
+}
+
+#[test]
+fn bad_initialization() {
+    let mut deps = mock_dependencies(&[]);
+    deps = mock_querier_setup(deps);
+
+    // duplicate target assets
+    let msg = InstantiateMsg {
+        name: consts::name().to_string(),
+        description: consts::description().to_string(),
+        owner: consts::owner(),
+        cluster_token: Some(consts::cluster_token()),
+        target: vec![
+            Asset {
+                info: AssetInfo::NativeToken {
+                    denom: "uusd".to_string(),
+                },
+                amount: Uint128::new(60),
+            },
+            Asset {
+                info: AssetInfo::NativeToken {
+                    denom: "uusd".to_string(),
+                },
+                amount: Uint128::new(40),
+            },
+        ],
+        pricing_oracle: consts::pricing_oracle(),
+        target_oracle: consts::target_oracle(),
+        penalty: consts::penalty(),
+        factory: consts::factory(),
+    };
+    let info = mock_info(consts::pricing_oracle().as_str(), &[]);
+    let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(
+        res,
+        ContractError::Generic(
+            "Cluster must contain valid assets and cannot contain duplicate assets".to_string(),
+        )
+    );
+
+    // initial zero weight
+    let msg = InstantiateMsg {
+        name: consts::name().to_string(),
+        description: consts::description().to_string(),
+        owner: consts::owner(),
+        cluster_token: Some(consts::cluster_token()),
+        target: vec![
+            Asset {
+                info: AssetInfo::NativeToken {
+                    denom: "uluna".to_string(),
+                },
+                amount: Uint128::new(0),
+            },
+            Asset {
+                info: AssetInfo::NativeToken {
+                    denom: "uusd".to_string(),
+                },
+                amount: Uint128::new(100),
+            },
+        ],
+        pricing_oracle: consts::pricing_oracle(),
+        target_oracle: consts::target_oracle(),
+        penalty: consts::penalty(),
+        factory: consts::factory(),
+    };
+    let info = mock_info(consts::pricing_oracle().as_str(), &[]);
+    let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(
+        res,
+        ContractError::Generic("Initial weights cannot contain zero".to_string(),)
     );
 }
 
@@ -137,6 +254,145 @@ fn update_config() {
 }
 
 #[test]
+fn initialize_cluster() {
+    let mut deps = mock_dependencies(&[]);
+    deps.querier
+        .set_token(
+            consts::cluster_token(),
+            token_data::<Vec<(&str, u128)>, &str>("Cluster Token", "CLUSTER", 6, 0, vec![]),
+        )
+        .set_native_balance("uusd", MOCK_CONTRACT_ADDR, 1_000_000u128)
+        .set_native_balance("uluna", MOCK_CONTRACT_ADDR, 1_000_000u128)
+        .set_oracle_prices(vec![
+            ("uusd", Decimal::one()),
+            ("uluna", Decimal::from_str("62.5").unwrap()),
+        ]);
+
+    let msg = InstantiateMsg {
+        name: consts::name().to_string(),
+        description: consts::description().to_string(),
+        owner: consts::owner(),
+        cluster_token: Some(consts::cluster_token()),
+        target: vec![
+            Asset {
+                info: AssetInfo::NativeToken {
+                    denom: "uusd".to_string(),
+                },
+                amount: Uint128::new(50),
+            },
+            Asset {
+                info: AssetInfo::NativeToken {
+                    denom: "uluna".to_string(),
+                },
+                amount: Uint128::new(50),
+            },
+        ],
+        pricing_oracle: consts::pricing_oracle(),
+        target_oracle: consts::target_oracle(),
+        penalty: consts::penalty(),
+        factory: consts::factory(),
+    };
+    let info = mock_info(consts::pricing_oracle().as_str(), &[]);
+    let _res = instantiate(deps.as_mut(), mock_env(), info, msg);
+
+    // cannot initialize with incomplete weight supplied
+    let msg = ExecuteMsg::RebalanceCreate {
+        asset_amounts: vec![Asset {
+            info: AssetInfo::NativeToken {
+                denom: "uluna".to_string(),
+            },
+            amount: Uint128::new(1_000_000u128),
+        }],
+        min_tokens: Some(Uint128::new(1_000_000)),
+    };
+    let info = mock_info("addr0000", &[coin(1_000_000u128, "uluna")]);
+    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
+    assert_eq!(
+        res,
+        ContractError::Generic(
+            "Initial cluster assets must be a nonzero multiple of target weights at index 0"
+                .to_string()
+        )
+    );
+
+    // cannot initialize with weight invariant supplied
+    let msg = ExecuteMsg::RebalanceCreate {
+        asset_amounts: vec![
+            Asset {
+                info: AssetInfo::NativeToken {
+                    denom: "uusd".to_string(),
+                },
+                amount: Uint128::new(1_500_000u128),
+            },
+            Asset {
+                info: AssetInfo::NativeToken {
+                    denom: "uluna".to_string(),
+                },
+                amount: Uint128::new(1_000_000u128),
+            },
+        ],
+        min_tokens: Some(Uint128::new(1_000_000)),
+    };
+    let info = mock_info(
+        "addr0000",
+        &[coin(1_500_000u128, "uusd"), coin(1_000_000u128, "uluna")],
+    );
+    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
+    assert_eq!(
+        res,
+        ContractError::Generic(
+            "Initial cluster assets have weight invariant at index 1".to_string()
+        )
+    );
+
+    let asset_amounts = vec![
+        Asset {
+            info: AssetInfo::NativeToken {
+                denom: "uusd".to_string(),
+            },
+            amount: Uint128::new(1_000_000u128),
+        },
+        Asset {
+            info: AssetInfo::NativeToken {
+                denom: "uluna".to_string(),
+            },
+            amount: Uint128::new(1_000_000u128),
+        },
+    ];
+
+    // does not provide min_tokens
+    let msg = ExecuteMsg::RebalanceCreate {
+        asset_amounts: asset_amounts.clone(),
+        min_tokens: None,
+    };
+    let info = mock_info(
+        "addr0000",
+        &[coin(1_000_000u128, "uusd"), coin(1_000_000u128, "uluna")],
+    );
+    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
+    assert_eq!(res, ContractError::Generic("Cluster is uninitialized. To initialize it with your mint cluster, provide min_tokens as the amount of cluster tokens you want to start with.".to_string()));
+
+    // successful initialization
+    let msg = ExecuteMsg::RebalanceCreate {
+        asset_amounts,
+        min_tokens: Some(Uint128::new(1_000_000)),
+    };
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    assert_eq!(
+        res.messages,
+        vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: "cluster".to_string(),
+            msg: to_binary(&Cw20ExecuteMsg::Mint {
+                recipient: "addr0000".to_string(),
+                amount: Uint128::new(1_000_000)
+            })
+            .unwrap(),
+            funds: vec![]
+        }))],
+    )
+}
+
+#[test]
 fn mint() {
     let (mut deps, _) = mock_init();
     deps = mock_querier_setup(deps);
@@ -155,16 +411,58 @@ fn mint() {
     ]);
 
     let asset_amounts = consts::asset_amounts();
+    let addr = "addr0000";
 
     deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
 
+    // invalid assets create
+    let msg = ExecuteMsg::RebalanceCreate {
+        asset_amounts: vec![Asset {
+            info: AssetInfo::Token {
+                contract_addr: Addr::unchecked("invalidtoken0001"),
+            },
+            amount: Uint128::new(1_000_000u128),
+        }],
+        min_tokens: None,
+    };
+    let info = mock_info(addr, &[]);
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(res, ContractError::InvalidAssets {});
+
+    // TODO: this test is not working right now because the execution would persist the state and not revert it (just throw the error).
+    // cluster tokens to be minted is below min_tokens specified
+    // let msg = ExecuteMsg::RebalanceCreate {
+    //     asset_amounts: vec![Asset {
+    //         info: AssetInfo::Token {
+    //             contract_addr: Addr::unchecked("mAAPL"),
+    //         },
+    //         amount: Uint128::new(42_000_000),
+    //     }],
+    //     min_tokens: Some(Uint128::new(99)),
+    // };
+    // let info = mock_info(addr, &[coin(42_000_000, "uluna")]);
+    // let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    // assert_eq!(
+    //     res,
+    //     ContractError::BelowMinTokens(Uint128::new(98), Uint128::new(99))
+    // );
+
+    // correct create msg
     let mint_msg = ExecuteMsg::RebalanceCreate {
         asset_amounts: asset_amounts.clone(),
         min_tokens: None,
     };
 
-    let addr = "addr0000";
-    let info = mock_info(addr, &[]);
+    // unsupported assets sent along with the tx
+    let info = mock_info(addr, &[coin(1_000_000u128, "uusd")]);
+    let res = execute(deps.as_mut(), mock_env(), info, mint_msg.clone()).unwrap_err();
+    assert_eq!(
+        res,
+        ContractError::Generic("Unsupported assets were sent to the create function".to_string())
+    );
+
+    // successful create
+    let info = mock_info(addr, &[coin(42_000_000, "uluna")]);
     let env = mock_env();
     let res = execute(deps.as_mut(), env.clone(), info, mint_msg).unwrap();
 
@@ -231,25 +529,29 @@ fn mint() {
                         Uint128::new(0u128),
                         Uint128::new(0u128),
                         Uint128::new(0u128),
-                        Uint128::new(0u128)
+                        Uint128::new(0u128),
+                        Uint128::new(0u128),
                     ],
                     create_asset_amounts: vec![
                         Uint128::new(125_000_000),
                         Uint128::zero(),
                         Uint128::new(149_000_000),
                         Uint128::new(50_090_272),
+                        Uint128::new(42_000_000),
                     ],
                     asset_prices: vec![
                         "135.18".to_string(),
                         "1780.03".to_string(),
                         "222.42".to_string(),
-                        "540.82".to_string()
+                        "540.82".to_string(),
+                        "62.5".to_string(),
                     ],
                     target_weights: vec![
                         Uint128::new(20u128),
                         Uint128::new(20u128),
                         Uint128::new(20u128),
-                        Uint128::new(20u128)
+                        Uint128::new(15u128),
+                        Uint128::new(5u128),
                     ],
                 })
                 .unwrap(),
@@ -286,13 +588,15 @@ fn mint() {
                 "135.18".to_string(),
                 "1780.03".to_string(),
                 "222.42".to_string(),
-                "540.82".to_string()
+                "540.82".to_string(),
+                "62.5".to_string(),
             ],
             inv: vec![
                 Uint128::new(125_000_000u128),
                 Uint128::zero(),
                 Uint128::new(149_000_000),
                 Uint128::new(50_090_272),
+                Uint128::new(42_000_000),
             ],
             penalty: "penalty".to_string(),
             cluster_token: "cluster".to_string(),
@@ -319,7 +623,13 @@ fn mint() {
                     info: AssetInfo::Token {
                         contract_addr: Addr::unchecked("mNFLX"),
                     },
-                    amount: Uint128::new(20,),
+                    amount: Uint128::new(15,),
+                },
+                Asset {
+                    info: AssetInfo::NativeToken {
+                        denom: "uluna".to_string(),
+                    },
+                    amount: Uint128::new(5,),
                 },
             ],
             cluster_contract_address: "cosmos2contract".to_string(),
@@ -355,41 +665,61 @@ fn burn() {
     };
 
     let addr = "addr0000";
-    let info = mock_info(addr, &[]);
+    let info = mock_info(addr, &[coin(42_000_000u128, "uluna")]);
     let env = mock_env();
     let _res = execute(deps.as_mut(), env.clone(), info, mint_msg).unwrap();
 
-    let msg = ExecuteMsg::RebalanceRedeem {
-        max_tokens: Uint128::new(20_000_000),
-        asset_amounts: Some(vec![
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: Addr::unchecked("mAAPL"),
-                },
-                amount: Uint128::new(20),
+    let asset_amounts = Some(vec![
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: Addr::unchecked("mAAPL"),
             },
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: Addr::unchecked("mGOOG"),
-                },
-                amount: Uint128::new(0),
+            amount: Uint128::new(20),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: Addr::unchecked("mGOOG"),
             },
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: Addr::unchecked("mMSFT"),
-                },
-                amount: Uint128::new(20),
+            amount: Uint128::new(0),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: Addr::unchecked("mMSFT"),
             },
-            Asset {
-                info: AssetInfo::Token {
-                    contract_addr: Addr::unchecked("mNFLX"),
-                },
-                amount: Uint128::new(20),
+            amount: Uint128::new(20),
+        },
+        Asset {
+            info: AssetInfo::Token {
+                contract_addr: Addr::unchecked("mNFLX"),
             },
-        ]),
-    };
+            amount: Uint128::new(20),
+        },
+        Asset {
+            info: AssetInfo::NativeToken {
+                denom: "uluna".to_string(),
+            },
+            amount: Uint128::new(20),
+        },
+    ]);
     let info = mock_info("addr0000", &[]);
     let env = mock_env();
+
+    // cannot redeem because input max_tokens is too low
+    let msg = ExecuteMsg::RebalanceRedeem {
+        max_tokens: Uint128::new(1_000),
+        asset_amounts: asset_amounts.clone(),
+    };
+    let res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap_err();
+    assert_eq!(
+        res,
+        ContractError::AboveMaxTokens(Uint128::new(1247), Uint128::new(1000))
+    );
+
+    // successful redeem
+    let msg = ExecuteMsg::RebalanceRedeem {
+        max_tokens: Uint128::new(20_000_000),
+        asset_amounts,
+    };
     let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
     assert_eq!(
@@ -400,8 +730,8 @@ fn burn() {
             attr("burn_amount", "1234"),
             attr("token_cost", "1247"),
             attr("kept_as_fee", "13"),
-            attr("asset_amounts", "[20, 0, 20, 20]"),
-            attr("redeem_totals", "[99, 0, 97, 96]"),
+            attr("asset_amounts", "[20, 0, 20, 20, 20]"),
+            attr("redeem_totals", "[99, 0, 97, 96, 95]"),
             attr("penalty", "1234")
         ]
     );
@@ -436,6 +766,10 @@ fn burn() {
                 .unwrap(),
                 funds: vec![],
             })),
+            SubMsg::new(CosmosMsg::Bank(BankMsg::Send {
+                to_address: "addr0000".to_string(),
+                amount: coins(95u128, "uluna")
+            })),
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: consts::cluster_token(),
                 msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
@@ -465,25 +799,29 @@ fn burn() {
                         Uint128::zero(),
                         Uint128::new(149_000_000),
                         Uint128::new(50_090_272),
+                        Uint128::new(42_000_000),
                     ],
                     max_tokens: Uint128::new(20_000_000u128),
                     redeem_asset_amounts: vec![
                         Uint128::new(20),
                         Uint128::zero(),
                         Uint128::new(20),
-                        Uint128::new(20)
+                        Uint128::new(20),
+                        Uint128::new(20),
                     ],
                     asset_prices: vec![
                         "135.18".to_string(),
                         "1780.03".to_string(),
                         "222.42".to_string(),
-                        "540.82".to_string()
+                        "540.82".to_string(),
+                        "62.5".to_string(),
                     ],
                     target_weights: vec![
                         Uint128::new(20u128),
                         Uint128::new(20u128),
                         Uint128::new(20u128),
-                        Uint128::new(20u128)
+                        Uint128::new(15u128),
+                        Uint128::new(5u128),
                     ],
                 })
                 .unwrap(),
@@ -518,13 +856,19 @@ fn update_target() {
             info: AssetInfo::Token {
                 contract_addr: Addr::unchecked("mGME"),
             },
-            amount: Uint128::new(45),
+            amount: Uint128::new(35),
         },
         Asset {
             info: AssetInfo::Token {
                 contract_addr: Addr::unchecked("mGE"),
             },
             amount: Uint128::new(5),
+        },
+        Asset {
+            info: AssetInfo::NativeToken {
+                denom: "uluna".to_string(),
+            },
+            amount: Uint128::new(10),
         },
     ];
 
@@ -548,9 +892,13 @@ fn update_target() {
     let msg = ExecuteMsg::UpdateTarget {
         target: new_target.clone(),
     };
-
     let info = mock_info(consts::owner().as_str(), &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(res, ContractError::ClusterTokenNotSet {});
+
+    let msg = ExecuteMsg::Decommission {};
+    let info = mock_info(consts::factory().as_str(), &[]);
+    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
     assert_eq!(res, ContractError::ClusterTokenNotSet {});
 
     let (mut deps, _init_res) = mock_init();
@@ -570,7 +918,7 @@ fn update_target() {
     };
 
     let addr = "addr0000";
-    let info = mock_info(addr, &[]);
+    let info = mock_info(addr, &[coin(42_000_000u128, "uluna")]);
     let env = mock_env();
     let _res = execute(deps.as_mut(), env.clone(), info, mint_msg).unwrap();
 
@@ -594,21 +942,43 @@ fn update_target() {
     let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
     assert_eq!(res, ContractError::Unauthorized {});
 
+    // successful update
     let info = mock_info(consts::owner().as_str(), &[]);
-    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
     assert_eq!(
         res.attributes,
         vec![
             attr("action", "reset_target"),
-            attr("prev_assets", "[mAAPL, mGOOG, mMSFT, mNFLX]"),
-            attr("prev_targets", "[20, 20, 20, 20]"),
-            attr("updated_assets", "[mAAPL, mGOOG, mMSFT, mGME, mGE, mNFLX]"),
-            attr("updated_targets", "[10, 5, 35, 45, 5, 0]"),
+            attr("prev_assets", "[mAAPL, mGOOG, mMSFT, mNFLX, uluna]"),
+            attr("prev_targets", "[20, 20, 20, 15, 5]"),
+            attr(
+                "updated_assets",
+                "[mAAPL, mGOOG, mMSFT, mGME, mGE, uluna, mNFLX]"
+            ),
+            attr("updated_targets", "[10, 5, 35, 35, 5, 10, 0]"),
         ]
     );
 
     assert_eq!(res.messages, vec![]);
+
+    // cannot call create with zero-weight target
+    let msg = ExecuteMsg::RebalanceCreate {
+        asset_amounts: vec![Asset {
+            info: AssetInfo::Token {
+                contract_addr: Addr::unchecked("mNFLX"),
+            },
+            amount: Uint128::new(1_000_000u128),
+        }],
+        min_tokens: None,
+    };
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(
+        res,
+        ContractError::Generic(
+            format!("Cannot call create with non-zero asset amount when target weight is zero for asset mNFLX"),
+        )
+    );
 }
 
 #[test]
@@ -634,7 +1004,7 @@ fn decommission_cluster() {
     };
 
     let addr = "addr0000";
-    let info = mock_info(addr, &[]);
+    let info = mock_info(addr, &[coin(42_000_000u128, "uluna")]);
     let env = mock_env();
     let _res = execute(deps.as_mut(), env.clone(), info, mint_msg).unwrap();
 
@@ -698,7 +1068,7 @@ fn decommission_cluster() {
             attr("token_cost", "1247"),
             attr("kept_as_fee", "13"),
             attr("asset_amounts", "[]"),
-            attr("redeem_totals", "[99, 0, 97, 96]"),
+            attr("redeem_totals", "[99, 0, 97, 96, 95]"),
             attr("penalty", "1234")
         ]
     );

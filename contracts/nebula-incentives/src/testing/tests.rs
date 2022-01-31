@@ -15,7 +15,8 @@ use cosmwasm_std::{
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use nebula_protocol::cluster::ExecuteMsg as ClusterExecuteMsg;
 use nebula_protocol::incentives::{
-    ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, PenaltyPeriodResponse, PoolType,
+    ConfigResponse, ContributorPendingRewardsResponse, CurrentContributorInfoResponse, Cw20HookMsg,
+    ExecuteMsg, IncentivesPoolInfoResponse, InstantiateMsg, PenaltyPeriodResponse, PoolType,
     QueryMsg,
 };
 
@@ -51,7 +52,9 @@ fn proper_initialization() {
     let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
     // it worked, let's query the state
-    let config: ConfigResponse = query_config(deps.as_ref()).unwrap();
+    let msg = QueryMsg::Config {};
+    let config: ConfigResponse =
+        from_binary(&query(deps.as_ref(), mock_env(), msg).unwrap()).unwrap();
     assert_eq!(
         config,
         ConfigResponse {
@@ -131,6 +134,22 @@ fn test_deposit_reward() {
             funds: vec![],
         }))]
     );
+
+    // now we can query the pool info with the new reward amount
+    let msg = QueryMsg::PoolInfo {
+        pool_type: PoolType::REBALANCE,
+        cluster_address: "cluster".to_string(),
+        n: None,
+    };
+    let res: IncentivesPoolInfoResponse =
+        from_binary(&query(deps.as_ref(), mock_env(), msg).unwrap()).unwrap();
+    assert_eq!(
+        res,
+        IncentivesPoolInfoResponse {
+            value_total: Uint128::zero(),
+            reward_total: Uint128::new(1000),
+        }
+    );
 }
 
 #[test]
@@ -166,17 +185,37 @@ fn test_withdraw_reward() {
     let rewards_amount = Uint128::new(1000);
     let total_rewards_amount = Uint128::new(2000);
 
+    let deposit_msg = to_binary(&Cw20HookMsg::DepositReward {
+        rewards: vec![
+            (PoolType::REBALANCE, "cluster".to_string(), rewards_amount),
+            (PoolType::ARBITRAGE, "cluster".to_string(), rewards_amount),
+        ],
+    })
+    .unwrap();
+
+    // Specify wrong reward amount
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_CREATOR.to_string(),
+        amount: Uint128::new(500),
+        msg: deposit_msg.clone(),
+    });
+    let info = mock_info("nebula_token", &[]);
+    let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
+    assert_eq!(
+        res,
+        ContractError::Generic("Rewards amount miss matched".to_string())
+    );
+
+    // Send wrong token to this contract
+    let info = mock_info("wrong_token", &[]);
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(res, ContractError::Unauthorized {});
+
     // Send Nebula token to this contract
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: TEST_CREATOR.to_string(),
         amount: total_rewards_amount,
-        msg: to_binary(&Cw20HookMsg::DepositReward {
-            rewards: vec![
-                (PoolType::REBALANCE, "cluster".to_string(), rewards_amount),
-                (PoolType::ARBITRAGE, "cluster".to_string(), rewards_amount),
-            ],
-        })
-        .unwrap(),
+        msg: deposit_msg,
     });
     let info = mock_info("nebula_token", &[]);
     let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
@@ -190,6 +229,22 @@ fn test_withdraw_reward() {
         Uint128::new(25),
     )
     .unwrap();
+
+    // try querying contribution info
+    let msg = QueryMsg::CurrentContributorInfo {
+        pool_type: PoolType::REBALANCE,
+        contributor_address: "contributor0000".to_string(),
+        cluster_address: "cluster".to_string(),
+    };
+    let res: CurrentContributorInfoResponse =
+        from_binary(&query(deps.as_ref(), mock_env(), msg).unwrap()).unwrap();
+    assert_eq!(
+        res,
+        CurrentContributorInfoResponse {
+            n: 0,
+            value_contributed: Uint128::new(25)
+        }
+    );
 
     record_contribution(
         deps.as_mut(),
@@ -218,6 +273,13 @@ fn test_withdraw_reward() {
         res.attributes,
         vec![attr("action", "withdraw"), attr("amount", "0"),]
     );
+
+    let msg = QueryMsg::ContributorPendingRewards {
+        contributor_address: "contributor0000".to_string(),
+    };
+    let res: ContributorPendingRewardsResponse =
+        from_binary(&query(deps.as_ref(), mock_env(), msg).unwrap()).unwrap();
+    assert_eq!(res.pending_rewards, Uint128::zero());
 
     // Advance penalty period
 
@@ -1047,8 +1109,13 @@ fn test_record_rebalancer_rewards() {
     let mut deps = mock_dependencies(&[]);
 
     mock_init(deps.as_mut());
-
     let msg = ExecuteMsg::NewPenaltyPeriod {};
+
+    // unauthorized
+    let info = mock_info("imposter0000", &[]);
+    let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
+    assert_eq!(res, ContractError::Unauthorized {});
+
     let info = mock_info("owner0000", &[]);
     let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
 

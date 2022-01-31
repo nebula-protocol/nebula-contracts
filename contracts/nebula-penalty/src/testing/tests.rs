@@ -1,4 +1,5 @@
 use crate::contract::{execute, get_ema, instantiate, notional_penalty, query, update_ema};
+use crate::error::ContractError;
 use crate::state::{read_config, PenaltyConfig};
 use crate::testing::mock_querier::mock_dependencies;
 use cluster_math::{
@@ -7,8 +8,8 @@ use cluster_math::{
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{attr, from_binary, Addr, DepsMut, Env, StdError, Timestamp, Uint128};
 use nebula_protocol::penalty::{
-    ExecuteMsg, InstantiateMsg, PenaltyCreateResponse, PenaltyParams, PenaltyRedeemResponse,
-    QueryMsg,
+    ExecuteMsg, InstantiateMsg, ParamsResponse, PenaltyCreateResponse, PenaltyParams,
+    PenaltyRedeemResponse, QueryMsg,
 };
 use std::str::FromStr;
 
@@ -75,6 +76,29 @@ fn proper_initialization() {
             ema: FPDecimal::zero(),
             last_block: 0u64,
         }
+    );
+}
+
+#[test]
+fn bad_initialization() {
+    let mut deps = mock_dependencies(&[]);
+
+    let msg = InstantiateMsg {
+        owner: "".to_string(),
+        penalty_params: PenaltyParams {
+            penalty_amt_lo: FPDecimal::from_str("0.1").unwrap(),
+            penalty_cutoff_lo: FPDecimal::from_str("0.01").unwrap(),
+            penalty_amt_hi: FPDecimal::from_str("0.9").unwrap(),
+            penalty_cutoff_hi: FPDecimal::from_str("0.1").unwrap(),
+            reward_amt: FPDecimal::from_str("0.05").unwrap(),
+            reward_cutoff: FPDecimal::from_str("0.02").unwrap(),
+        },
+    };
+    let info = mock_info("addr0000", &[]);
+    let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(
+        res,
+        ContractError::Generic("penalty amount must reach one".to_string())
     );
 }
 
@@ -348,4 +372,38 @@ fn test_redeem_actions() {
             &_ => panic!("Invalid value found in log"),
         }
     }
+}
+
+#[test]
+fn test_update_config() {
+    let mut deps = mock_dependencies(&[]);
+    mock_init(deps.as_mut());
+
+    let penalty_params = PenaltyParams {
+        penalty_amt_lo: FPDecimal::from_str("0.2").unwrap(),
+        penalty_cutoff_lo: FPDecimal::from_str("0.02").unwrap(),
+        penalty_amt_hi: FPDecimal::from_str("1").unwrap(),
+        penalty_cutoff_hi: FPDecimal::from_str("0.2").unwrap(),
+        reward_amt: FPDecimal::from_str("0.04").unwrap(),
+        reward_cutoff: FPDecimal::from_str("0.03").unwrap(),
+    };
+
+    let msg = ExecuteMsg::UpdateConfig {
+        owner: Some("newowner0000".to_string()),
+        penalty_params: Some(penalty_params),
+    };
+
+    // unauthorized update
+    let info = mock_info("imposter0000", &[]);
+    let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
+    assert_eq!(res, ContractError::Unauthorized {});
+
+    // successful update
+    let info = mock_info("creator", &[]);
+    let _res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+
+    let query_msg = QueryMsg::Params {};
+    let query_res: ParamsResponse =
+        from_binary(&query(deps.as_ref(), mock_env(), query_msg).unwrap()).unwrap();
+    assert_eq!(query_res.penalty_params, penalty_params);
 }

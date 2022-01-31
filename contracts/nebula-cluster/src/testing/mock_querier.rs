@@ -71,7 +71,13 @@ pub mod consts {
                 info: AssetInfo::Token {
                     contract_addr: Addr::unchecked("mNFLX"),
                 },
-                amount: Uint128::new(20),
+                amount: Uint128::new(15),
+            },
+            Asset {
+                info: AssetInfo::NativeToken {
+                    denom: "uluna".to_string(),
+                },
+                amount: Uint128::new(5),
             },
         ]
     }
@@ -130,6 +136,12 @@ pub mod consts {
                 },
                 amount: Uint128::new(50_090_272),
             },
+            Asset {
+                info: AssetInfo::NativeToken {
+                    denom: "uluna".to_string(),
+                },
+                amount: Uint128::new(42_000_000),
+            },
         ]
     }
 }
@@ -161,10 +173,27 @@ impl Querier for WasmMockQuerier {
 impl WasmMockQuerier {
     pub fn execute_query(&self, request: &QueryRequest<TerraQueryWrapper>) -> QuerierResult {
         match &request {
-            QueryRequest::Custom(TerraQueryWrapper {
-                route: _,
-                query_data: _,
-            }) => panic!("Tried to access Terra query -- not implemented"),
+            QueryRequest::Custom(TerraQueryWrapper { route, query_data }) => {
+                if route == &TerraRoute::Treasury {
+                    match query_data {
+                        TerraQuery::TaxRate {} => {
+                            let res = TaxRateResponse {
+                                rate: Decimal::zero(),
+                            };
+                            SystemResult::Ok(ContractResult::from(to_binary(&res)))
+                        }
+                        TerraQuery::TaxCap { .. } => {
+                            let res = TaxCapResponse {
+                                cap: Uint128::new(1000000),
+                            };
+                            SystemResult::Ok(ContractResult::from(to_binary(&res)))
+                        }
+                        _ => panic!("Mock querier not implemented"),
+                    }
+                } else {
+                    panic!("Mock querier not implemented")
+                }
+            }
             QueryRequest::Bank(BankQuery::Balance { address, denom }) => {
                 // Do for native
                 let denom_data = match self.balance_querier.balances.get(denom) {
@@ -284,6 +313,7 @@ impl WasmMockQuerier {
                                             Uint128::new(0),
                                             Uint128::new(97),
                                             Uint128::new(96),
+                                            Uint128::new(95),
                                         ],
                                         penalty: Uint128::new(1234),
                                         token_cost: Uint128::new(1234),
@@ -373,6 +403,27 @@ impl WasmMockQuerier {
             balance_querier: BalanceQuerier::default(),
             penalty_querier: PenaltyQuerier::default(),
         }
+    }
+
+    pub fn set_native_balance<T, U>(
+        &mut self,
+        denom: T,
+        account_address: U,
+        balance: u128,
+    ) -> &mut Self
+    where
+        T: Into<String> + Clone,
+        U: Into<String>,
+    {
+        if let Some(existed_denom) = self.balance_querier.balances.get_mut(&denom.clone().into()) {
+            existed_denom.insert(account_address.into(), Uint128::new(balance));
+        } else {
+            self.balance_querier.balances.insert(
+                denom.into(),
+                HashMap::from([(account_address.into(), Uint128::new(balance))]),
+            );
+        }
+        self
     }
 
     pub fn set_token<T>(&mut self, token_address: T, data: TokenData) -> &mut Self
@@ -543,7 +594,9 @@ pub fn mock_querier_setup(
                 1_000_000_000_000,
                 vec![(MOCK_CONTRACT_ADDR, 1_000_000)],
             ),
-        );
+        )
+        .set_native_balance("uluna", MOCK_CONTRACT_ADDR, 1_000_000)
+        .set_native_balance("uusd", MOCK_CONTRACT_ADDR, 1_000_000);
 
     deps.querier.set_oracle_prices(vec![
         ("uusd", Decimal::one()),
@@ -553,6 +606,7 @@ pub fn mock_querier_setup(
         ("mNFLX", Decimal::from_str("1.0").unwrap()),
         ("mGME", Decimal::from_str("1.0").unwrap()),
         ("mGE", Decimal::from_str("1.0").unwrap()),
+        ("uluna", Decimal::from_str("62.5").unwrap()),
     ]);
 
     deps

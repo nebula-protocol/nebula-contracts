@@ -18,6 +18,7 @@ use nebula_protocol::gov::{
     PollStatus, PollsResponse, QueryMsg, SharesResponse, SharesResponseItem, StakerResponse,
     StateResponse, VoteOption, VoterInfo, VotersResponse, VotersResponseItem,
 };
+use std::str::FromStr;
 
 const VOTING_TOKEN: &str = "voting_token";
 const TEST_CREATOR: &str = "creator";
@@ -2293,9 +2294,26 @@ fn assert_cast_vote_success(
 fn update_config() {
     let mut deps = mock_dependencies(&[]);
     mock_instantiate(deps.as_mut());
+    let info = mock_info(TEST_CREATOR, &[]);
+
+    // invalid voter weight
+    let msg = ExecuteMsg::UpdateConfig {
+        owner: None,
+        quorum: None,
+        threshold: None,
+        voting_period: None,
+        effective_delay: None,
+        proposal_deposit: None,
+        voter_weight: Some(Decimal::from_str("1.5").unwrap()),
+        snapshot_period: None,
+    };
+    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
+    assert_eq!(
+        res,
+        ContractError::Generic("voter_weight must be smaller than 1".to_string())
+    );
 
     // update owner
-    let info = mock_info(TEST_CREATOR, &[]);
     let msg = ExecuteMsg::UpdateConfig {
         owner: Some("addr0001".to_string()),
         quorum: None,
@@ -3061,7 +3079,10 @@ fn test_staking_and_voting_rewards() {
     let env = mock_env_height(0, poll_end_time);
     let info = mock_info(TEST_VOTER, &[]);
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
-    let _res = execute(deps.as_mut(), env, info, msg).unwrap();
+    let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
+    // should throw error ending same poll twice
+    let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
+    assert_eq!(res, ContractError::PollNotInProgress {});
 
     // deposit is returned to creator and collector deposit is added
     deps.querier.with_token_balances(&[(

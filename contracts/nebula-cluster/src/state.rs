@@ -37,14 +37,6 @@ pub fn store_target_asset_data(
     singleton(storage, ASSET_DATA_KEY).save(asset_data)
 }
 
-pub fn read_target(storage: &dyn Storage) -> StdResult<Vec<u32>> {
-    singleton_read(storage, TARGET_KEY).load()
-}
-
-pub fn store_target(storage: &mut dyn Storage, target: &Vec<u32>) -> StdResult<()> {
-    singleton(storage, TARGET_KEY).save(target)
-}
-
 pub fn store_asset_balance(
     storage: &mut dyn Storage,
     asset: &String,

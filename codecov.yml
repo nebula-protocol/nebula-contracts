@@ -1,0 +1,10 @@
+ignore:
+  - ^tests.rs.*
+  - ^mock_querier.rs.*
+  - (?s:[^\/]+_test\.rs.*)\Z
+  - (?s:.*/testing/.*)\Z
+  - ^libraries.*
+  - ^packages.*
+  - ^response.rs.*
+  - ^response.proto.*
+  - (?s:.*/response\.rs.*)\Z
