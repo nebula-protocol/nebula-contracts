@@ -575,7 +575,7 @@ fn test_incentives_arb_cluster_mint() {
                     astroport_pair: Addr::unchecked("uusd_cluster_pair"),
                     cluster_token: Addr::unchecked("cluster_token"),
                     to_ust: true,
-                    min_return: Uint128::zero()
+                    min_return: None
                 })
                 .unwrap(),
                 funds: vec![],
@@ -673,7 +673,7 @@ fn test_incentives_arb_cluster_redeem() {
                     astroport_pair: Addr::unchecked("uusd_cluster_pair"),
                     cluster_token: Addr::unchecked("cluster_token"),
                     to_ust: false,
-                    min_return: Uint128::zero()
+                    min_return: None
                 })
                 .unwrap(),
                 funds: vec![],
@@ -839,7 +839,7 @@ fn test_swap_all() {
         astroport_pair: Addr::unchecked("astroport_pair"),
         cluster_token: Addr::unchecked("cluster_token"),
         to_ust: true,
-        min_return: Uint128::zero(),
+        min_return: None,
     };
 
     let info = mock_info(MOCK_CONTRACT_ADDR, &vec![]);
@@ -854,7 +854,7 @@ fn test_swap_all() {
                 amount: Uint128::new(1000),
                 msg: to_binary(&AstroportCw20HookMsg::Swap {
                     max_spread: Some(Decimal::zero()),
-                    belief_price: Some(Decimal::zero()),
+                    belief_price: None,
                     to: None,
                 })
                 .unwrap()
@@ -869,7 +869,7 @@ fn test_swap_all() {
         astroport_pair: Addr::unchecked("astroport_pair"),
         cluster_token: Addr::unchecked("cluster_token"),
         to_ust: false,
-        min_return: Uint128::zero(),
+        min_return: None,
     };
 
     let info = mock_info(MOCK_CONTRACT_ADDR, &vec![]);
@@ -887,7 +887,7 @@ fn test_swap_all() {
                     }
                 },
                 max_spread: Some(Decimal::zero()),
-                belief_price: Some(Decimal::zero()),
+                belief_price: None,
                 to: None,
             })
             .unwrap(),
