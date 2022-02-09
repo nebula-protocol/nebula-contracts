@@ -36,7 +36,7 @@ pub enum ExecuteMsg {
     _SwapAll {
         astroport_pair: Addr,
         cluster_token: Addr,
-        min_return: Uint128,
+        min_return: Option<Uint128>,
         to_ust: bool,
     },
 
