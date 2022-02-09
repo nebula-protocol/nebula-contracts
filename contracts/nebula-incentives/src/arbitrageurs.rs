@@ -121,7 +121,7 @@ pub fn arb_cluster_create(
             astroport_pair: pair_info.contract_addr.clone(),
             cluster_token,
             to_ust: true, // how about changing this to to_base
-            min_return: min_ust.unwrap_or(Uint128::zero()),
+            min_return: min_ust,
         })?,
         funds: vec![],
     }));
@@ -203,7 +203,7 @@ pub fn arb_cluster_redeem(
             astroport_pair: pair_info.contract_addr.clone(),
             cluster_token: cluster_token.clone(),
             to_ust: false,
-            min_return: min_cluster.unwrap_or(Uint128::zero()),
+            min_return: min_cluster,
         })?,
         funds: vec![],
     }));
@@ -360,7 +360,7 @@ pub fn swap_all(
     astroport_pair: Addr,
     cluster_token: Addr,
     to_ust: bool,
-    min_return: Uint128,
+    min_return: Option<Uint128>,
 ) -> Result<Response, ContractError> {
     if info.sender != env.contract.address {
         return Err(ContractError::Unauthorized {});
@@ -377,10 +377,9 @@ pub fn swap_all(
     if to_ust {
         let amount =
             query_token_balance(&deps.querier, cluster_token.clone(), env.contract.address)?;
-        let belief_price = if min_return == Uint128::zero() {
-            Decimal::zero()
-        } else {
-            Decimal::from_ratio(amount, min_return)
+        let belief_price = match min_return {
+            Some(price) => Some(Decimal::from_ratio(amount, price)),
+            None => None,
         };
 
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -390,7 +389,7 @@ pub fn swap_all(
                 amount,
                 msg: to_binary(&AstroportCw20HookMsg::Swap {
                     max_spread: Some(Decimal::zero()),
-                    belief_price: Some(belief_price),
+                    belief_price,
                     to: None,
                 })?,
             })?,
@@ -414,10 +413,9 @@ pub fn swap_all(
 
         // deduct tax first
         let amount = (swap_asset.deduct_tax(&deps.querier)?).amount;
-        let belief_price = if min_return == Uint128::zero() {
-            Decimal::zero()
-        } else {
-            Decimal::from_ratio(amount, min_return)
+        let belief_price = match min_return {
+            Some(price) => Some(Decimal::from_ratio(amount, price)),
+            None => None,
         };
 
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -428,7 +426,7 @@ pub fn swap_all(
                     ..swap_asset
                 },
                 max_spread: Some(Decimal::zero()),
-                belief_price: Some(belief_price),
+                belief_price,
                 to: None,
             })?,
             funds: vec![Coin {
