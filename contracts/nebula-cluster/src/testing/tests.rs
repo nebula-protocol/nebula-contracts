@@ -429,7 +429,7 @@ fn mint() {
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
     assert_eq!(res, ContractError::InvalidAssets {});
 
-    // TODO: this test is not working right now because the execution would persist the state and not revert it (just throw the error).
+    // NOTE: this test is not working right now because the execution would persist the state and not revert it (just throw the error).
     // cluster tokens to be minted is below min_tokens specified
     // let msg = ExecuteMsg::RebalanceCreate {
     //     asset_amounts: vec![Asset {
