@@ -556,18 +556,28 @@ pub fn distribute(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 
     // store last distributed
     store_last_distributed(deps.storage, env.block.time.seconds())?;
-    // mint token to self and try send minted tokens to staking contract
 
+    // send tokens to staking contract
+    const CHUNK_SIZE: usize = 10;
     Ok(Response::new()
-        .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: config.nebula_token.to_string(),
-            msg: to_binary(&Cw20ExecuteMsg::Send {
-                contract: config.staking_contract.to_string(),
-                amount: distribution_amount,
-                msg: to_binary(&StakingCw20HookMsg::DepositReward { rewards })?,
-            })?,
-            funds: vec![],
-        })])
+        .add_messages(
+            rewards
+                .chunks(CHUNK_SIZE)
+                .map(|v| v.to_vec())
+                .into_iter()
+                .map(|rewards| {
+                    Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+                        contract_addr: config.nebula_token.to_string(),
+                        msg: to_binary(&Cw20ExecuteMsg::Send {
+                            contract: config.staking_contract.to_string(),
+                            amount: rewards.iter().map(|v| v.1.u128()).sum::<u128>().into(),
+                            msg: to_binary(&StakingCw20HookMsg::DepositReward { rewards })?,
+                        })?,
+                        funds: vec![],
+                    }))
+                })
+                .collect::<Result<Vec<CosmosMsg>, ContractError>>()?,
+        )
         .add_attributes(vec![
             attr("action", "distribute"),
             attr("distribution_amount", distribution_amount.to_string()),
@@ -596,7 +606,7 @@ pub fn _compute_rewards(
         })
         .filter(|m| m.is_ok())
         .collect::<Result<Vec<(String, Uint128)>, ContractError>>()?;
-    Ok((rewards, Uint128::new(u128::from(distribution_amount))))
+    Ok((rewards, distribution_amount))
 }
 
 pub fn decommission_cluster(
