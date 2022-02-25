@@ -224,8 +224,8 @@ impl WasmMockQuerier {
                                 Some(quote_price) => SystemResult::Ok(ContractResult::from(
                                     to_binary(&PriceResponse {
                                         rate: decimal_division(*base_price, *quote_price),
-                                        last_updated_base: u64::MAX,
-                                        last_updated_quote: u64::MAX,
+                                        last_updated_base: 1_571_797_419u64, // mock env block time
+                                        last_updated_quote: 1_571_797_419u64, // mock env block time
                                     }),
                                 )),
                                 None => SystemResult::Err(SystemError::InvalidRequest {
