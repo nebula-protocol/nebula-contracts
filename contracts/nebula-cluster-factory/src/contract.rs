@@ -11,7 +11,6 @@ use cosmwasm_std::{entry_point, StdError};
 use cw20::{Cw20ExecuteMsg, MinterResponse};
 use protobuf::Message;
 
-use cluster_math::FPDecimal;
 use nebula_protocol::cluster::{
     ExecuteMsg as ClusterExecuteMsg, InstantiateMsg as ClusterInstantiateMsg,
 };
@@ -557,18 +556,28 @@ pub fn distribute(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 
     // store last distributed
     store_last_distributed(deps.storage, env.block.time.seconds())?;
-    // mint token to self and try send minted tokens to staking contract
 
+    // send tokens to staking contract
+    const CHUNK_SIZE: usize = 10;
     Ok(Response::new()
-        .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: config.nebula_token.to_string(),
-            msg: to_binary(&Cw20ExecuteMsg::Send {
-                contract: config.staking_contract.to_string(),
-                amount: distribution_amount,
-                msg: to_binary(&StakingCw20HookMsg::DepositReward { rewards })?,
-            })?,
-            funds: vec![],
-        })])
+        .add_messages(
+            rewards
+                .chunks(CHUNK_SIZE)
+                .map(|v| v.to_vec())
+                .into_iter()
+                .map(|rewards| {
+                    Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+                        contract_addr: config.nebula_token.to_string(),
+                        msg: to_binary(&Cw20ExecuteMsg::Send {
+                            contract: config.staking_contract.to_string(),
+                            amount: rewards.iter().map(|v| v.1.u128()).sum::<u128>().into(),
+                            msg: to_binary(&StakingCw20HookMsg::DepositReward { rewards })?,
+                        })?,
+                        funds: vec![],
+                    }))
+                })
+                .collect::<Result<Vec<CosmosMsg>, ContractError>>()?,
+        )
         .add_attributes(vec![
             attr("action", "distribute"),
             attr("distribution_amount", distribution_amount.to_string()),
@@ -580,25 +589,24 @@ pub fn _compute_rewards(
     target_distribution_amount: Uint128,
 ) -> Result<(Vec<(String, Uint128)>, Uint128), ContractError> {
     let total_weight: u32 = read_total_weight(storage)?;
-    let mut distribution_amount: FPDecimal = FPDecimal::zero();
+    let mut distribution_amount: Uint128 = Uint128::zero();
     let weights: Vec<(Addr, u32)> = read_all_weight(storage)?;
     let rewards: Vec<(String, Uint128)> = weights
         .iter()
         .map(|w| {
-            let mut amount =
-                FPDecimal::from(target_distribution_amount.u128()) * FPDecimal::from(w.1 as u128);
-            if amount == FPDecimal::zero() {
+            let mut amount = target_distribution_amount * Uint128::from(w.1);
+            if amount == Uint128::zero() {
                 return Err(ContractError::Generic(
                     "cannot distribute zero amount".to_string(),
                 ));
             }
-            amount = amount / FPDecimal::from(total_weight as u128);
+            amount = amount / Uint128::from(total_weight);
             distribution_amount = distribution_amount + amount;
-            Ok((w.0.to_string(), Uint128::new(u128::from(amount))))
+            Ok((w.0.to_string(), amount))
         })
         .filter(|m| m.is_ok())
         .collect::<Result<Vec<(String, Uint128)>, ContractError>>()?;
-    Ok((rewards, Uint128::new(u128::from(distribution_amount))))
+    Ok((rewards, distribution_amount))
 }
 
 pub fn decommission_cluster(

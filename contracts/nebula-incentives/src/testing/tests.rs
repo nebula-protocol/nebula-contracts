@@ -19,6 +19,7 @@ use nebula_protocol::incentives::{
     ExecuteMsg, IncentivesPoolInfoResponse, InstantiateMsg, PenaltyPeriodResponse, PoolType,
     QueryMsg,
 };
+use std::str::FromStr;
 
 const TEST_CREATOR: &str = "creator";
 
@@ -575,7 +576,7 @@ fn test_incentives_arb_cluster_mint() {
                     astroport_pair: Addr::unchecked("uusd_cluster_pair"),
                     cluster_token: Addr::unchecked("cluster_token"),
                     to_ust: true,
-                    min_return: Uint128::zero()
+                    min_return: None
                 })
                 .unwrap(),
                 funds: vec![],
@@ -673,7 +674,7 @@ fn test_incentives_arb_cluster_redeem() {
                     astroport_pair: Addr::unchecked("uusd_cluster_pair"),
                     cluster_token: Addr::unchecked("cluster_token"),
                     to_ust: false,
-                    min_return: Uint128::zero()
+                    min_return: None
                 })
                 .unwrap(),
                 funds: vec![],
@@ -834,12 +835,12 @@ fn test_swap_all() {
     );
 
     // Test to_ust is true
-
+    // without min_return
     let msg = ExecuteMsg::_SwapAll {
         astroport_pair: Addr::unchecked("astroport_pair"),
         cluster_token: Addr::unchecked("cluster_token"),
         to_ust: true,
-        min_return: Uint128::zero(),
+        min_return: None,
     };
 
     let info = mock_info(MOCK_CONTRACT_ADDR, &vec![]);
@@ -854,7 +855,37 @@ fn test_swap_all() {
                 amount: Uint128::new(1000),
                 msg: to_binary(&AstroportCw20HookMsg::Swap {
                     max_spread: Some(Decimal::zero()),
-                    belief_price: Some(Decimal::zero()),
+                    belief_price: None,
+                    to: None,
+                })
+                .unwrap()
+            })
+            .unwrap(),
+            funds: vec![],
+        }))]
+    );
+
+    // with min_return
+    let msg = ExecuteMsg::_SwapAll {
+        astroport_pair: Addr::unchecked("astroport_pair"),
+        cluster_token: Addr::unchecked("cluster_token"),
+        to_ust: true,
+        min_return: Some(Uint128::new(500)),
+    };
+
+    let info = mock_info(MOCK_CONTRACT_ADDR, &vec![]);
+    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
+
+    assert_eq!(
+        res.messages,
+        vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: "cluster_token".to_string(),
+            msg: to_binary(&Cw20ExecuteMsg::Send {
+                contract: "astroport_pair".to_string(),
+                amount: Uint128::new(1000),
+                msg: to_binary(&AstroportCw20HookMsg::Swap {
+                    max_spread: Some(Decimal::zero()),
+                    belief_price: Some(Decimal::from_str("2").unwrap()),
                     to: None,
                 })
                 .unwrap()
@@ -865,11 +896,12 @@ fn test_swap_all() {
     );
 
     // Test to_ust is false
+    // without min_return
     let msg = ExecuteMsg::_SwapAll {
         astroport_pair: Addr::unchecked("astroport_pair"),
         cluster_token: Addr::unchecked("cluster_token"),
         to_ust: false,
-        min_return: Uint128::zero(),
+        min_return: None,
     };
 
     let info = mock_info(MOCK_CONTRACT_ADDR, &vec![]);
@@ -887,7 +919,38 @@ fn test_swap_all() {
                     }
                 },
                 max_spread: Some(Decimal::zero()),
-                belief_price: Some(Decimal::zero()),
+                belief_price: None,
+                to: None,
+            })
+            .unwrap(),
+            funds: coins(990, &"uusd".to_string()),
+        }))]
+    );
+
+    // with min_return
+    let msg = ExecuteMsg::_SwapAll {
+        astroport_pair: Addr::unchecked("astroport_pair"),
+        cluster_token: Addr::unchecked("cluster_token"),
+        to_ust: false,
+        min_return: Some(Uint128::new(500)),
+    };
+
+    let info = mock_info(MOCK_CONTRACT_ADDR, &vec![]);
+    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
+
+    assert_eq!(
+        res.messages,
+        vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: "astroport_pair".to_string(),
+            msg: to_binary(&AstroportExecuteMsg::Swap {
+                offer_asset: Asset {
+                    amount: Uint128::new(990),
+                    info: AssetInfo::NativeToken {
+                        denom: "uusd".to_string()
+                    }
+                },
+                max_spread: Some(Decimal::zero()),
+                belief_price: Some(Decimal::from_str("1.98").unwrap()),
                 to: None,
             })
             .unwrap(),
