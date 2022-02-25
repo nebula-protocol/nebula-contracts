@@ -11,7 +11,6 @@ use cosmwasm_std::{entry_point, StdError};
 use cw20::{Cw20ExecuteMsg, MinterResponse};
 use protobuf::Message;
 
-use cluster_math::FPDecimal;
 use nebula_protocol::cluster::{
     ExecuteMsg as ClusterExecuteMsg, InstantiateMsg as ClusterInstantiateMsg,
 };
@@ -580,21 +579,20 @@ pub fn _compute_rewards(
     target_distribution_amount: Uint128,
 ) -> Result<(Vec<(String, Uint128)>, Uint128), ContractError> {
     let total_weight: u32 = read_total_weight(storage)?;
-    let mut distribution_amount: FPDecimal = FPDecimal::zero();
+    let mut distribution_amount: Uint128 = Uint128::zero();
     let weights: Vec<(Addr, u32)> = read_all_weight(storage)?;
     let rewards: Vec<(String, Uint128)> = weights
         .iter()
         .map(|w| {
-            let mut amount =
-                FPDecimal::from(target_distribution_amount.u128()) * FPDecimal::from(w.1 as u128);
-            if amount == FPDecimal::zero() {
+            let mut amount = target_distribution_amount * Uint128::from(w.1);
+            if amount == Uint128::zero() {
                 return Err(ContractError::Generic(
                     "cannot distribute zero amount".to_string(),
                 ));
             }
-            amount = amount / FPDecimal::from(total_weight as u128);
+            amount = amount / Uint128::from(total_weight);
             distribution_amount = distribution_amount + amount;
-            Ok((w.0.to_string(), Uint128::new(u128::from(amount))))
+            Ok((w.0.to_string(), amount))
         })
         .filter(|m| m.is_ok())
         .collect::<Result<Vec<(String, Uint128)>, ContractError>>()?;
