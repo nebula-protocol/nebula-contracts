@@ -1,7 +1,7 @@
 use astroport::asset::AssetInfo;
 use cosmwasm_std::{
-    to_binary, Addr, BalanceResponse, BankQuery, QuerierWrapper, QueryRequest, StdResult, Uint128,
-    WasmQuery,
+    to_binary, Addr, BalanceResponse, BankQuery, QuerierWrapper, QueryRequest, StdError, StdResult,
+    Uint128, WasmQuery,
 };
 use cw20::Cw20QueryMsg;
 use cw20::{BalanceResponse as Cw20BalanceResponse, TokenInfoResponse as Cw20TokenInfoResponse};
@@ -20,7 +20,7 @@ pub fn query_price(
     asset_info: &AssetInfo,
     // prices from before < stale_threshold are considered stale
     // and result in an error
-    _stale_threshold: u64,
+    stale_threshold: u64,
 ) -> StdResult<String> {
     // perform query
     let res: PriceResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
@@ -33,10 +33,9 @@ pub fn query_price(
         })?,
     }))?;
 
-    // TODO: UNCOMMENT THIS WHEN DEPLOYING
-    // if min(res.last_updated_quote, res.last_updated_base) < stale_threshold {
-    //     return Err(StdError::generic_err(format!("oracle prices are stale")));
-    // }
+    if std::cmp::min(res.last_updated_quote, res.last_updated_base) < stale_threshold {
+        return Err(StdError::generic_err(format!("oracle prices are stale")));
+    }
     Ok(res.rate.to_string().as_str().parse().unwrap())
 }
 

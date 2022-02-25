@@ -24,8 +24,8 @@ use crate::state::{
 };
 use crate::util::vec_to_string;
 
-// prices last 30s before they go from fresh to stale
-const FRESH_TIMESPAN: u64 = 30;
+// prices last 60s before they go from fresh to stale
+const FRESH_TIMESPAN: u64 = 60;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
