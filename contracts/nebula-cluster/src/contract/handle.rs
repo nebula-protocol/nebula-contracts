@@ -148,6 +148,11 @@ pub fn update_target(
         return Err(ContractError::ClusterTokenNotSet {});
     }
 
+    // Can only update active cluster
+    if !cfg.active {
+        return Err(ContractError::ClusterAlreadyDecommissioned {});
+    }
+
     // check permission
     if (info.sender != cfg.owner) && (info.sender != cfg.target_oracle) {
         return Err(ContractError::Unauthorized {});

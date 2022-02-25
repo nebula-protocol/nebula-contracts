@@ -1081,4 +1081,16 @@ fn decommission_cluster() {
             attr("penalty", "1234")
         ]
     );
+
+    // cannot update decommissioned cluster
+    let new_target: Vec<Asset> = vec![Asset {
+        info: AssetInfo::Token {
+            contract_addr: Addr::unchecked("mAAPL"),
+        },
+        amount: Uint128::new(10),
+    }];
+    let msg = ExecuteMsg::UpdateTarget { target: new_target };
+    let info = mock_info(consts::owner().as_str(), &[]);
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert_eq!(res, ContractError::ClusterAlreadyDecommissioned {});
 }
