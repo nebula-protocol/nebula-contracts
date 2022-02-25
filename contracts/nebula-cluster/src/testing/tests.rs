@@ -461,8 +461,17 @@ fn mint() {
         ContractError::Generic("Unsupported assets were sent to the create function".to_string())
     );
 
-    // successful create
+    // correct msg but the prices are stale
     let info = mock_info(addr, &[coin(42_000_000, "uluna")]);
+    let mut env = mock_env();
+    env.block.time = Timestamp::from_seconds(1_571_797_480u64);
+    let res = execute(deps.as_mut(), env, info.clone(), mint_msg.clone()).unwrap_err();
+    assert_eq!(
+        res,
+        ContractError::Std(StdError::generic_err("oracle prices are stale"))
+    );
+
+    // successful create
     let env = mock_env();
     let res = execute(deps.as_mut(), env.clone(), info, mint_msg).unwrap();
 
