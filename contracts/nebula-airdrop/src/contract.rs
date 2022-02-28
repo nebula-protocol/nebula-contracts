@@ -20,6 +20,18 @@ use cw20::Cw20ExecuteMsg;
 use sha3::Digest;
 use std::convert::TryInto;
 
+/// ## Description
+/// Creates a new contract with the specified parameters in the [`InstantiateMsg`].
+/// Returns the [`Response`] with the specified attributes if the operation was successful, or a [`ContractError`] if
+/// the contract was not created.
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **_env** is an object of type [`Env`].
+///
+/// - **_info** is an object of type [`MessageInfo`].
+///
+/// - **msg** is a message of type [`InstantiateMsg`] which contains the basic settings for creating a contract.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
@@ -41,6 +53,32 @@ pub fn instantiate(
     Ok(Response::default())
 }
 
+/// ## Description
+/// Exposes all the execute functions available in the contract.
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **_env** is an object of type [`Env`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **msg** is an object of type [`ExecuteMsg`].
+///
+/// ## Commands
+/// - **ExecuteMsg::UpdateConfig {
+///             owner,
+///             nebula_token,
+///         }** Updates general contract parameters.
+///
+/// - **ExecuteMsg::RegisterMerkleRoot {
+///             merkle_root,
+///         }** Registers a new merkle root.
+///
+/// - **ExecuteMsg::Claim {
+///             stage,
+///             amount,
+///             proof,
+///         }** Claims rewards of the msg sender.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
@@ -64,6 +102,21 @@ pub fn execute(
     }
 }
 
+/// ## Description
+/// Updates general contract configurations. Returns a [`ContractError`] on failure.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **owner** is an object of type [`Option<String>`] which is a new owner address to update.
+///
+/// - **nebula_token** is an object of type [`Option<String>`] which is a new Nebula token
+///     CW20 contract address to update.
+///
+/// ##Executor
+/// Only the owner can execute this.
 pub fn update_config(
     deps: DepsMut,
     info: MessageInfo,
@@ -71,14 +124,18 @@ pub fn update_config(
     nebula_token: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut config: Config = read_config(deps.storage)?;
+
+    // Permission check
     if info.sender != config.owner {
         return Err(ContractError::Unauthorized {});
     }
 
     if let Some(owner) = owner {
+        // Validate address format
         config.owner = deps.api.addr_validate(owner.as_str())?;
     }
     if let Some(nebula_token) = nebula_token {
+        // Validate address format
         config.nebula_token = deps.api.addr_validate(nebula_token.as_str())?;
     }
 
@@ -86,6 +143,10 @@ pub fn update_config(
     Ok(Response::new().add_attributes(vec![attr("action", "update_config")]))
 }
 
+/// ## Description
+/// Checks if `merkle_root` is a valid hex string of byte32. Otherwise returns [`ContractError`].
+/// ## Params
+/// - **merkle_root** is an object of type [`String`]
 fn validate_merkle_root(merkle_root: String) -> Result<(), ContractError> {
     let mut root_buf: [u8; 32] = [0; 32];
     match hex::decode_to_slice(merkle_root, &mut root_buf) {
@@ -94,18 +155,34 @@ fn validate_merkle_root(merkle_root: String) -> Result<(), ContractError> {
     }
 }
 
+/// ## Description
+/// Registers a new merkle root under a next stage. Returns a [`ContractError`] on failure.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **merkle_root** is an object of type [`String`] which is a new merkle root to register.
+///
+/// ##Executor
+/// Only the owner can execute this.
 pub fn register_merkle_root(
     deps: DepsMut,
     info: MessageInfo,
     merkle_root: String,
 ) -> Result<Response, ContractError> {
     let config: Config = read_config(deps.storage)?;
+
+    // Permission check
     if info.sender != config.owner {
         return Err(ContractError::Unauthorized {});
     }
 
+    // Validate `merkle_root` string
     validate_merkle_root(merkle_root.clone())?;
 
+    // Store the validated `merkle_root` under a new stage and update the latest stage
     let latest_stage: u8 = read_latest_stage(deps.storage)?;
     let stage = latest_stage + 1;
 
@@ -119,6 +196,21 @@ pub fn register_merkle_root(
     ]))
 }
 
+/// ## Description
+/// Claims airdrop for the message sender. Returns a [`ContractError`] on failure.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **stage** is an object of type [`u8`] which is a stage of airdrop to be claimed.
+///
+/// - **amount** is an object of type [`Uint128`] which is the amount of the airdrop
+///     for the sender at the specified stage.
+///
+/// - **proof** is an object of type [`Vec<String>`] which is a merkle proof
+///     at the specified stage.
 pub fn claim(
     deps: DepsMut,
     info: MessageInfo,
@@ -127,6 +219,7 @@ pub fn claim(
     proof: Vec<String>,
 ) -> Result<Response, ContractError> {
     let config: Config = read_config(deps.storage)?;
+    // Read the merkle root stored at the specified stage
     let merkle_root: String = read_merkle_root(deps.storage, stage)?;
 
     // If user claimed target stage, return err
@@ -134,12 +227,14 @@ pub fn claim(
         return Err(ContractError::AlreadyClaimed {});
     }
 
+    // Compute a merkle leaf hash from sender address and the given airdrop amount
     let user_input: String = info.sender.to_string() + &amount.to_string();
     let mut hash: [u8; 32] = sha3::Keccak256::digest(user_input.as_bytes())
         .as_slice()
         .try_into()
         .expect("Wrong length");
 
+    // Compute a merkle root from the merkle leaf and provided proof
     for p in proof {
         let mut proof_buf: [u8; 32] = [0; 32];
         hex::decode_to_slice(p, &mut proof_buf).unwrap();
@@ -156,9 +251,9 @@ pub fn claim(
         };
     }
 
+    // Validate if the computed merkle root matches the stored merkle root
     let mut root_buf: [u8; 32] = [0; 32];
     hex::decode_to_slice(merkle_root, &mut root_buf).unwrap();
-
     if root_buf != hash {
         return Err(ContractError::MerkleVerification {});
     }
@@ -183,6 +278,11 @@ pub fn claim(
         ]))
 }
 
+/// ## Description
+/// Compare two arrays of byte32.
+/// ## Params
+/// - **a** is an object of type [[`u8`]; 32]
+/// - **b** is an object of type [[`u8`]; 32]
 fn bytes_cmp(a: [u8; 32], b: [u8; 32]) -> std::cmp::Ordering {
     let mut i = 0;
     while i < 32 {
@@ -200,6 +300,28 @@ fn bytes_cmp(a: [u8; 32], b: [u8; 32]) -> std::cmp::Ordering {
     std::cmp::Ordering::Equal
 }
 
+/// ## Description
+/// Exposes all the queries available in the contract.
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
+///
+/// - **_env** is an object of type [`Env`].
+///
+/// - **msg** is an object of type [`QueryMsg`].
+///
+/// ## Commands
+/// - **QueryMsg::Config {}** Returns general contract parameters using a custom [`ConfigResponse`] structure.
+///
+/// - **QueryMsg::MerkleRoot {
+///             stage,
+///         }** Returns the registered merkle root of a specific stage.
+///
+/// - **QueryMsg::LatestStage {}** Returns the latest stage that has a registered merkle root.
+///
+/// - **QueryMsg::IsClaimed {
+///             stage,
+///             address,
+///         }** Return whether the specified address already claims airdrop at the given stage or not.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
@@ -212,6 +334,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     }
 }
 
+/// ## Description
+/// Returns general contract parameters using a custom [`ConfigResponse`] structure.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
 pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let state = read_config(deps.storage)?;
     let resp = ConfigResponse {
@@ -222,6 +349,13 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     Ok(resp)
 }
 
+/// ## Description
+/// Returns the merkle root registered under the given stage.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
+///
+/// - **stage** is an object of type [`u8`].
 pub fn query_merkle_root(deps: Deps, stage: u8) -> StdResult<MerkleRootResponse> {
     let merkle_root = read_merkle_root(deps.storage, stage)?;
     let resp = MerkleRootResponse { stage, merkle_root };
@@ -229,6 +363,11 @@ pub fn query_merkle_root(deps: Deps, stage: u8) -> StdResult<MerkleRootResponse>
     Ok(resp)
 }
 
+/// ## Description
+/// Returns the latest stage containing a merkle root in the airdrop contract.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
 pub fn query_latest_stage(deps: Deps) -> StdResult<LatestStageResponse> {
     let latest_stage = read_latest_stage(deps.storage)?;
     let resp = LatestStageResponse { latest_stage };
@@ -236,6 +375,15 @@ pub fn query_latest_stage(deps: Deps) -> StdResult<LatestStageResponse> {
     Ok(resp)
 }
 
+/// ## Description
+/// Returns whether the specified address already claimed their airdrop of the given stage.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
+///
+/// - **stage** is an object of type [`u8`].
+///
+/// - **address* is an object of type [`String`].
 pub fn query_is_claimed(deps: Deps, stage: u8, address: String) -> StdResult<IsClaimedResponse> {
     let resp = IsClaimedResponse {
         is_claimed: read_claimed(
