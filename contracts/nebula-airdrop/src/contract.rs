@@ -112,8 +112,8 @@ pub fn execute(
 ///
 /// - **owner** is an object of type [`Option<String>`] which is a new owner address to update.
 ///
-/// - **nebula_token** is an object of type [`Option<String>`] which is a new Nebula token
-///     CW20 contract address to update.
+/// - **nebula_token** is an object of type [`Option<String>`] which is the address of
+///     the new Nebula token contract.
 ///
 /// ##Executor
 /// Only the owner can execute this.
