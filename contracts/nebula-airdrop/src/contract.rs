@@ -281,8 +281,8 @@ pub fn claim(
 /// ## Description
 /// Compare two arrays of byte32.
 /// ## Params
-/// - **a** is an object of type [[`u8`]; 32]
-/// - **b** is an object of type [[`u8`]; 32]
+/// - **a** is an array with size 32 of type [`u8`]
+/// - **b** is an array with size 32 of type [[`u8`]
 fn bytes_cmp(a: [u8; 32], b: [u8; 32]) -> std::cmp::Ordering {
     let mut i = 0;
     while i < 32 {
