@@ -24,6 +24,7 @@ use std::convert::TryInto;
 /// Creates a new contract with the specified parameters in the [`InstantiateMsg`].
 /// Returns the [`Response`] with the specified attributes if the operation was successful, or a [`ContractError`] if
 /// the contract was not created.
+///
 /// ## Params
 /// - **deps** is an object of type [`DepsMut`].
 ///
@@ -55,6 +56,7 @@ pub fn instantiate(
 
 /// ## Description
 /// Exposes all the execute functions available in the contract.
+///
 /// ## Params
 /// - **deps** is an object of type [`DepsMut`].
 ///
@@ -145,6 +147,7 @@ pub fn update_config(
 
 /// ## Description
 /// Checks if `merkle_root` is a valid hex string of byte32. Otherwise returns [`ContractError`].
+///
 /// ## Params
 /// - **merkle_root** is an object of type [`String`]
 fn validate_merkle_root(merkle_root: String) -> Result<(), ContractError> {
@@ -280,6 +283,7 @@ pub fn claim(
 
 /// ## Description
 /// Compare two arrays of byte32.
+///
 /// ## Params
 /// - **a** is an array with size 32 of type [`u8`].
 ///
@@ -303,6 +307,7 @@ fn bytes_cmp(a: [u8; 32], b: [u8; 32]) -> std::cmp::Ordering {
 
 /// ## Description
 /// Exposes all the queries available in the contract.
+///
 /// ## Params
 /// - **deps** is an object of type [`Deps`].
 ///
