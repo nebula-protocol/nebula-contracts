@@ -51,9 +51,6 @@ const FRESH_TIMESPAN: u64 = 60;
 ///             target,
 ///         }** Updates general contract parameters.
 ///
-/// - **ExecuteMsg::UpdatePairConfig { config }** Updates a pair type
-///     configuration or creates a new pair type if a [`Custom`] name is used (which hasn't been used before).
-///
 /// - **ExecuteMsg::RebalanceCreate {
 ///             asset_amounts,
 ///             min_tokens,
