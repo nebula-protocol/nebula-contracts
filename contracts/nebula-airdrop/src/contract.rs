@@ -117,7 +117,7 @@ pub fn execute(
 /// - **nebula_token** is an object of type [`Option<String>`] which is the address of
 ///     the new Nebula token contract.
 ///
-/// ##Executor
+/// ## Executor
 /// Only the owner can execute this.
 pub fn update_config(
     deps: DepsMut,
@@ -168,7 +168,7 @@ fn validate_merkle_root(merkle_root: String) -> Result<(), ContractError> {
 ///
 /// - **merkle_root** is an object of type [`String`] which is a new merkle root to register.
 ///
-/// ##Executor
+/// ## Executor
 /// Only the owner can execute this.
 pub fn register_merkle_root(
     deps: DepsMut,
