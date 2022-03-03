@@ -20,25 +20,25 @@ pub enum ExecuteMsg {
     /// OWNER-CALLABLE
     /// UpdateConfig updates contract setting.
     UpdateConfig {
-        /// address to claim the contract ownership
+        /// Address to claim the contract ownership
         owner: Option<String>,
         /// Nebula token contract address
         nebula_token: Option<String>,
     },
     /// RegisterMerkleRoot add a new merkle root.
     RegisterMerkleRoot {
-        /// merkle root hash used for validating airdrop claims
+        /// Merkle root hash used for validating airdrop claims
         merkle_root: String,
     },
 
     /// USER-CALLABLE
     /// Claim allows the sender to claim their airdrop.
     Claim {
-        /// stage of airdrop to be claimed
+        /// Stage of airdrop to be claimed
         stage: u8,
-        /// airdrop amount
+        /// Airdrop amount
         amount: Uint128,
-        /// merkle proof of the airdrop for validation
+        /// Merkle proof of the airdrop for validation
         proof: Vec<String>,
     },
 }
@@ -52,7 +52,7 @@ pub enum QueryMsg {
     Config {},
     /// MerkleRoot returns the registered merkle root at the specified stage.
     MerkleRoot {
-        /// stage of the merkle root to be queried
+        /// Stage of the merkle root to be queried
         stage: u8,
     },
     /// LatestStage returns the latest stage with a merkle root registered.
@@ -60,9 +60,9 @@ pub enum QueryMsg {
     /// IsClaimed returns whether the address already claimed the airdrop
     /// at the specified stage.
     IsClaimed {
-        /// stage of airdrop
+        /// Stage of airdrop
         stage: u8,
-        /// address of a user
+        /// Address of a user
         address: String,
     },
 }
@@ -81,9 +81,9 @@ pub struct ConfigResponse {
 /// We define a custom struct for each query response that returns a stage and a related merkle root.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct MerkleRootResponse {
-    /// stage of the merkle root to be queried
+    /// Stage of the merkle root to be queried
     pub stage: u8,
-    /// related merkle root
+    /// Related merkle root
     pub merkle_root: String,
 }
 
@@ -91,7 +91,7 @@ pub struct MerkleRootResponse {
 /// We define a custom struct for each query response that returns the latest stage.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct LatestStageResponse {
-    /// latest stage with a merkle root registered
+    /// Latest stage with a merkle root registered
     pub latest_stage: u8,
 }
 
@@ -99,6 +99,6 @@ pub struct LatestStageResponse {
 /// We define a custom struct for each query response that returns the claim status.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct IsClaimedResponse {
-    /// airdrop claim status
+    /// Airdrop claim status
     pub is_claimed: bool,
 }
