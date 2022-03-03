@@ -740,6 +740,9 @@ fn update_asset_balance(
 ///
 /// - **target** is a reference to an object of type [`Vec<Asset>`] which is a new
 ///     asset target weights to update.
+///
+/// ##Executor
+/// Only the owner or the target oracle address can execute this.
 pub fn update_target(
     deps: DepsMut,
     env: Env,
