@@ -100,13 +100,13 @@ pub enum Cw20HookMsg {}
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    // Config returns contract settings specified in the custom [`ConfigResponse`] structure.
+    /// Config returns contract settings specified in the custom [`ConfigResponse`] structure.
     Config {},
-    // Target returns the current target weights saved in the contract.
+    /// Target returns the current target weights saved in the contract.
     Target {},
-    // ClusterState returns the current cluster state.
+    /// ClusterState returns the current cluster state.
     ClusterState {},
-    // ClusterInfo returns the name and description of the cluster.
+    /// ClusterInfo returns the name and description of the cluster.
     ClusterInfo {},
 }
 
@@ -114,7 +114,7 @@ pub enum QueryMsg {
 /// A custom struct for each query response that returns general contract settings/configs.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ConfigResponse {
-    // The config of the cluster
+    /// The config of the cluster
     pub config: ClusterConfig,
 }
 
@@ -122,7 +122,7 @@ pub struct ConfigResponse {
 /// A custom struct for each query response that returns the current target weights.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TargetResponse {
-    // The vector of `Asset` in which `amount` is the target weight
+    /// The vector of `Asset` in which `amount` is the target weight
     pub target: Vec<Asset>,
 }
 
@@ -130,21 +130,21 @@ pub struct TargetResponse {
 /// A custom struct for each query response that returns the current cluster state.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ClusterStateResponse {
-    // The current total supply of the cluster token
+    /// The current total supply of the cluster token
     pub outstanding_balance_tokens: Uint128,
-    // Prices of the assets in the cluster
+    /// Prices of the assets in the cluster
     pub prices: Vec<String>,
-    // Current inventory / asset balances
+    /// Current inventory / asset balances
     pub inv: Vec<Uint128>,
-    // Penalty contract address
+    /// Penalty contract address
     pub penalty: String,
-    // Cluster token address
+    /// Cluster token address
     pub cluster_token: String,
-    // The current asset target weights
+    /// The current asset target weights
     pub target: Vec<Asset>,
-    // The address of this cluster contract
+    /// The address of this cluster contract
     pub cluster_contract_address: String,
-    // The cluster active status - not active if decommissioned
+    /// The cluster active status - not active if decommissioned
     pub active: bool,
 }
 
@@ -152,9 +152,9 @@ pub struct ClusterStateResponse {
 /// A custom struct for each query response that returns the cluster info.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ClusterInfoResponse {
-    // Cluster name
+    /// Cluster name
     pub name: String,
-    // Cluster description
+    /// Cluster description
     pub description: String,
 }
 
@@ -162,22 +162,22 @@ pub struct ClusterInfoResponse {
 /// A custom struct for storing cluster setting.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ClusterConfig {
-    // Cluster name
+    /// Cluster name
     pub name: String,
-    // Cluster description
+    /// Cluster description
     pub description: String,
-    // Owner of the cluster
+    /// Owner of the cluster
     pub owner: Addr,
-    // Cluster token contract address
+    /// Cluster token contract address
     pub cluster_token: Option<Addr>,
-    // Cluster factory contract address
+    /// Cluster factory contract address
     pub factory: Addr,
-    // An address allowed to update asset prices
+    /// An address allowed to update asset prices
     pub pricing_oracle: Addr,
-    // An address allowed to update target weights
+    /// An address allowed to update target weights
     pub target_oracle: Addr,
-    // Penalty contract address of the cluster
+    /// Penalty contract address of the cluster
     pub penalty: Addr,
-    // The cluster active status - not active if decommissioned
+    /// The cluster active status - not active if decommissioned
     pub active: bool,
 }

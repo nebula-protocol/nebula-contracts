@@ -11,7 +11,7 @@ use nebula_protocol::cluster::{
 };
 
 /// ## Description
-/// Convenience function for creating inline String
+/// Convenience function for creating inline String.
 ///
 /// ## Params
 /// - **h** is a reference to an object of type [`str`].

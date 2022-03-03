@@ -101,9 +101,7 @@ pub fn instantiate(
 
     // Check assets in `target` for duplicate and unsupported assets
     if validate_targets(deps.querier, &env, asset_infos.clone()).is_err() {
-        return Err(ContractError::Generic(
-            "Cluster must contain valid assets and cannot contain duplicate assets".to_string(),
-        ));
+        return Err(ContractError::InvalidAssets {});
     }
 
     let asset_data = msg.target.clone();
