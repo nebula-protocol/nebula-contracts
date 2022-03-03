@@ -1,21 +1,8 @@
-/// transfer token
-
-/// ensures casting u128 -> i128 does not overflow
-// pub fn cast_u128_i128(x: u128) -> StdResult<i128> {
-//     if x > (i128::MAX / 1000i128) as u128 {
-//         return Err(error::i128_overflow(x));
-//     }
-//     Ok(x as i128)
-// }
-
-// pub fn cast_i128_u128(x: i128) -> StdResult<u128> {
-//     if x < 0 {
-//         return Err(error::u128_underflow(x));
-//     }
-//     Ok(x as u128)
-// }
-
-/// Prints vectors
+/// ## Description
+/// Prints a vector in a pretty format.
+///
+/// ## Params
+/// - **v** is an object of type [`&Vec<T>`] where `T` is any types implementing `ToString`.
 pub fn vec_to_string<T>(v: &Vec<T>) -> String
 where
     T: ToString,

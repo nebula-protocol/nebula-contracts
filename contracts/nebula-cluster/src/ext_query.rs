@@ -12,17 +12,30 @@ use nebula_protocol::{
     penalty::PenaltyRedeemResponse, penalty::QueryMsg as PenaltyQueryMsg,
 };
 
-/// EXTERNAL QUERY
-/// -- Queries the oracle contract for the current asset price
+//////////////////////////////////////////////////////////////////////
+/// EXTERNAL QUERY (to other contracts)
+//////////////////////////////////////////////////////////////////////
+
+/// ## Description
+/// Queries the oracle contract for the current asset price.
+///
+/// ## Params
+/// - **querier** is a reference to an object of type [`QuerierWrapper`].
+///
+/// - **pricing_oracle_address** is a reference to an object of type [`Addr`].
+///
+/// - **asset_info** is a reference to an object of type [`AssetInfo`].
+///
+/// - **stale_threshold** is an object of type [`u64`].
 pub fn query_price(
     querier: &QuerierWrapper,
     pricing_oracle_address: &Addr,
     asset_info: &AssetInfo,
-    // prices from before < stale_threshold are considered stale
+    // Prices from before < stale_threshold are considered stale
     // and result in an error
     stale_threshold: u64,
 ) -> StdResult<String> {
-    // perform query
+    // Perform query
     let res: PriceResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: pricing_oracle_address.to_string(),
         msg: to_binary(&OracleQueryMsg::Price {
@@ -39,8 +52,15 @@ pub fn query_price(
     Ok(res.rate.to_string().as_str().parse().unwrap())
 }
 
-/// EXTERNAL QUERY
-/// -- Queries the asset balance of account
+/// ## Description
+/// Queries a specific asset balance of the given account.
+///
+/// ## Params
+/// - **querier** is a reference to an object of type [`QuerierWrapper`].
+///
+/// - **account_address** is a reference to an object of type [`Addr`].
+///
+/// - **asset_info** is a reference to an object of type [`AssetInfo`].
 pub fn query_asset_balance(
     querier: &QuerierWrapper,
     account_address: &Addr,
@@ -54,8 +74,15 @@ pub fn query_asset_balance(
     }
 }
 
-/// EXTERNAL QUERY
-/// -- Queries the native token balance of account
+/// ## Description
+/// Queries the native token balance of the given account.
+///
+/// ## Params
+/// - **querier** is a reference to an object of type [`QuerierWrapper`].
+///
+/// - **account_address** is a reference to an object of type [`Addr`].
+///
+/// - **denom** is an object of type [`String`].
 pub fn query_balance(
     querier: &QuerierWrapper,
     account_addr: &Addr,
@@ -68,12 +95,19 @@ pub fn query_balance(
     Ok(balance.amount.amount)
 }
 
-/// EXTERNAL QUERY
-/// -- Queries the token_address contract for the current balance of account
+/// ## Description
+/// Queries the token_address contract for the current balance of the given account.
+///
+/// ## Params
+/// - **querier** is a reference to an object of type [`QuerierWrapper`].
+///
+/// - **account_address** is a reference to an object of type [`Addr`].
+///
+/// - **asset_address** is a reference to an object of type [`Addr`].
 pub fn query_cw20_balance(
     querier: &QuerierWrapper,
-    asset_address: &Addr,
     account_address: &Addr,
+    asset_address: &Addr,
 ) -> StdResult<Uint128> {
     let res: Cw20BalanceResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: asset_address.to_string(),
@@ -85,8 +119,13 @@ pub fn query_cw20_balance(
     Ok(res.balance)
 }
 
-/// EXTERNAL QUERY
-/// -- Queries the token_address contract for the current total supply
+/// ## Description
+/// Queries the token_address contract for the token's current total supply.
+///
+/// ## Params
+/// - **querier** is a reference to an object of type [`QuerierWrapper`].
+///
+/// - **asset_address** is a reference to an object of type [`Addr`].
 pub fn query_cw20_token_supply(
     querier: &QuerierWrapper,
     asset_address: &Addr,
@@ -99,8 +138,14 @@ pub fn query_cw20_token_supply(
     Ok(res.total_supply)
 }
 
-/// EXTERNAL QUERY
-/// -- Queries the cluster factory contract for the current total supply
+/// ## Description
+/// Queries the cluster factory contract for the collector contract address
+/// and the current fee rate.
+///
+/// ## Params
+/// - **querier** is a reference to an object of type [`QuerierWrapper`].
+///
+/// - **factory_address** is a reference to an object of type [`Addr`].
 pub fn query_collector_contract_address(
     querier: &QuerierWrapper,
     factory_address: &Addr,
@@ -113,8 +158,25 @@ pub fn query_collector_contract_address(
     Ok((res.commission_collector, res.protocol_fee_rate))
 }
 
-/// EXTERNAL QUERY
-/// -- Queries the penalty contract for the amount to mint
+/// ## Description
+/// Queries the penalty contract for the amount to mint.
+///
+/// ## Params
+/// - **querier** is a reference to an object of type [`QuerierWrapper`].
+///
+/// - **penalty_address** is a reference to an object of type [`Addr`].
+///
+/// - **block_height** is an object of type [`u64`].
+///
+/// - **cluster_token_supply** is an object of type [`Uint128`].
+///
+/// - **inventory** is an object of type [`Vec<Uint128>`].
+///
+/// - **create_asset_amounts** is an object of type [`Vec<Uint128>`].
+///
+/// - **asset_prices** is an object of type [`Vec<String>`].
+///
+/// - **target_weights** is an object of type [`Vec<Uint128>`].
 pub fn query_create_amount(
     querier: &QuerierWrapper,
     penalty_address: &Addr,
@@ -140,8 +202,27 @@ pub fn query_create_amount(
     Ok(res)
 }
 
-/// EXTERNAL QUERY
-/// -- Queries the penalty contract for the amount to redeem
+/// ## Description
+/// Queries the penalty contract for the amount to redeem.
+///
+/// ## Params
+/// - **querier** is a reference to an object of type [`QuerierWrapper`].
+///
+/// - **penalty_address** is a reference to an object of type [`Addr`].
+///
+/// - **block_height** is an object of type [`u64`].
+///
+/// - **cluster_token_supply** is an object of type [`Uint128`].
+///
+/// - **inventory** is an object of type [`Vec<Uint128>`].
+///
+/// - **max_tokens** is an object of type [`Uint128`].
+///
+/// - **redeem_asset_amounts** is an object of type [`Vec<Uint128>`].
+///
+/// - **asset_prices** is an object of type [`Vec<String>`].
+///
+/// - **target_weights** is an object of type [`Vec<Uint128>`].
 pub fn query_redeem_amount(
     querier: &QuerierWrapper,
     penalty_address: &Addr,
