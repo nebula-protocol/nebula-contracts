@@ -126,7 +126,7 @@ pub fn execute(
 /// - **cluster_token** is an object of type [`Option<String>`] which is the address of
 ///     the new cluster token contract.
 ///
-/// - **pricing_oracle** is an object of type [`Option<String>`] which is the price oracle
+/// - **pricing_oracle** is an object of type [`Option<String>`] which is the pricing oracle
 ///     contract address.
 ///
 /// - **target_oracle** is an object of type [`Option<String>`] which is the address allowed
@@ -210,7 +210,7 @@ pub fn update_config(
 }
 
 /// ## Description
-/// Mint cluster tokens from the asset amounts given.
+/// Mints cluster tokens from the asset amounts given.
 /// If `min_tokens` is specified, throws error when there can only be less than
 /// `min_tokens` minted from the assets.
 ///
@@ -522,7 +522,8 @@ pub fn receive_redeem(
 
     // Use min as stale threshold if pro-rata redeem
     // - custom redeem: need asset prices to convert cluster tokens to assets
-    // - pro-rata redeem: convert cluster tokens to assets based on target weights
+    // - pro-rata redeem: convert cluster tokens to assets based on the asset ratio
+    //      in the current inventory
     let stale_threshold = match asset_amounts {
         Some(_) => env.block.time.seconds() - FRESH_TIMESPAN,
         None => u64::MIN,
@@ -686,7 +687,7 @@ pub fn receive_redeem(
 }
 
 /// ## Description
-/// Update the specific asset balance / inventory stored in the contract
+/// Updates the specific asset balance / inventory stored in the contract
 ///
 /// ## Params
 /// - **storage** is a mutable reference of an object implementing trait [`Storage`].
@@ -831,7 +832,7 @@ pub fn decommission(deps: DepsMut, info: MessageInfo) -> Result<Response, Contra
     if let None = cfg.cluster_token {
         return Err(ContractError::ClusterTokenNotSet {});
     }
-    // Permission check - can only be decommission by the factory contract
+    // Permission check - can only be decommissioned by the factory contract
     if info.sender != cfg.factory {
         return Err(ContractError::Unauthorized {});
     }
