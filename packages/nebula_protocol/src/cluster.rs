@@ -22,7 +22,7 @@ pub struct InstantiateMsg {
     /// Cluster token CW20 address
     pub cluster_token: Option<String>,
 
-    /// An address allowed to update asset prices
+    /// Pricing oracle contract address
     pub pricing_oracle: String,
 
     /// An address allowed to update asset target weights
@@ -49,7 +49,7 @@ pub enum ExecuteMsg {
         description: Option<String>,
         /// Cluster token CW20 contract address
         cluster_token: Option<String>,
-        /// Pricing oracle address, e.g. contract, bot
+        /// Pricing oracle contract address
         pricing_oracle: Option<String>,
         /// Target oracle address, e.g. contract, bot
         target_oracle: Option<String>,
@@ -172,7 +172,7 @@ pub struct ClusterConfig {
     pub cluster_token: Option<Addr>,
     /// Cluster factory contract address
     pub factory: Addr,
-    /// An address allowed to update asset prices
+    /// Pricing oracle contract address
     pub pricing_oracle: Addr,
     /// An address allowed to update target weights
     pub target_oracle: Addr,

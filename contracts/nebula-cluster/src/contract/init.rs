@@ -12,7 +12,7 @@ use cosmwasm_std::{attr, DepsMut, Env, MessageInfo, QuerierWrapper, Response, Ui
 use nebula_protocol::cluster::{ClusterConfig, InstantiateMsg};
 
 /// ## Description
-/// Check for duplicate and unsupported assets
+/// Checks for duplicate and unsupported assets
 ///
 /// ## Params
 /// - **querier** is an object of type [`QuerierWrapper`].

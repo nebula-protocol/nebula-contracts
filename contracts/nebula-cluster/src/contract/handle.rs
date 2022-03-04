@@ -126,8 +126,8 @@ pub fn execute(
 /// - **cluster_token** is an object of type [`Option<String>`] which is the address of
 ///     the new cluster token contract.
 ///
-/// - **pricing_oracle** is an object of type [`Option<String>`] which is the address allowed
-///     to update the asset prices.
+/// - **pricing_oracle** is an object of type [`Option<String>`] which is the price oracle
+///     contract address.
 ///
 /// - **target_oracle** is an object of type [`Option<String>`] which is the address allowed
 ///     to update the asset target weights.
@@ -138,7 +138,7 @@ pub fn execute(
 /// - **target** is an object of type [`Option<Vec<Asset>>`] which is the new target weights
 ///     of the cluster assets.
 ///
-/// ##Executor
+/// ## Executor
 /// Only the owner can execute this.
 #[allow(clippy::too_many_arguments)]
 pub fn update_config(
@@ -247,7 +247,7 @@ pub fn create(
     let cfg = read_config(deps.storage)?;
 
     if !cfg.active {
-        // Cannot perform create operation on decommisioned clusters
+        // Cannot perform create operation on decommissioned clusters
         return Err(ContractError::ClusterAlreadyDecommissioned {});
     }
 
@@ -437,7 +437,7 @@ pub fn create(
                 }
             }
 
-            // set the cluster token mint amount to the `min_tokens`
+            // Set the cluster token mint amount to the `min_tokens`
             mint_amount_to_sender = proposed_mint_total;
         } else {
             return Err(ContractError::Generic(
@@ -448,7 +448,7 @@ pub fn create(
         }
     }
 
-    // Validate that the mint amount at lest `min_tokens`
+    // Validate that the mint amount is at least `min_tokens`
     if let Some(min_tokens) = min_tokens {
         if mint_amount_to_sender < min_tokens {
             return Err(ContractError::BelowMinTokens(
@@ -479,11 +479,10 @@ pub fn create(
 }
 
 /// ## Description
-/// Receives cluster tokens which are burned for assets according to
-/// the given `asset_weights` and cluster penalty parameter. The corresponding
-/// assets are taken from the cluster inventory and sent back to the user
-/// along with any rewards based on whether the assets are moved towards/away
-/// from the target.
+/// Receives cluster tokens which are burned for assets according to the given
+/// `asset_weights` and cluster penalty parameter. The corresponding assets are
+/// taken from the cluster inventory with the cluster token discount as rewards
+/// based on whether the assets are moved towards/away from the target.
 ///
 /// ## Params
 /// - **deps** is an object of type [`DepsMut`].
@@ -738,7 +737,7 @@ fn update_asset_balance(
 /// - **target** is a reference to an object of type [`Vec<Asset>`] which is a new
 ///     asset target weights to update.
 ///
-/// ##Executor
+/// ## Executor
 /// Only the owner or the target oracle address can execute this.
 pub fn update_target(
     deps: DepsMut,
@@ -825,7 +824,7 @@ pub fn update_target(
 ///
 /// - **info** is an object of type [`MessageInfo`].
 ///
-/// ##Executor
+/// ## Executor
 /// Only the factory contract can execute this.
 pub fn decommission(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
     let cfg = read_config(deps.storage)?;
