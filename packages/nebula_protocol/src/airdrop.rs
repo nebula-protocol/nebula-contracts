@@ -17,7 +17,10 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    /// OWNER-CALLABLE
+    /////////////////////
+    /// OWNER CALLABLE
+    /////////////////////
+
     /// UpdateConfig updates contract setting.
     UpdateConfig {
         /// Address to claim the contract ownership
@@ -31,7 +34,10 @@ pub enum ExecuteMsg {
         merkle_root: String,
     },
 
-    /// USER-CALLABLE
+    /////////////////////
+    /// USER CALLABLE
+    /////////////////////
+
     /// Claim allows the sender to claim their airdrop.
     Claim {
         /// Stage of airdrop to be claimed
