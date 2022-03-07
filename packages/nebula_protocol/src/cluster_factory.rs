@@ -28,7 +28,7 @@ pub struct InstantiateMsg {
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     /////////////////////
-    /// After Init Only
+    /// AFTER INIT ONLY
     /////////////////////
 
     /// PostInitialize updates the rest of factory setting after initializing other Nebula contracts.
@@ -46,7 +46,7 @@ pub enum ExecuteMsg {
     },
 
     /////////////////////
-    /// Owner Callable
+    /// OWNER CALLABLE
     /////////////////////
 
     /// UpdateConfig updates contract setting.
@@ -89,7 +89,7 @@ pub enum ExecuteMsg {
     },
 
     /////////////////////
-    /// User Callable
+    /// USER CALLABLE
     /////////////////////
 
     /// Distribute performs reward distribution process.
