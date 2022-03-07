@@ -137,6 +137,12 @@ fn proper_initialization() {
             distribution_schedule: vec![],
         }
     );
+
+    // return false as there is no cluster registered yet
+    assert_eq!(
+        cluster_exists(&deps.storage, &Addr::unchecked("asset0000")).unwrap(),
+        false
+    );
 }
 
 #[test]
