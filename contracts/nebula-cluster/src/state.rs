@@ -5,13 +5,12 @@ use nebula_protocol::cluster::ClusterConfig;
 
 /// config: ClusterConfig
 pub static CONFIG_KEY: &[u8] = b"config";
-
 /// target: Vec<u32>
 pub static TARGET_KEY: &[u8] = b"target";
-
 /// asset data: Vec<AssetData>
 pub static ASSET_DATA_KEY: &[u8] = b"asset_data";
 
+/// balance: Uint128
 pub static PREFIX_BALANCE: &[u8] = b"balance";
 
 //////////////////////////////////////////////////////////////////////

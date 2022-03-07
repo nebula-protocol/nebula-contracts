@@ -38,7 +38,10 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    /// OWNER-CALLABLE
+    /////////////////////
+    /// OWNER CALLABLE
+    /////////////////////
+
     /// UpdateConfig updates contract setting.
     UpdateConfig {
         /// address to claim the contract ownership
@@ -58,20 +61,26 @@ pub enum ExecuteMsg {
         /// Asset target weights
         target: Option<Vec<Asset>>, // recomposition oracle
     },
-    /// UpdateTarget changes the asset target weights
-    /// -- can also be called by target oracle
+    /// UpdateTarget changes the asset target weights.
+    /// -- can also be called by target oracle.
     UpdateTarget {
         // new asset target weights to be update
         target: Vec<Asset>,
     },
 
-    /// FACTORY-CALLABLE
+    /////////////////////
+    /// FACTORY CALLABLE
+    /////////////////////
+
     /// Decommission set the cluster to be inactive
     Decommission {},
 
-    /// USER-CALLABLE
+    /////////////////////
+    /// USER CALLABLE
+    /////////////////////
+
     /// RebalanceCreate performs the create operation minting cluster tokens from
-    /// provided assets
+    /// provided assets.
     RebalanceCreate {
         /// Asset amounts deposited for minting (cluster must be granted allowance or
         /// sent native assets within the MsgExecuteContract)
