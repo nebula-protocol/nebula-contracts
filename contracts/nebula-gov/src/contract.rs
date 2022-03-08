@@ -545,7 +545,7 @@ pub fn execute_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, C
                         reply_on: ReplyOn::Error,
                     }
                 })
-                .collect::<Vec<SubMsg>>(),
+                .collect(),
         );
         store_tmp_poll_id(deps.storage, a_poll.id)?;
     } else {
