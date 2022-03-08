@@ -24,6 +24,8 @@ pub struct InstantiateMsg {
     pub distribution_schedule: Vec<(u64, u64, Uint128)>,
 }
 
+/// ## Description
+/// This structure describes the execute messages of the contract.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
