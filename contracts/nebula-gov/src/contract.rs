@@ -140,7 +140,7 @@ pub fn receive_cw20(
             title,
             description,
             link,
-            execute_msg,
+            execute_msgs: execute_msg,
         }) => create_poll(
             deps,
             env,
@@ -315,7 +315,7 @@ pub fn create_poll(
     title: String,
     description: String,
     link: Option<String>,
-    poll_execute_msg: Option<PollExecuteMsg>,
+    poll_execute_msgs: Option<Vec<PollExecuteMsg>>,
 ) -> Result<Response, ContractError> {
     validate_title(&title)?;
     validate_description(&description)?;
@@ -351,11 +351,21 @@ pub fn create_poll(
     state.poll_count += 1;
     state.total_deposit += deposit_amount;
 
-    let poll_execute_data = if let Some(poll_execute_msg) = poll_execute_msg {
-        Some(ExecuteData {
-            contract: deps.api.addr_validate(poll_execute_msg.contract.as_str())?,
-            msg: poll_execute_msg.msg,
-        })
+    let poll_execute_data = if let Some(poll_execute_msgs) = poll_execute_msgs {
+        Some(
+            poll_execute_msgs
+                .iter()
+                .map(|poll_execute_msg| -> ExecuteData {
+                    ExecuteData {
+                        contract: deps
+                            .api
+                            .addr_validate(poll_execute_msg.contract.as_str())
+                            .unwrap(),
+                        msg: poll_execute_msg.msg.clone(),
+                    }
+                })
+                .collect(),
+        )
     } else {
         None
     };
@@ -520,16 +530,23 @@ pub fn execute_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, C
 
     let mut messages: Vec<SubMsg> = vec![];
     if let Some(execute_data) = a_poll.execute_data {
-        messages.push(SubMsg {
-            msg: CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: execute_data.contract.to_string(),
-                msg: execute_data.msg,
-                funds: vec![],
-            }),
-            gas_limit: None,
-            id: POLL_EXECUTE_REPLY_ID,
-            reply_on: ReplyOn::Error,
-        });
+        messages.append(
+            &mut execute_data
+                .iter()
+                .map(|execute_data| -> SubMsg {
+                    SubMsg {
+                        msg: CosmosMsg::Wasm(WasmMsg::Execute {
+                            contract_addr: execute_data.contract.to_string(),
+                            msg: execute_data.msg.clone(),
+                            funds: vec![],
+                        }),
+                        gas_limit: None,
+                        id: POLL_EXECUTE_REPLY_ID,
+                        reply_on: ReplyOn::Error,
+                    }
+                })
+                .collect::<Vec<SubMsg>>(),
+        );
         store_tmp_poll_id(deps.storage, a_poll.id)?;
     } else {
         return Err(ContractError::Generic(
@@ -760,10 +777,17 @@ fn query_poll(deps: Deps, poll_id: u64) -> StdResult<PollResponse> {
         link: poll.link,
         deposit_amount: poll.deposit_amount,
         execute_data: if let Some(execute_data) = poll.execute_data {
-            Some(PollExecuteMsg {
-                contract: execute_data.contract.to_string(),
-                msg: execute_data.msg,
-            })
+            Some(
+                execute_data
+                    .iter()
+                    .map(|poll_execute_msg| -> PollExecuteMsg {
+                        PollExecuteMsg {
+                            contract: poll_execute_msg.contract.to_string(),
+                            msg: poll_execute_msg.msg.clone(),
+                        }
+                    })
+                    .collect(),
+            )
         } else {
             None
         },
@@ -797,10 +821,17 @@ fn query_polls(
                 link: poll.link.clone(),
                 deposit_amount: poll.deposit_amount,
                 execute_data: if let Some(execute_data) = poll.execute_data.clone() {
-                    Some(PollExecuteMsg {
-                        contract: execute_data.contract.to_string(),
-                        msg: execute_data.msg,
-                    })
+                    Some(
+                        execute_data
+                            .iter()
+                            .map(|poll_execute_msg| -> PollExecuteMsg {
+                                PollExecuteMsg {
+                                    contract: poll_execute_msg.contract.to_string(),
+                                    msg: poll_execute_msg.msg.clone(),
+                                }
+                            })
+                            .collect(),
+                    )
                 } else {
                     None
                 },

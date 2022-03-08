@@ -243,7 +243,7 @@ fn fails_create_poll_invalid_deposit() {
             title: "TESTTEST".to_string(),
             description: "TESTTEST".to_string(),
             link: None,
-            execute_msg: None,
+            execute_msgs: None,
         })
         .unwrap(),
     });
@@ -262,7 +262,7 @@ fn create_poll_msg(
     title: String,
     description: String,
     link: Option<String>,
-    execute_msg: Option<PollExecuteMsg>,
+    execute_msgs: Option<Vec<PollExecuteMsg>>,
 ) -> ExecuteMsg {
     ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: TEST_CREATOR.to_string(),
@@ -271,7 +271,7 @@ fn create_poll_msg(
             title,
             description,
             link,
-            execute_msg,
+            execute_msgs,
         })
         .unwrap(),
     })
@@ -549,10 +549,10 @@ fn happy_days_end_poll() {
         "test".to_string(),
         "test".to_string(),
         None,
-        Some(PollExecuteMsg {
+        Some(vec![PollExecuteMsg {
             contract: VOTING_TOKEN.to_string(),
             msg: exec_msg_bz.clone(),
-        }),
+        }]),
     );
 
     let execute_res = execute(
@@ -797,10 +797,10 @@ fn failed_execute_poll() {
         "test".to_string(),
         "test".to_string(),
         None,
-        Some(PollExecuteMsg {
+        Some(vec![PollExecuteMsg {
             contract: VOTING_TOKEN.to_string(),
             msg: exec_msg_bz.clone(),
-        }),
+        }]),
     );
 
     let execute_res = execute(
@@ -959,13 +959,13 @@ fn end_poll_zero_quorum() {
         "test".to_string(),
         "test".to_string(),
         None,
-        Some(PollExecuteMsg {
+        Some(vec![PollExecuteMsg {
             contract: VOTING_TOKEN.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Burn {
                 amount: Uint128::new(123),
             })
             .unwrap(),
-        }),
+        }]),
     );
 
     let execute_res = execute(
@@ -3912,10 +3912,10 @@ fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
         "test".to_string(),
         "test".to_string(),
         None,
-        Some(PollExecuteMsg {
+        Some(vec![PollExecuteMsg {
             contract: VOTING_TOKEN.to_string(),
             msg: exec_msg_bz,
-        }),
+        }]),
     );
 
     let execute_res = execute(
@@ -4077,10 +4077,10 @@ fn happy_days_end_poll_with_controlled_quorum() {
         "test".to_string(),
         "test".to_string(),
         None,
-        Some(PollExecuteMsg {
+        Some(vec![PollExecuteMsg {
             contract: VOTING_TOKEN.to_string(),
             msg: exec_msg_bz,
-        }),
+        }]),
     );
 
     let execute_res = execute(
