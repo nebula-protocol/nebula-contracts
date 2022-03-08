@@ -522,37 +522,20 @@ pub fn execute_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, C
         ));
     }
 
+    if a_poll.execute_data.is_none() {
+        return Err(ContractError::Generic(
+            "Poll has no execute data".to_string(),
+        ));
+    }
+
     poll_indexer_store(deps.storage, &PollStatus::Passed).remove(&poll_id.to_be_bytes());
     poll_indexer_store(deps.storage, &PollStatus::Executed).save(&poll_id.to_be_bytes(), &true)?;
 
     a_poll.status = PollStatus::Executed;
     poll_store(deps.storage).save(&poll_id.to_be_bytes(), &a_poll)?;
 
-    let mut messages: Vec<SubMsg> = vec![];
-    if let Some(execute_data) = a_poll.execute_data {
-        messages.append(
-            &mut execute_data
-                .iter()
-                .map(|execute_data| -> SubMsg {
-                    SubMsg {
-                        msg: CosmosMsg::Wasm(WasmMsg::Execute {
-                            contract_addr: execute_data.contract.to_string(),
-                            msg: execute_data.msg.clone(),
-                            funds: vec![],
-                        }),
-                        gas_limit: None,
-                        id: POLL_EXECUTE_REPLY_ID,
-                        reply_on: ReplyOn::Error,
-                    }
-                })
-                .collect(),
-        );
-        store_tmp_poll_id(deps.storage, a_poll.id)?;
-    } else {
-        return Err(ContractError::Generic(
-            "The poll does not have execute_data".to_string(),
-        ));
-    }
+    let messages: Vec<SubMsg> = a_poll.execute_data.unwrap().iter().map(fill_msg).collect();
+    store_tmp_poll_id(deps.storage, a_poll.id)?;
 
     Ok(Response::new()
         .add_submessages(messages)
@@ -560,6 +543,21 @@ pub fn execute_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, C
             attr("action", "execute_poll"),
             attr("poll_id", poll_id.to_string()),
         ]))
+}
+
+fn fill_msg(msg: &ExecuteData) -> SubMsg {
+    match msg {
+        ExecuteData { contract, msg } => SubMsg {
+            msg: CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: contract.to_string(),
+                msg: msg.clone(),
+                funds: vec![],
+            }),
+            gas_limit: None,
+            id: POLL_EXECUTE_REPLY_ID,
+            reply_on: ReplyOn::Error,
+        },
+    }
 }
 
 /*
