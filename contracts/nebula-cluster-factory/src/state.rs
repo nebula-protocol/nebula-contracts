@@ -28,19 +28,32 @@ static PREFIX_CLUSTERS: &[u8] = b"clusters";
 /// CONFIG
 //////////////////////////////////////////////////////////////////////
 
+/// ## Description
+/// This structure holds the factory contract configurations
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
+    // Owner address
     pub owner: Addr,
+    // Nebula token contract address
     pub nebula_token: Addr,
+    // Astroport factory contract address
     pub astroport_factory: Addr,
+    // LP Staking contract address
     pub staking_contract: Addr,
+    // Collector contract address
     pub commission_collector: Addr,
+    // Protocol operations fee rate
     pub protocol_fee_rate: String,
-    pub token_code_id: u64, // used to create asset token
+    // Code ID of the uploaded CW20 contract
+    pub token_code_id: u64,
+    // Code ID of the uploaded cluster contract
     pub cluster_code_id: u64,
+    // Base denom, UST
     pub base_denom: String,
+    // Genesis time of the contract
     pub genesis_time: u64,
-    pub distribution_schedule: Vec<(u64, u64, Uint128)>, // [[start_time, end_time, distribution_amount], [], ...]
+    // [[start_time, end_time, distribution_amount], [], ...]
+    pub distribution_schedule: Vec<(u64, u64, Uint128)>,
 }
 
 pub fn store_config(storage: &mut dyn Storage, config: &Config) -> StdResult<()> {
