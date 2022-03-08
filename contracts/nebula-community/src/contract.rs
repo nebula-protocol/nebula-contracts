@@ -61,7 +61,7 @@ pub fn instantiate(
 ///             token_code_id,
 ///             cluster_code_id,
 ///             distribution_schedule,
-///         }** Updates general factory contract parameters.
+///         }** Updates general community contract parameters.
 ///
 /// - **ExecuteMsg::Spend {
 ///             asset,
