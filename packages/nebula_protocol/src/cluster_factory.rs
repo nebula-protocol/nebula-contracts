@@ -116,7 +116,7 @@ pub enum QueryMsg {
 }
 
 /// ## Description
-// A custom struct for each query response that returns general contract settings/configs.
+/// A custom struct for each query response that returns general contract settings/configs.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ConfigResponse {
     pub owner: String,
