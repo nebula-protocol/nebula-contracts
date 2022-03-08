@@ -143,7 +143,7 @@ fn test_spend() {
 
 #[test]
 fn test_pass_command() {
-    let mut deps = mock_dependencies(&coins(1000000000u128, "uusd"));
+    let mut deps = mock_dependencies(&[]);
 
     let msg = InstantiateMsg {
         owner: ("owner0000".to_string()),

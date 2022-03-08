@@ -140,7 +140,7 @@ pub fn receive_cw20(
             title,
             description,
             link,
-            execute_msgs: execute_msg,
+            execute_msgs,
         }) => create_poll(
             deps,
             env,
@@ -149,7 +149,7 @@ pub fn receive_cw20(
             title,
             description,
             link,
-            execute_msg,
+            execute_msgs,
         ),
         Ok(Cw20HookMsg::DepositReward {}) => deposit_reward(deps, cw20_msg.amount),
         Err(_) => Err(ContractError::Generic(
