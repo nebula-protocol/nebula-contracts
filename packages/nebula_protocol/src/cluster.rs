@@ -35,6 +35,8 @@ pub struct InstantiateMsg {
     pub penalty: String,
 }
 
+/// ## Description
+/// This structure describes the execute messages of the contract.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
