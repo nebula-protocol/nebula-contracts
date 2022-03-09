@@ -290,6 +290,13 @@ fn test_withdraw_reward() {
 
     // Now, we are eligible to collect rewards
 
+    let msg = QueryMsg::ContributorPendingRewards {
+        contributor_address: "contributor0000".to_string(),
+    };
+    let res: ContributorPendingRewardsResponse =
+        from_binary(&query(deps.as_ref(), mock_env(), msg).unwrap()).unwrap();
+    assert_eq!(res.pending_rewards, Uint128::from(1500u128));
+
     let msg = ExecuteMsg::Withdraw {};
     let info = mock_info("contributor0000", &[]);
     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
@@ -303,6 +310,13 @@ fn test_withdraw_reward() {
     let msg = ExecuteMsg::NewPenaltyPeriod {};
     let info = mock_info("owner0000", &[]);
     let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
+
+    let msg = QueryMsg::ContributorPendingRewards {
+        contributor_address: "contributor0001".to_string(),
+    };
+    let res: ContributorPendingRewardsResponse =
+        from_binary(&query(deps.as_ref(), mock_env(), msg).unwrap()).unwrap();
+    assert_eq!(res.pending_rewards, Uint128::from(500u128));
 
     let msg = ExecuteMsg::Withdraw {};
     let info = mock_info("contributor0001", &[]);
