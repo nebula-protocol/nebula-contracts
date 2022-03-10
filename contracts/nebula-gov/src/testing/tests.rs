@@ -243,7 +243,7 @@ fn fails_create_poll_invalid_deposit() {
             title: "TESTTEST".to_string(),
             description: "TESTTEST".to_string(),
             link: None,
-            execute_msg: None,
+            execute_msgs: None,
         })
         .unwrap(),
     });
@@ -262,7 +262,7 @@ fn create_poll_msg(
     title: String,
     description: String,
     link: Option<String>,
-    execute_msg: Option<PollExecuteMsg>,
+    execute_msgs: Option<Vec<PollExecuteMsg>>,
 ) -> ExecuteMsg {
     ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: TEST_CREATOR.to_string(),
@@ -271,7 +271,7 @@ fn create_poll_msg(
             title,
             description,
             link,
-            execute_msg,
+            execute_msgs,
         })
         .unwrap(),
     })
@@ -549,10 +549,10 @@ fn happy_days_end_poll() {
         "test".to_string(),
         "test".to_string(),
         None,
-        Some(PollExecuteMsg {
+        Some(vec![PollExecuteMsg {
             contract: VOTING_TOKEN.to_string(),
             msg: exec_msg_bz.clone(),
-        }),
+        }]),
     );
 
     let execute_res = execute(
@@ -779,6 +779,126 @@ fn happy_days_end_poll() {
 }
 
 #[test]
+fn failed_execute_poll_no_data() {
+    const POLL_START_TIME: u64 = 1000;
+    const POLL_ID: u64 = 1;
+    let stake_amount = 1000;
+
+    let mut deps = mock_dependencies(&coins(1000, VOTING_TOKEN));
+    mock_instantiate(deps.as_mut());
+    let mut creator_env = mock_env_height(0, POLL_START_TIME);
+    let creator_info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
+
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg,
+    )
+    .unwrap();
+
+    assert_create_poll_result(
+        1,
+        creator_env
+            .block
+            .time
+            .plus_seconds(DEFAULT_VOTING_PERIOD)
+            .seconds(),
+        TEST_CREATOR,
+        execute_res,
+        deps.as_ref(),
+    );
+
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new((stake_amount + DEFAULT_PROPOSAL_DEPOSIT) as u128),
+        )],
+    )]);
+
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER.to_string(),
+        amount: Uint128::from(stake_amount as u128),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap(),
+    });
+
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let execute_res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    assert_stake_tokens_result(
+        stake_amount,
+        DEFAULT_PROPOSAL_DEPOSIT,
+        stake_amount,
+        1,
+        execute_res,
+        deps.as_ref(),
+    );
+
+    let msg = ExecuteMsg::CastVote {
+        poll_id: 1,
+        vote: VoteOption::Yes,
+        amount: Uint128::from(stake_amount),
+    };
+    let env = mock_env_height(0, POLL_START_TIME);
+    let info = mock_info(TEST_VOTER, &[]);
+    let execute_res = execute(deps.as_mut(), env, info, msg).unwrap();
+
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "cast_vote"),
+            attr("poll_id", POLL_ID.to_string()),
+            attr("amount", "1000"),
+            attr("voter", TEST_VOTER),
+            attr("vote_option", "yes"),
+        ]
+    );
+
+    creator_env.block.time = creator_env.block.time.plus_seconds(DEFAULT_VOTING_PERIOD);
+    let msg = ExecuteMsg::EndPoll { poll_id: 1 };
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg,
+    )
+    .unwrap();
+
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "end_poll"),
+            attr("poll_id", "1"),
+            attr("rejected_reason", ""),
+            attr("passed", "true"),
+        ]
+    );
+    assert_eq!(
+        execute_res.messages,
+        vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: VOTING_TOKEN.to_string(),
+            msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                recipient: TEST_CREATOR.to_string(),
+                amount: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
+            })
+            .unwrap(),
+            funds: vec![],
+        }))]
+    );
+
+    // Try to execute the poll
+    creator_env.block.time = creator_env.block.time.plus_seconds(DEFAULT_EFFECTIVE_DELAY);
+    let msg = ExecuteMsg::ExecutePoll { poll_id: 1 };
+    let execute_res = execute(deps.as_mut(), creator_env, creator_info, msg).unwrap_err();
+    assert_eq!(
+        execute_res,
+        ContractError::Generic("Poll has no execute data".to_string(),)
+    );
+}
+
+#[test]
 fn failed_execute_poll() {
     const POLL_START_TIME: u64 = 1000;
     const POLL_ID: u64 = 1;
@@ -797,10 +917,10 @@ fn failed_execute_poll() {
         "test".to_string(),
         "test".to_string(),
         None,
-        Some(PollExecuteMsg {
+        Some(vec![PollExecuteMsg {
             contract: VOTING_TOKEN.to_string(),
             msg: exec_msg_bz.clone(),
-        }),
+        }]),
     );
 
     let execute_res = execute(
@@ -959,13 +1079,13 @@ fn end_poll_zero_quorum() {
         "test".to_string(),
         "test".to_string(),
         None,
-        Some(PollExecuteMsg {
+        Some(vec![PollExecuteMsg {
             contract: VOTING_TOKEN.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Burn {
                 amount: Uint128::new(123),
             })
             .unwrap(),
-        }),
+        }]),
     );
 
     let execute_res = execute(
@@ -3912,10 +4032,10 @@ fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
         "test".to_string(),
         "test".to_string(),
         None,
-        Some(PollExecuteMsg {
+        Some(vec![PollExecuteMsg {
             contract: VOTING_TOKEN.to_string(),
             msg: exec_msg_bz,
-        }),
+        }]),
     );
 
     let execute_res = execute(
@@ -4077,10 +4197,10 @@ fn happy_days_end_poll_with_controlled_quorum() {
         "test".to_string(),
         "test".to_string(),
         None,
-        Some(PollExecuteMsg {
+        Some(vec![PollExecuteMsg {
             contract: VOTING_TOKEN.to_string(),
             msg: exec_msg_bz,
-        }),
+        }]),
     );
 
     let execute_res = execute(
