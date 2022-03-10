@@ -68,7 +68,7 @@ pub enum Cw20HookMsg {
         title: String,
         description: String,
         link: Option<String>,
-        execute_msg: Option<PollExecuteMsg>,
+        execute_msgs: Option<Vec<PollExecuteMsg>>,
     },
     /// Deposit rewards to be distributed among stakers and voters
     DepositReward {},
@@ -146,7 +146,7 @@ pub struct PollResponse {
     pub description: String,
     pub link: Option<String>,
     pub deposit_amount: Uint128,
-    pub execute_data: Option<PollExecuteMsg>,
+    pub execute_data: Option<Vec<PollExecuteMsg>>,
     pub yes_votes: Uint128,     // balance
     pub no_votes: Uint128,      // balance
     pub abstain_votes: Uint128, // balance

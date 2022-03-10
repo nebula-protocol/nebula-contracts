@@ -17,25 +17,25 @@ use cw20::Cw20ExecuteMsg;
 // anybody can deposit rewards...
 pub fn deposit_reward(
     deps: DepsMut,
-    // pool_type, asset_address, amount
+    // pool_type, cluster_contract, amount
     rewards: Vec<(u16, String, Uint128)>,
     rewards_amount: Uint128,
 ) -> Result<Response, ContractError> {
     let cfg = read_config(deps.storage)?;
     let n = read_current_n(deps.storage)?;
 
-    for (pool_type, asset_token, amount) in rewards.iter() {
-        let validated_asset_token = deps.api.addr_validate(asset_token.as_str())?;
+    for (pool_type, cluster_contract, amount) in rewards.iter() {
+        let validated_cluster_contract = deps.api.addr_validate(cluster_contract.as_str())?;
         if !PoolType::ALL_TYPES.contains(&pool_type) {
             return Err(ContractError::Generic("Pool type not found".to_string()));
         }
         let mut pool_info: PoolInfo = read_from_pool_bucket(
             &pool_info_read(deps.storage, *pool_type, n),
-            &validated_asset_token,
+            &validated_cluster_contract,
         );
         pool_info.reward_total += *amount;
         pool_info_store(deps.storage, *pool_type, n)
-            .save(validated_asset_token.as_bytes(), &pool_info)?;
+            .save(validated_cluster_contract.as_bytes(), &pool_info)?;
     }
 
     Ok(Response::new()

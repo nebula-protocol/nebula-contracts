@@ -2,7 +2,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use astroport::asset::Asset;
-use cosmwasm_std::Binary;
+use cosmwasm_std::WasmMsg;
 
 /// ## Description
 /// This structure stores the basic settings for creating a new collector contract.
@@ -35,10 +35,8 @@ pub enum ExecuteMsg {
     },
     /// PassCommand lets the community contract executes the given command.
     PassCommand {
-        /// address of the target contract
-        contract_addr: String,
-        /// command / message to be executed
-        msg: Binary,
+        /// WasmMsg to be executed
+        wasm_msg: WasmMsg,
     },
 }
 
