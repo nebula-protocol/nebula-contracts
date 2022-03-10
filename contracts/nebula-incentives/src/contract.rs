@@ -2,8 +2,8 @@
 use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{
-    attr, from_binary, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
-    Uint128,
+    attr, from_binary, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response,
+    StdError, StdResult, Uint128,
 };
 
 use crate::arbitrageurs::{
@@ -16,13 +16,13 @@ use crate::rebalancers::{
 use crate::rewards::{deposit_reward, increment_n, withdraw_reward};
 use crate::state::{
     contributions_read, pool_info_read, read_config, read_current_n, read_from_contribution_bucket,
-    read_from_pool_bucket, read_pending_rewards, store_config, store_current_n, Config,
+    read_from_pool_bucket, store_config, store_current_n, Config,
 };
 use cw20::Cw20ReceiveMsg;
 use nebula_protocol::incentives::{
     ConfigResponse, ContributorPendingRewardsResponse, CurrentContributorInfoResponse, Cw20HookMsg,
     ExecuteMsg, IncentivesPoolInfoResponse, InstantiateMsg, MigrateMsg, PenaltyPeriodResponse,
-    QueryMsg,
+    PoolType, QueryMsg,
 };
 
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -319,7 +319,7 @@ pub fn query_contributor_info(
         &deps.api.addr_validate(cluster_address.as_str())?,
     );
     let resp = CurrentContributorInfoResponse {
-        n: read_current_n(deps.storage)?,
+        n: contributions.n,
         value_contributed: contributions.value_contributed,
     };
     Ok(resp)
@@ -329,12 +329,41 @@ pub fn query_contributor_pending_rewards(
     deps: Deps,
     contributor_address: String,
 ) -> StdResult<ContributorPendingRewardsResponse> {
-    let pending_rewards = read_pending_rewards(
-        deps.storage,
-        &deps.api.addr_validate(contributor_address.as_str())?,
-    );
-    let resp = ContributorPendingRewardsResponse { pending_rewards };
-    Ok(resp)
+    let validated_contributor = deps.api.addr_validate(contributor_address.as_str())?;
+    let mut contribution_tuples = vec![];
+
+    for i in PoolType::ALL_TYPES.iter() {
+        let contribution_bucket = contributions_read(deps.storage, &validated_contributor, **i);
+        for kv in contribution_bucket.range(None, None, Order::Ascending) {
+            let (k, _) = kv?;
+
+            let asset_address = deps.api.addr_validate(
+                std::str::from_utf8(&k)
+                    .map_err(|_| StdError::generic_err("Invalid asset address"))?,
+            )?;
+            contribution_tuples.push((i, asset_address));
+        }
+    }
+
+    let n = read_current_n(deps.storage)?;
+    let mut pending_rewards = Uint128::zero();
+    for (pool_type, asset_address) in contribution_tuples {
+        let contribution_bucket =
+            contributions_read(deps.storage, &validated_contributor, **pool_type);
+        let contribution = read_from_contribution_bucket(&contribution_bucket, &asset_address);
+
+        if contribution.value_contributed != Uint128::zero() && contribution.n != n {
+            let pool_bucket = pool_info_read(deps.storage, **pool_type, contribution.n);
+            let pool_info = read_from_pool_bucket(&pool_bucket, &asset_address);
+            let new_pending_reward = Uint128::new(
+                pool_info.reward_total.u128() * contribution.value_contributed.u128()
+                    / pool_info.value_total.u128(),
+            );
+            pending_rewards += new_pending_reward;
+        }
+    }
+
+    Ok(ContributorPendingRewardsResponse { pending_rewards })
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

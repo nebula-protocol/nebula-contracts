@@ -40,9 +40,7 @@ pub fn execute(
     match msg {
         ExecuteMsg::UpdateConfig { owner } => update_config(deps, info, owner),
         ExecuteMsg::Spend { asset, recipient } => spend(deps, info, asset, recipient),
-        ExecuteMsg::PassCommand { contract_addr, msg } => {
-            pass_command(deps, info, contract_addr, msg)
-        }
+        ExecuteMsg::PassCommand { wasm_msg } => pass_command(deps, info, wasm_msg),
     }
 }
 
@@ -92,21 +90,14 @@ pub fn spend(
 pub fn pass_command(
     deps: DepsMut,
     info: MessageInfo,
-    contract_addr: String,
-    msg: Binary,
+    wasm_msg: WasmMsg,
 ) -> Result<Response, ContractError> {
     let config: Config = read_config(deps.storage)?;
     if config.owner != info.sender {
         return Err(ContractError::Unauthorized {});
     }
 
-    Ok(
-        Response::new().add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr,
-            msg,
-            funds: vec![],
-        })]),
-    )
+    Ok(Response::new().add_messages(vec![CosmosMsg::Wasm(wasm_msg)]))
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]

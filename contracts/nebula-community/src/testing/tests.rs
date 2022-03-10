@@ -156,20 +156,18 @@ fn test_pass_command() {
 
     // failed non-owner call
     let msg = ExecuteMsg::PassCommand {
-        contract_addr: "contract0001".to_string(),
-        msg: Binary::default(),
+        wasm_msg: WasmMsg::Execute {
+            contract_addr: "contract0001".to_string(),
+            msg: Binary::default(),
+            funds: vec![],
+        },
     };
 
     let info = mock_info("imposter0001", &[]);
-    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
     assert_eq!(res, ContractError::Unauthorized {});
 
-    // successfully pass command
-    let msg = ExecuteMsg::PassCommand {
-        contract_addr: "contract0001".to_string(),
-        msg: Binary::default(),
-    };
-
+    // successfully pass command without funds
     let info = mock_info("owner0000", &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
     assert_eq!(
@@ -177,6 +175,25 @@ fn test_pass_command() {
         vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: "contract0001".to_string(),
             funds: vec![],
+            msg: Binary::default(),
+        }))]
+    );
+
+    // successfully pass command with funds
+    let msg = ExecuteMsg::PassCommand {
+        wasm_msg: WasmMsg::Execute {
+            contract_addr: "contract0001".to_string(),
+            msg: Binary::default(),
+            funds: coins(100000000u128, "uusd"),
+        },
+    };
+    let info = mock_info("owner0000", &[]);
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    assert_eq!(
+        res.messages,
+        vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: "contract0001".to_string(),
+            funds: coins(100000000u128, "uusd"),
             msg: Binary::default(),
         }))]
     );
