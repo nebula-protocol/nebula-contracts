@@ -10,9 +10,17 @@ static KEY_LATEST_STAGE: &[u8] = b"latest_stage";
 static PREFIX_MERKLE_ROOT: &[u8] = b"merkle_root";
 static PREFIX_CLAIM_INDEX: &[u8] = b"claim_index";
 
+//////////////////////////////////////////////////////////////////////
+/// CONFIG
+//////////////////////////////////////////////////////////////////////
+
+/// ## Description
+/// This structure holds the airdrop contract parameters
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
+    /// Address allowed to change contract parameters
     pub owner: Addr,
+    /// Nebula token CW20 contract address
     pub nebula_token: Addr,
 }
 
@@ -24,6 +32,10 @@ pub fn read_config(storage: &dyn Storage) -> StdResult<Config> {
     singleton_read(storage, KEY_CONFIG).load()
 }
 
+//////////////////////////////////////////////////////////////////////
+/// LATEST STAGE
+//////////////////////////////////////////////////////////////////////
+
 pub fn store_latest_stage(storage: &mut dyn Storage, stage: u8) -> StdResult<()> {
     singleton(storage, KEY_LATEST_STAGE).save(&stage)
 }
@@ -31,6 +43,10 @@ pub fn store_latest_stage(storage: &mut dyn Storage, stage: u8) -> StdResult<()>
 pub fn read_latest_stage(storage: &dyn Storage) -> StdResult<u8> {
     singleton_read(storage, KEY_LATEST_STAGE).load()
 }
+
+//////////////////////////////////////////////////////////////////////
+/// MERKLE ROOT
+//////////////////////////////////////////////////////////////////////
 
 pub fn store_merkle_root(
     storage: &mut dyn Storage,
@@ -46,6 +62,10 @@ pub fn read_merkle_root(storage: &dyn Storage, stage: u8) -> StdResult<String> {
         ReadonlyBucket::new(storage, PREFIX_MERKLE_ROOT);
     claim_index_bucket.load(&[stage])
 }
+
+//////////////////////////////////////////////////////////////////////
+/// CLAIM INDEX
+//////////////////////////////////////////////////////////////////////
 
 pub fn store_claimed(storage: &mut dyn Storage, user: &Addr, stage: u8) -> StdResult<()> {
     let mut claim_index_bucket: Bucket<bool> =
