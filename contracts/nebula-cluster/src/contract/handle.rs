@@ -24,9 +24,46 @@ use crate::state::{
 };
 use crate::util::vec_to_string;
 
-// prices last 60s before they go from fresh to stale
+/// Prices last 60s before they go from fresh to stale
 const FRESH_TIMESPAN: u64 = 60;
 
+/// ## Description
+/// Exposes all the execute functions available in the contract.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **env** is an object of type [`Env`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **msg** is an object of type [`ExecuteMsg`].
+///
+/// ## Commands
+/// - **ExecuteMsg::UpdateConfig {
+///             owner,
+///             name,
+///             description,
+///             cluster_token,
+///             pricing_oracle,
+///             target_oracle,
+///             penalty,
+///             target,
+///         }** Updates general contract parameters.
+///
+/// - **ExecuteMsg::RebalanceCreate {
+///             asset_amounts,
+///             min_tokens,
+///         }** Perform Create operation, i.e. mint the cluster tokens.
+///
+/// - **ExecuteMsg::RebalanceRedeem {
+///             max_tokens,
+///             asset_amounts,
+///         }** Perform Redeem operation, i.e. burn the cluster tokens.
+///
+/// - **ExecuteMsg::UpdateTarget { target }** Updates the target weights of assets in the cluster.
+///
+/// - **ExecuteMsg::Decommission {}** Decommission the cluster.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
@@ -70,6 +107,39 @@ pub fn execute(
     }
 }
 
+/// ## Description
+/// Updates general contract settings. Returns a [`ContractError`] on failure.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **env** is an object of type [`Env`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **owner** is an object of type [`Option<String>`] which is a new owner address to update.
+///
+/// - **name** is an object of type [`Option<String>`] which is a new cluster name to update.
+///
+/// - **description** is an object of type [`Option<String>`] which is a new cluster description.
+///
+/// - **cluster_token** is an object of type [`Option<String>`] which is the address of
+///     the new cluster token contract.
+///
+/// - **pricing_oracle** is an object of type [`Option<String>`] which is the pricing oracle
+///     contract address.
+///
+/// - **target_oracle** is an object of type [`Option<String>`] which is the address allowed
+///     to update the asset target weights.
+///
+/// - **penalty** is an object of type [`Option<String>`] which is the address of the
+///     new penalty contract.
+///
+/// - **target** is an object of type [`Option<Vec<Asset>>`] which is the new target weights
+///     of the cluster assets.
+///
+/// ## Executor
+/// Only the owner can execute this.
 #[allow(clippy::too_many_arguments)]
 pub fn update_config(
     deps: DepsMut,
@@ -85,13 +155,16 @@ pub fn update_config(
     target: Option<Vec<Asset>>,
 ) -> Result<Response, ContractError> {
     let api = deps.api;
+
     // Update cluster config
     config_store(deps.storage).update(|mut config| {
+        // Permission Check
         if config.owner != info.sender {
             return Err(ContractError::Unauthorized {});
         }
 
         if let Some(owner) = owner {
+            // Validate address format
             config.owner = api.addr_validate(owner.as_str())?;
         }
 
@@ -104,20 +177,24 @@ pub fn update_config(
         }
 
         if cluster_token.is_some() {
+            // Validate address format, and transpose as `Option<Addr>`
             config.cluster_token = cluster_token
                 .map(|x| api.addr_validate(x.as_str()))
                 .transpose()?;
         }
 
         if let Some(pricing_oracle) = pricing_oracle {
+            // Validate address format
             config.pricing_oracle = api.addr_validate(pricing_oracle.as_str())?;
         }
 
         if let Some(target_oracle) = target_oracle {
+            // Validate address format
             config.target_oracle = api.addr_validate(target_oracle.as_str())?;
         }
 
         if let Some(penalty) = penalty {
+            // Validate address format
             config.penalty = api.addr_validate(penalty.as_str())?;
         }
 
@@ -132,119 +209,23 @@ pub fn update_config(
     Ok(Response::new().add_attributes(vec![attr("action", "update_config")]))
 }
 
-/*
-    Changes the cluster target weights for different assets to the given
-    target weights and saves it. The ordering of the target weights is
-    determined by the given assets.
-*/
-pub fn update_target(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    target: &Vec<Asset>,
-) -> Result<Response, ContractError> {
-    let cfg = read_config(deps.storage)?;
-    if let None = cfg.cluster_token {
-        return Err(ContractError::ClusterTokenNotSet {});
-    }
-
-    // Can only update active cluster
-    if !cfg.active {
-        return Err(ContractError::ClusterAlreadyDecommissioned {});
-    }
-
-    // check permission
-    if (info.sender != cfg.owner) && (info.sender != cfg.target_oracle) {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    let mut asset_data = target.clone();
-
-    // Create new vectors for logging and validation purpose
-    // update_asset_infos contains the list of new assets
-    // update_target_weights contains the list of weights for each new assets
-    let (mut updated_asset_infos, mut updated_target_weights): (Vec<AssetInfo>, Vec<Uint128>) =
-        asset_data
-            .iter()
-            .map(|x| (x.info.clone(), x.amount.clone()))
-            .unzip();
-
-    if validate_targets(deps.querier, &env, updated_asset_infos.clone()).is_err() {
-        return Err(ContractError::InvalidAssets {});
-    }
-
-    // Load previous assets & target
-    let (prev_assets, prev_target): (Vec<AssetInfo>, Vec<Uint128>) =
-        read_target_asset_data(deps.storage)?
-            .iter()
-            .map(|x| (x.info.clone(), x.amount.clone()))
-            .unzip();
-
-    // When previous assets are not found,
-    // then set that not found item target to zero
-    for prev_asset in prev_assets.iter() {
-        let inv_balance = match prev_asset {
-            AssetInfo::Token { contract_addr } => {
-                read_asset_balance(deps.storage, &contract_addr.to_string())
-            }
-            AssetInfo::NativeToken { denom } => read_asset_balance(deps.storage, denom),
-        }?;
-        if !inv_balance.is_zero() && !updated_asset_infos.contains(&prev_asset) {
-            let asset_elem = Asset {
-                info: prev_asset.clone(),
-                amount: Uint128::zero(),
-            };
-
-            asset_data.push(asset_elem.clone());
-            updated_asset_infos.push(asset_elem.info);
-            updated_target_weights.push(asset_elem.amount);
-        }
-    }
-
-    store_target_asset_data(deps.storage, &asset_data)?;
-
-    Ok(Response::new().add_attributes(vec![
-        attr("action", "reset_target"),
-        attr("prev_assets", vec_to_string(&prev_assets)),
-        attr("prev_targets", vec_to_string(&prev_target)),
-        attr("updated_assets", vec_to_string(&updated_asset_infos)),
-        attr("updated_targets", vec_to_string(&updated_target_weights)),
-    ]))
-}
-
-/*
-    Decommissions an active cluster, disabling mints, and only allowing
-    pro-rata redeems
-*/
-pub fn decommission(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
-    // allow removal / adding
-    let cfg = read_config(deps.storage)?;
-    if let None = cfg.cluster_token {
-        return Err(ContractError::ClusterTokenNotSet {});
-    }
-    // check permission for factory
-    if info.sender != cfg.factory {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    // can only decommission an active cluster
-    if !cfg.active {
-        return Err(ContractError::ClusterAlreadyDecommissioned {});
-    }
-
-    config_store(deps.storage).update(|mut config| -> StdResult<_> {
-        config.active = false;
-
-        Ok(config)
-    })?;
-
-    Ok(Response::new().add_attributes(vec![attr("action", "decommission_asset")]))
-}
-
-/*
-    Mint cluster tokens from the asset amounts given.
-    Throws error if there can only be less than 'min_tokens' minted from the assets.
-*/
+/// ## Description
+/// Mints cluster tokens from the asset amounts given.
+/// If `min_tokens` is specified, throws error when there can only be less than
+/// `min_tokens` minted from the assets.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **env** is an object of type [`Env`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **asset_amounts** is an object of type [`Vec<Asset>`] which are the assets traded
+///     for minting cluster tokens.
+///
+/// - **min_tokens** is an object of type [`Option<Uint128>`] which is the required
+///     minimum amount of minted cluster tokens.
 pub fn create(
     deps: DepsMut,
     env: Env,
@@ -252,7 +233,7 @@ pub fn create(
     asset_amounts: Vec<Asset>,
     min_tokens: Option<Uint128>,
 ) -> Result<Response, ContractError> {
-    // check asset_amounts for duplicate and unsupported assets
+    // Check `asset_amounts` for duplicate and unsupported assets
     if validate_targets(
         deps.querier,
         &env,
@@ -266,9 +247,11 @@ pub fn create(
     let cfg = read_config(deps.storage)?;
 
     if !cfg.active {
+        // Cannot perform create operation on decommissioned clusters
         return Err(ContractError::ClusterAlreadyDecommissioned {});
     }
 
+    // Retrieve the cluster state
     let cluster_state = query_cluster_state(
         deps.as_ref(),
         &env.contract.address.to_string(),
@@ -314,10 +297,12 @@ pub fn create(
         }
     }
 
-    // verify asset transfers and update cluster inventory balance
+    // Verify asset transfers and update cluster inventory balance
     for (i, asset_info) in target_infos.iter().enumerate() {
         for asset in asset_amounts.iter() {
+            // Match each provided asset with the its target
             if asset.info.clone() == asset_info.clone() {
+                // Verify the provided non-zero asset amount does not have target of zero
                 if target_weights[i] == Uint128::zero() && asset.amount > Uint128::zero() {
                     return Err(ContractError::Generic(
                         format!("Cannot call create with non-zero asset amount when target weight is zero for asset {}", asset.info.to_string()),
@@ -326,8 +311,9 @@ pub fn create(
 
                 asset_weights[i] = asset.amount;
 
-                // transfer assets from sender
+                // Transfer assets from sender to this cluster contract
                 if let AssetInfo::Token { contract_addr, .. } = &asset.info {
+                    // Execute the asset CW20 contract to transfer the asset amount
                     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                         contract_addr: contract_addr.to_string(),
                         msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
@@ -338,7 +324,7 @@ pub fn create(
                         funds: vec![],
                     }));
 
-                    // update asset inventory balance in cluster
+                    // Update asset inventory balance in the cluster
                     update_asset_balance(
                         deps.storage,
                         &contract_addr.to_string(),
@@ -346,10 +332,10 @@ pub fn create(
                         true,
                     )?;
                 } else if let AssetInfo::NativeToken { denom } = &asset.info {
-                    // validate that native token balance is correct
+                    // Validate that native token balance is correct
                     asset.assert_sent_native_token_balance(&info)?;
 
-                    // update asset inventory balance in cluster
+                    // Update asset inventory balance in cluster
                     update_asset_balance(deps.storage, denom, asset.amount, true)?;
                 }
                 break;
@@ -359,13 +345,14 @@ pub fn create(
 
     let create_asset_amounts = asset_weights.clone();
 
+    // Keep track of the cluster token amount minted to the sender
     let mint_amount_to_sender;
 
-    // mint cluster tokens and deduct protocol fees
+    // Mint cluster tokens and deduct protocol fees
     let mut extra_logs = vec![];
+    // If cluster has been initialized
     if !cluster_token_supply.is_zero() {
-        // cluster has been initialized
-        // perform a normal mint
+        // Query cluster token amounts from a normal mint
         let create_response = query_create_amount(
             &deps.querier,
             &cfg.penalty,
@@ -378,11 +365,12 @@ pub fn create(
         )?;
         let create_amount = create_response.create_tokens;
 
+        // Retrieve collector contract and fee rate
         let (collector_address, fee_rate) =
             query_collector_contract_address(&deps.querier, &cfg.factory)?;
         let fee_rate = FPDecimal::from_str(&fee_rate)?;
 
-        // calculate fee amount
+        // Calculate the cluster token amount for sender and fee amount
         // mint_to_sender = mint_total * (1 - fee_rate)
         // protocol_fee = mint_total - mint_to_sender == mint_total * fee_rate
         let _mint_to_sender: u128 =
@@ -390,7 +378,7 @@ pub fn create(
         mint_amount_to_sender = Uint128::from(_mint_to_sender);
         let protocol_fee = create_amount.checked_sub(mint_amount_to_sender)?;
 
-        // update penalty contract states
+        // Update penalty contract states
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: cfg.penalty.to_string(),
             msg: to_binary(&PenaltyExecuteMsg::PenaltyCreate {
@@ -404,7 +392,7 @@ pub fn create(
             funds: vec![],
         }));
 
-        // mint cluster tokens
+        // Mint cluster tokens of fee amount to the collector contract
         if !protocol_fee.is_zero() {
             messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: cluster_token.to_string(),
@@ -419,12 +407,13 @@ pub fn create(
         extra_logs = create_response.attributes;
         extra_logs.push(attr("fee_amt", protocol_fee))
     } else {
-        // cluster has no cluster tokens -- cluster is empty and needs to be initialized
-        // attempt to initialize it with min_tokens as the number of cluster tokens
+        // Cluster has no cluster tokens -- cluster is empty and needs to be initialized.
+        // Attempt to initialize it with `min_tokens` as the number of cluster tokens
         // and the mint cluster c as the initial assets
         // c is required to be in ratio with the target weights
         if let Some(proposed_mint_total) = min_tokens {
             let mut val = 0;
+            // Check if ratios, between each asset amount and its target weight, are all the same
             for i in 0..create_asset_amounts.len() {
                 if (create_asset_amounts[i].u128() % target_weights[i].u128() != 0)
                     || create_asset_amounts[i] == Uint128::zero()
@@ -448,6 +437,7 @@ pub fn create(
                 }
             }
 
+            // Set the cluster token mint amount to the `min_tokens`
             mint_amount_to_sender = proposed_mint_total;
         } else {
             return Err(ContractError::Generic(
@@ -458,6 +448,7 @@ pub fn create(
         }
     }
 
+    // Validate that the mint amount is at least `min_tokens`
     if let Some(min_tokens) = min_tokens {
         if mint_amount_to_sender < min_tokens {
             return Err(ContractError::BelowMinTokens(
@@ -467,6 +458,7 @@ pub fn create(
         }
     }
 
+    // Mint and send cluster tokens to the sender
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: cluster_token.to_string(),
         msg: to_binary(&Cw20ExecuteMsg::Mint {
@@ -483,17 +475,27 @@ pub fn create(
     ];
     logs.extend(extra_logs);
 
-    // mint and send number of tokens to user
     Ok(Response::new().add_messages(messages).add_attributes(logs))
 }
 
-/*
-    Receives cluster tokens which are burned for assets according to
-    the given asset_weights and cluster penalty parameter. The corresponding
-    assets are taken from the cluster inventory and sent back to the user
-    along with any rewards based on whether the assets are moved towards/away
-    from the target.
-*/
+/// ## Description
+/// Receives cluster tokens which are burned for assets according to the given
+/// `asset_weights` and cluster penalty parameter. The corresponding assets are
+/// taken from the cluster inventory with the cluster token discount as rewards
+/// based on whether the assets are moved towards/away from the target.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **env** is an object of type [`Env`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **max_tokens** is an object of type [`Uint128`] which is the required
+///     maximum amount of cluster tokens allowed to burn.
+///
+/// - **asset_amounts** is an object of type [`Option<Vec<Asset>>`] which are the assets amount
+///     the sender wishes to receive.
 pub fn receive_redeem(
     deps: DepsMut,
     env: Env,
@@ -519,11 +521,15 @@ pub fn receive_redeem(
         .ok_or_else(|| ContractError::ClusterTokenNotSet {})?;
 
     // Use min as stale threshold if pro-rata redeem
+    // - custom redeem: need asset prices to convert cluster tokens to assets
+    // - pro-rata redeem: convert cluster tokens to assets based on the asset ratio
+    //      in the current inventory
     let stale_threshold = match asset_amounts {
         Some(_) => env.block.time.seconds() - FRESH_TIMESPAN,
         None => u64::MIN,
     };
 
+    // Retrieve the cluster state
     let cluster_state = query_cluster_state(
         deps.as_ref(),
         &env.contract.address.to_string(),
@@ -555,6 +561,7 @@ pub fn receive_redeem(
         None => vec![],
     };
 
+    // Retrieve collector contract and fee rate
     let (collector_address, fee_rate) =
         query_collector_contract_address(&deps.querier, &cfg.factory)?;
 
@@ -564,6 +571,7 @@ pub fn receive_redeem(
     let _token_cap: u128 = (FPDecimal::from(max_tokens.u128()) * keep_rate).into();
     let token_cap: Uint128 = Uint128::from(_token_cap);
 
+    // Query cluster token amounts burned with the maximum as `token_cap`
     let redeem_response = query_redeem_amount(
         &deps.querier,
         &cfg.penalty,
@@ -576,9 +584,10 @@ pub fn receive_redeem(
         target_weights.clone(),
     )?;
 
+    // Maximum redeem amount after deducting fees.
     let redeem_totals = redeem_response.redeem_assets;
 
-    // check token_cost is exceeding max_tokens
+    // Sanity check if token_cost is exceeding max_tokens
     let _token_cost: FPDecimal = FPDecimal::from(redeem_response.token_cost.u128()) / keep_rate;
     let mut token_cost: u128 = _token_cost.into();
     if FPDecimal::from(token_cost) != _token_cost {
@@ -590,7 +599,7 @@ pub fn receive_redeem(
         return Err(ContractError::AboveMaxTokens(token_cost, max_tokens));
     }
 
-    // send redeem_totals to sender
+    // Send `redeem_totals`, the assets from burning cluster tokens, to sender
     let mut messages: Vec<CosmosMsg> = redeem_totals
         .iter()
         .zip(asset_infos.iter())
@@ -613,14 +622,14 @@ pub fn receive_redeem(
         })
         .collect::<Result<Vec<CosmosMsg>, ContractError>>()?;
 
-    // compute fee_amt
+    // Compute fee based on the actual redeem amount `token_cost`
     let _fee_amt: FPDecimal = FPDecimal::from(token_cost.u128()) * fee_rate;
     let mut fee_amt: u128 = _fee_amt.into();
     if FPDecimal::from(fee_amt) != _fee_amt {
         fee_amt += 1
     }
 
-    // send fee to collector from allowance
+    // Send fee to collector contract from allowance
     let fee_amt: Uint128 = Uint128::from(fee_amt);
     if !fee_amt.is_zero() {
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -634,7 +643,7 @@ pub fn receive_redeem(
         }));
     }
 
-    // burn the rest from allowance
+    // Burn the rest of the redeem amount from allowance
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: cluster_token.to_string(),
         msg: to_binary(&Cw20ExecuteMsg::BurnFrom {
@@ -644,8 +653,8 @@ pub fn receive_redeem(
         funds: vec![],
     }));
 
-    // afterwards, notify the penalty contract that this update happened so
-    // it can make stateful updates...
+    // Afterwards, notify the penalty contract that this update happened, so
+    // the penalty contract can make stateful updates
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: cfg.penalty.to_string(),
         msg: to_binary(&PenaltyExecuteMsg::PenaltyRedeem {
@@ -677,22 +686,168 @@ pub fn receive_redeem(
     ))
 }
 
+/// ## Description
+/// Updates the specific asset balance / inventory stored in the contract
+///
+/// ## Params
+/// - **storage** is a mutable reference of an object implementing trait [`Storage`].
+///
+/// - **asset_id** is a reference to an object of type [`String`] which is
+///     the asset to update.
+///
+/// - **amount** is an object of type [`Uint128`] which is an amount to update.
+///
+/// - **mint** is an object of type [`bool`] which specifies whether an
+///     operation is mint or burn.
 fn update_asset_balance(
     storage: &mut dyn Storage,
     asset_id: &String,
     amount: Uint128,
     mint: bool,
 ) -> Result<(), ContractError> {
+    //  Get the asset balance of the cluster contract corresponding to `asset_id`
     let mut asset_amount = match read_asset_balance(storage, &asset_id) {
         Ok(amount) => amount,
         Err(_) => Uint128::zero(),
     };
 
+    // If the operation is mint, increase the asset balance with `amount`.
+    // Otherwise, deduct the asset balance with `amount`
     match mint {
         true => asset_amount = asset_amount.checked_add(amount)?,
         false => asset_amount = asset_amount.checked_sub(amount)?,
     };
 
+    // Save the new asset balance
     store_asset_balance(storage, &asset_id, &asset_amount)?;
     Ok(())
+}
+
+/// ## Description
+/// Changes the cluster target weights for different assets to the given
+/// target weights and saves it. The ordering of the target weights is
+/// determined by the given assets.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **env** is an object of type [`Env`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **target** is a reference to an object of type [`Vec<Asset>`] which is a new
+///     asset target weights to update.
+///
+/// ## Executor
+/// Only the owner or the target oracle address can execute this.
+pub fn update_target(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    target: &Vec<Asset>,
+) -> Result<Response, ContractError> {
+    let cfg = read_config(deps.storage)?;
+    if let None = cfg.cluster_token {
+        return Err(ContractError::ClusterTokenNotSet {});
+    }
+
+    // Can only update active cluster
+    if !cfg.active {
+        return Err(ContractError::ClusterAlreadyDecommissioned {});
+    }
+
+    // Permission check - can only be called by either the owner or target oracle address
+    if (info.sender != cfg.owner) && (info.sender != cfg.target_oracle) {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    let mut asset_data = target.clone();
+
+    // Create new vectors for logging and validation purpose
+    // `update_asset_infos` contains the list of new assets
+    // `update_target_weights` contains the list of weights for each new assets
+    let (mut updated_asset_infos, mut updated_target_weights): (Vec<AssetInfo>, Vec<Uint128>) =
+        asset_data
+            .iter()
+            .map(|x| (x.info.clone(), x.amount.clone()))
+            .unzip();
+
+    // Check `updated_asset_infos` for duplicate and unsupported assets
+    if validate_targets(deps.querier, &env, updated_asset_infos.clone()).is_err() {
+        return Err(ContractError::InvalidAssets {});
+    }
+
+    // Load previous assets & target
+    let (prev_assets, prev_target): (Vec<AssetInfo>, Vec<Uint128>) =
+        read_target_asset_data(deps.storage)?
+            .iter()
+            .map(|x| (x.info.clone(), x.amount.clone()))
+            .unzip();
+
+    // When previous assets are not found,
+    // then set that not found item target to zero
+    for prev_asset in prev_assets.iter() {
+        let inv_balance = match prev_asset {
+            AssetInfo::Token { contract_addr } => {
+                read_asset_balance(deps.storage, &contract_addr.to_string())
+            }
+            AssetInfo::NativeToken { denom } => read_asset_balance(deps.storage, denom),
+        }?;
+        if !inv_balance.is_zero() && !updated_asset_infos.contains(&prev_asset) {
+            let asset_elem = Asset {
+                info: prev_asset.clone(),
+                amount: Uint128::zero(),
+            };
+
+            asset_data.push(asset_elem.clone());
+            updated_asset_infos.push(asset_elem.info);
+            updated_target_weights.push(asset_elem.amount);
+        }
+    }
+
+    store_target_asset_data(deps.storage, &asset_data)?;
+
+    Ok(Response::new().add_attributes(vec![
+        attr("action", "reset_target"),
+        attr("prev_assets", vec_to_string(&prev_assets)),
+        attr("prev_targets", vec_to_string(&prev_target)),
+        attr("updated_assets", vec_to_string(&updated_asset_infos)),
+        attr("updated_targets", vec_to_string(&updated_target_weights)),
+    ]))
+}
+
+/// ## Description
+/// Decommissions an active cluster, disabling mints, and only allowing
+/// pro-rata redeems
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// ## Executor
+/// Only the factory contract can execute this.
+pub fn decommission(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+    let cfg = read_config(deps.storage)?;
+    if let None = cfg.cluster_token {
+        return Err(ContractError::ClusterTokenNotSet {});
+    }
+    // Permission check - can only be decommissioned by the factory contract
+    if info.sender != cfg.factory {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    // Can only decommission an active cluster
+    if !cfg.active {
+        return Err(ContractError::ClusterAlreadyDecommissioned {});
+    }
+
+    // Update the cluster state to be decommissioned / inactive
+    config_store(deps.storage).update(|mut config| -> StdResult<_> {
+        config.active = false;
+
+        Ok(config)
+    })?;
+
+    Ok(Response::new().add_attributes(vec![attr("action", "decommission_asset")]))
 }
