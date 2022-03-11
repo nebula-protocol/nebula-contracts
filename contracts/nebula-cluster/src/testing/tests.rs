@@ -148,12 +148,7 @@ fn bad_initialization() {
     };
     let info = mock_info(consts::pricing_oracle().as_str(), &[]);
     let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap_err();
-    assert_eq!(
-        res,
-        ContractError::Generic(
-            "Cluster must contain valid assets and cannot contain duplicate assets".to_string(),
-        )
-    );
+    assert_eq!(res, ContractError::InvalidAssets {});
 
     // initial zero weight
     let msg = InstantiateMsg {
