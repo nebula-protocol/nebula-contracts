@@ -58,9 +58,6 @@ pub fn instantiate(
 /// ## Commands
 /// - **ExecuteMsg::UpdateConfig {
 ///             owner,
-///             token_code_id,
-///             cluster_code_id,
-///             distribution_schedule,
 ///         }** Updates general community contract parameters.
 ///
 /// - **ExecuteMsg::Spend {
@@ -166,12 +163,8 @@ pub fn spend(
 ///
 /// - **info** is an object of type [`MessageInfo`].
 ///
-/// - **contract_addr** is an object of type [`String`] which is an address of the
-///     target contract to execute the command on.
-///
-/// - **msg** is an object of type [`Binary`] which is an encoded message / command
+/// - **wasm_msg** is an object of type [`WasmMsg`] which is a wasm message
 ///     to be executed on the target contract.
-///
 /// ## Executor
 /// Only the owner can execute this.
 pub fn pass_command(
@@ -186,7 +179,7 @@ pub fn pass_command(
         return Err(ContractError::Unauthorized {});
     }
 
-    // Execute `msg` on `contract_addr` with the community contract as the sender
+    // Execute the wasm message with the community contract as the sender
     Ok(Response::new().add_messages(vec![CosmosMsg::Wasm(wasm_msg)]))
 }
 

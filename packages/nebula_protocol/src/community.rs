@@ -5,7 +5,7 @@ use astroport::asset::Asset;
 use cosmwasm_std::WasmMsg;
 
 /// ## Description
-/// This structure stores the basic settings for creating a new collector contract.
+/// This structure stores the basic settings for creating a new community contract.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     /// Owner address, Nebula Governance contract
