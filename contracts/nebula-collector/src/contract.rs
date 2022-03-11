@@ -75,7 +75,7 @@ pub fn instantiate(
 ///
 /// - **ExecuteMsg::Convert {
 ///             asset_token,
-///         }** Swaps UST to NEB or any CW20 to UST.
+///         }** Swaps UST to NEB or any cluster token to UST.
 ///
 /// - **ExecuteMsg::Distribute {}** sends all collected fee to the Governance contract.
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -178,7 +178,7 @@ pub fn update_config(
 /// ## Description
 /// Swaps the given asset to another. If `asset_token` is
 /// - Nebula token contract, trade all UST in the contract to Nebula tokens.
-/// - Other CW20 assets, trade all of those assets in the contract to UST.
+/// - Other CT tokens, trade all of those tokens in the contract to UST.
 ///
 /// ## Params
 /// - **deps** is an object of type [`DepsMut`].
@@ -244,16 +244,16 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> Result<Response,
             }],
         })];
     } else {
-        // If the given asset if other CW20, trade the given CW20 => UST
+        // If the given asset is a CT token, trade the given CT token => UST
 
-        // Query the given CW20 balance of the collector contract
+        // Query the given CT token balance of the collector contract
         let amount = query_token_balance(
             &deps.querier,
             validated_asset_token.clone(),
             env.contract.address,
         )?;
 
-        // Execute send on the given CW20 asset contract from the collector contract
+        // Execute send on the given CT token contract from the collector contract
         // to Astroport asset-UST pair contract to trigger swap on Astroport
         messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: validated_asset_token.to_string(),
