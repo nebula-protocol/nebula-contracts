@@ -102,7 +102,7 @@ pub fn instantiate(
 ///             astroport_factory,
 ///             staking_contract,
 ///             commission_collector,
-///         }** Adds necessary factory contract setting after the initialization.
+///         }** Adds necessary factory contract settings after the initialization.
 ///
 /// - **ExecuteMsg::UpdateConfig {
 ///             owner,
@@ -177,7 +177,7 @@ pub fn execute(
 }
 
 /// ## Description
-/// Updates the cluster factory contract setting after initilization.
+/// Updates the cluster factory contract settings after initilization.
 ///
 /// ## Params
 /// - **deps** is an object of type [`DepsMut`].
@@ -187,10 +187,10 @@ pub fn execute(
 /// - **owner** is an object of type [`String`] which is an owner to update.
 ///
 /// - **nebula_token** is an object of type [`String`] which is an address
-///     of Nebula token contract.
+///     of the Nebula token contract.
 ///
 /// - **astroport_factory** is an object of type [`String`] which is an address
-///     of Astroport factory contract.
+///     of the Astroport factory contract.
 ///
 /// - **staking_contract** is an object of type [`String`] which is an address
 ///     of the LP staking contract, i.e. a contract for staking Nebula/cluster LP tokens.
@@ -249,7 +249,8 @@ pub fn post_initialize(
 ///     the uploaded cluster contract code.
 ///
 /// - **distribution_schedule** is an object of type [`Option<Vec<(u64, u64, Uint128)>>`]
-///     which is a distribution schedule to update.
+///     which is a distribution schedule containing tuples of distribution period,
+///     [start_time, end_time, distribution_amount].
 ///
 /// ## Executor
 /// Only the owner can execute this.
@@ -291,7 +292,8 @@ pub fn update_config(
 }
 
 /// ## Definition
-/// Updates Nebula reward distribution weight of the cluster LP staking pool.
+/// Updates Nebula reward distribution weight of a LP staking pool (can either be
+///     Nebula LP pool or a cluster LP pool).
 ///
 /// ## Params
 /// - **deps** is an object of type [`DepsMut`].
@@ -299,7 +301,7 @@ pub fn update_config(
 /// - **info** is an object of type [`MessageInfo`].
 ///
 /// - **asset_token** is an object of type [`String`] which is the address of the
-///     cluster token.
+///     Nebula token or a cluster token.
 ///
 /// - **weight** is an object of type [`u32`] which is the distribution weight to update.
 ///
@@ -379,7 +381,7 @@ pub fn pass_command(
 /// 2. Calls `ClusterCreationHook`.
 ///     2-1. Record cluster address.
 ///     2-2. Create token contract from `config.token_code_id`.
-/// 3. ClusterTokenCreationHook.
+/// 3. `ClusterTokenCreationHook`.
 ///     3-1. Initialize distribution info.
 ///     3-2. Register cluster token to cluster contract and set owner of cluster contract to gov contract.
 ///     3-3. Create astroport pair through astroport factory with `AstroportCreationHook`.
@@ -393,7 +395,7 @@ pub fn pass_command(
 ///
 /// - **info** is an object of type [`MessageInfo`].
 ///
-/// - **params** is an object of type [`Params`] which are the necessary variables
+/// - **params** is an object of type [`Params`] which contains necessary variables
 ///     for creating a new cluster.
 ///
 /// ## Executor
@@ -647,14 +649,14 @@ pub fn cluster_token_creation_hook(
     store_weight(deps.storage, &validated_cluster_token, weight)?;
     increase_total_weight(deps.storage, weight)?;
 
-    // Remove params == clear in-progress registration flag
+    // Clear in-progress registration flag
     remove_params(deps.storage);
     // Save address of the cluster token contract for using after Astroport pair creation
     store_tmp_asset(deps.storage, &validated_cluster_token)?;
     Ok(Response::new()
         .add_messages(vec![
-            // Set the owner of cluster contract to governance, and
-            // add the cluster token contract to the cluster contract config
+            // Set the owner of the cluster contract to the governance contract,
+            // and add the cluster token contract to the cluster contract config
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: validated_cluster_contract.to_string(),
                 funds: vec![],
@@ -702,7 +704,7 @@ pub fn cluster_token_creation_hook(
 }
 
 /// ## Description
-/// Register asset and liquidity (LP) token to LP staking contract.
+/// Register asset and liquidity provider (LP) token to LP staking contract.
 ///
 /// ## Params
 /// - **deps** is an object of type [`DepsMut`].
@@ -827,10 +829,10 @@ pub fn distribute(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
 }
 
 /// ## Definition
-/// Calculates rewards for each LP token staking pool based on the pool weight in the setting.
+/// Calculates rewards for each LP token staking pool based on the pool weight in the settings.
 ///
 /// ## Params
-/// - **storage** is a mutable reference of an object implementing trait [`Storage`].
+/// - **storage** is a reference of an object implementing trait [`Storage`].
 ///
 /// - **target_distribution_amount** is an object of type [`Uint128`] which is the total
 ///     rewards for the current distribution.
@@ -931,8 +933,8 @@ pub fn decommission_cluster(
 ///
 /// - **QueryMsg::ClusterList {}** Returns the list of pairs (cluster contract address, active status).
 ///
-/// - **QueryMsg::DistributionInfo {}** Return last distributed time and reward distribution weights of
-///         all active clusters.
+/// - **QueryMsg::DistributionInfo {}** Returns last distributed time and reward distribution weights of
+///         for the Nebula and cluster LP staking pools.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
@@ -1002,7 +1004,7 @@ pub fn query_clusters(deps: Deps) -> StdResult<ClusterListResponse> {
 /// ## Description
 /// Returns distribution information containing
 /// - The last distributed time.
-/// - The list of pairs (cluster contract address, distribution weight of cluster LP token staking pool).
+/// - The list of pairs (cluster contract address, distribution weight of Nebula / cluster LP token staking pool).
 ///
 /// ## Params
 /// - **deps** is an object of type [`Deps`].

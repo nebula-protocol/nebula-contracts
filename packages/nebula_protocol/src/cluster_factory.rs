@@ -63,16 +63,16 @@ pub enum ExecuteMsg {
         distribution_schedule: Option<Vec<(u64, u64, Uint128)>>,
     },
     /// UpdateWeight changes reward distribution weight of
-    /// the cluster LP token staking pool.
+    /// the Nebula / cluster LP token staking pool.
     UpdateWeight {
-        /// cluster token contract address
+        /// Nebula token or cluster token contract address
         asset_token: String,
-        /// weight for the cluster LP token staking pool
+        /// weight for the Nebula / cluster LP token staking pool
         weight: u32,
     },
     /// CreateCluster creates a new cluster along with necessary components.
     CreateCluster {
-        /// used to create all necessary contract and register contract token
+        /// used to create all necessary contract and register a new cluster token
         params: Params,
     },
     /// DecommissionCluster deactivates an active cluster.
@@ -153,10 +153,10 @@ pub struct ClusterListResponse {
 
 /// ## Description
 /// A custom struct for each query response that returns distribution information containing
-/// last reward distributed time and weights of cluster LP token staking pools.
+/// last reward distributed time and weights of Nebula / cluster LP token staking pools.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct DistributionInfoResponse {
-    /// reward distribution weights of cluster LP token staking pools
+    /// reward distribution weights of Nebula / cluster LP token staking pools
     pub weights: Vec<(String, u32)>,
     /// last reward distributed time
     pub last_distributed: u64,
