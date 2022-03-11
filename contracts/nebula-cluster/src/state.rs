@@ -5,14 +5,17 @@ use nebula_protocol::cluster::ClusterConfig;
 
 /// config: ClusterConfig
 pub static CONFIG_KEY: &[u8] = b"config";
-
 /// target: Vec<u32>
 pub static TARGET_KEY: &[u8] = b"target";
-
 /// asset data: Vec<AssetData>
 pub static ASSET_DATA_KEY: &[u8] = b"asset_data";
 
+/// balance: Uint128
 pub static PREFIX_BALANCE: &[u8] = b"balance";
+
+//////////////////////////////////////////////////////////////////////
+/// CONFIG
+//////////////////////////////////////////////////////////////////////
 
 pub fn config_store(storage: &mut dyn Storage) -> Singleton<ClusterConfig> {
     singleton(storage, CONFIG_KEY)
@@ -26,6 +29,10 @@ pub fn store_config(storage: &mut dyn Storage, config: &ClusterConfig) -> StdRes
     singleton(storage, CONFIG_KEY).save(config)
 }
 
+//////////////////////////////////////////////////////////////////////
+/// ASSET DATA
+//////////////////////////////////////////////////////////////////////
+
 pub fn read_target_asset_data(storage: &dyn Storage) -> StdResult<Vec<Asset>> {
     singleton_read(storage, ASSET_DATA_KEY).load()
 }
@@ -36,6 +43,10 @@ pub fn store_target_asset_data(
 ) -> StdResult<()> {
     singleton(storage, ASSET_DATA_KEY).save(asset_data)
 }
+
+//////////////////////////////////////////////////////////////////////
+/// ASSET BALANCE (INVENTORY)
+//////////////////////////////////////////////////////////////////////
 
 pub fn store_asset_balance(
     storage: &mut dyn Storage,
