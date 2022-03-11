@@ -236,7 +236,7 @@ pub struct Poll {
     /// Poll link
     pub link: Option<String>,
     /// Poll execute data if the poll passes
-    pub execute_data: Option<ExecuteData>,
+    pub execute_data: Option<Vec<ExecuteData>>,
     /// Initial deposit amount
     pub deposit_amount: Uint128,
     /// Total balance at the end poll

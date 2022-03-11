@@ -234,7 +234,7 @@ pub fn receive_cw20(
             title,
             description,
             link,
-            execute_msg,
+            execute_msgs,
         }) => create_poll(
             deps,
             env,
@@ -243,7 +243,7 @@ pub fn receive_cw20(
             title,
             description,
             link,
-            execute_msg,
+            execute_msgs,
         ),
         // If `DepositReward`, deposits a reward to stakers and in-progress polls
         Ok(Cw20HookMsg::DepositReward {}) => deposit_reward(deps, cw20_msg.amount),
@@ -500,7 +500,7 @@ pub fn create_poll(
     title: String,
     description: String,
     link: Option<String>,
-    poll_execute_msg: Option<PollExecuteMsg>,
+    poll_execute_msgs: Option<Vec<PollExecuteMsg>>,
 ) -> Result<Response, ContractError> {
     // Validate srting values
     validate_title(&title)?;
@@ -541,12 +541,21 @@ pub fn create_poll(
     state.total_deposit += deposit_amount;
 
     // Extract the execute data from the message if any
-    let poll_execute_data = if let Some(poll_execute_msg) = poll_execute_msg {
-        Some(ExecuteData {
-            // Validate address format
-            contract: deps.api.addr_validate(poll_execute_msg.contract.as_str())?,
-            msg: poll_execute_msg.msg,
-        })
+    let poll_execute_data = if let Some(poll_execute_msgs) = poll_execute_msgs {
+        Some(
+            poll_execute_msgs
+                .iter()
+                .map(|poll_execute_msg| -> ExecuteData {
+                    ExecuteData {
+                        contract: deps
+                            .api
+                            .addr_validate(poll_execute_msg.contract.as_str())
+                            .unwrap(),
+                        msg: poll_execute_msg.msg.clone(),
+                    }
+                })
+                .collect(),
+        )
     } else {
         None
     };
@@ -734,6 +743,13 @@ pub fn execute_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, C
         ));
     }
 
+    // Check if there is execute data in the poll
+    if a_poll.execute_data.is_none() {
+        return Err(ContractError::Generic(
+            "Poll has no execute data".to_string(),
+        ));
+    }
+
     // Update poll indexer of the poll from Passed to Executed
     poll_indexer_store(deps.storage, &PollStatus::Passed).remove(&poll_id.to_be_bytes());
     poll_indexer_store(deps.storage, &PollStatus::Executed).save(&poll_id.to_be_bytes(), &true)?;
@@ -743,24 +759,8 @@ pub fn execute_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, C
     poll_store(deps.storage).save(&poll_id.to_be_bytes(), &a_poll)?;
 
     // Retrieve the execute messages
-    let mut messages: Vec<SubMsg> = vec![];
-    if let Some(execute_data) = a_poll.execute_data {
-        messages.push(SubMsg {
-            msg: CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: execute_data.contract.to_string(),
-                msg: execute_data.msg,
-                funds: vec![],
-            }),
-            gas_limit: None,
-            id: POLL_EXECUTE_REPLY_ID,
-            reply_on: ReplyOn::Error,
-        });
-        store_tmp_poll_id(deps.storage, a_poll.id)?;
-    } else {
-        return Err(ContractError::Generic(
-            "The poll does not have execute_data".to_string(),
-        ));
-    }
+    let messages: Vec<SubMsg> = a_poll.execute_data.unwrap().iter().map(fill_msg).collect();
+    store_tmp_poll_id(deps.storage, a_poll.id)?;
 
     Ok(Response::new()
         .add_submessages(messages)
@@ -768,6 +768,26 @@ pub fn execute_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, C
             attr("action", "execute_poll"),
             attr("poll_id", poll_id.to_string()),
         ]))
+}
+
+/// ## Description
+/// Extracts `ExecuteData` into Cosmwasm `SubMsg`.
+///
+/// ## Params
+/// - **msg** is a reference to an object of type [`ExecuteData`].
+fn fill_msg(msg: &ExecuteData) -> SubMsg {
+    match msg {
+        ExecuteData { contract, msg } => SubMsg {
+            msg: CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: contract.to_string(),
+                msg: msg.clone(),
+                funds: vec![],
+            }),
+            gas_limit: None,
+            id: POLL_EXECUTE_REPLY_ID,
+            reply_on: ReplyOn::Error,
+        },
+    }
 }
 
 /// ## Description
@@ -1084,10 +1104,17 @@ fn query_poll(deps: Deps, poll_id: u64) -> StdResult<PollResponse> {
         link: poll.link,
         deposit_amount: poll.deposit_amount,
         execute_data: if let Some(execute_data) = poll.execute_data {
-            Some(PollExecuteMsg {
-                contract: execute_data.contract.to_string(),
-                msg: execute_data.msg,
-            })
+            Some(
+                execute_data
+                    .iter()
+                    .map(|poll_execute_msg| -> PollExecuteMsg {
+                        PollExecuteMsg {
+                            contract: poll_execute_msg.contract.to_string(),
+                            msg: poll_execute_msg.msg.clone(),
+                        }
+                    })
+                    .collect(),
+            )
         } else {
             None
         },
@@ -1136,10 +1163,17 @@ fn query_polls(
                 link: poll.link.clone(),
                 deposit_amount: poll.deposit_amount,
                 execute_data: if let Some(execute_data) = poll.execute_data.clone() {
-                    Some(PollExecuteMsg {
-                        contract: execute_data.contract.to_string(),
-                        msg: execute_data.msg,
-                    })
+                    Some(
+                        execute_data
+                            .iter()
+                            .map(|poll_execute_msg| -> PollExecuteMsg {
+                                PollExecuteMsg {
+                                    contract: poll_execute_msg.contract.to_string(),
+                                    msg: poll_execute_msg.msg.clone(),
+                                }
+                            })
+                            .collect(),
+                    )
                 } else {
                     None
                 },

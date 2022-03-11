@@ -126,7 +126,7 @@ pub enum Cw20HookMsg {
         /// poll link
         link: Option<String>,
         /// poll execute message
-        execute_msg: Option<PollExecuteMsg>,
+        execute_msgs: Option<Vec<PollExecuteMsg>>,
     },
     /// DepositReward adds rewards to be distributed among stakers and voters.
     DepositReward {},
@@ -261,7 +261,7 @@ pub struct PollResponse {
     /// Poll initial deposit
     pub deposit_amount: Uint128,
     /// Poll execute data
-    pub execute_data: Option<PollExecuteMsg>,
+    pub execute_data: Option<Vec<PollExecuteMsg>>,
     /// Amount of YES votes
     pub yes_votes: Uint128,
     /// Amount of NO votes
