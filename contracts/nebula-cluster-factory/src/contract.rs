@@ -600,8 +600,8 @@ pub fn _compute_rewards(
                     "cannot distribute zero amount".to_string(),
                 ));
             }
-            amount = amount / Uint128::from(total_weight);
-            distribution_amount = distribution_amount + amount;
+            amount /= Uint128::from(total_weight);
+            distribution_amount += amount;
             Ok((w.0.to_string(), amount))
         })
         .filter(|m| m.is_ok())
