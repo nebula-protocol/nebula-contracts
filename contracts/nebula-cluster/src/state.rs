@@ -37,11 +37,8 @@ pub fn read_target_asset_data(storage: &dyn Storage) -> StdResult<Vec<Asset>> {
     singleton_read(storage, ASSET_DATA_KEY).load()
 }
 
-pub fn store_target_asset_data(
-    storage: &mut dyn Storage,
-    asset_data: &Vec<Asset>,
-) -> StdResult<()> {
-    singleton(storage, ASSET_DATA_KEY).save(asset_data)
+pub fn store_target_asset_data(storage: &mut dyn Storage, asset_data: &[Asset]) -> StdResult<()> {
+    singleton(storage, ASSET_DATA_KEY).save(&asset_data.to_owned())
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -50,14 +47,14 @@ pub fn store_target_asset_data(
 
 pub fn store_asset_balance(
     storage: &mut dyn Storage,
-    asset: &String,
+    asset: &str,
     inventory: &Uint128,
 ) -> StdResult<()> {
     bucket(storage, PREFIX_BALANCE).save(asset.as_bytes(), inventory)
 }
 
-pub fn read_asset_balance(storage: &dyn Storage, asset: &String) -> StdResult<Uint128> {
+pub fn read_asset_balance(storage: &dyn Storage, asset: &str) -> StdResult<Uint128> {
     Ok(bucket_read(storage, PREFIX_BALANCE)
         .load(asset.as_bytes())
-        .unwrap_or(Uint128::zero()))
+        .unwrap_or_else(|_| Uint128::zero()))
 }
