@@ -23,12 +23,12 @@ These contracts hold the core logic of the base protocol.
 Some parts of Nebula such as a Cluster's penalty function or NEB incentive campaigns are also implemented using contracts but are not considered part of the protocol.
 Nebula ships with a couple default ones, and their code is here.
 
-| Contract                                                             | Description                                                      |
-| -------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| [`nebula-penalty`](./contracts/nebula-penalty/)                      | Implementation of a Cluster Penalty Function, used by default    |
-| [`nebula-incentives`](./contracts/nebula-incentives/)                | Implementation of a NEB incentive scheme for Astroport arbitrage |
-| [`nebula-incentives-custody](./contracts/nebula-incentives-custody/) | Custody contract for NEB incentive scheme                        |
-| [`nebula-oracle`](./contracts/nebula-oracle/)                        | Price oracle contract used by the Nebula Protocol                |
+| Contract                                                              | Description                                                      |
+| --------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| [`nebula-penalty`](./contracts/nebula-penalty/)                       | Implementation of a Cluster Penalty Function, used by default    |
+| [`nebula-incentives`](./contracts/nebula-incentives/)                 | Implementation of a NEB incentive scheme for Astroport arbitrage |
+| [`nebula-incentives-custody`](./contracts/nebula-incentives-custody/) | Custody contract for NEB incentive scheme                        |
+| [`nebula-oracle`](./contracts/nebula-oracle/)                         | Price oracle contract used by the Nebula Protocol                |
 
 ## Development
 
