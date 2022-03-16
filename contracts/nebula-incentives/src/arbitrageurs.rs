@@ -477,7 +477,7 @@ pub fn swap_all(
 
         // Calculate the belief price
         // -- belief_price = provided_CT / expected_UST
-        let belief_price = min_return.map(|price| Decimal::from_ratio(amount, price));
+        let belief_price = min_return.map(|expected_ust| Decimal::from_ratio(amount, expected_ust));
 
         // Swap CT -> UST on Astroport pair pool
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -516,8 +516,8 @@ pub fn swap_all(
         let amount = (swap_asset.deduct_tax(&deps.querier)?).amount;
 
         // Calculate the belief price
-        // -- belief_price = expected_UST / provided_CT
-        let belief_price = min_return.map(|price| Decimal::from_ratio(amount, price));
+        // -- belief_price = provided_UST / expected_CT
+        let belief_price = min_return.map(|expected_ct| Decimal::from_ratio(amount, expected_ct));
 
         // Swap UST -> CT on Astroport pair pool
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
