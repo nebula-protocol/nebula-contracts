@@ -102,9 +102,7 @@ fn test_query() {
     deps.querier
         .with_token_balances(&[(&h(NEB_TOKEN), &[(&MOCK_CONTRACT_ADDR.to_string(), &amount)])]);
 
-    let msg = QueryMsg::Balance {
-        custody: MOCK_CONTRACT_ADDR.to_string(),
-    };
+    let msg = QueryMsg::Balance {};
 
     let res = query(deps.as_ref(), mock_env(), msg).unwrap();
     let balance_binary: Binary = from_binary(&res).unwrap();

@@ -11,6 +11,19 @@ use cosmwasm_std::{
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::incentives_custody::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
+/// ## Description
+/// Creates a new contract with the specified parameters packed in the `msg` variable.
+/// Returns a [`Response`] with the specified attributes if the operation was successful,
+/// or a [`ContractError`] if the contract was not created.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **_env** is an object of type [`Env`].
+///
+/// - **_info** is an object of type [`MessageInfo`].
+///
+/// - **msg**  is a message of type [`InstantiateMsg`] which contains the parameters used for creating the contract.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
@@ -18,7 +31,9 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    // Set contract owner
     set_owner(deps.storage, &deps.api.addr_validate(msg.owner.as_str())?)?;
+    // Register Nebula token contract
     set_neb(
         deps.storage,
         &deps.api.addr_validate(msg.nebula_token.as_str())?,
@@ -26,6 +41,26 @@ pub fn instantiate(
     Ok(Response::default())
 }
 
+/// ## Description
+/// Exposes all the execute functions available in the contract.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **env** is an object of type [`Env`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **msg** is an object of type [`ExecuteMsg`].
+///
+/// ## Commands
+/// - **ExecuteMsg::UpdateOwner {
+///             owner
+///         }** Updates the owner of the contract.
+///
+/// - **ExecuteMsg::RequestNeb {
+///             amount
+///         }** Sends Nebula tokens to the message sender.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
@@ -34,11 +69,23 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::RequestNeb { amount } => request_neb(deps, env, info, amount),
         ExecuteMsg::UpdateOwner { owner } => update_owner(deps, info, &owner),
+        ExecuteMsg::RequestNeb { amount } => request_neb(deps, env, info, amount),
     }
 }
 
+/// ## Description
+/// Updates the owner of the contract.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **owner** is a reference to an object of type [`str`] which is the owner to update.
+///
+/// ## Executor
+/// Only the owner can execute this.
 pub fn update_owner(
     deps: DepsMut,
     info: MessageInfo,
@@ -46,11 +93,12 @@ pub fn update_owner(
 ) -> Result<Response, ContractError> {
     let old_owner = read_owner(deps.storage)?;
 
-    // check permission
+    // Permission check
     if info.sender != old_owner {
         return Err(ContractError::Unauthorized {});
     }
 
+    // Set new owner
     set_owner(deps.storage, &deps.api.addr_validate(owner)?)?;
 
     Ok(Response::new().add_attributes(vec![
@@ -60,16 +108,32 @@ pub fn update_owner(
     ]))
 }
 
+/// ## Description
+/// Sends Nebula tokens to the message sender.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **env** is an object of type [`Env`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **amount** is an object of type [`Uint128`] which is an amount of Nebula token requested.
+///
+/// ## Executor
+/// Only the owner can execute this.
 pub fn request_neb(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     amount: Uint128,
 ) -> Result<Response, ContractError> {
+    // Permission check
     if info.sender != read_owner(deps.storage)? {
         return Err(ContractError::Unauthorized {});
     }
 
+    // Send Nebula tokens to the message sender
     Ok(Response::new()
         .add_messages(vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: read_neb(deps.storage)?.to_string(),
@@ -87,16 +151,26 @@ pub fn request_neb(
         ]))
 }
 
+/// ## Description
+/// Exposes all the queries available in the contract.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
+///
+/// - **env** is an object of type [`Env`].
+///
+/// - **msg** is an object of type [`QueryMsg`].
+///
+/// ## Commands
+/// - **QueryMsg::Balance {}** Returns the current Nebula token balance of the incentives custody contract.
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
-        QueryMsg::Balance { custody } => {
+        QueryMsg::Balance {} => {
+            // Get Nebula token contract
             let nebula_token = read_neb(deps.storage)?;
-            let balance = load_token_balance(
-                deps,
-                &nebula_token,
-                &deps.api.addr_validate(custody.as_str())?,
-            )?;
+            // Query Nebula balance of the contract
+            let balance = load_token_balance(deps, &nebula_token, &env.contract.address)?;
             Ok(to_binary(&to_binary(&balance).unwrap())?)
         }
     }
