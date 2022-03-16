@@ -35,18 +35,28 @@ const DEFAULT_LIMIT: u32 = 10;
 //////////////////////////////////////////////////////////////////////
 
 /// ## Description
-/// A custom struct for storing cluster setting.
+/// A custom struct for storing governance setting.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
+    /// Owner of the contract
     pub owner: Addr,
+    ///Nebula token contract
     pub nebula_token: Addr,
+    /// Poll quorum
     pub quorum: Decimal,
+    /// Poll pass threshold
     pub threshold: Decimal,
+    /// Poll voting period
     pub voting_period: u64,
+    /// Poll execution delay after passing
     pub effective_delay: u64,
-    pub expiration_period: u64, // deprecated, to remove on next state migration
+    /// DEPRECATED, to remove on next state migration
+    pub expiration_period: u64,
+    /// Poll initial deposit
     pub proposal_deposit: Uint128,
+    /// Reward weight for voters
     pub voter_weight: Decimal,
+    /// Poll snapshot period for the total stake
     pub snapshot_period: u64,
 }
 
@@ -63,7 +73,7 @@ pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<Config> {
 //////////////////////////////////////////////////////////////////////
 
 /// ## Description
-/// A custom struct for storing cluster state.
+/// A custom struct for storing the governance state.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct State {
     /// Address of the governance contract
@@ -114,6 +124,21 @@ pub fn poll_indexer_store<'a>(
 
 /// ## Description
 /// Returns a list of polls under the provided criterions.
+///
+/// ## Params
+/// - **storage** is a reference to an object implementing trait [`Storage`].
+///
+/// - **filter** is an object of type [`Option<PollStatus>`] which filters polls
+///     based on the specified poll status.
+///
+/// - **start_after** is an object of type [`Option<u64>`] which is a filter for the poll ID.
+///
+/// - **limit** is an object of type [`Option<u32>`] which limits the number of polls in the query result.
+///
+/// - **order_by** is an object of type [`Option<OrderBy>`] which specifies the ordering of the result.
+///
+/// - **remove_hard_cap** is an object of type [`Option<bool>`] which removes the limit on the
+///     number of the result.
 pub fn read_polls<'a>(
     storage: &'a dyn Storage,
     filter: Option<PollStatus>,
@@ -174,6 +199,17 @@ pub fn poll_voter_read(storage: &dyn Storage, poll_id: u64) -> ReadonlyBucket<Vo
 
 /// ## Description
 /// Returns a list of poll voters of the specified `poll_id` under the provided criterions.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
+///
+/// - **poll_id** is an object of type [`u64`].
+///
+/// - **start_after** is an object of type [`Option<String>`] which is a filter for voter address.
+///
+/// - **limit** is an object of type [`Option<u32>`] which limits the number of voters in the query result.
+///
+/// - **order_by** is an object of type [`Option<OrderBy>`] which specifies the ordering of the result.
 pub fn read_poll_voters<'a>(
     storage: &'a dyn Storage,
     poll_id: u64,
@@ -292,6 +328,15 @@ pub fn bank_read(storage: &dyn Storage) -> ReadonlyBucket<TokenManager> {
 
 /// ## Description
 /// Returns a list of stakers under the provided criterions.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
+///
+/// - **start_after** is an object of type [`Option<String>`] which is a filter for staker address.
+///
+/// - **limit** is an object of type [`Option<u32>`] which limits the number of stakers in the query result.
+///
+/// - **order_by** is an object of type [`Option<OrderBy>`] which specifies the ordering of the result.
 pub fn read_bank_stakers<'a>(
     storage: &'a dyn Storage,
     start_after: Option<Addr>,
