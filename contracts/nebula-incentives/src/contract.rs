@@ -279,10 +279,11 @@ pub fn execute(
 pub fn update_owner(
     deps: DepsMut,
     info: MessageInfo,
-    owner: &String,
+    owner: &str,
 ) -> Result<Response, ContractError> {
     // Validate the address
-    let validated_owner = deps.api.addr_validate(owner.as_str())?;
+    let validated_owner = deps.api.addr_validate(owner)?;
+
     let cfg = read_config(deps.storage)?;
 
     // Permission check

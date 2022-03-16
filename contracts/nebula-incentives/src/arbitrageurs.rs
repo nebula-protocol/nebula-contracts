@@ -82,7 +82,7 @@ pub fn arb_cluster_create(
     assert_cluster_exists(deps.as_ref(), &validated_cluster_contract)?;
 
     let mut messages = vec![];
-    let contract = env.contract.address.clone();
+    let contract = env.contract.address;
 
     let cfg: Config = read_config(deps.storage)?;
 
@@ -212,7 +212,7 @@ pub fn arb_cluster_redeem(
     assert_cluster_exists(deps.as_ref(), &validated_cluster_contract)?;
 
     let mut messages = vec![];
-    let contract = env.contract.address.clone();
+    let contract = env.contract.address;
 
     let cfg: Config = read_config(deps.storage)?;
 
@@ -474,12 +474,10 @@ pub fn swap_all(
         // Query CT balance on this incentives contract
         let amount =
             query_token_balance(&deps.querier, cluster_token.clone(), env.contract.address)?;
+
         // Calculate the belief price
         // -- belief_price = provided_CT / expected_UST
-        let belief_price = match min_return {
-            Some(price) => Some(Decimal::from_ratio(amount, price)),
-            None => None,
-        };
+        let belief_price = min_return.map(|price| Decimal::from_ratio(amount, price));
 
         // Swap CT -> UST on Astroport pair pool
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -516,12 +514,10 @@ pub fn swap_all(
 
         // Deduct tax first
         let amount = (swap_asset.deduct_tax(&deps.querier)?).amount;
+
         // Calculate the belief price
         // -- belief_price = expected_UST / provided_CT
-        let belief_price = match min_return {
-            Some(price) => Some(Decimal::from_ratio(amount, price)),
-            None => None,
-        };
+        let belief_price = min_return.map(|price| Decimal::from_ratio(amount, price));
 
         // Swap UST -> CT on Astroport pair pool
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
