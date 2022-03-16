@@ -185,7 +185,8 @@ pub fn update_config(
 ///
 /// - **env** is an object of type [`Env`].
 ///
-/// - **asset_token** is an object of type [`String`] which is an address of CW20 token contract.
+/// - **asset_token** is an object of type [`String`] which is an address of the
+///     CW20 contract to swap/convert.
 pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> Result<Response, ContractError> {
     let validated_asset_token = deps.api.addr_validate(asset_token.as_str())?;
     let config: Config = read_config(deps.storage)?;
