@@ -75,7 +75,7 @@ fn _withdraw_reward(
     staker_addr: &Addr,
     asset_token: &Option<Addr>,
 ) -> Result<Uint128, ContractError> {
-    let rewards_bucket = rewards_read(storage, &staker_addr);
+    let rewards_bucket = rewards_read(storage, staker_addr);
 
     // single reward withdraw
     let reward_pairs: Vec<(Addr, RewardInfo)>;
@@ -114,9 +114,9 @@ fn _withdraw_reward(
 
         // Update rewards info
         if reward_info.pending_reward.is_zero() && reward_info.bond_amount.is_zero() {
-            rewards_store(storage, &staker_addr).remove(asset_token.as_bytes());
+            rewards_store(storage, staker_addr).remove(asset_token.as_bytes());
         } else {
-            rewards_store(storage, &staker_addr).save(asset_token.as_bytes(), &reward_info)?;
+            rewards_store(storage, staker_addr).save(asset_token.as_bytes(), &reward_info)?;
         }
     }
 

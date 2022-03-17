@@ -47,7 +47,7 @@ pub fn query_price(
     }))?;
 
     if std::cmp::min(res.last_updated_quote, res.last_updated_base) < stale_threshold {
-        return Err(StdError::generic_err(format!("oracle prices are stale")));
+        return Err(StdError::generic_err("oracle prices are stale".to_string()));
     }
     Ok(res.rate.to_string().as_str().parse().unwrap())
 }
@@ -177,6 +177,7 @@ pub fn query_collector_contract_address(
 /// - **asset_prices** is an object of type [`Vec<String>`].
 ///
 /// - **target_weights** is an object of type [`Vec<Uint128>`].
+#[allow(clippy::too_many_arguments)]
 pub fn query_create_amount(
     querier: &QuerierWrapper,
     penalty_address: &Addr,
@@ -223,6 +224,7 @@ pub fn query_create_amount(
 /// - **asset_prices** is an object of type [`Vec<String>`].
 ///
 /// - **target_weights** is an object of type [`Vec<Uint128>`].
+#[allow(clippy::too_many_arguments)]
 pub fn query_redeem_amount(
     querier: &QuerierWrapper,
     penalty_address: &Addr,

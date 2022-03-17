@@ -42,7 +42,7 @@ pub fn execute(
 pub fn update_owner(
     deps: DepsMut,
     info: MessageInfo,
-    owner: &String,
+    owner: &str,
 ) -> Result<Response, ContractError> {
     let old_owner = read_owner(deps.storage)?;
 
@@ -51,7 +51,7 @@ pub fn update_owner(
         return Err(ContractError::Unauthorized {});
     }
 
-    set_owner(deps.storage, &deps.api.addr_validate(owner.as_str())?)?;
+    set_owner(deps.storage, &deps.api.addr_validate(owner)?)?;
 
     Ok(Response::new().add_attributes(vec![
         attr("action", "update_owner"),
