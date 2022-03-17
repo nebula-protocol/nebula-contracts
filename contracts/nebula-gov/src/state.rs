@@ -40,7 +40,7 @@ const DEFAULT_LIMIT: u32 = 10;
 pub struct Config {
     /// Owner of the contract
     pub owner: Addr,
-    ///Nebula token contract
+    /// Nebula token contract
     pub nebula_token: Addr,
     /// Poll quorum
     pub quorum: Decimal,
@@ -310,11 +310,11 @@ pub fn poll_read(storage: &dyn Storage) -> ReadonlyBucket<Poll> {
 /// A custom struct for user's bank / token manager.
 #[derive(Default, Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TokenManager {
-    // Total staked share
+    /// Total staked share
     pub share: Uint128,
-    // A list of poll_id and vote amount
+    /// A list of poll_id and vote amount
     pub locked_balance: Vec<(u64, VoterInfo)>,
-    // A list of the voter's participating poll_id.
+    /// A list of the voter's participating poll_id.
     pub participated_polls: Vec<u64>,
 }
 

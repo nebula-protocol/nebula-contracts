@@ -37,7 +37,7 @@ pub enum ExecuteMsg {
     /// NEBULA TOKEN
     /////////////////////
 
-    /// Recieve calls a hook message after receiving CW20 asset.
+    /// Receive calls a hook message after receiving CW20 asset.
     Receive(Cw20ReceiveMsg),
 
     /////////////////////
@@ -114,7 +114,7 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Cw20HookMsg {
-    /// StakeVotingTokens a user can stake their nebula token to receive rewards
+    /// StakeVotingTokens a user can stake their Nebula token to receive rewards
     /// or do vote on polls.
     StakeVotingTokens {},
     /// CreatePoll needs to receive deposit from a proposer.
