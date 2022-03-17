@@ -85,7 +85,7 @@ fn query_target(deps: Deps) -> StdResult<TargetResponse> {
 /// - **stale_threshold** is an object of type [`u64`].
 pub fn query_cluster_state(
     deps: Deps,
-    cluster_contract_address: &String,
+    cluster_contract_address: &str,
     stale_threshold: u64,
 ) -> StdResult<ClusterStateResponse> {
     let cfg = &read_config(deps.storage)?;
@@ -121,7 +121,7 @@ pub fn query_cluster_state(
             query_price(
                 &deps.querier,
                 &cfg.pricing_oracle,
-                &asset_info,
+                asset_info,
                 stale_threshold,
             )
         })
@@ -145,7 +145,7 @@ pub fn query_cluster_state(
         target: target_asset_data,
         penalty: cfg.penalty.to_string(),
         cluster_token: cluster_token.to_string(),
-        cluster_contract_address: cluster_contract_address.clone(),
+        cluster_contract_address: cluster_contract_address.to_string(),
         active,
     })
 }

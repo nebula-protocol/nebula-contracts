@@ -265,7 +265,7 @@ pub fn create(
 
     let target_infos = target.iter().map(|x| x.info.clone()).collect::<Vec<_>>();
 
-    let native_coin_denoms = target_infos
+    let mut native_coin_denoms_iter = target_infos
         .iter()
         .filter(|info| info.is_native_token())
         .map(|info| {
@@ -276,10 +276,9 @@ pub fn create(
                 )),
             }
             .unwrap()
-        })
-        .collect::<Vec<_>>();
+        });
 
-    let target_weights = target.iter().map(|x| x.amount.clone()).collect::<Vec<_>>();
+    let target_weights = target.iter().map(|x| x.amount).collect::<Vec<_>>();
 
     let cluster_token = cluster_state.cluster_token;
 
@@ -290,7 +289,7 @@ pub fn create(
 
     // Return an error if assets not in target are sent to the create function
     for coin in info.funds.iter() {
-        if !native_coin_denoms.contains(&coin.denom) {
+        if !native_coin_denoms_iter.any(|x| x == coin.denom) {
             return Err(ContractError::Generic(
                 "Unsupported assets were sent to the create function".to_string(),
             ));
@@ -398,7 +397,7 @@ pub fn create(
                 contract_addr: cluster_token.to_string(),
                 msg: to_binary(&Cw20ExecuteMsg::Mint {
                     amount: protocol_fee,
-                    recipient: collector_address.to_string(),
+                    recipient: collector_address,
                 })?,
                 funds: vec![],
             }));
@@ -460,7 +459,7 @@ pub fn create(
 
     // Mint and send cluster tokens to the sender
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: cluster_token.to_string(),
+        contract_addr: cluster_token,
         msg: to_binary(&Cw20ExecuteMsg::Mint {
             amount: mint_amount_to_sender,
             recipient: info.sender.to_string(),
@@ -518,7 +517,7 @@ pub fn receive_redeem(
 
     let cluster_token = cfg
         .cluster_token
-        .ok_or_else(|| ContractError::ClusterTokenNotSet {})?;
+        .ok_or(ContractError::ClusterTokenNotSet {})?;
 
     // Use min as stale threshold if pro-rata redeem
     // - custom redeem: need asset prices to convert cluster tokens to assets
@@ -543,15 +542,15 @@ pub fn receive_redeem(
 
     let asset_infos = target.iter().map(|x| x.info.clone()).collect::<Vec<_>>();
 
-    let target_weights = target.iter().map(|x| x.amount.clone()).collect::<Vec<_>>();
+    let target_weights = target.iter().map(|x| x.amount).collect::<Vec<_>>();
 
     let asset_amounts: Vec<Uint128> = match &asset_amounts {
         Some(weights) => {
             let mut vec: Vec<Uint128> = vec![Uint128::zero(); asset_infos.len()];
             for i in 0..asset_infos.len() {
-                for j in 0..weights.len() {
-                    if weights[j].info == asset_infos[i] {
-                        vec[i] = weights[j].amount;
+                for weight in weights {
+                    if weight.info == asset_infos[i] {
+                        vec[i] = weight.amount;
                         break;
                     }
                 }
@@ -606,13 +605,13 @@ pub fn receive_redeem(
         .filter(|(amt, _asset)| !amt.is_zero()) // remove 0 amounts
         .map(|(amt, asset_info)| {
             if let AssetInfo::Token { contract_addr, .. } = &asset_info {
-                update_asset_balance(deps.storage, &contract_addr.to_string(), amt.clone(), false)?;
+                update_asset_balance(deps.storage, &contract_addr.to_string(), *amt, false)?;
             } else if let AssetInfo::NativeToken { denom } = &asset_info {
-                update_asset_balance(deps.storage, denom, amt.clone(), false)?;
+                update_asset_balance(deps.storage, denom, *amt, false)?;
             }
             let asset = Asset {
                 info: asset_info.clone(),
-                amount: amt.clone(),
+                amount: *amt,
             };
 
             match asset.into_msg(&deps.querier, sender.clone()) {
@@ -637,7 +636,7 @@ pub fn receive_redeem(
             msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
                 owner: sender.to_string(),
                 amount: fee_amt,
-                recipient: collector_address.to_string(),
+                recipient: collector_address,
             })?,
             funds: vec![],
         }));
@@ -701,12 +700,12 @@ pub fn receive_redeem(
 ///     operation is mint or burn.
 fn update_asset_balance(
     storage: &mut dyn Storage,
-    asset_id: &String,
+    asset_id: &str,
     amount: Uint128,
     mint: bool,
 ) -> Result<(), ContractError> {
     //  Get the asset balance of the cluster contract corresponding to `asset_id`
-    let mut asset_amount = match read_asset_balance(storage, &asset_id) {
+    let mut asset_amount = match read_asset_balance(storage, asset_id) {
         Ok(amount) => amount,
         Err(_) => Uint128::zero(),
     };
@@ -719,7 +718,7 @@ fn update_asset_balance(
     };
 
     // Save the new asset balance
-    store_asset_balance(storage, &asset_id, &asset_amount)?;
+    store_asset_balance(storage, asset_id, &asset_amount)?;
     Ok(())
 }
 
@@ -744,10 +743,10 @@ pub fn update_target(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    target: &Vec<Asset>,
+    target: &[Asset],
 ) -> Result<Response, ContractError> {
     let cfg = read_config(deps.storage)?;
-    if let None = cfg.cluster_token {
+    if cfg.cluster_token.is_none() {
         return Err(ContractError::ClusterTokenNotSet {});
     }
 
@@ -761,7 +760,7 @@ pub fn update_target(
         return Err(ContractError::Unauthorized {});
     }
 
-    let mut asset_data = target.clone();
+    let mut asset_data = target.to_owned();
 
     // Create new vectors for logging and validation purpose
     // `update_asset_infos` contains the list of new assets
@@ -769,7 +768,7 @@ pub fn update_target(
     let (mut updated_asset_infos, mut updated_target_weights): (Vec<AssetInfo>, Vec<Uint128>) =
         asset_data
             .iter()
-            .map(|x| (x.info.clone(), x.amount.clone()))
+            .map(|x| (x.info.clone(), x.amount))
             .unzip();
 
     // Check `updated_asset_infos` for duplicate and unsupported assets
@@ -781,7 +780,7 @@ pub fn update_target(
     let (prev_assets, prev_target): (Vec<AssetInfo>, Vec<Uint128>) =
         read_target_asset_data(deps.storage)?
             .iter()
-            .map(|x| (x.info.clone(), x.amount.clone()))
+            .map(|x| (x.info.clone(), x.amount))
             .unzip();
 
     // When previous assets are not found,
@@ -793,7 +792,7 @@ pub fn update_target(
             }
             AssetInfo::NativeToken { denom } => read_asset_balance(deps.storage, denom),
         }?;
-        if !inv_balance.is_zero() && !updated_asset_infos.contains(&prev_asset) {
+        if !inv_balance.is_zero() && !updated_asset_infos.contains(prev_asset) {
             let asset_elem = Asset {
                 info: prev_asset.clone(),
                 amount: Uint128::zero(),
@@ -829,7 +828,7 @@ pub fn update_target(
 /// Only the factory contract can execute this.
 pub fn decommission(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
     let cfg = read_config(deps.storage)?;
-    if let None = cfg.cluster_token {
+    if cfg.cluster_token.is_none() {
         return Err(ContractError::ClusterTokenNotSet {});
     }
     // Permission check - can only be decommissioned by the factory contract
