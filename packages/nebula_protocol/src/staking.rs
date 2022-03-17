@@ -22,7 +22,7 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-    /// Recieve calls a hook message after receiving CW20 asset.
+    /// Receive calls a hook message after receiving CW20 asset.
     Receive(Cw20ReceiveMsg),
 
     /////////////////////
