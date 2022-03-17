@@ -305,17 +305,17 @@ pub fn update_ema(
     cfg.ema = get_ema(deps.as_ref(), block_height, net_asset_val)?;
     cfg.last_block = block_height;
     store_config(deps.storage, &cfg)?;
-    Ok(Response::new().add_attributes(vec![attr("new_ema", &format!("{}", cfg.ema.to_string()))]))
+    Ok(Response::new().add_attributes(vec![attr("new_ema", cfg.ema.to_string())]))
 }
 
 pub fn execute_mint(
     deps: DepsMut,
     block_height: u64,
     _cluster_token_supply: &Uint128,
-    inventory: &Vec<Uint128>,
-    _create_asset_amounts: &Vec<Uint128>,
-    asset_prices: &Vec<String>,
-    _target_weights: &Vec<Uint128>,
+    inventory: &[Uint128],
+    _create_asset_amounts: &[Uint128],
+    asset_prices: &[String],
+    _target_weights: &[Uint128],
 ) -> Result<Response, ContractError> {
     let i = int_vec_to_fpdec(inventory);
     let p = str_vec_to_fpdec(asset_prices)?;

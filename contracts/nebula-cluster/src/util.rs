@@ -3,7 +3,7 @@
 ///
 /// ## Params
 /// - **v** is an object of type [`&Vec<T>`] where `T` is any types implementing `ToString`.
-pub fn vec_to_string<T>(v: &Vec<T>) -> String
+pub fn vec_to_string<T>(v: &[T]) -> String
 where
     T: ToString,
 {

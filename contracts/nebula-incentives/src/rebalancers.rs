@@ -54,7 +54,7 @@ pub fn cluster_imbalance(deps: Deps, cluster_contract: &Addr) -> StdResult<Uint1
     let target_weights = cluster_state
         .target
         .iter()
-        .map(|x| x.amount.clone())
+        .map(|x| x.amount)
         .collect::<Vec<_>>();
 
     let w = int_vec_to_fpdec(&target_weights);
@@ -166,6 +166,7 @@ pub fn internal_rewarded_create(
         .add_attributes(vec![attr("action", "internal_rewarded_mint")]))
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn internal_rewarded_redeem(
     deps: DepsMut,
     env: Env,

@@ -104,7 +104,7 @@ pub fn receive_cw20(
         }
         Cw20HookMsg::DepositReward { rewards } => {
             // only reward token contract can execute this message
-            if config.nebula_token != info.sender.to_string() {
+            if config.nebula_token != info.sender {
                 return Err(ContractError::Unauthorized {});
             }
 

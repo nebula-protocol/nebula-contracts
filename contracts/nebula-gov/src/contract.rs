@@ -541,24 +541,20 @@ pub fn create_poll(
     state.total_deposit += deposit_amount;
 
     // Extract the execute data from the message if any
-    let poll_execute_data = if let Some(poll_execute_msgs) = poll_execute_msgs {
-        Some(
-            poll_execute_msgs
-                .iter()
-                .map(|poll_execute_msg| -> ExecuteData {
-                    ExecuteData {
-                        contract: deps
-                            .api
-                            .addr_validate(poll_execute_msg.contract.as_str())
-                            .unwrap(),
-                        msg: poll_execute_msg.msg.clone(),
-                    }
-                })
-                .collect(),
-        )
-    } else {
-        None
-    };
+    let poll_execute_data = poll_execute_msgs.map(|poll_execute_msgs| {
+        poll_execute_msgs
+            .iter()
+            .map(|poll_execute_msg| -> ExecuteData {
+                ExecuteData {
+                    contract: deps
+                        .api
+                        .addr_validate(poll_execute_msg.contract.as_str())
+                        .unwrap(),
+                    msg: poll_execute_msg.msg.clone(),
+                }
+            })
+            .collect()
+    });
 
     // Validate address format
     let sender_address = deps.api.addr_validate(proposer.as_str())?;
@@ -776,17 +772,16 @@ pub fn execute_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, C
 /// ## Params
 /// - **msg** is a reference to an object of type [`ExecuteData`].
 fn fill_msg(msg: &ExecuteData) -> SubMsg {
-    match msg {
-        ExecuteData { contract, msg } => SubMsg {
-            msg: CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: contract.to_string(),
-                msg: msg.clone(),
-                funds: vec![],
-            }),
-            gas_limit: None,
-            id: POLL_EXECUTE_REPLY_ID,
-            reply_on: ReplyOn::Error,
-        },
+    let ExecuteData { contract, msg } = msg;
+    SubMsg {
+        msg: CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: contract.to_string(),
+            msg: msg.clone(),
+            funds: vec![],
+        }),
+        gas_limit: None,
+        id: POLL_EXECUTE_REPLY_ID,
+        reply_on: ReplyOn::Error,
     }
 }
 
@@ -851,7 +846,7 @@ pub fn cast_vote(
     let key = sender_address.as_bytes();
 
     // Check the voter already has a vote on the poll
-    if poll_voter_read(deps.storage, poll_id).load(&key).is_ok() {
+    if poll_voter_read(deps.storage, poll_id).load(key).is_ok() {
         return Err(ContractError::Generic("User has already voted".to_string()));
     }
 
@@ -1103,21 +1098,17 @@ fn query_poll(deps: Deps, poll_id: u64) -> StdResult<PollResponse> {
         description: poll.description,
         link: poll.link,
         deposit_amount: poll.deposit_amount,
-        execute_data: if let Some(execute_data) = poll.execute_data {
-            Some(
-                execute_data
-                    .iter()
-                    .map(|poll_execute_msg| -> PollExecuteMsg {
-                        PollExecuteMsg {
-                            contract: poll_execute_msg.contract.to_string(),
-                            msg: poll_execute_msg.msg.clone(),
-                        }
-                    })
-                    .collect(),
-            )
-        } else {
-            None
-        },
+        execute_data: poll.execute_data.map(|execute_data| {
+            execute_data
+                .iter()
+                .map(|poll_execute_msg| -> PollExecuteMsg {
+                    PollExecuteMsg {
+                        contract: poll_execute_msg.contract.to_string(),
+                        msg: poll_execute_msg.msg.clone(),
+                    }
+                })
+                .collect()
+        }),
         yes_votes: poll.yes_votes,
         no_votes: poll.no_votes,
         abstain_votes: poll.abstain_votes,
@@ -1162,21 +1153,17 @@ fn query_polls(
                 description: poll.description.to_string(),
                 link: poll.link.clone(),
                 deposit_amount: poll.deposit_amount,
-                execute_data: if let Some(execute_data) = poll.execute_data.clone() {
-                    Some(
-                        execute_data
-                            .iter()
-                            .map(|poll_execute_msg| -> PollExecuteMsg {
-                                PollExecuteMsg {
-                                    contract: poll_execute_msg.contract.to_string(),
-                                    msg: poll_execute_msg.msg.clone(),
-                                }
-                            })
-                            .collect(),
-                    )
-                } else {
-                    None
-                },
+                execute_data: poll.execute_data.clone().map(|execute_data| {
+                    execute_data
+                        .iter()
+                        .map(|poll_execute_msg| -> PollExecuteMsg {
+                            PollExecuteMsg {
+                                contract: poll_execute_msg.contract.to_string(),
+                                msg: poll_execute_msg.msg.clone(),
+                            }
+                        })
+                        .collect()
+                }),
                 yes_votes: poll.yes_votes,
                 no_votes: poll.no_votes,
                 abstain_votes: poll.abstain_votes,
@@ -1237,7 +1224,7 @@ fn query_voters(
         read_poll_voters(
             deps.storage,
             poll_id,
-            Some(deps.api.addr_validate(&start_after.as_str())?),
+            Some(deps.api.addr_validate(start_after.as_str())?),
             limit,
             order_by,
         )?
