@@ -108,7 +108,7 @@ pub fn auto_stake(
     // assert the token and lp token match with pool info
     let pool_info: PoolInfo = read_pool_info(deps.storage, &token_addr)?;
 
-    if pool_info.staking_token != astroport_pair.liquidity_token.clone() {
+    if pool_info.staking_token != astroport_pair.liquidity_token {
         return Err(ContractError::Invalid("staking token".to_string()));
     }
 
@@ -232,8 +232,8 @@ fn _increase_bond_amount(
     pool_info.total_bond_amount += amount;
 
     reward_info.bond_amount += amount;
-    rewards_store(storage, &staker_addr).save(asset_token.as_bytes(), &reward_info)?;
-    store_pool_info(storage, &asset_token, &pool_info)?;
+    rewards_store(storage, staker_addr).save(asset_token.as_bytes(), &reward_info)?;
+    store_pool_info(storage, asset_token, &pool_info)?;
 
     Ok(())
 }
@@ -244,9 +244,9 @@ fn _decrease_bond_amount(
     asset_token: &Addr,
     amount: Uint128,
 ) -> Result<Addr, ContractError> {
-    let mut pool_info: PoolInfo = read_pool_info(storage, &asset_token)?;
+    let mut pool_info: PoolInfo = read_pool_info(storage, asset_token)?;
     let mut reward_info: RewardInfo =
-        rewards_read(storage, &staker_addr).load(asset_token.as_bytes())?;
+        rewards_read(storage, staker_addr).load(asset_token.as_bytes())?;
 
     if reward_info.bond_amount < amount {
         return Err(ContractError::Generic(
@@ -264,13 +264,13 @@ fn _decrease_bond_amount(
 
     // Update rewards info
     if reward_info.pending_reward.is_zero() && reward_info.bond_amount.is_zero() {
-        rewards_store(storage, &staker_addr).remove(asset_token.as_bytes());
+        rewards_store(storage, staker_addr).remove(asset_token.as_bytes());
     } else {
-        rewards_store(storage, &staker_addr).save(asset_token.as_bytes(), &reward_info)?;
+        rewards_store(storage, staker_addr).save(asset_token.as_bytes(), &reward_info)?;
     }
 
     // Update pool info
-    store_pool_info(storage, &asset_token, &pool_info)?;
+    store_pool_info(storage, asset_token, &pool_info)?;
 
     Ok(pool_info.staking_token)
 }

@@ -36,7 +36,7 @@ pub fn validate_targets(
             }
         }
     }
-    return Ok(());
+    Ok(())
 }
 
 /// ## Description
@@ -84,11 +84,7 @@ pub fn instantiate(
         .collect::<Vec<_>>();
 
     // Get asset target weights from the provided `target`
-    let weights = msg
-        .target
-        .iter()
-        .map(|x| x.amount.clone())
-        .collect::<Vec<_>>();
+    let weights = msg.target.iter().map(|x| x.amount).collect::<Vec<_>>();
 
     // Target weights must not be zero
     for w in weights.iter() {
