@@ -15,6 +15,7 @@ use tefi_oracle::hub::{
 };
 use terra_cosmwasm::{ExchangeRatesResponse, TerraQuerier};
 
+/// A constant for converting `Decimal` to `Uint128`
 const DECIMAL_FRACTIONAL: Uint128 = Uint128::new(1_000_000_000u128);
 
 /// ## Description
