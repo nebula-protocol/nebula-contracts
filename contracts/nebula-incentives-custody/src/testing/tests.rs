@@ -105,8 +105,7 @@ fn test_query() {
     let msg = QueryMsg::Balance {};
 
     let res = query(deps.as_ref(), mock_env(), msg).unwrap();
-    let balance_binary: Binary = from_binary(&res).unwrap();
-    let balance: Uint128 = from_binary(&balance_binary).unwrap();
+    let balance: Uint128 = from_binary(&res).unwrap();
     assert_eq!(balance, amount);
 }
 
