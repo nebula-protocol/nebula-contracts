@@ -171,7 +171,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             let nebula_token = read_neb(deps.storage)?;
             // Query Nebula balance of the contract
             let balance = load_token_balance(deps, &nebula_token, &env.contract.address)?;
-            Ok(to_binary(&to_binary(&balance).unwrap())?)
+            Ok(to_binary(&balance)?)
         }
     }
 }
