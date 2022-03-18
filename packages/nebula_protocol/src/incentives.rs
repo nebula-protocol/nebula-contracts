@@ -33,7 +33,7 @@ pub enum ExecuteMsg {
     /// OWNER CALLABLE
     /////////////////////
 
-    /// UpdateConfig updates contract owner.
+    /// UpdateOwner updates contract owner.
     UpdateOwner {
         /// address to claim the contract ownership
         owner: String,
@@ -118,21 +118,27 @@ pub enum ExecuteMsg {
     ArbClusterCreate {
         /// cluster contract
         cluster_contract: String,
+        /// assets offerred for minting
         assets: Vec<Asset>,
+        /// minimum returned UST when arbitraging
         min_ust: Option<Uint128>,
     },
     /// ArbClusterRedeem executes arbitrage on Astroport to get CT and perform the redeem operation.
     ArbClusterRedeem {
         /// cluster contract
         cluster_contract: String,
+        /// UST amount
         asset: Asset,
+        /// minimum returned cluster tokens when arbitraging
         min_cluster: Option<Uint128>,
     },
     /// IncentivesCreate executes the create operation on a specific cluster.
     IncentivesCreate {
         /// cluster contract
         cluster_contract: String,
+        /// assets offerred for minting
         asset_amounts: Vec<Asset>,
+        /// minimum cluster tokens returned
         min_tokens: Option<Uint128>,
     },
     /// IncentivesRedeem executes the redeem operation on a specific cluster.
@@ -141,6 +147,7 @@ pub enum ExecuteMsg {
         cluster_contract: String,
         /// maximum amount of cluster tokens (CT) allowed to be burned
         max_tokens: Uint128,
+        /// specific asset amounts returned from burning cluster tokens
         asset_amounts: Option<Vec<Asset>>,
     },
     /// Receive calls a hook message after receiving CW20 asset.
