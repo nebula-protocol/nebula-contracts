@@ -165,8 +165,8 @@ pub fn record_rebalancer_rewards(
 /// - **cluster_contract** is an object of type [`Addr`] which is the address of
 ///     the cluster contract corresponding to the rebalance.
 ///
-/// - **asset_amounts** is an array containing objects of type [`Asset`] which is a list
-///     of assets offerred to mint cluster tokens.
+/// - **asset_amounts** is a reference to an array containing objects of type [`Asset`]
+///     which is a list of assets offerred to mint cluster tokens.
 ///
 /// - **min_tokens** is an object of type [`Option<Uint128>`] which is the minimum required
 ///     amount of cluster tokens minted from this create operation.

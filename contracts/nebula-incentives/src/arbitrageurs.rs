@@ -550,8 +550,8 @@ pub fn swap_all(
 ///
 /// - **info** is an object of type [`MessageInfo`].
 ///
-/// - **asset_infos** is an array containing objects of type [`AssetInfo`] which is a list
-///     of assets to be transferred.
+/// - **asset_infos** is a reference to an array containing objects of type [`AssetInfo`]
+///     which is a list of assets to be transferred.
 ///
 /// - **send_to** is an object of type [`Addr`] which is the address of the receiver.
 ///
