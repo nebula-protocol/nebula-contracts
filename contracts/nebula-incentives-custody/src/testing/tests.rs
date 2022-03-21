@@ -3,7 +3,7 @@ use crate::error::ContractError;
 use crate::state::{read_neb, read_owner};
 use crate::testing::mock_querier::mock_dependencies;
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
-use cosmwasm_std::{attr, from_binary, to_binary, Binary, CosmosMsg, SubMsg, Uint128, WasmMsg};
+use cosmwasm_std::{attr, from_binary, to_binary, CosmosMsg, SubMsg, Uint128, WasmMsg};
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::incentives_custody::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
@@ -102,13 +102,10 @@ fn test_query() {
     deps.querier
         .with_token_balances(&[(&h(NEB_TOKEN), &[(&MOCK_CONTRACT_ADDR.to_string(), &amount)])]);
 
-    let msg = QueryMsg::Balance {
-        custody: MOCK_CONTRACT_ADDR.to_string(),
-    };
+    let msg = QueryMsg::Balance {};
 
     let res = query(deps.as_ref(), mock_env(), msg).unwrap();
-    let balance_binary: Binary = from_binary(&res).unwrap();
-    let balance: Uint128 = from_binary(&balance_binary).unwrap();
+    let balance: Uint128 = from_binary(&res).unwrap();
     assert_eq!(balance, amount);
 }
 
