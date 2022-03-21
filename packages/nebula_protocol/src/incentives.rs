@@ -29,6 +29,9 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
+    /// Receive calls a hook message after receiving CW20 asset.
+    Receive(Cw20ReceiveMsg),
+
     /////////////////////
     /// OWNER CALLABLE
     /////////////////////
@@ -150,8 +153,6 @@ pub enum ExecuteMsg {
         /// specific asset amounts returned from burning cluster tokens
         asset_amounts: Option<Vec<Asset>>,
     },
-    /// Receive calls a hook message after receiving CW20 asset.
-    Receive(Cw20ReceiveMsg),
     /// Withdraw withdraws all rewards for the sender.
     Withdraw {},
 }
