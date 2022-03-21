@@ -6,15 +6,25 @@ use cosmwasm_std::{Addr, StdResult, Storage};
 use cosmwasm_storage::{singleton, singleton_read, Singleton};
 use nebula_protocol::penalty::PenaltyParams;
 
-/// config: ClusterConfig
+/// config: PenaltyConfig
 pub static CONFIG_KEY: &[u8] = b"config";
 
+//////////////////////////////////////////////////////////////////////
+/// CONFIG
+//////////////////////////////////////////////////////////////////////
+
+/// ## Description
+/// A custom struct for storing penalty contract setting.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct PenaltyConfig {
+    /// Owner of the contract, cluster contract
     pub owner: Addr,
+    /// General parameters of the panalty contract
     pub penalty_params: PenaltyParams,
 
+    /// Last rebalanced EMA
     pub ema: FPDecimal,
+    /// Last rebalanced block
     pub last_block: u64,
 }
 
