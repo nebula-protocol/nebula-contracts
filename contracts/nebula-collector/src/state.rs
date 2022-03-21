@@ -4,15 +4,26 @@ use serde::{Deserialize, Serialize};
 use cosmwasm_std::{Addr, StdResult, Storage};
 use cosmwasm_storage::{singleton, singleton_read};
 
+/// config: Config
 static KEY_CONFIG: &[u8] = b"config";
 
+//////////////////////////////////////////////////////////////////////
+/// CONFIG
+//////////////////////////////////////////////////////////////////////
+
+/// ## Description
+/// This structure holds the collector contract configurations.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
-    pub distribution_contract: Addr, // collected rewards receiver
-    pub astroport_factory: Addr,     // astroport factory contract
+    // Collected rewards receiver (Governance contract)
+    pub distribution_contract: Addr,
+    // Astroport factory contract
+    pub astroport_factory: Addr,
+    // Nebula token contract
     pub nebula_token: Addr,
+    // Base denom, UST
     pub base_denom: String,
-    // factory contract
+    // Owner address, factory contract
     pub owner: Addr,
 }
 
