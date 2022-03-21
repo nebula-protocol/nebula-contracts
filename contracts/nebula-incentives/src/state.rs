@@ -249,7 +249,7 @@ pub fn contributions_to_pending_rewards(
         let pool_bucket = pool_info_read(storage, pool_type, contribution.n);
         let pool_info = read_from_pool_bucket(&pool_bucket, cluster_address);
 
-        // using integers here .. do we care if the remaining fractions of nebula stay in this contract?
+        // Use integers here .. do we care if the remaining fractions of nebula stay in this contract?
         let new_pending_reward = read_pending_rewards(storage, contributor_address)
             + Uint128::new(
                 pool_info.reward_total.u128() * contribution.value_contributed.u128()

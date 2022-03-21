@@ -272,7 +272,8 @@ pub fn execute(
 ///
 /// - **info** is an object of type [`MessageInfo`].
 ///
-/// - **owner** is a reference to an object of type [`String`].
+/// - **owner** is a reference to an object of type [`String`] which is an
+///     address to claim the ownership of the contract.
 ///
 /// ## Executor
 /// Only the owner can execute this.

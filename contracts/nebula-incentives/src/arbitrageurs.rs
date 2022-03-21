@@ -22,7 +22,7 @@ use cluster_math::FPDecimal;
 use std::str::FromStr;
 
 /// ## Description
-/// Queries the given CT-UST pair info from Astroport
+/// Queries the given CT-UST pair info from Astroport.
 ///
 /// ## Params
 /// - **deps** is an object of type [`Deps`].
@@ -46,12 +46,12 @@ pub fn get_pair_info(deps: Deps, cluster_token: &Addr) -> StdResult<PairInfo> {
 }
 
 /// ## Description
-/// Executes the create operation and uses CT to arbitrage on Astroport.
-///  Assets -> UST
-///  1. mint
-///  2. swap_all
-///  3. record difference
-///  4. send_all
+/// Executes the create operation and uses cluster tokens (CT) to arbitrage on Astroport.
+/// #### Assets -> UST
+/// 1. Mint cluster tokens (CT) from the provided assets
+/// 2. Swap all cluster tokens to UST on Astroport
+/// 3. Record difference / change in Astroport pool before and after the swap
+/// 4. Send all UST to the arbitrageur
 ///
 /// ## Params
 /// - **deps** is an object of type [`DepsMut`].
@@ -176,12 +176,12 @@ pub fn arb_cluster_create(
 }
 
 /// ## Description
-/// Executes arbitrage on Astroport to get CT and perform the redeem operation.
-///  UST -> Assets
-///  1. swap_all
-///  2. record difference
-///  3. redeem
-///  4. send_all
+/// Executes arbitrage on Astroport to get cluster tokens (CT) and performs the redeem operation.
+/// #### UST -> Assets
+/// 1. Swap all sent UST to cluster tokens (CT) on Astroport
+/// 2. Record difference / change in Astroport pool before and after the swap
+/// 3. Redeem the cluster tokens into the cluster's underlying assets
+/// 4. Send all the redeemed assets to the arbitrageur
 ///
 /// ## Params
 /// - **deps** is an object of type [`DepsMut`].
@@ -541,7 +541,7 @@ pub fn swap_all(
 }
 
 /// ## Description
-/// Send all specified assets to an address
+/// Send all specified assets to an address.
 ///
 /// ## Params
 /// - **deps** is an object of type [`DepsMut`].
