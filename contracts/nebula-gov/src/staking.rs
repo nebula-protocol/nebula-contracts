@@ -46,9 +46,11 @@ pub fn stake_voting_tokens(
     let config: Config = config_store(deps.storage).load()?;
     let mut state: State = state_store(deps.storage).load()?;
 
-    // Compute the current total stake
-    // Governance total Nebula balance = total stake + total deposit + all voting rewards
-    // -- Balance already increased, so subtract deposit amount
+    // Compute the total stake without the new stake `amount`
+    // -- Governance total Nebula balance = total stake + total deposit + all voting rewards
+    //                                    = (prev total stake + `amount`) + total locked balance
+    //
+    // -- Prev total stake = governance total Nebula balance - (total locked balance + `amount`)
     let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
     let total_balance =
         load_token_balance(&deps.querier, &config.nebula_token, &state.contract_addr)?
@@ -164,9 +166,10 @@ pub fn withdraw_voting_tokens(
 /// ## Params
 /// - **storage** is a mutable reference to an object implementing trait [`Storage`].
 ///
-/// - **token_manager** is a mutable reference to an object of type [`TokenManager`].
+/// - **token_manager** is a mutable reference to an object of type [`TokenManager`] which is an governance
+///     related information of the withdrawing account.
 ///
-/// - **voter** is a reference to an object of type [`Addr`].
+/// - **voter** is a reference to an object of type [`Addr`] which is the voter address.
 fn compute_locked_balance(
     storage: &mut dyn Storage,
     token_manager: &mut TokenManager,
@@ -201,7 +204,8 @@ fn compute_locked_balance(
 }
 
 /// ## Description
-/// Splits the deposited rewards to in-progress proposals based on `voter_weight` in the configuration.
+/// Splits the deposited rewards to Nebula stakers and proposal voters based on `voter_weight` in
+/// the configuration.
 ///
 /// ## Params
 /// - **deps** is an object of type [`DepsMut`].
@@ -258,14 +262,14 @@ pub fn deposit_reward(deps: DepsMut, amount: Uint128) -> Result<Response, Contra
 }
 
 /// ## Description
-/// Withdraws rewards from all proposals or one specific proposal.
+/// Withdraws voting rewards from all proposals or one specific proposal.
 ///
 /// ## Params
 /// - **deps** is an object of type [`DepsMut`].
 ///
 /// - **info** is an object of type [`MessageInfo`].
 ///
-/// - **poll_id** is an object of type [`Option<u64>`] which is the poll ID to withdraw a reward from.
+/// - **poll_id** is an object of type [`Option<u64>`] which is the poll ID to withdraw a voting reward from.
 pub fn withdraw_voting_rewards(
     deps: DepsMut,
     info: MessageInfo,
@@ -311,14 +315,14 @@ pub fn withdraw_voting_rewards(
 }
 
 /// ## Description
-/// Stakes rewards back to governance from all proposals or one specific proposal.
+/// Stakes voting rewards back to governance from all proposals or one specific proposal.
 ///
 /// ## Params
 /// - **deps** is an object of type [`DepsMut`].
 ///
 /// - **info** is an object of type [`MessageInfo`].
 ///
-/// - **poll_id** is an object of type [`Option<u64>`] which is the poll ID to withdraw a reward from.
+/// - **poll_id** is an object of type [`Option<u64>`] which is the poll ID to stake a voting reward.
 pub fn stake_voting_rewards(
     deps: DepsMut,
     info: MessageInfo,
@@ -394,7 +398,7 @@ pub fn stake_voting_rewards(
 /// - **token_manager** is a reference to an object of type [`TokenManager`] which is an governance
 ///     related information of the withdrawing account.
 ///
-/// - **poll_id** is an object of type [`Option<u64>`] which is the poll ID to withdraw a reward from.
+/// - **poll_id** is an object of type [`Option<u64>`] which is the poll ID to withdraw a voting reward from.
 fn withdraw_user_voting_rewards(
     storage: &mut dyn Storage,
     user_address: &Addr,

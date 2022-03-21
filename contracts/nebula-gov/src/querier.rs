@@ -36,9 +36,9 @@ pub fn load_token_balance(
 /// Concatenates two `u8` arrays.
 ///
 /// ## Params
-/// - **namespace** is a reference to an object of type [`u8`].
+/// - **namespace** is a reference to an array containing objects of type [`u8`].
 ///
-/// - **key** is a reference to an object of type [`u8`].
+/// - **key** is a reference to an array containing objects of type [`u8`].
 #[inline]
 fn concat(namespace: &[u8], key: &[u8]) -> Vec<u8> {
     let mut k = namespace.to_vec();

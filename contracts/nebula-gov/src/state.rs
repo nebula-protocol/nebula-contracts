@@ -203,7 +203,7 @@ pub fn poll_voter_read(storage: &dyn Storage, poll_id: u64) -> ReadonlyBucket<Vo
 /// ## Params
 /// - **deps** is an object of type [`Deps`].
 ///
-/// - **poll_id** is an object of type [`u64`].
+/// - **poll_id** is an object of type [`u64`] which is the poll ID.
 ///
 /// - **start_after** is an object of type [`Option<String>`] which is a filter for voter address.
 ///
@@ -374,7 +374,7 @@ pub fn read_bank_stakers<'a>(
 //////////////////////////////////////////////////////////////////////
 
 /// ## Description
-/// Set the first key after the provided key, by appending a 1 byte.
+/// Set the first key after the provided key, by appending a byte.
 fn calc_range_start(start_after: Option<u64>) -> Option<Vec<u8>> {
     start_after.map(|id| {
         let mut v = id.to_be_bytes().to_vec();
@@ -384,13 +384,13 @@ fn calc_range_start(start_after: Option<u64>) -> Option<Vec<u8>> {
 }
 
 /// ## Description
-/// Set the first key after the provided key, by appending a 1 byte.
+/// Set the first key after the provided key, by appending a byte.
 fn calc_range_end(start_after: Option<u64>) -> Option<Vec<u8>> {
     start_after.map(|id| id.to_be_bytes().to_vec())
 }
 
 /// ## Description
-/// Set the first key after the provided key, by appending a 1 byte
+/// Set the first key after the provided key, by appending a byte
 fn calc_range_start_addr(start_after: Option<Addr>) -> Option<Vec<u8>> {
     start_after.map(|addr| {
         let mut v = addr.as_bytes().to_vec();
@@ -400,7 +400,7 @@ fn calc_range_start_addr(start_after: Option<Addr>) -> Option<Vec<u8>> {
 }
 
 /// ## Description
-/// Set the first key after the provided key, by appending a 1 byte
+/// Set the first key after the provided key, by appending a byte
 fn calc_range_end_addr(start_after: Option<Addr>) -> Option<Vec<u8>> {
     start_after.map(|addr| addr.as_bytes().to_vec())
 }

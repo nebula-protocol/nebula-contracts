@@ -41,7 +41,7 @@ const MAX_LINK_LENGTH: usize = 128;
 /// Maximum number of open polls at a time
 const MAX_POLLS_IN_PROGRESS: usize = 50;
 
-/// Reply ID of a submessage in execute poll
+/// Reply ID of submessages in execute poll
 const POLL_EXECUTE_REPLY_ID: u64 = 1;
 
 /// ## Description
@@ -56,7 +56,7 @@ const POLL_EXECUTE_REPLY_ID: u64 = 1;
 ///
 /// - **info** is an object of type [`MessageInfo`].
 ///
-/// - **msg**  is a message of type [`InstantiateMsg`] which contains the parameters used for creating the contract.
+/// - **msg** is a message of type [`InstantiateMsg`] which contains the parameters used for creating the contract.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
@@ -126,15 +126,15 @@ pub fn instantiate(
 ///
 /// - **ExecuteMsg::WithdrawVotingTokens {
 ///             amount,
-///         }** Withdraws `amount` of Nebula token if not staked.
+///         }** Withdraws `amount` of Nebula token if not locked.
 ///
 /// - **ExecuteMsg::WithdrawVotingRewards {
 ///             poll_id,
-///         }** Withdraws rewards from `poll_id` or all rewards if not specified.
+///         }** Withdraws rewards from `poll_id` or all voting rewards if not specified.
 ///
 /// - **ExecuteMsg::StakeVotingRewards {
 ///             poll_id,
-///         }** Stakes rewards from `poll_id` or all rewards if not specified.
+///         }** Stakes voting rewards from `poll_id` or all voting rewards if not specified.
 ///
 /// - **ExecuteMsg::CastVote {
 ///             poll_id,
@@ -295,7 +295,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
 ///
 /// - **voting_period** is an object of type [`Option<u64>`] which is a poll voting period.
 ///
-/// - **effective_day** is an object of type [`Option<u64>`] which is a new delay time for
+/// - **effective_delay** is an object of type [`Option<u64>`] which is a new delay time for
 ///     a poll to be executed after reaching the voting period.
 ///
 /// - **proposal_deposit** is an object of type [`Option<Uint128>`] which is a minimum deposit
@@ -377,7 +377,7 @@ pub fn update_config(
 /// Returns an error if the title is invalid.
 ///
 /// ## Params
-/// - **title** is a reference to an object of type [`str`].
+/// - **title** is a reference to an object of type [`str`] which is the poll title.
 fn validate_title(title: &str) -> Result<(), ContractError> {
     if title.len() < MIN_TITLE_LENGTH {
         Err(ContractError::ValueTooShort("Title".to_string()))
@@ -392,7 +392,7 @@ fn validate_title(title: &str) -> Result<(), ContractError> {
 /// Returns an error if the description is invalid.
 ///
 /// ## Params
-/// - **description** is a reference to an object of type [`str`].
+/// - **description** is a reference to an object of type [`str`] which is the poll description.
 fn validate_description(description: &str) -> Result<(), ContractError> {
     if description.len() < MIN_DESC_LENGTH {
         Err(ContractError::ValueTooShort("Description".to_string()))
@@ -407,7 +407,7 @@ fn validate_description(description: &str) -> Result<(), ContractError> {
 /// Returns an error if link is not none but invalid.
 ///
 /// ## Params
-/// - **link** is a reference to an object of type [`Option<String>`].
+/// - **link** is a reference to an object of type [`Option<String>`] which is the poll information link.
 fn validate_link(link: &Option<String>) -> Result<(), ContractError> {
     if let Some(link) = link {
         if link.len() < MIN_LINK_LENGTH {
@@ -426,7 +426,7 @@ fn validate_link(link: &Option<String>) -> Result<(), ContractError> {
 /// Returns an error if the quorum is invalid, require 0-1.
 ///
 /// ## Params
-/// - **quorum** is a reference to an object of type [`Decimal`].
+/// - **quorum** is a reference to an object of type [`Decimal`] which is a quorum for a poll.
 fn validate_quorum(quorum: Decimal) -> Result<(), ContractError> {
     if quorum > Decimal::one() {
         Err(ContractError::ValueOutOfRange(
@@ -443,7 +443,7 @@ fn validate_quorum(quorum: Decimal) -> Result<(), ContractError> {
 /// Returns an error if the threshold is invalid, require 0-1.
 ///
 /// ## Params
-/// - **threshold** is a reference to an object of type [`Decimal`].
+/// - **threshold** is a reference to an object of type [`Decimal`] which is a threshold for a poll.
 fn validate_threshold(threshold: Decimal) -> Result<(), ContractError> {
     if threshold > Decimal::one() {
         Err(ContractError::ValueOutOfRange(
@@ -460,7 +460,8 @@ fn validate_threshold(threshold: Decimal) -> Result<(), ContractError> {
 /// Returns an error if the voter weight is invalid, require 0-1.
 ///
 /// ## Params
-/// - **voter_weight** is a reference to an object of type [`Decimal`].
+/// - **voter_weight** is a reference to an object of type [`Decimal`] which is a reward distribution
+///     weight for poll voters.
 pub fn validate_voter_weight(voter_weight: Decimal) -> Result<(), ContractError> {
     if voter_weight >= Decimal::one() {
         Err(ContractError::Generic(
@@ -489,7 +490,7 @@ pub fn validate_voter_weight(voter_weight: Decimal) -> Result<(), ContractError>
 ///
 /// - **link** is an object of type [`Option<String>`] which is the poll related information link.
 ///
-/// - **poll_execute_msg** is an object of type [`Option<PollExecuteMsg>`] which is the message
+/// - **poll_execute_msgs** is an object of type [`Option<Vec<PollExecuteMsg>>`] which are the messages
 ///     to be executed if the poll succeeds.
 #[allow(clippy::too_many_arguments)]
 pub fn create_poll(
@@ -502,7 +503,7 @@ pub fn create_poll(
     link: Option<String>,
     poll_execute_msgs: Option<Vec<PollExecuteMsg>>,
 ) -> Result<Response, ContractError> {
-    // Validate srting values
+    // Validate string values
     validate_title(&title)?;
     validate_description(&description)?;
     validate_link(&link)?;
@@ -585,7 +586,7 @@ pub fn create_poll(
     poll_indexer_store(deps.storage, &PollStatus::InProgress)
         .save(&poll_id.to_be_bytes(), &true)?;
 
-    // Update the governance all poll state
+    // Update the governance state
     state_store(deps.storage).save(&state)?;
 
     let r = Response::new().add_attributes(vec![
@@ -605,7 +606,7 @@ pub fn create_poll(
 ///
 /// - **env** is an object of type [`Env`].
 ///
-/// - **poll_id** is an object of type [`u64`].
+/// - **poll_id** is an object of type [`u64`] which is the poll ID to be ended.
 pub fn end_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, ContractError> {
     let mut a_poll: Poll = poll_store(deps.storage).load(&poll_id.to_be_bytes())?;
 
@@ -719,7 +720,7 @@ pub fn end_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, Contr
 ///
 /// - **env** is an object of type [`Env`].
 ///
-/// - **poll_id** is an object of type [`u64`].
+/// - **poll_id** is an object of type [`u64`] which is the poll ID to be executed.
 pub fn execute_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, ContractError> {
     let config: Config = config_read(deps.storage).load()?;
     let mut a_poll: Poll = poll_store(deps.storage).load(&poll_id.to_be_bytes())?;
@@ -767,10 +768,10 @@ pub fn execute_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, C
 }
 
 /// ## Description
-/// Extracts `ExecuteData` into Cosmwasm `SubMsg`.
+/// Extracts `ExecuteData` into CosmWasm `SubMsg`.
 ///
 /// ## Params
-/// - **msg** is a reference to an object of type [`ExecuteData`].
+/// - **msg** is a reference to an object of type [`ExecuteData`] which is a poll execute message.
 fn fill_msg(msg: &ExecuteData) -> SubMsg {
     let ExecuteData { contract, msg } = msg;
     SubMsg {
@@ -791,7 +792,7 @@ fn fill_msg(msg: &ExecuteData) -> SubMsg {
 /// ## Params
 /// - **deps** is an object of type [`DepsMut`].
 ///
-/// - **poll_id** is an object of type [`u64`].
+/// - **poll_id** is an object of type [`u64`] which is the poll ID to be marked as failed.
 pub fn failed_poll(deps: DepsMut, poll_id: u64) -> Result<Response, ContractError> {
     let mut a_poll: Poll = poll_store(deps.storage).load(&poll_id.to_be_bytes())?;
 
@@ -815,11 +816,11 @@ pub fn failed_poll(deps: DepsMut, poll_id: u64) -> Result<Response, ContractErro
 ///
 /// - **info** is an object of type [`MessageInfo`].
 ///
-/// - **poll_id** is an object of type [`u64`].
+/// - **poll_id** is an object of type [`u64`] which is the poll ID to vote on.
 ///
-/// - **vote** is an object of type [`VoteOption`].
+/// - **vote** is an object of type [`VoteOption`] which is the vote option.
 ///
-/// - **amount** is an object of type [`Uint128`].
+/// - **amount** is an object of type [`Uint128`] which is the amount to vote.
 pub fn cast_vote(
     deps: DepsMut,
     env: Env,
@@ -919,7 +920,7 @@ pub fn cast_vote(
 ///
 /// - **env** is an object of type [`Env`].
 ///
-/// - **poll_id** is an object of tyoe [`u64`].
+/// - **poll_id** is an object of type [`u64`] which is the poll ID to be snapshotted.
 pub fn snapshot_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, ContractError> {
     let config: Config = config_read(deps.storage).load()?;
     // Get the poll and check if the status is in-progress
@@ -1082,7 +1083,7 @@ fn query_state(deps: Deps) -> StdResult<StateResponse> {
 /// ## Params
 /// - **deps** is an object of type [`Deps`].
 ///
-/// - **poll_id** is an object of type [`u64`].
+/// - **poll_id** is an object of type [`u64`] which is the poll ID to be queried.
 fn query_poll(deps: Deps, poll_id: u64) -> StdResult<PollResponse> {
     let poll = match poll_read(deps.storage).may_load(&poll_id.to_be_bytes())? {
         Some(poll) => poll,
@@ -1185,9 +1186,9 @@ fn query_polls(
 /// ## Params
 /// - **deps** is an object of type [`Deps`].
 ///
-/// - **poll_id** is an object of type [`u64`].
+/// - **poll_id** is an object of type [`u64`] which is the poll ID to be queried for a voter.
 ///
-/// - **address** is an object of type [`String`].
+/// - **address** is an object of type [`String`] which is the voter address.
 fn query_voter(deps: Deps, poll_id: u64, address: String) -> StdResult<VotersResponseItem> {
     // Query the vote information of the address from the storage
     let voter: VoterInfo = poll_voter_read(deps.storage, poll_id)
@@ -1205,7 +1206,7 @@ fn query_voter(deps: Deps, poll_id: u64, address: String) -> StdResult<VotersRes
 /// ## Params
 /// - **deps** is an object of type [`Deps`].
 ///
-/// - **poll_id** is an object of type [`u64`].
+/// - **poll_id** is an object of type [`u64`] which is the poll ID to be queried for its voters.
 ///
 /// - **start_after** is an object of type [`Option<String>`] which is a filter for voter address.
 ///
