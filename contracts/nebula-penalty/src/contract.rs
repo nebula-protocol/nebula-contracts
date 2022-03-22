@@ -12,8 +12,8 @@ use cluster_math::{
     add, div_const, dot, imbalance, int_vec_to_fpdec, mul_const, str_vec_to_fpdec, sub, FPDecimal,
 };
 use nebula_protocol::penalty::{
-    ExecuteMsg, InstantiateMsg, ParamsResponse, PenaltyCreateResponse, PenaltyParams,
-    PenaltyRedeemResponse, QueryMsg,
+    ConfigResponse, ExecuteMsg, InstantiateMsg, ParamsResponse, PenaltyCreateResponse,
+    PenaltyParams, PenaltyRedeemResponse, QueryMsg,
 };
 use std::cmp::{max, min};
 
@@ -366,6 +366,7 @@ pub fn update_ema(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
+        QueryMsg::Config {} => to_binary(&query_config(deps)?),
         QueryMsg::Params {} => to_binary(&get_params(deps)?),
         QueryMsg::PenaltyQueryCreate {
             block_height,
@@ -402,6 +403,21 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             &target_weights,
         )?),
     }
+}
+
+/// ## Description
+/// Returns general contract parameters using a custom [`ConfigResponse`] structure.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
+pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
+    let state = read_config(deps.storage)?;
+    let resp = ConfigResponse {
+        owner: state.owner.to_string(),
+        penalty_params: state.penalty_params,
+    };
+
+    Ok(resp)
 }
 
 /// ## Description

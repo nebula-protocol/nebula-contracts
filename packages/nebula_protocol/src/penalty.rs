@@ -70,6 +70,9 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    /// Config returns contract settings specified in the custom [`ConfigResponse`] structure.
+    Config {},
+
     /// Params returns general contract parameters using a custom [`ParamsResponse`] structure.
     Params {},
 
@@ -106,6 +109,12 @@ pub enum QueryMsg {
         /// current target weights of the assets in a cluster
         target_weights: Vec<Uint128>,
     },
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct ConfigResponse {
+    pub owner: String,
+    pub penalty_params: PenaltyParams,
 }
 
 /// ## Description
