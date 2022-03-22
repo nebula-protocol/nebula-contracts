@@ -50,7 +50,7 @@ The Gov Contract keeps a balance of NEB tokens, which it uses to reward stakers 
 - `threshold`: minimum percentage of yes votes required for a poll to pass
 - `voting_period`: number of blocks during which votes can be cast
 - `effective_delay`: number of blocks after a poll passes to apply changes
-- `proposal_deposit`: minimum MIR deposit required for a new poll to be submitted
+- `proposal_deposit`: minimum NEB deposit required for a new poll to be submitted
 - `voter_weight`: ratio of protocol fee which will be distributed among the governance poll voters
 - `snapshot_period`: minimum number of blocks before the end of voting period which snapshot could be taken to lock the current quorum for a poll
 
@@ -98,7 +98,7 @@ Updates contract variables
 - `threshold`: Minimum percentage of yes votes required for a poll to pass
 - `voting_period`: Number of blocks during which votes can be cast
 - `effective_delay`: Number of blocks after a poll passes to apply changes
-- `proposal_deposit`: Minimum MIR deposit required for a new poll to be submitted
+- `proposal_deposit`: Minimum NEB deposit required for a new poll to be submitted
 - `voter_weight`: Ratio of protocol fee which will be distributed among the governance poll voters
 - `snapshot_period`: Minimum number of blocks before the end of voting period which snapshot could be taken to lock the current quorum for a poll
 
@@ -198,11 +198,10 @@ Can be issued by anyone to implement into action the contents of a passed poll. 
 
 ## Receive Hook (CW20ReceiveMsg)
 
-WARNING: If you send NEB tokens to the Gov contract without issuing this hook, they will not be staked and will be irrevocably donated to the reward pool for stakers.
-
+**WARNING: If you send NEB tokens to the Gov contract without issuing this hook, they will not be staked and will be irrevocably donated to the reward pool for stakers.**
 ### StakeVotingTokens
 
-Issued when sending NEB tokens to the Gov contract to add them to their MIR staking position.
+Issued when sending NEB tokens to the Gov contract to add them to their NEB staking position.
 
 ```json
 {
@@ -243,7 +242,7 @@ The `ExecuteData` type then has the following structure:
 
 ### DepositReward
 
-Reward is distributed between NEB stakers and governance poll voters based on voter_weight when rewards are sent from the [`collector`]((../nebula-collector/)) contract.
+Reward is distributed between NEB stakers and governance poll voters based on `voter_weight` when rewards are sent from the [`collector`]((../nebula-collector/)) contract.
 
 ```json
 {
