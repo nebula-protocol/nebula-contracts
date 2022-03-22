@@ -16,7 +16,7 @@ use crate::rebalancers::{
 use crate::rewards::{deposit_reward, increment_n, withdraw_reward};
 use crate::state::{
     contributions_read, pool_info_read, read_config, read_current_n, read_from_contribution_bucket,
-    read_from_pool_bucket, store_config, store_current_n, Config,
+    read_from_pool_bucket, read_pending_rewards, store_config, store_current_n, Config,
 };
 use cw20::Cw20ReceiveMsg;
 use nebula_protocol::incentives::{
@@ -564,16 +564,24 @@ pub fn query_contributor_pending_rewards(
         }
     }
 
+    // Get pending rewards that were moved to `pending_rewards` due to
+    // newer contributions in the current penalty period
+    let mut pending_rewards = read_pending_rewards(
+        deps.storage,
+        &deps.api.addr_validate(contributor_address.as_str())?,
+    );
+
     // Get the lastest penalty period
     let n = read_current_n(deps.storage)?;
-    let mut pending_rewards = Uint128::zero();
+    // Get rewards from older contributions that are not moved as there
+    // is no contribution in the current penalty period replacing them
     for (pool_type, asset_address) in contribution_tuples {
         let contribution_bucket =
             contributions_read(deps.storage, &validated_contributor, **pool_type);
         // Get the latest contribution on the cluster of a specific pool type
         let contribution = read_from_contribution_bucket(&contribution_bucket, &asset_address);
 
-        // The reward is not already claimed, and the contribution is in the lastest period
+        // The reward from older penalty period is still here
         if contribution.value_contributed != Uint128::zero() && contribution.n != n {
             // Get the total rewards a pool type in the cluster
             let pool_bucket = pool_info_read(deps.storage, **pool_type, contribution.n);
