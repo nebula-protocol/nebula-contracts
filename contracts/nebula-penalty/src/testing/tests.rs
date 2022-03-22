@@ -8,8 +8,8 @@ use cluster_math::{
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{attr, from_binary, Addr, DepsMut, Env, StdError, Timestamp, Uint128};
 use nebula_protocol::penalty::{
-    ExecuteMsg, InstantiateMsg, ParamsResponse, PenaltyCreateResponse, PenaltyParams,
-    PenaltyRedeemResponse, QueryMsg,
+    ConfigResponse, ExecuteMsg, InstantiateMsg, ParamsResponse, PenaltyCreateResponse,
+    PenaltyParams, PenaltyRedeemResponse, QueryMsg,
 };
 use std::str::FromStr;
 
@@ -406,4 +406,22 @@ fn test_update_config() {
     let query_res: ParamsResponse =
         from_binary(&query(deps.as_ref(), mock_env(), query_msg).unwrap()).unwrap();
     assert_eq!(query_res.penalty_params, penalty_params);
+}
+
+#[test]
+fn test_query_config() {
+    let mut deps = mock_dependencies(&[]);
+    mock_init(deps.as_mut());
+
+    let msg = QueryMsg::Config {};
+
+    let res = query(deps.as_ref(), mock_env(), msg).unwrap();
+    let config: ConfigResponse = from_binary(&res).unwrap();
+    assert_eq!(
+        config,
+        ConfigResponse {
+            owner: TEST_CREATOR.to_string(),
+            penalty_params: init_params()
+        }
+    );
 }
