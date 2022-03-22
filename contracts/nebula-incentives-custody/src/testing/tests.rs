@@ -3,9 +3,9 @@ use crate::error::ContractError;
 use crate::state::{read_neb, read_owner};
 use crate::testing::mock_querier::mock_dependencies;
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
-use cosmwasm_std::{attr, from_binary, to_binary, Binary, CosmosMsg, SubMsg, Uint128, WasmMsg};
+use cosmwasm_std::{attr, from_binary, to_binary, CosmosMsg, SubMsg, Uint128, WasmMsg};
 use cw20::Cw20ExecuteMsg;
-use nebula_protocol::incentives_custody::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use nebula_protocol::incentives_custody::{ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
 
 const OWNER: &str = "owner0000";
 const NEB_TOKEN: &str = "nebula_token0000";
@@ -88,7 +88,7 @@ fn test_request_neb() {
 }
 
 #[test]
-fn test_query() {
+fn test_query_balance() {
     let msg = InstantiateMsg {
         owner: h(OWNER),
         nebula_token: h(NEB_TOKEN),
@@ -102,18 +102,34 @@ fn test_query() {
     deps.querier
         .with_token_balances(&[(&h(NEB_TOKEN), &[(&MOCK_CONTRACT_ADDR.to_string(), &amount)])]);
 
-    let msg = QueryMsg::Balance {
-        custody: MOCK_CONTRACT_ADDR.to_string(),
-    };
+    let msg = QueryMsg::Balance {};
 
     let res = query(deps.as_ref(), mock_env(), msg).unwrap();
-    let balance_binary: Binary = from_binary(&res).unwrap();
-    let balance: Uint128 = from_binary(&balance_binary).unwrap();
+    let balance: Uint128 = from_binary(&res).unwrap();
     assert_eq!(balance, amount);
 }
 
 #[test]
-fn test_update_owner() {
+fn test_query_config() {
+    let msg = InstantiateMsg {
+        owner: h(OWNER),
+        nebula_token: h(NEB_TOKEN),
+    };
+
+    let info = mock_info(OWNER, &[]);
+    let mut deps = mock_dependencies(&[]);
+    let _res = instantiate(deps.as_mut(), mock_env(), info, msg)
+        .expect("contract successfully executes InstantiateMsg");
+
+    let msg = QueryMsg::Config {};
+
+    let res = query(deps.as_ref(), mock_env(), msg).unwrap();
+    let config: ConfigResponse = from_binary(&res).unwrap();
+    assert_eq!(config, ConfigResponse { owner: h(OWNER) });
+}
+
+#[test]
+fn test_update_config() {
     let msg = InstantiateMsg {
         owner: h(OWNER),
         nebula_token: h(NEB_TOKEN),
@@ -125,14 +141,14 @@ fn test_update_owner() {
         .expect("contract successfully executes InstantiateMsg");
 
     let info = mock_info("random", &[]);
-    let msg = ExecuteMsg::UpdateOwner {
+    let msg = ExecuteMsg::UpdateConfig {
         owner: h("owner0001"),
     };
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
     assert_eq!(res, ContractError::Unauthorized {});
 
     let info = mock_info(OWNER, &[]);
-    let msg = ExecuteMsg::UpdateOwner {
+    let msg = ExecuteMsg::UpdateConfig {
         owner: h("owner0001"),
     };
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -144,7 +160,7 @@ fn test_update_owner() {
     assert_eq!(
         res.attributes,
         vec![
-            attr("action", "update_owner"),
+            attr("action", "update_config"),
             attr("old_owner", OWNER),
             attr("new_owner", "owner0001")
         ]

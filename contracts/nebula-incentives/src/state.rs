@@ -4,21 +4,38 @@ use serde::{Deserialize, Serialize};
 use cosmwasm_std::{Addr, DepsMut, StdResult, Storage, Uint128};
 use cosmwasm_storage::{singleton, singleton_read, Bucket, ReadonlyBucket};
 
+/// config: Config
 static KEY_CONFIG: &[u8] = b"config";
+/// current penalty period: u64
 static CURRENT_N: &[u8] = b"current_n";
 
+/// pending rewards: Uint128
 static PREFIX_PENDING_REWARDS: &[u8] = b"pending_rewards";
 
+/// pool info: Bucket<pool_type, penalty_period>; cluster_addr -> PoolInfo
 static PREFIX_POOL_INFO: &[u8] = b"pool_info";
+/// reward: Bucket<contributor, pool_type>; cluster_addr -> PoolContribution
 static PREFIX_REWARD: &[u8] = b"reward";
 
+//////////////////////////////////////////////////////////////////////
+/// CONFIG
+//////////////////////////////////////////////////////////////////////
+
+/// ## Description
+/// A custom struct for storing the incentives contract setting.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
+    /// Owner of the contract
     pub owner: Addr,
+    /// Cluster factory contract
     pub factory: Addr,
+    /// Custody contract
     pub custody: Addr,
-    pub astroport_factory: Addr, // astroport factory contract
+    /// Astroport factory contract
+    pub astroport_factory: Addr,
+    /// Nebula token contract
     pub nebula_token: Addr,
+    /// Base denom, UST
     pub base_denom: String,
 }
 
@@ -30,6 +47,10 @@ pub fn read_config(storage: &dyn Storage) -> StdResult<Config> {
     singleton_read(storage, KEY_CONFIG).load()
 }
 
+//////////////////////////////////////////////////////////////////////
+/// PENALTY PERIOD
+//////////////////////////////////////////////////////////////////////
+
 pub fn store_current_n(storage: &mut dyn Storage, n: u64) -> StdResult<()> {
     singleton(storage, CURRENT_N).save(&n)
 }
@@ -38,14 +59,40 @@ pub fn read_current_n(storage: &dyn Storage) -> StdResult<u64> {
     singleton_read(storage, CURRENT_N).load()
 }
 
-// each pool is derived from a combination of n, pool_type, and cluster_address
+//////////////////////////////////////////////////////////////////////
+/// PENDING REWARDS
+//////////////////////////////////////////////////////////////////////
+
+pub fn store_pending_rewards(
+    storage: &mut dyn Storage,
+    contributor: &Addr,
+    amt: Uint128,
+) -> StdResult<()> {
+    // Amount of Nebula each person is owed
+    Bucket::new(storage, PREFIX_PENDING_REWARDS).save(contributor.as_bytes(), &amt)
+}
+
+pub fn read_pending_rewards(storage: &dyn Storage, contributor: &Addr) -> Uint128 {
+    match ReadonlyBucket::new(storage, PREFIX_PENDING_REWARDS).load(contributor.as_bytes()) {
+        Ok(pending_reward) => pending_reward,
+        Err(_) => Uint128::zero(),
+    }
+}
+
+//////////////////////////////////////////////////////////////////////
+/// POOL INFO (bucket multilevel)
+//////////////////////////////////////////////////////////////////////
+
+/// ## Description
+/// A custom struct for recording the total contribution value and rewards.
+/// Each user share of `reward_total` is proportional to their share of value_total.
+///
+/// Each `PoolInfo` is derived from a combination of n, pool_type, and cluster_address.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct PoolInfo {
-    // records some value and the rewards distributed among
-    // users who contributed to the value
-    // your share of reward_total is proportional to your
-    // share of value_total
+    /// Total contributions among users
     pub value_total: Uint128,
+    /// Total rewards to be distributed
     pub reward_total: Uint128,
 }
 
@@ -76,33 +123,35 @@ pub fn read_from_pool_bucket(
     }
 }
 
-// amount of nebula each person is owed
-pub fn store_pending_rewards(
-    storage: &mut dyn Storage,
-    contributor: &Addr,
-    amt: Uint128,
-) -> StdResult<()> {
-    Bucket::new(storage, PREFIX_PENDING_REWARDS).save(contributor.as_bytes(), &amt)
-}
+//////////////////////////////////////////////////////////////////////
+/// POOL REWARD (bucket multilevel)
+//////////////////////////////////////////////////////////////////////
 
-pub fn read_pending_rewards(storage: &dyn Storage, contributor: &Addr) -> Uint128 {
-    match ReadonlyBucket::new(storage, PREFIX_PENDING_REWARDS).load(contributor.as_bytes()) {
-        Ok(pending_reward) => pending_reward,
-        Err(_) => Uint128::zero(),
-    }
-}
-
-// each pool contribution is derived from a combination of pool_type, cluster_address,
-// and the owner address. the pool contribution stores the contribution of a given owner
-// to some (pool_type, cluster_address) pool that hasn't yet been transformed into a pending
-// reward
+/// ## Description
+/// A custom struct for storing the contribution of a given address to some
+/// (pool_type, cluster_address) pool that hasn't yet been transformed into a pending
+/// reward
+///
+/// Each `PoolContribution` is derived from a combination of pool_type, cluster_address,
+/// and the owner address.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct PoolContribution {
+    /// Penalty period of this pool latest contribution
     pub n: u64,
+    /// How much a user has contributed to this pool
     pub value_contributed: Uint128,
 }
 
-/// returns a bucket with all contributions from this owner (query it by owner)
+/// ## Description
+/// Returns a bucket with all contributions owned by an address.
+///
+/// ## Params
+/// - **storage** is a mutable reference to an object implementing trait [`Storage`].
+///
+/// - **contributor** is a reference to an object of type [`Addr`] which is the
+///     address of a contributor.
+///
+/// - **pool_type** is an object of type [`u16`] which is the type of pool rewards.
 pub fn contributions_store<'a>(
     storage: &'a mut dyn Storage,
     contributor: &Addr,
@@ -112,14 +161,23 @@ pub fn contributions_store<'a>(
         storage,
         &[
             PREFIX_REWARD,
-            &contributor.as_bytes(),
+            contributor.as_bytes(),
             &pool_type.to_be_bytes(),
         ],
     )
 }
 
-/// returns a bucket with all contributions owned by this owner for this pool type
+/// ## Description
+/// Returns a bucket with all contributions owned by an address.
 /// (read-only version for queries)
+///
+/// ## Params
+/// - **storage** is a reference to an object implementing trait [`Storage`].
+///
+/// - **contributor** is a reference to an object of type [`Addr`] which is the
+///     address of a contributor.
+///
+/// - **pool_type** is an object of type [`u16`] which is the type of pool rewards.
 pub fn contributions_read<'a>(
     storage: &'a dyn Storage,
     contributor: &Addr,
@@ -129,13 +187,21 @@ pub fn contributions_read<'a>(
         storage,
         &[
             PREFIX_REWARD,
-            &contributor.as_bytes(),
+            contributor.as_bytes(),
             &pool_type.to_be_bytes(),
         ],
     )
 }
 
-// bucket over all cluster
+/// ## Description
+/// Returns `PoolContribution` of a specific cluster from a bucket over all cluster.
+///
+/// ## Params
+/// - **bucket** is a reference to an object of type [`ReadonlyBucket<PoolContribution>`]
+///     which is a bucket corresponding to the contributor and pool type.
+///
+/// - **cluster_address** is a reference to an object of type [`Addr`] which is the
+///     address of a cluster contract.
 pub fn read_from_contribution_bucket(
     bucket: &ReadonlyBucket<PoolContribution>,
     cluster_address: &Addr,
@@ -149,40 +215,72 @@ pub fn read_from_contribution_bucket(
     }
 }
 
-// utility functions for state
+//////////////////////////////////////////////////////////////////////
+/// UTILS FOR STATE
+//////////////////////////////////////////////////////////////////////
 
-// transform contributions into pending reward
-// the contribution must be from before the current n
+/// ## Description
+/// Transform contributions into pending reward.
+/// The contribution must be from before the current penalty period (n).
+///
+/// ## Params
+/// - **storage** is a mutable reference to an object implementing trait [`Storage`].
+///
+/// - **contributor_address** is a reference to an object of type [`Addr`] which is the
+///     address of the contributor.
+///
+/// - **pool_type** is an object of type [`u16`] which is the type of the reward pool.
+///
+/// - **cluster_address** is a reference to an object of type [`Addr`] which is the
+///     address of a cluster contract.
 pub fn contributions_to_pending_rewards(
     storage: &mut dyn Storage,
     contributor_address: &Addr,
     pool_type: u16,
     cluster_address: &Addr,
 ) -> StdResult<()> {
-    let contribution_bucket = contributions_read(storage, &contributor_address, pool_type);
+    // Retrieve a `PoolContribution` corresponding to the contributor, pool type, and the cluster
+    let contribution_bucket = contributions_read(storage, contributor_address, pool_type);
     let mut contribution = read_from_contribution_bucket(&contribution_bucket, cluster_address);
 
+    // Get the current penalty period
     let n = read_current_n(storage)?;
     if contribution.value_contributed != Uint128::zero() && contribution.n != n {
         let pool_bucket = pool_info_read(storage, pool_type, contribution.n);
         let pool_info = read_from_pool_bucket(&pool_bucket, cluster_address);
 
-        // using integers here .. do we care if the remaining fractions of nebula stay in this contract?
-        let new_pending_reward = read_pending_rewards(storage, &contributor_address)
+        // Use integers here .. do we care if the remaining fractions of nebula stay in this contract?
+        let new_pending_reward = read_pending_rewards(storage, contributor_address)
             + Uint128::new(
                 pool_info.reward_total.u128() * contribution.value_contributed.u128()
                     / pool_info.value_total.u128(),
             );
-        store_pending_rewards(storage, &contributor_address, new_pending_reward)?;
+        store_pending_rewards(storage, contributor_address, new_pending_reward)?;
 
         contribution.value_contributed = Uint128::zero();
     }
+    // Update penalty period of the contribution
     contribution.n = n;
-    contributions_store(storage, &contributor_address, pool_type)
+    contributions_store(storage, contributor_address, pool_type)
         .save(cluster_address.as_bytes(), &contribution)?;
     Ok(())
 }
 
+/// ## Description
+/// Records the either the rebalance or arbitrage contributions of a user.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **contributor** is a reference to an object of type [`Addr`] which is the
+///     address of the contributor.
+///
+/// - **pool_type** is an object of type [`u16`] which is the type of the reward pool.
+///
+/// - **cluster_address** is a reference to an object of type [`Addr`] which is the
+///     address of a cluster contract.
+///
+/// - **contribution_amt** is an object of type [`Uint128`] which is the contribution on
 pub fn record_contribution(
     deps: DepsMut,
     contributor: &Addr,
@@ -192,18 +290,24 @@ pub fn record_contribution(
 ) -> StdResult<()> {
     let n = read_current_n(deps.storage)?;
 
-    contributions_to_pending_rewards(deps.storage, &contributor, pool_type, cluster_address)?;
+    // Convert contributions in old penalty period to rewards,
+    // and update the contribution penalty period
+    contributions_to_pending_rewards(deps.storage, contributor, pool_type, cluster_address)?;
 
+    // Get `PoolInfo` corresponding to the pool type, penalty period (n), and cluster address
     let pool_bucket = pool_info_read(deps.storage, pool_type, n);
     let mut pool_info = read_from_pool_bucket(&pool_bucket, cluster_address);
 
-    let contribution_bucket = contributions_read(deps.storage, &contributor, pool_type);
+    // Get `PoolContribution` corresponding to the contributor, pool type, and cluster address
+    let contribution_bucket = contributions_read(deps.storage, contributor, pool_type);
     let mut contributions = read_from_contribution_bucket(&contribution_bucket, cluster_address);
 
+    // Increase the total contribution of the pool
     pool_info.value_total += contribution_amt;
+    // Increase the user contribution to the pool
     contributions.value_contributed += contribution_amt;
 
-    contributions_store(deps.storage, &contributor, pool_type)
+    contributions_store(deps.storage, contributor, pool_type)
         .save(cluster_address.as_bytes(), &contributions)?;
     pool_info_store(deps.storage, pool_type, n).save(cluster_address.as_bytes(), &pool_info)?;
     Ok(())

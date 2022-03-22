@@ -26,16 +26,37 @@ use nebula_protocol::gov::{
     VotersResponse, VotersResponseItem,
 };
 
+/// Poll's title minimum length
 const MIN_TITLE_LENGTH: usize = 4;
+/// Poll's title maximum length
 const MAX_TITLE_LENGTH: usize = 64;
+/// Poll's description minimum length
 const MIN_DESC_LENGTH: usize = 4;
+/// Poll's description maximum length
 const MAX_DESC_LENGTH: usize = 256;
+/// Poll's link minimum length
 const MIN_LINK_LENGTH: usize = 12;
+/// Poll's link maximum length
 const MAX_LINK_LENGTH: usize = 128;
+/// Maximum number of open polls at a time
 const MAX_POLLS_IN_PROGRESS: usize = 50;
 
+/// Reply ID of submessages in execute poll
 const POLL_EXECUTE_REPLY_ID: u64 = 1;
 
+/// ## Description
+/// Creates a new contract with the specified parameters packed in the `msg` variable.
+/// Returns a [`Response`] with the specified attributes if the operation was successful,
+/// or a [`ContractError`] if the contract was not created.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **env** is an object of type [`Env`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **msg** is a message of type [`InstantiateMsg`] which contains the parameters used for creating the contract.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
@@ -43,10 +64,12 @@ pub fn instantiate(
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    // Validate values to be between 0-1
     validate_quorum(msg.quorum)?;
     validate_threshold(msg.threshold)?;
     validate_voter_weight(msg.voter_weight)?;
 
+    // Populate the contract setting from the message
     let config = Config {
         nebula_token: deps.api.addr_validate(msg.nebula_token.as_str())?,
         owner: info.sender,
@@ -60,6 +83,7 @@ pub fn instantiate(
         snapshot_period: msg.snapshot_period,
     };
 
+    // Initialize the contract state
     let state = State {
         contract_addr: env.contract.address,
         poll_count: 0,
@@ -74,6 +98,61 @@ pub fn instantiate(
     Ok(Response::default())
 }
 
+/// ## Description
+/// Exposes all the execute functions available in the contract.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **env** is an object of type [`Env`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **msg** is an object of type [`ExecuteMsg`].
+///
+/// ## Commands
+/// - **ExecuteMsg::Receive (msg)** Receives CW20 tokens and executes a hook message.
+///
+/// - **ExecuteMsg::UpdateConfig {
+///             owner,
+///             quorum,
+///             threshold,
+///             voting_period,
+///             effective_delay,
+///             proposal_deposit,
+///             voter_weight,
+///             snapshot_period,
+///         }** Updates general governance contract parameters.
+///
+/// - **ExecuteMsg::WithdrawVotingTokens {
+///             amount,
+///         }** Withdraws `amount` of Nebula token if not locked.
+///
+/// - **ExecuteMsg::WithdrawVotingRewards {
+///             poll_id,
+///         }** Withdraws rewards from `poll_id` or all voting rewards if not specified.
+///
+/// - **ExecuteMsg::StakeVotingRewards {
+///             poll_id,
+///         }** Stakes voting rewards from `poll_id` or all voting rewards if not specified.
+///
+/// - **ExecuteMsg::CastVote {
+///             poll_id,
+///             vote,
+///             amount,
+///         }** Casts vote on a poll with the specified `amount`.
+///
+/// - **ExecuteMsg::EndPoll {
+///             poll_id,
+///         }** Ends an on-going poll.
+///
+/// - **ExecuteMsg::ExecutePoll {
+///             poll_id,
+///         }** Executes a poll.
+///
+/// - **ExecuteMsg::SnapshotPoll {
+///             poll_id,
+///         }** Snapshots a poll.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
@@ -120,22 +199,37 @@ pub fn execute(
     }
 }
 
+/// ## Description
+/// Receives CW20 tokens and executes a hook message.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **env** is an object of type [`Env`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **cw20_msg** is an object of type [`Cw20ReceiveMsg`] which is a hook message to be executed.
 pub fn receive_cw20(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     cw20_msg: Cw20ReceiveMsg,
 ) -> Result<Response, ContractError> {
-    // only asset contract can execute this message
     let config: Config = config_read(deps.storage).load()?;
+
+    // Permission check, only Nebula token contract can execute this message
     if config.nebula_token != info.sender {
         return Err(ContractError::Unauthorized {});
     }
 
     match from_binary(&cw20_msg.msg) {
+        // If `StakeVotingTokens`, sender stakes Nebula tokens for the specified amount
         Ok(Cw20HookMsg::StakeVotingTokens {}) => {
             stake_voting_tokens(deps, cw20_msg.sender, cw20_msg.amount)
         }
+        // If `CreatePoll`, sender creates a poll as the poll proposer
+        // and the receive amount as the poll deposit amount
         Ok(Cw20HookMsg::CreatePoll {
             title,
             description,
@@ -151,6 +245,7 @@ pub fn receive_cw20(
             link,
             execute_msgs,
         ),
+        // If `DepositReward`, deposits a reward to stakers and in-progress polls
         Ok(Cw20HookMsg::DepositReward {}) => deposit_reward(deps, cw20_msg.amount),
         Err(_) => Err(ContractError::Generic(
             "invalid cw20 hook message".to_string(),
@@ -158,17 +253,62 @@ pub fn receive_cw20(
     }
 }
 
+/// ## Description
+/// Exposes all the reply callback function available in the contract.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **_env** is an object of type [`Env`].
+///
+/// - **msg** is an object of type [`Reply`] which is a response message returned
+///     from executing a submessage.
+///
+/// ## Message IDs
+/// - **POLL_EXECUTE_REPLY_ID (1)** Receives only if execute poll fails and marks the poll as failed.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
     match msg.id {
         POLL_EXECUTE_REPLY_ID => {
+            // Get the executed poll ID
             let poll_id: u64 = read_tmp_poll_id(deps.storage)?;
+            // Mark the poll as failed
             failed_poll(deps, poll_id)
         }
         _ => Err(ContractError::Generic("reply id is invalid".to_string())),
     }
 }
 
+/// ## Description
+/// Updates general contract settings. Returns a [`ContractError`] on failure.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **owner** is an object of type [`Option<String>`] which is an owner to update.
+///
+/// - **quorum** is an object of type [`Option<String>`] which is a poll quorum to update.
+///
+/// - **threshold** is an object of type [`Option<String>`] which is a pass threshold for a poll.
+///
+/// - **voting_period** is an object of type [`Option<u64>`] which is a poll voting period.
+///
+/// - **effective_delay** is an object of type [`Option<u64>`] which is a new delay time for
+///     a poll to be executed after reaching the voting period.
+///
+/// - **proposal_deposit** is an object of type [`Option<Uint128>`] which is a minimum deposit
+///     when creating a poll.
+///
+/// - **voter_weight** is an object of type [`Option<Decimal>`] which is a ratio of a total reward
+///     distributed to voters.
+///
+/// - **snapshot_period** is an object of type [`Option<u64>`] which is a snapshot time to lock
+///     the current quorum of the poll.
+///
+/// ## Executor
+/// Only the owner can execute this.
 #[allow(clippy::too_many_arguments)]
 pub fn update_config(
     deps: DepsMut,
@@ -184,20 +324,24 @@ pub fn update_config(
 ) -> Result<Response, ContractError> {
     let api = deps.api;
     config_store(deps.storage).update(|mut config| {
+        // Permission check
         if config.owner != info.sender {
             return Err(ContractError::Unauthorized {});
         }
 
         if let Some(owner) = owner {
+            // Validate contract address
             config.owner = api.addr_validate(owner.as_str())?;
         }
 
         if let Some(quorum) = quorum {
+            // Validate value to be between 0-1
             validate_quorum(quorum)?;
             config.quorum = quorum;
         }
 
         if let Some(threshold) = threshold {
+            // Validate value to be between 0-1
             validate_threshold(threshold)?;
             config.threshold = threshold;
         }
@@ -215,6 +359,7 @@ pub fn update_config(
         }
 
         if let Some(voter_weight) = voter_weight {
+            // Validate value to be between 0-1
             validate_voter_weight(voter_weight)?;
             config.voter_weight = voter_weight;
         }
@@ -228,7 +373,11 @@ pub fn update_config(
     Ok(Response::default())
 }
 
-/// validate_title returns an error if the title is invalid
+/// ## Description
+/// Returns an error if the title is invalid.
+///
+/// ## Params
+/// - **title** is a reference to an object of type [`str`] which is the poll title.
 fn validate_title(title: &str) -> Result<(), ContractError> {
     if title.len() < MIN_TITLE_LENGTH {
         Err(ContractError::ValueTooShort("Title".to_string()))
@@ -239,7 +388,11 @@ fn validate_title(title: &str) -> Result<(), ContractError> {
     }
 }
 
-/// validate_description returns an error if the description is invalid
+/// ## Description
+/// Returns an error if the description is invalid.
+///
+/// ## Params
+/// - **description** is a reference to an object of type [`str`] which is the poll description.
 fn validate_description(description: &str) -> Result<(), ContractError> {
     if description.len() < MIN_DESC_LENGTH {
         Err(ContractError::ValueTooShort("Description".to_string()))
@@ -250,7 +403,11 @@ fn validate_description(description: &str) -> Result<(), ContractError> {
     }
 }
 
-/// validate_link returns an error if the link is invalid
+/// ## Description
+/// Returns an error if link is not none but invalid.
+///
+/// ## Params
+/// - **link** is a reference to an object of type [`Option<String>`] which is the poll information link.
 fn validate_link(link: &Option<String>) -> Result<(), ContractError> {
     if let Some(link) = link {
         if link.len() < MIN_LINK_LENGTH {
@@ -265,8 +422,11 @@ fn validate_link(link: &Option<String>) -> Result<(), ContractError> {
     }
 }
 
-/// validate_quorum returns an error if the quorum is invalid
-/// (we require 0-1)
+/// ## Description
+/// Returns an error if the quorum is invalid, require 0-1.
+///
+/// ## Params
+/// - **quorum** is a reference to an object of type [`Decimal`] which is a quorum for a poll.
 fn validate_quorum(quorum: Decimal) -> Result<(), ContractError> {
     if quorum > Decimal::one() {
         Err(ContractError::ValueOutOfRange(
@@ -279,8 +439,11 @@ fn validate_quorum(quorum: Decimal) -> Result<(), ContractError> {
     }
 }
 
-/// validate_threshold returns an error if the threshold is invalid
-/// (we require 0-1)
+/// ## Description
+/// Returns an error if the threshold is invalid, require 0-1.
+///
+/// ## Params
+/// - **threshold** is a reference to an object of type [`Decimal`] which is a threshold for a poll.
 fn validate_threshold(threshold: Decimal) -> Result<(), ContractError> {
     if threshold > Decimal::one() {
         Err(ContractError::ValueOutOfRange(
@@ -293,6 +456,12 @@ fn validate_threshold(threshold: Decimal) -> Result<(), ContractError> {
     }
 }
 
+/// ## Description
+/// Returns an error if the voter weight is invalid, require 0-1.
+///
+/// ## Params
+/// - **voter_weight** is a reference to an object of type [`Decimal`] which is a reward distribution
+///     weight for poll voters.
 pub fn validate_voter_weight(voter_weight: Decimal) -> Result<(), ContractError> {
     if voter_weight >= Decimal::one() {
         Err(ContractError::Generic(
@@ -303,9 +472,26 @@ pub fn validate_voter_weight(voter_weight: Decimal) -> Result<(), ContractError>
     }
 }
 
-/*
- * Creates a new poll
- */
+/// ## Description
+/// Creates a new poll.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **env** is an object of type [`Env`].
+///
+/// - **proposer** is an object of type [`String`] which is the address of the poll proposer.
+///
+/// - **deposit_amount** is an object of type [`Uint128`] which is the poll deposit amount.
+///
+/// - **title** is an object of type [`String`] which is the poll title.
+///
+/// - **description** is an object of type [`String`] which is the poll description.
+///
+/// - **link** is an object of type [`Option<String>`] which is the poll related information link.
+///
+/// - **poll_execute_msgs** is an object of type [`Option<Vec<PollExecuteMsg>>`] which are the messages
+///     to be executed if the poll succeeds.
 #[allow(clippy::too_many_arguments)]
 pub fn create_poll(
     deps: DepsMut,
@@ -317,11 +503,14 @@ pub fn create_poll(
     link: Option<String>,
     poll_execute_msgs: Option<Vec<PollExecuteMsg>>,
 ) -> Result<Response, ContractError> {
+    // Validate string values
     validate_title(&title)?;
     validate_description(&description)?;
     validate_link(&link)?;
 
     let config: Config = config_store(deps.storage).load()?;
+
+    // Check if deposit amount is more than the deposit threshold
     if deposit_amount < config.proposal_deposit {
         return Err(ContractError::Generic(format!(
             "Must deposit more than {} token",
@@ -329,6 +518,7 @@ pub fn create_poll(
         )));
     }
 
+    // Check if there are not too many polls in progress
     let polls_in_progress: usize = read_polls(
         deps.storage,
         Some(PollStatus::InProgress),
@@ -351,27 +541,27 @@ pub fn create_poll(
     state.poll_count += 1;
     state.total_deposit += deposit_amount;
 
-    let poll_execute_data = if let Some(poll_execute_msgs) = poll_execute_msgs {
-        Some(
-            poll_execute_msgs
-                .iter()
-                .map(|poll_execute_msg| -> ExecuteData {
-                    ExecuteData {
-                        contract: deps
-                            .api
-                            .addr_validate(poll_execute_msg.contract.as_str())
-                            .unwrap(),
-                        msg: poll_execute_msg.msg.clone(),
-                    }
-                })
-                .collect(),
-        )
-    } else {
-        None
-    };
+    // Extract the execute data from the message if any
+    let poll_execute_data = poll_execute_msgs.map(|poll_execute_msgs| {
+        poll_execute_msgs
+            .iter()
+            .map(|poll_execute_msg| -> ExecuteData {
+                ExecuteData {
+                    contract: deps
+                        .api
+                        .addr_validate(poll_execute_msg.contract.as_str())
+                        .unwrap(),
+                    msg: poll_execute_msg.msg.clone(),
+                }
+            })
+            .collect()
+    });
 
+    // Validate address format
     let sender_address = deps.api.addr_validate(proposer.as_str())?;
     let current_seconds = env.block.time.seconds();
+
+    // Create the poll
     let new_poll = Poll {
         id: poll_id,
         creator: sender_address.clone(),
@@ -390,10 +580,13 @@ pub fn create_poll(
         staked_amount: None,
     };
 
+    // Save the poll
     poll_store(deps.storage).save(&poll_id.to_be_bytes(), &new_poll)?;
+    // Set the poll status to be in-progress
     poll_indexer_store(deps.storage, &PollStatus::InProgress)
         .save(&poll_id.to_be_bytes(), &true)?;
 
+    // Update the governance state
     state_store(deps.storage).save(&state)?;
 
     let r = Response::new().add_attributes(vec![
@@ -405,23 +598,33 @@ pub fn create_poll(
     Ok(r)
 }
 
-/*
- * Ends a poll.
- */
+/// ## Description
+/// Ends a poll.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **env** is an object of type [`Env`].
+///
+/// - **poll_id** is an object of type [`u64`] which is the poll ID to be ended.
 pub fn end_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, ContractError> {
     let mut a_poll: Poll = poll_store(deps.storage).load(&poll_id.to_be_bytes())?;
 
+    // Can only end an in-progress poll
     if a_poll.status != PollStatus::InProgress {
         return Err(ContractError::PollNotInProgress {});
     }
 
     let current_seconds = env.block.time.seconds();
+
+    // Can only end a poll past its voting period
     if a_poll.end_time > current_seconds {
         return Err(ContractError::ValueHasNotExpired(
             "Voting period".to_string(),
         ));
     }
 
+    // Calculate vote
     let no = a_poll.no_votes.u128();
     let yes = a_poll.yes_votes.u128();
     let abstain = a_poll.abstain_votes.u128();
@@ -437,17 +640,22 @@ pub fn end_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, Contr
     let mut state: State = state_read(deps.storage).load()?;
 
     let (quorum, staked_weight) = if state.total_share.u128() == 0 {
+        // If there is no staked, `quorum` and `staked_weight` are 0
         (Decimal::zero(), Uint128::zero())
     } else if let Some(staked_amount) = a_poll.staked_amount {
+        // If a snapshot is made, find `quorom` and `stake_weight` from the total stake at snapshot
         (
             Decimal::from_ratio(tallied_weight, staked_amount),
             staked_amount,
         )
     } else {
+        // If no snapshot is not made, calculate the current total stake
+        // Governance total Nebula balance = total stake + total deposit + all voting rewards
         let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
         let staked_weight =
             load_token_balance(&deps.querier, &config.nebula_token, &state.contract_addr)?
                 .checked_sub(total_locked_balance)?;
+        // Compute `quorum` and `staked_weight`
         (
             Decimal::from_ratio(tallied_weight, staked_weight),
             staked_weight,
@@ -460,7 +668,7 @@ pub fn end_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, Contr
         rejected_reason = "Quorum not reached";
     } else {
         if yes != 0u128 && Decimal::from_ratio(yes, yes + no) > config.threshold {
-            //Threshold: More than 50% of the tokens that participated in the vote
+            // Threshold: More than 50% of the tokens that participated in the vote
             // (after excluding “Abstain” votes) need to have voted in favor of the proposal (“Yes”).
             poll_status = PollStatus::Passed;
             passed = true;
@@ -468,7 +676,7 @@ pub fn end_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, Contr
             rejected_reason = "Threshold not reached";
         }
 
-        // Refunds deposit only when quorum is reached
+        // Refund deposit only when quorum is reached
         if !a_poll.deposit_amount.is_zero() {
             messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: config.nebula_token.to_string(),
@@ -486,7 +694,9 @@ pub fn end_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, Contr
     state_store(deps.storage).save(&state)?;
 
     // Update poll indexer
+    // - Remove the poll from the in-progress index
     poll_indexer_store(deps.storage, &PollStatus::InProgress).remove(&a_poll.id.to_be_bytes());
+    // - Add the poll to the final poll status index
     poll_indexer_store(deps.storage, &poll_status).save(&a_poll.id.to_be_bytes(), &true)?;
 
     // Update poll status
@@ -502,19 +712,27 @@ pub fn end_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, Contr
     ]))
 }
 
-/*
- * Execute a msg of passed poll.
- */
+/// ## Description
+/// Executes a msg of passed poll.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **env** is an object of type [`Env`].
+///
+/// - **poll_id** is an object of type [`u64`] which is the poll ID to be executed.
 pub fn execute_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, ContractError> {
     let config: Config = config_read(deps.storage).load()?;
     let mut a_poll: Poll = poll_store(deps.storage).load(&poll_id.to_be_bytes())?;
 
+    // Can only execute a passed poll
     if a_poll.status != PollStatus::Passed {
         return Err(ContractError::Generic(
             "Poll is not in passed status".to_string(),
         ));
     }
 
+    // Need to wait after the effective delay before executing the poll
     let current_seconds = env.block.time.seconds();
     if a_poll.end_time + config.effective_delay > current_seconds {
         return Err(ContractError::ValueHasNotExpired(
@@ -522,18 +740,22 @@ pub fn execute_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, C
         ));
     }
 
+    // Check if there is execute data in the poll
     if a_poll.execute_data.is_none() {
         return Err(ContractError::Generic(
             "Poll has no execute data".to_string(),
         ));
     }
 
+    // Update poll indexer of the poll from Passed to Executed
     poll_indexer_store(deps.storage, &PollStatus::Passed).remove(&poll_id.to_be_bytes());
     poll_indexer_store(deps.storage, &PollStatus::Executed).save(&poll_id.to_be_bytes(), &true)?;
 
+    // Update poll status
     a_poll.status = PollStatus::Executed;
     poll_store(deps.storage).save(&poll_id.to_be_bytes(), &a_poll)?;
 
+    // Retrieve the execute messages
     let messages: Vec<SubMsg> = a_poll.execute_data.unwrap().iter().map(fill_msg).collect();
     store_tmp_poll_id(deps.storage, a_poll.id)?;
 
@@ -545,27 +767,36 @@ pub fn execute_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, C
         ]))
 }
 
+/// ## Description
+/// Extracts `ExecuteData` into CosmWasm `SubMsg`.
+///
+/// ## Params
+/// - **msg** is a reference to an object of type [`ExecuteData`] which is a poll execute message.
 fn fill_msg(msg: &ExecuteData) -> SubMsg {
-    match msg {
-        ExecuteData { contract, msg } => SubMsg {
-            msg: CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: contract.to_string(),
-                msg: msg.clone(),
-                funds: vec![],
-            }),
-            gas_limit: None,
-            id: POLL_EXECUTE_REPLY_ID,
-            reply_on: ReplyOn::Error,
-        },
+    let ExecuteData { contract, msg } = msg;
+    SubMsg {
+        msg: CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: contract.to_string(),
+            msg: msg.clone(),
+            funds: vec![],
+        }),
+        gas_limit: None,
+        id: POLL_EXECUTE_REPLY_ID,
+        reply_on: ReplyOn::Error,
     }
 }
 
-/*
- * If the executed message of a passed poll fails, it is marked as failed
- */
+/// ## Description
+/// If the executed message of a passed poll fails, it is marked as failed
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **poll_id** is an object of type [`u64`] which is the poll ID to be marked as failed.
 pub fn failed_poll(deps: DepsMut, poll_id: u64) -> Result<Response, ContractError> {
     let mut a_poll: Poll = poll_store(deps.storage).load(&poll_id.to_be_bytes())?;
 
+    // Update poll indexer of the poll from Executed to Failed
     poll_indexer_store(deps.storage, &PollStatus::Executed).remove(&poll_id.to_be_bytes());
     poll_indexer_store(deps.storage, &PollStatus::Failed).save(&poll_id.to_be_bytes(), &true)?;
 
@@ -575,9 +806,21 @@ pub fn failed_poll(deps: DepsMut, poll_id: u64) -> Result<Response, ContractErro
     Ok(Response::new().add_attribute("action", "failed_poll"))
 }
 
-/*
- * User casts a vote on the provided poll id
- */
+/// ## Description
+/// User casts a vote on the provided poll ID.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **env** is an object of type [`Env`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **poll_id** is an object of type [`u64`] which is the poll ID to vote on.
+///
+/// - **vote** is an object of type [`VoteOption`] which is the vote option.
+///
+/// - **amount** is an object of type [`Uint128`] which is the amount to vote.
 pub fn cast_vote(
     deps: DepsMut,
     env: Env,
@@ -589,31 +832,37 @@ pub fn cast_vote(
     let sender_address = info.sender;
     let config = config_read(deps.storage).load()?;
     let state = state_read(deps.storage).load()?;
+
+    // Validate the poll ID
     if poll_id == 0 || state.poll_count < poll_id {
         return Err(ContractError::PollNotExists {});
     }
 
     let mut a_poll: Poll = poll_store(deps.storage).load(&poll_id.to_be_bytes())?;
     let current_seconds = env.block.time.seconds();
+    // Can only cast vote on an in-progress poll that is not past the voting period
     if a_poll.status != PollStatus::InProgress || current_seconds > a_poll.end_time {
         return Err(ContractError::PollNotInProgress {});
     }
     let key = sender_address.as_bytes();
 
     // Check the voter already has a vote on the poll
-    if poll_voter_read(deps.storage, poll_id).load(&key).is_ok() {
+    if poll_voter_read(deps.storage, poll_id).load(key).is_ok() {
         return Err(ContractError::Generic("User has already voted".to_string()));
     }
 
+    // Load voter token manager
     let mut token_manager = bank_read(deps.storage).may_load(key)?.unwrap_or_default();
 
-    // convert share to amount
+    // Convert the voter share to the voter actual staked amount
     let total_share = state.total_share;
+    // Governance total Nebula balance = total stake + total deposit + all voting rewards
     let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
     let total_balance =
         load_token_balance(&deps.querier, &config.nebula_token, &state.contract_addr)?
             .checked_sub(total_locked_balance)?;
 
+    // Compute voter staked = voter_share * total_stake / total_share
     if token_manager
         .share
         .multiply_ratio(total_balance, total_share)
@@ -624,7 +873,7 @@ pub fn cast_vote(
         ));
     }
 
-    // update tally info
+    // Update tally info
     match vote {
         VoteOption::Yes => a_poll.yes_votes += amount,
         VoteOption::No => a_poll.no_votes += amount,
@@ -641,15 +890,16 @@ pub fn cast_vote(
     token_manager.participated_polls = vec![];
     bank_store(deps.storage).save(key, &token_manager)?;
 
-    // store poll voter && and update poll data
+    // Store poll voter
     poll_voter_store(deps.storage, poll_id).save(key, &vote_info)?;
 
-    // processing snapshot
+    // Processing snapshot
     let time_to_end = a_poll.end_time - current_seconds;
     if time_to_end < config.snapshot_period && a_poll.staked_amount.is_none() {
         a_poll.staked_amount = Some(total_balance);
     }
 
+    // Update poll data
     poll_store(deps.storage).save(&poll_id.to_be_bytes(), &a_poll)?;
 
     Ok(Response::new().add_attributes(vec![
@@ -661,17 +911,25 @@ pub fn cast_vote(
     ]))
 }
 
-/*
- * SnapshotPoll is used to take a snapshot of the staked amount for quorum calculation
- */
+/// ## Description
+/// Takes a snapshot of the current staked amount for quorum calculation.
+/// - Can only be executed once per poll.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **env** is an object of type [`Env`].
+///
+/// - **poll_id** is an object of type [`u64`] which is the poll ID to be snapshotted.
 pub fn snapshot_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, ContractError> {
     let config: Config = config_read(deps.storage).load()?;
+    // Get the poll and check if the status is in-progress
     let mut a_poll: Poll = poll_store(deps.storage).load(&poll_id.to_be_bytes())?;
-
     if a_poll.status != PollStatus::InProgress {
         return Err(ContractError::PollNotInProgress {});
     }
 
+    // Check if we have reached the snapshot period
     let current_seconds = env.block.time.seconds();
     let time_to_end = a_poll.end_time - current_seconds;
 
@@ -681,15 +939,17 @@ pub fn snapshot_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, 
         ));
     }
 
+    // Check that there is no snapshot made yet
     if a_poll.staked_amount.is_some() {
         return Err(ContractError::Generic(
             "Snapshot has already occurred".to_string(),
         ));
     }
 
-    // store the current staked amount for quorum calculation
+    // Store the current staked amount for quorum calculation at end poll
     let state: State = state_store(deps.storage).load()?;
 
+    // Governance total Nebula balance = total stake + total deposit + all voting rewards
     let total_locked_balance = state.total_deposit + state.pending_voting_rewards;
     let staked_amount =
         load_token_balance(&deps.querier, &config.nebula_token, &state.contract_addr)?
@@ -697,6 +957,7 @@ pub fn snapshot_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, 
 
     a_poll.staked_amount = Some(staked_amount);
 
+    // Update poll data
     poll_store(deps.storage).save(&poll_id.to_be_bytes(), &a_poll)?;
 
     Ok(Response::new().add_attributes(vec![
@@ -706,6 +967,49 @@ pub fn snapshot_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, 
     ]))
 }
 
+/// ## Description
+/// Exposes all the queries available in the contract.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
+///
+/// - **_env** is an object of type [`Env`].
+///
+/// - **msg** is an object of type [`QueryMsg`].
+///
+/// ## Commands
+/// - **QueryMsg::Config {}** Returns general contract parameters using a custom [`ConfigResponse`] structure.
+///
+/// - **QueryMsg::State {}** Returns the current state of the governance contract.
+///
+/// - **QueryMsg::Staker { address }** Returns the specified staker information.
+///
+/// - **QueryMsg::Poll { poll_id }** Returns the specified poll information.
+///
+/// - **QueryMsg::Polls {
+///             filter,
+///             start_after,
+///             limit,
+///             order_by,
+///         }** Returns a list of poll information filtered by the provided criterions.
+///
+/// - **QueryMsg::Voter {
+///             poll_id,
+///             address,
+///         }** Returns the vote data on the specified poll of the given address.
+///
+/// - **QueryMsg::Voters {
+///             poll_id,
+///             start_after,
+///             limit,
+///             order_by,
+///         }** Returns a list of voter data filtered by the provided criterions.
+///
+/// - **QueryMsg::Shares {
+///             start_after,
+///             limit,
+///             order_by,
+///         }** Returns a list of staker shares filtered by the provided criterions.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
@@ -734,6 +1038,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     }
 }
 
+/// ## Description
+/// Returns general contract parameters using a custom [`ConfigResponse`] structure.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
 fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let config: Config = config_read(deps.storage).load()?;
     Ok(ConfigResponse {
@@ -749,6 +1058,15 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     })
 }
 
+/// ## Description
+/// Returns the current state of the governance contract containing
+/// - the total number of polls
+/// - the total staker share
+/// - the sum initial deposit of in-progress polls
+/// - the current pending rewards for voters
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
 fn query_state(deps: Deps) -> StdResult<StateResponse> {
     let state: State = state_read(deps.storage).load()?;
     Ok(StateResponse {
@@ -759,6 +1077,13 @@ fn query_state(deps: Deps) -> StdResult<StateResponse> {
     })
 }
 
+/// ## Description
+/// Returns the specified poll information.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
+///
+/// - **poll_id** is an object of type [`u64`] which is the poll ID to be queried.
 fn query_poll(deps: Deps, poll_id: u64) -> StdResult<PollResponse> {
     let poll = match poll_read(deps.storage).may_load(&poll_id.to_be_bytes())? {
         Some(poll) => poll,
@@ -774,21 +1099,17 @@ fn query_poll(deps: Deps, poll_id: u64) -> StdResult<PollResponse> {
         description: poll.description,
         link: poll.link,
         deposit_amount: poll.deposit_amount,
-        execute_data: if let Some(execute_data) = poll.execute_data {
-            Some(
-                execute_data
-                    .iter()
-                    .map(|poll_execute_msg| -> PollExecuteMsg {
-                        PollExecuteMsg {
-                            contract: poll_execute_msg.contract.to_string(),
-                            msg: poll_execute_msg.msg.clone(),
-                        }
-                    })
-                    .collect(),
-            )
-        } else {
-            None
-        },
+        execute_data: poll.execute_data.map(|execute_data| {
+            execute_data
+                .iter()
+                .map(|poll_execute_msg| -> PollExecuteMsg {
+                    PollExecuteMsg {
+                        contract: poll_execute_msg.contract.to_string(),
+                        msg: poll_execute_msg.msg.clone(),
+                    }
+                })
+                .collect()
+        }),
         yes_votes: poll.yes_votes,
         no_votes: poll.no_votes,
         abstain_votes: poll.abstain_votes,
@@ -798,6 +1119,19 @@ fn query_poll(deps: Deps, poll_id: u64) -> StdResult<PollResponse> {
     })
 }
 
+/// ## Description
+/// Returns a list of poll information filtered by the provided criterions.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
+///
+/// - **filter** is an object of type [`Option<PollStatus>`] which is a filter for the poll status.
+///
+/// - **start_after** is an object of type [`Option<u64>`] which is a filter for the poll ID.
+///
+/// - **limit** is an object of type [`Option<u32>`] which limits the number of polls in the query result.
+///
+/// - **order_by** is an object of type [`Option<OrderBy>`] which specifies the ordering of the result.
 fn query_polls(
     deps: Deps,
     filter: Option<PollStatus>,
@@ -805,7 +1139,9 @@ fn query_polls(
     limit: Option<u32>,
     order_by: Option<OrderBy>,
 ) -> StdResult<PollsResponse> {
+    // Query polls matching the provided criterions from the storage
     let polls = read_polls(deps.storage, filter, start_after, limit, order_by, None)?;
+    // Extract the result into a vector of `PollResponse`
     let poll_responses: StdResult<Vec<PollResponse>> = polls
         .iter()
         .map(|poll| {
@@ -818,21 +1154,17 @@ fn query_polls(
                 description: poll.description.to_string(),
                 link: poll.link.clone(),
                 deposit_amount: poll.deposit_amount,
-                execute_data: if let Some(execute_data) = poll.execute_data.clone() {
-                    Some(
-                        execute_data
-                            .iter()
-                            .map(|poll_execute_msg| -> PollExecuteMsg {
-                                PollExecuteMsg {
-                                    contract: poll_execute_msg.contract.to_string(),
-                                    msg: poll_execute_msg.msg.clone(),
-                                }
-                            })
-                            .collect(),
-                    )
-                } else {
-                    None
-                },
+                execute_data: poll.execute_data.clone().map(|execute_data| {
+                    execute_data
+                        .iter()
+                        .map(|poll_execute_msg| -> PollExecuteMsg {
+                            PollExecuteMsg {
+                                contract: poll_execute_msg.contract.to_string(),
+                                msg: poll_execute_msg.msg.clone(),
+                            }
+                        })
+                        .collect()
+                }),
                 yes_votes: poll.yes_votes,
                 no_votes: poll.no_votes,
                 abstain_votes: poll.abstain_votes,
@@ -848,7 +1180,17 @@ fn query_polls(
     })
 }
 
+/// ## Description
+/// Returns the vote data on the specified poll of the given address.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
+///
+/// - **poll_id** is an object of type [`u64`] which is the poll ID to be queried for a voter.
+///
+/// - **address** is an object of type [`String`] which is the voter address.
 fn query_voter(deps: Deps, poll_id: u64, address: String) -> StdResult<VotersResponseItem> {
+    // Query the vote information of the address from the storage
     let voter: VoterInfo = poll_voter_read(deps.storage, poll_id)
         .load(deps.api.addr_validate(address.as_str())?.as_bytes())?;
     Ok(VotersResponseItem {
@@ -858,6 +1200,19 @@ fn query_voter(deps: Deps, poll_id: u64, address: String) -> StdResult<VotersRes
     })
 }
 
+/// ## Description
+/// Returns a list of voter data filtered by the provided criterions.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
+///
+/// - **poll_id** is an object of type [`u64`] which is the poll ID to be queried for its voters.
+///
+/// - **start_after** is an object of type [`Option<String>`] which is a filter for voter address.
+///
+/// - **limit** is an object of type [`Option<u32>`] which limits the number of voters in the query result.
+///
+/// - **order_by** is an object of type [`Option<OrderBy>`] which specifies the ordering of the result.
 fn query_voters(
     deps: Deps,
     poll_id: u64,
@@ -865,11 +1220,12 @@ fn query_voters(
     limit: Option<u32>,
     order_by: Option<OrderBy>,
 ) -> StdResult<VotersResponse> {
+    // Query voters in the specified poll matching the provided criterions from the storage
     let voters = if let Some(start_after) = start_after {
         read_poll_voters(
             deps.storage,
             poll_id,
-            Some(deps.api.addr_validate(&start_after.as_str())?),
+            Some(deps.api.addr_validate(start_after.as_str())?),
             limit,
             order_by,
         )?
@@ -877,6 +1233,7 @@ fn query_voters(
         read_poll_voters(deps.storage, poll_id, None, limit, order_by)?
     };
 
+    // Extract the result into a vector of `VoterResponseItem`
     let voters_response: StdResult<Vec<VotersResponseItem>> = voters
         .iter()
         .map(|voter_info| {
@@ -892,7 +1249,15 @@ fn query_voters(
         voters: voters_response?,
     })
 }
-
+/// ## Description
+/// Exposes the migrate functionality in the contract.
+///
+/// ## Params
+/// - **_deps** is an object of type [`DepsMut`].
+///
+/// - **_env** is an object of type [`Env`].
+///
+/// - **_msg** is an object of type [`MigrateMsg`].
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
     Ok(Response::default())

@@ -17,6 +17,20 @@ use astroport::querier::{query_pair_info, query_token_balance};
 
 use cw20::Cw20ExecuteMsg;
 
+/// ## Description
+/// Bonds the transferred LP token to the specified LP token pool.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **_info** is an object of type [`MessageInfo`].
+///
+/// - **staker_addr** is an object of type [`Addr`] which the staker address.
+///
+/// - **asset_token** is an object of type [`Addr`] which is an address of
+///     a cluster token contract.
+///
+/// - **amount** is an object of type [`Uint128`] which is the amount to bond.
 pub fn bond(
     deps: DepsMut,
     _info: MessageInfo,
@@ -24,6 +38,7 @@ pub fn bond(
     asset_token: Addr,
     amount: Uint128,
 ) -> Result<Response, ContractError> {
+    // Increase the staker's bond by the given amount
     _increase_bond_amount(deps.storage, &staker_addr, &asset_token, amount)?;
 
     Ok(Response::new().add_attributes(vec![
@@ -34,15 +49,29 @@ pub fn bond(
     ]))
 }
 
+/// ## Description
+/// Unbonds the staked LP tokens of the staker for the given amount.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **staker_addr** is an object of type [`String`] is the staker address.
+///
+/// - **asset_token** is an object of type [`Addr`] which is an address of
+///     a cluster token contract.
+///
+/// - **amount** is an object of type [`Uint128`] which is the amount to unbond.
 pub fn unbond(
     deps: DepsMut,
     staker_addr: String,
     asset_token: String,
     amount: Uint128,
 ) -> Result<Response, ContractError> {
+    // Validate address format
     let validated_staker_addr = deps.api.addr_validate(staker_addr.as_str())?;
     let validated_asset_token = deps.api.addr_validate(asset_token.as_str())?;
 
+    // Decrease the staker's bond by the given amount
     let staking_token: Addr = _decrease_bond_amount(
         deps.storage,
         &validated_staker_addr,
@@ -67,6 +96,20 @@ pub fn unbond(
         ]))
 }
 
+/// ## Description
+/// Provides liquidity and automatically stakes the LP tokens.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **env** is an object of type [`Env`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **assets** is an object of type [`Uint128`] which are assets for providing pool liquidity.
+///
+/// - **slippage_tolerance** is an object of type [`Option<Decimal>`] which is
+///     the maximum percent of price movement when providing liquidity.
 pub fn auto_stake(
     deps: DepsMut,
     env: Env,
@@ -79,6 +122,8 @@ pub fn auto_stake(
 
     let mut native_asset_op: Option<Asset> = None;
     let mut token_info_op: Option<(Addr, Uint128)> = None;
+
+    // Extract UST and CT from the given list `assets`
     for asset in assets.iter() {
         match asset.info.clone() {
             AssetInfo::NativeToken { .. } => {
@@ -91,7 +136,7 @@ pub fn auto_stake(
         }
     }
 
-    // will fail if one of them is missing
+    // Fail if one of them is missing
     let native_asset: Asset = match native_asset_op {
         Some(v) => v,
         None => return Err(ContractError::Missing("native asset".to_string())),
@@ -101,33 +146,35 @@ pub fn auto_stake(
         None => return Err(ContractError::Missing("token asset".to_string())),
     };
 
-    // query pair info to obtain pair contract address
+    // Query pair info to obtain Astroport pair contract address
     let asset_infos: [AssetInfo; 2] = [assets[0].info.clone(), assets[1].info.clone()];
     let astroport_pair: PairInfo = query_pair_info(&deps.querier, astroport_factory, &asset_infos)?;
 
-    // assert the token and lp token match with pool info
+    // Assert the token and LP token match with pool info
     let pool_info: PoolInfo = read_pool_info(deps.storage, &token_addr)?;
 
-    if pool_info.staking_token != astroport_pair.liquidity_token.clone() {
+    if pool_info.staking_token != astroport_pair.liquidity_token {
         return Err(ContractError::Invalid("staking token".to_string()));
     }
 
-    // get current lp token amount to later compute the recived amount
+    // Get current LP token amount staked in this LP staking contract
+    // to later compute the received LP token amount
     let prev_staking_token_amount = query_token_balance(
         &deps.querier,
         astroport_pair.liquidity_token.clone(),
         env.contract.address.clone(),
     )?;
 
-    // compute tax
+    // Compute tax
     let tax_amount: Uint128 = native_asset.compute_tax(&deps.querier)?;
 
-    // 1. Transfer token asset to staking contract
-    // 2. Increase allowance of token for pair contract
-    // 3. Provide liquidity
-    // 4. Execute staking hook, will stake in the name of the sender
+    // 1. Transfer token asset to LP staking contract
+    // 2. Increase allowance of token for the Astroport pair contract
+    // 3. Provide liquidity and get LP tokens
+    // 4. Execute staking hook which stakes LP tokens in the name of the sender
     Ok(Response::new()
         .add_messages(vec![
+            // Transfer cluster tokens from the message sender to this contract
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: token_addr.to_string(),
                 msg: to_binary(&Cw20ExecuteMsg::TransferFrom {
@@ -137,6 +184,7 @@ pub fn auto_stake(
                 })?,
                 funds: vec![],
             }),
+            // Increase allowance for the Astroport pair contract by the this contract
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: token_addr.to_string(),
                 msg: to_binary(&Cw20ExecuteMsg::IncreaseAllowance {
@@ -146,6 +194,7 @@ pub fn auto_stake(
                 })?,
                 funds: vec![],
             }),
+            // Provide liquidity which gets LP tokens in return
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: astroport_pair.contract_addr.to_string(),
                 msg: to_binary(&PairExecuteMsg::ProvideLiquidity {
@@ -170,6 +219,7 @@ pub fn auto_stake(
                     amount: native_asset.amount.checked_sub(tax_amount)?,
                 }],
             }),
+            // Execute staking hook which stakes LP tokens in the name of the sender
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::AutoStakeHook {
@@ -188,6 +238,29 @@ pub fn auto_stake(
         ]))
 }
 
+/// ## Description
+/// Stakes newly minted LP tokens into the LP staking pool.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **env** is an object of type [`Env`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **asset_token** is an object of type [`Addr`] which is the address of
+///     a cluster contract.
+///
+/// - **staking_token** is an object of type [`Addr`] which is the address of
+///     a LP token contract corresponding to the cluster contract.
+///
+/// - **staker_addr** is an object of type [`Addr`] which is the staker address.
+///
+/// - **prev_staking_token_amount** is an object of type [`Uint128`] which is the LP token balance
+///     of this contract before providing pool liquidity.
+///
+/// ## Executor
+/// Only this contract can execute this.
 pub fn auto_stake_hook(
     deps: DepsMut,
     env: Env,
@@ -197,25 +270,40 @@ pub fn auto_stake_hook(
     staker_addr: Addr,
     prev_staking_token_amount: Uint128,
 ) -> Result<Response, ContractError> {
-    // only can be called by itself
+    // Only can be called by itself
     if info.sender != env.contract.address {
         return Err(ContractError::Unauthorized {});
     }
 
-    // stake all lp tokens received, compare with staking token amount before liquidity provision was executed
+    // Compute newly LP tokens received
+    // -- Compare with staking token amount before liquidity provision was executed
     let current_staking_token_amount =
         query_token_balance(&deps.querier, staking_token, env.contract.address)?;
     let amount_to_stake = current_staking_token_amount.checked_sub(prev_staking_token_amount)?;
 
+    // Stake all LP tokens received
     bond(deps, info, staker_addr, asset_token, amount_to_stake)
 }
 
+/// ## Description
+/// Increases the bonding amount of a staker.
+///
+/// ## Params
+/// - **storage** is a mutable reference to an object implementing trait [`Storage`].
+///
+/// - **staker_addr** is a reference to an object of type [`Addr`] which is the staker address.
+///
+/// - **asset_token** is a reference to an object of type [`Addr`] which is an address
+///     of a cluster token contract.
+///
+/// - **amount** is an object of type [`Uint128`] which is the amount to bond.
 fn _increase_bond_amount(
     storage: &mut dyn Storage,
     staker_addr: &Addr,
     asset_token: &Addr,
     amount: Uint128,
 ) -> Result<(), ContractError> {
+    // Get pool information and the staker information for this pool
     let mut pool_info: PoolInfo = read_pool_info(storage, asset_token)?;
     let mut reward_info: RewardInfo = rewards_read(storage, staker_addr)
         .load(asset_token.as_bytes())
@@ -228,25 +316,41 @@ fn _increase_bond_amount(
     // Withdraw reward to pending reward; before changing share
     before_share_change(&pool_info, &mut reward_info)?;
 
-    // Increase bond amount
+    // Increase total bond amount in the pool
     pool_info.total_bond_amount += amount;
-
+    // Increase staker's bond amount
     reward_info.bond_amount += amount;
-    rewards_store(storage, &staker_addr).save(asset_token.as_bytes(), &reward_info)?;
-    store_pool_info(storage, &asset_token, &pool_info)?;
+
+    // Update rewards info
+    rewards_store(storage, staker_addr).save(asset_token.as_bytes(), &reward_info)?;
+    // Update pool info
+    store_pool_info(storage, asset_token, &pool_info)?;
 
     Ok(())
 }
 
+/// ## Description
+/// Decreases the bonding amount of a staker.
+///
+/// ## Params
+/// - **storage** is a mutable reference to an object implementing trait [`Storage`].
+///
+/// - **staker_addr** is a reference to an object of type [`Addr`] which is the staker address.
+///
+/// - **asset_token** is a reference to an object of type [`Addr`] which is an address
+///     of a cluster token contract.
+///
+/// - **amount** is an object of type [`Uint128`] which is the amount to bond.
 fn _decrease_bond_amount(
     storage: &mut dyn Storage,
     staker_addr: &Addr,
     asset_token: &Addr,
     amount: Uint128,
 ) -> Result<Addr, ContractError> {
-    let mut pool_info: PoolInfo = read_pool_info(storage, &asset_token)?;
+    // Get pool information and the staker information for this pool
+    let mut pool_info: PoolInfo = read_pool_info(storage, asset_token)?;
     let mut reward_info: RewardInfo =
-        rewards_read(storage, &staker_addr).load(asset_token.as_bytes())?;
+        rewards_read(storage, staker_addr).load(asset_token.as_bytes())?;
 
     if reward_info.bond_amount < amount {
         return Err(ContractError::Generic(
@@ -257,20 +361,20 @@ fn _decrease_bond_amount(
     // Distribute reward to pending reward; before changing share
     before_share_change(&pool_info, &mut reward_info)?;
 
-    // Decrease bond amount
+    // Decrease total bond amount in the pool
     pool_info.total_bond_amount = pool_info.total_bond_amount.checked_sub(amount)?;
-
+    // Decrease staker's bond amount
     reward_info.bond_amount = reward_info.bond_amount.checked_sub(amount)?;
 
     // Update rewards info
     if reward_info.pending_reward.is_zero() && reward_info.bond_amount.is_zero() {
-        rewards_store(storage, &staker_addr).remove(asset_token.as_bytes());
+        rewards_store(storage, staker_addr).remove(asset_token.as_bytes());
     } else {
-        rewards_store(storage, &staker_addr).save(asset_token.as_bytes(), &reward_info)?;
+        rewards_store(storage, staker_addr).save(asset_token.as_bytes(), &reward_info)?;
     }
 
     // Update pool info
-    store_pool_info(storage, &asset_token, &pool_info)?;
+    store_pool_info(storage, asset_token, &pool_info)?;
 
     Ok(pool_info.staking_token)
 }
