@@ -9,7 +9,7 @@ use cosmwasm_std::{
     Uint128, WasmMsg,
 };
 use cw20::Cw20ExecuteMsg;
-use nebula_protocol::incentives_custody::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use nebula_protocol::incentives_custody::{ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
 
 /// ## Description
 /// Creates a new contract with the specified parameters packed in the `msg` variable.
@@ -54,9 +54,9 @@ pub fn instantiate(
 /// - **msg** is an object of type [`ExecuteMsg`].
 ///
 /// ## Commands
-/// - **ExecuteMsg::UpdateOwner {
+/// - **ExecuteMsg::UpdateConfig {
 ///             owner
-///         }** Updates the owner of the contract.
+///         }** Updates general contract parameters.
 ///
 /// - **ExecuteMsg::RequestNeb {
 ///             amount
@@ -69,13 +69,13 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::UpdateOwner { owner } => update_owner(deps, info, &owner),
+        ExecuteMsg::UpdateConfig { owner } => update_config(deps, info, &owner),
         ExecuteMsg::RequestNeb { amount } => request_neb(deps, env, info, amount),
     }
 }
 
 /// ## Description
-/// Updates the owner of the contract.
+/// Updates general contract parameters.
 ///
 /// ## Params
 /// - **deps** is an object of type [`DepsMut`].
@@ -86,7 +86,7 @@ pub fn execute(
 ///
 /// ## Executor
 /// Only the owner can execute this.
-pub fn update_owner(
+pub fn update_config(
     deps: DepsMut,
     info: MessageInfo,
     owner: &str,
@@ -102,7 +102,7 @@ pub fn update_owner(
     set_owner(deps.storage, &deps.api.addr_validate(owner)?)?;
 
     Ok(Response::new().add_attributes(vec![
-        attr("action", "update_owner"),
+        attr("action", "update_config"),
         attr("old_owner", old_owner.to_string()),
         attr("new_owner", owner.to_string()),
     ]))
@@ -173,5 +173,20 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             let balance = load_token_balance(deps, &nebula_token, &env.contract.address)?;
             Ok(to_binary(&balance)?)
         }
+        QueryMsg::Config {} => to_binary(&query_config(deps)?),
     }
+}
+
+/// ## Description
+/// Returns general contract parameters using a custom [`ConfigResponse`] structure.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
+pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
+    let owner = read_owner(deps.storage)?;
+    let resp = ConfigResponse {
+        owner: owner.to_string(),
+    };
+
+    Ok(resp)
 }

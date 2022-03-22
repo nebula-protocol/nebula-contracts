@@ -75,9 +75,9 @@ pub fn instantiate(
 /// - **msg** is an object of type [`ExecuteMsg`].
 ///
 /// ## Commands
-/// - **ExecuteMsg::UpdateOwner {
+/// - **ExecuteMsg::UpdateConfig {
 ///             owner,
-///         }** Updates the contract owner.
+///         }** Updates general contract parameters.
 ///
 /// - **ExecuteMsg::Receive (msg)** Receives CW20 tokens and executes a hook message.
 ///
@@ -156,7 +156,7 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::UpdateOwner { owner } => update_owner(deps, info, &owner),
+        ExecuteMsg::UpdateConfig { owner } => update_config(deps, info, &owner),
         ExecuteMsg::Receive(msg) => receive_cw20(deps, info, msg),
         ExecuteMsg::Withdraw {} => withdraw_reward(deps, info),
         ExecuteMsg::NewPenaltyPeriod {} => new_penalty_period(deps, info),
@@ -265,7 +265,7 @@ pub fn execute(
 }
 
 /// ## Description
-/// Updates the owner of the incentives contract.
+/// Updates general contract parameters.
 ///
 /// ## Params
 /// - **deps** is an object of type [`DepsMut`].
@@ -277,7 +277,7 @@ pub fn execute(
 ///
 /// ## Executor
 /// Only the owner can execute this.
-pub fn update_owner(
+pub fn update_config(
     deps: DepsMut,
     info: MessageInfo,
     owner: &str,
@@ -297,7 +297,7 @@ pub fn update_owner(
     new_cfg.owner = validated_owner;
     store_config(deps.storage, &new_cfg)?;
 
-    Ok(Response::new().add_attributes(vec![attr("action", "update_owner")]))
+    Ok(Response::new().add_attributes(vec![attr("action", "update_config")]))
 }
 
 /// ## Description

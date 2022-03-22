@@ -36,8 +36,8 @@ pub enum ExecuteMsg {
     /// OWNER CALLABLE
     /////////////////////
 
-    /// UpdateOwner updates contract owner.
-    UpdateOwner {
+    /// UpdateConfig updates contract owner.
+    UpdateConfig {
         /// address to claim the contract ownership
         owner: String,
     },

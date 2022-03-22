@@ -21,8 +21,8 @@ pub enum ExecuteMsg {
     /// OWNER CALLABLE
     /////////////////////
 
-    /// UpdateOwner updates the owner of the contract.
-    UpdateOwner {
+    /// UpdateConfig updates the config of the contract.
+    UpdateConfig {
         /// new owner of the contract
         owner: String,
     },
@@ -38,6 +38,16 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    /// Config returns contract settings specified in the custom [`ConfigResponse`] structure.
+    Config {},
     /// Balance returns the current Nebula token balance of the incentives custody contract.
     Balance {},
+}
+
+/// ## Description
+/// A custom struct for each query response that returns general contract settings/configs.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct ConfigResponse {
+    /// Owner of the airdrop contract
+    pub owner: String,
 }

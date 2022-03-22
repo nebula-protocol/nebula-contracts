@@ -327,6 +327,7 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let state = read_config(deps.storage)?;
     let resp = ConfigResponse {
         owner: state.owner.to_string(),
+        astroport_factory: state.astroport_factory.to_string(),
         nebula_token: state.nebula_token.to_string(),
     };
 

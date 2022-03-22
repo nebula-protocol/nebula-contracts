@@ -41,6 +41,8 @@ pub enum ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    /// Config returns contract settings specified in the custom [`ConfigResponse`] structure.
+    Config {},
     /// Price returns the latest oracle price of `base_asset` in `quote_asset` unit.
     Price {
         /// an asset to be queried
@@ -60,4 +62,16 @@ pub struct PriceResponse {
     pub last_updated_base: u64,
     /// Last update time of the quote asset
     pub last_updated_quote: u64,
+}
+
+/// ## Description
+/// A custom struct for each query response that returns general contract settings/configs.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct ConfigResponse {
+    /// Owner of the oracle contract
+    pub owner: String,
+    /// TeFi Oracle Hub contract
+    pub oracle_addr: String,
+    /// Base denom, UST
+    pub base_denom: String,
 }

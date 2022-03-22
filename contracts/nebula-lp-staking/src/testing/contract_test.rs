@@ -30,6 +30,7 @@ mod tests {
         assert_eq!(
             ConfigResponse {
                 owner: "owner".to_string(),
+                astroport_factory: "astroport-factory".to_string(),
                 nebula_token: "reward".to_string(),
             },
             config
@@ -64,6 +65,7 @@ mod tests {
         assert_eq!(
             ConfigResponse {
                 owner: "owner2".to_string(),
+                astroport_factory: "astroport-factory".to_string(),
                 nebula_token: "reward".to_string(),
             },
             config
