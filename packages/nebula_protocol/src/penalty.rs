@@ -36,11 +36,11 @@ pub enum ExecuteMsg {
         block_height: u64,
         /// current total supply for a cluster token
         cluster_token_supply: Uint128,
-        /// current inventory of underlying assets in a cluster
+        /// current inventory of inventory assets in a cluster
         inventory: Vec<Uint128>,
         /// the provided asset amounts for minting cluster tokens
         create_asset_amounts: Vec<Uint128>,
-        /// prices of the underlying assets in a cluster
+        /// prices of the inventory assets in a cluster
         asset_prices: Vec<String>,
         /// current target weights of the assets in a cluster
         target_weights: Vec<Uint128>,
@@ -52,13 +52,13 @@ pub enum ExecuteMsg {
         block_height: u64,
         /// current total supply for a cluster token
         cluster_token_supply: Uint128,
-        /// current inventory of underlying assets in a cluster
+        /// current inventory of inventory assets in a cluster
         inventory: Vec<Uint128>,
         /// maximum amount of cluster tokens allowed to burn for pro-rata redeem
         max_tokens: Uint128,
         /// amounts expected to receive from burning cluster tokens
         redeem_asset_amounts: Vec<Uint128>,
-        /// prices of the underlying assets in a cluster
+        /// prices of the inventory assets in a cluster
         asset_prices: Vec<String>,
         /// current target weights of the assets in a cluster
         target_weights: Vec<Uint128>,
@@ -79,11 +79,11 @@ pub enum QueryMsg {
         block_height: u64,
         /// current total supply for a cluster token
         cluster_token_supply: Uint128,
-        /// current inventory of underlying assets in a cluster
+        /// current inventory of inventory assets in a cluster
         inventory: Vec<Uint128>,
         /// the provided asset amounts for minting cluster tokens
         create_asset_amounts: Vec<Uint128>,
-        /// prices of the underlying assets in a cluster
+        /// prices of the inventory assets in a cluster
         asset_prices: Vec<String>,
         /// current target weights of the assets in a cluster
         target_weights: Vec<Uint128>,
@@ -95,13 +95,13 @@ pub enum QueryMsg {
         block_height: u64,
         /// current total supply for a cluster token
         cluster_token_supply: Uint128,
-        /// current inventory of underlying assets in a cluster
+        /// current inventory of inventory assets in a cluster
         inventory: Vec<Uint128>,
         /// maximum amount of cluster tokens allowed to burn for pro-rata redeem
         max_tokens: Uint128,
         /// amounts expected to receive from burning cluster tokens
         redeem_asset_amounts: Vec<Uint128>,
-        /// prices of the underlying assets in a cluster
+        /// prices of the inventory assets in a cluster
         asset_prices: Vec<String>,
         /// current target weights of the assets in a cluster
         target_weights: Vec<Uint128>,

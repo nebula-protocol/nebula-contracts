@@ -180,7 +180,7 @@ pub fn arb_cluster_create(
 /// #### UST -> Assets
 /// 1. Swap all sent UST to cluster tokens (CT) on Astroport
 /// 2. Record difference / change in Astroport pool before and after the swap
-/// 3. Redeem the cluster tokens into the cluster's underlying assets
+/// 3. Redeem the cluster tokens into the cluster's inventory assets
 /// 4. Send all the redeemed assets to the arbitrageur
 ///
 /// ## Params

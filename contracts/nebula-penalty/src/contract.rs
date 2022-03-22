@@ -233,13 +233,13 @@ pub fn update_config(
 ///     total supply for a cluster token.~~
 ///
 /// - **inventory** is a reference to an array containing objects of type [`Uint128`] which is the
-///     current inventory of underlying assets in a cluster.
+///     current inventory of inventory assets in a cluster.
 ///
 /// - [DEPRECATED] ~~**_create_asset_amounts** is a reference to an array containing objects of type [`Uint128`] which
 ///     are the provided asset amounts for minting cluster tokens.~~
 ///
 /// - **asset_prices** is a reference to an array containing objects of type [`String`] which are the
-///     prices of the underlying assets in a cluster.
+///     prices of the inventory assets in a cluster.
 ///
 /// - [DEPRECATED] ~~**_target_weights** is a reference to an array containing objects of type [`Uint128`] which are
 ///     the current target weights of the assets in a cluster.~~
@@ -273,7 +273,7 @@ pub fn execute_mint(
 ///     total supply for a cluster token.~~
 ///
 /// - **inventory** is a reference to an array containing objects of type [`Uint128`] which is the
-///     current inventory of underlying assets in a cluster.
+///     current inventory of inventory assets in a cluster.
 ///
 /// - [DEPRECATED] ~~**_max_tokens** is a reference to an object of type [`Uint128`] which is the required
 ///     maximum amount of cluster tokens allowed to burn for pro-rata redeem.~~
@@ -282,7 +282,7 @@ pub fn execute_mint(
 ///     are amounts expected to receive from burning cluster tokens.~~
 ///
 /// - **asset_prices** is a reference to an array containing objects of type [`String`] which are the
-///     prices of the underlying assets in a cluster.
+///     prices of the inventory assets in a cluster.
 ///
 /// - [DEPRECATED] ~~**_target_weights** is a reference to an array containing objects of type [`Uint128`] which are
 ///     the current target weights of the assets in a cluster.~~
@@ -430,13 +430,13 @@ pub fn get_params(deps: Deps) -> StdResult<ParamsResponse> {
 ///     total supply for a cluster token.
 ///
 /// - **inventory** is a reference to an array containing objects of type [`Uint128`] which is the
-///     current inventory of underlying assets in a cluster.
+///     current inventory of inventory assets in a cluster.
 ///
 /// - **create_asset_amounts** is a reference to an array containing objects of type [`Uint128`] which
 ///     are the provided asset amounts for minting cluster tokens.
 ///
 /// - **asset_prices** is a reference to an array containing objects of type [`String`] which are the
-///     prices of the underlying assets in a cluster.
+///     prices of the inventory assets in a cluster.
 ///
 /// - **target_weights** is a reference to an array containing objects of type [`Uint128`] which are
 ///     the current target weights of the assets in a cluster.
@@ -502,7 +502,7 @@ pub fn compute_mint(
 ///     total supply for a cluster token.
 ///
 /// - **inventory** is a reference to an array containing objects of type [`Uint128`] which is the
-///     current inventory of underlying assets in a cluster.
+///     current inventory of inventory assets in a cluster.
 ///
 /// - **max_tokens** is a reference to an object of type [`Uint128`] which is the required
 ///     maximum amount of cluster tokens allowed to burn for pro-rata redeem.
@@ -511,7 +511,7 @@ pub fn compute_mint(
 ///     are amounts expected to receive from burning cluster tokens.
 ///
 /// - **asset_prices** is a reference to an array containing objects of type [`String`] which are the
-///     prices of the underlying assets in a cluster.
+///     prices of the inventory assets in a cluster.
 ///
 /// - **target_weights** is a reference to an array containing objects of type [`Uint128`] which are
 ///     the current target weights of the assets in a cluster.
