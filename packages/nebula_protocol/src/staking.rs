@@ -55,7 +55,7 @@ pub enum ExecuteMsg {
     },
     /// Withdraw pending rewards
     Withdraw {
-        // if the asset token is not given, then all rewards are withdrawn
+        /// if the asset token is not given, then all rewards are withdrawn
         asset_token: Option<String>,
     },
     /// Provides liquidity and automatically stakes the LP tokens
