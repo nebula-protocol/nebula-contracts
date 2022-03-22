@@ -68,7 +68,7 @@ pub struct PriceResponse {
 /// A custom struct for each query response that returns general contract settings/configs.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ConfigResponse {
-    /// Owner of the airdrop contract
+    /// Owner of the oracle contract
     pub owner: String,
     /// TeFi Oracle Hub contract
     pub oracle_addr: String,
