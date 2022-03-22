@@ -139,7 +139,7 @@ pub struct ConfigResponse {
 }
 
 /// ## Description
-// A custom struct for each query response that returns LP staking pool information.
+/// A custom struct for each query response that returns LP staking pool information.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct PoolInfoResponse {
     /// Cluster token contract
