@@ -16,7 +16,7 @@
 ```
 
 - `owner`: address of the owner of the `incentives-custody` contract
-- `nebula_token: contract address of Nebula Token (NEB)
+- `nebula_token`: contract address of Nebula Token (NEB)
 
 ## ExecuteMsg
 
