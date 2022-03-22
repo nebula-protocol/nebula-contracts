@@ -305,11 +305,17 @@ fn test_withdraw_reward() {
         vec![attr("action", "withdraw"), attr("amount", "1500"),]
     );
 
-    // Make a new penalty period and make sure users can claim past penalties
+    // Overwrite the old contribution in the previos penalty periond
+    // and move old rewards to `pending_rewards`
 
-    let msg = ExecuteMsg::NewPenaltyPeriod {};
-    let info = mock_info("owner0000", &[]);
-    let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
+    record_contribution(
+        deps.as_mut(),
+        &Addr::unchecked("contributor0001"),
+        PoolType::ARBITRAGE,
+        &Addr::unchecked("cluster"),
+        Uint128::new(25),
+    )
+    .unwrap();
 
     let msg = QueryMsg::ContributorPendingRewards {
         contributor_address: "contributor0001".to_string(),
