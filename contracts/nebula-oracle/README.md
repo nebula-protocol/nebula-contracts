@@ -40,6 +40,16 @@ Updates contract variables
 
 ## QueryMsg
 
+### Config
+
+Returns general contract parameters
+
+```json
+{
+    "config": {}
+}
+```
+
 ### Price
 
 Returns the latest price by calculating `latest_base_price`/`latest_quote_price`

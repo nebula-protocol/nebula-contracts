@@ -4,7 +4,7 @@
   - [InstantiateMsg](#instantiatemsg)
   - [ExecuteMsg](#executemsg)
     - [RequestNeb](#requestneb)
-    - [UpdateOwner](#updateowner)
+    - [UpdateConfig](#updateconfig)
 
 ## InstantiateMsg
 
@@ -15,12 +15,14 @@
 }
 ```
 
+- `owner`: address of the owner of the `incentives-custody` contract
+- `nebula_token: contract address of Nebula Token (NEB)
+
 ## ExecuteMsg
 
 ### RequestNeb
 
 Transfer NEB tokens of `amount` from the incentives custody contract to the caller. Only callable by the custody's owner (the [`incentives`](../nebula-incentives/) in real cases)
-
 
 ```json
 {
@@ -32,13 +34,13 @@ Transfer NEB tokens of `amount` from the incentives custody contract to the call
 
 - `amount`: amount of NEB tokens to transfer
 
-### UpdateOwner
+### UpdateConfig
 
 Update the owner of the custody contract
 
 ```json
 {
-    "update_owner": {
+    "update_config": {
         "owner": String
     }
 }

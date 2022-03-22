@@ -1,6 +1,6 @@
 # Nebula Cluster
 
-This contract stores information and functionalities related to the individual Nebula cluster. These includes the methods for rebalancing the cluster inventory, updating the cluster's target weights, and decommissioning the cluster. It also facilitates querying information related to the cluster, including the cluster's name/description/inventory composition, penalty and target oracle address, the underlying asset prices, and its outstanding balance.
+This contract stores information and functionalities related to the individual Nebula cluster. These includes the methods for rebalancing the cluster inventory, updating the cluster's target weights, and decommissioning the cluster. It also facilitates querying information related to the cluster, including the cluster's name/description/inventory composition, penalty and target oracle address, the inventory asset prices, and its outstanding balance.
 
 - [Nebula Cluster](#nebula-cluster)
   - [InstantiateMsg](#instantiatemsg)

@@ -9,9 +9,14 @@
 }
 ```
 
+- `owner`: address of the owner of the `penalty` contract
+- `penalty_params`: the paramters for the penalty contract
+
 ## ExecuteMsg
 
 ### UpdateConfig
+
+Updates general penalty contract parameters.
 
 ```json
 {
@@ -22,7 +27,12 @@
 }
 ```
 
+- `owner`: address of the new owner of the `penalty` contract
+- `penalty_params`: new parameters for the penalty contract.
+
 ### PenaltyCreate
+
+Updates penalty contract states, EMA and last block, after a create operation.
 
 ```json
 {
@@ -37,7 +47,16 @@
 }
 ```
 
+- `block_height`: block height to compute the mint penalty at
+- `cluster_token_supply` total supply for the cluster token
+- `inventory`: current inventory of inventory assets in a cluster
+- `create_asset_amounts`: provided asset amounts for minting cluster tokens
+- `asset_prices`: prices of the inventory assets in a cluster
+- `target_weights`: the cluster's current inventory asset weights
+
 ### PenaltyRedeem
+
+Updates penalty contract states, EMA and last block, after a redeem operation.
 
 ```json
 {
@@ -53,9 +72,19 @@
 }
 ```
 
+- `block_height`: the block height to compute the redeem penalty at
+- `cluster_token_supply`: total supply for the cluster token
+- `inventory`: current inventory of inventory assets in a cluster
+- `max_tokens`: maximum amount of cluster tokens allowed to burn for pro-rata redeem
+- `redeem_asset_amounts`: amounts expected to receive from burning cluster tokens
+- `asset_prices`: latest prices of the inventory assets in a cluster
+- `target_weights`: the cluster's current inventory asset weights
+
 ## QueryMsg
 
 ### PenaltyQueryCreate
+
+Calculates the actual create amount after taking penalty into consideration
 
 ```json
 {
@@ -70,7 +99,16 @@
 }
 ```
 
+- `block_height`: the block height to compute the redeem mint at
+- `cluster_token_supply`: total supply for the cluster token
+- `inventory`: current inventory of inventory assets in a cluster
+- `create_asset_amounts`: provided asset amounts for minting cluster tokens
+- `asset_prices`: prices of the inventory assets in a cluster
+- `target_weights`: the cluster's current inventory asset weights
+
 ### PenaltyQueryRedeem
+
+Calculates the actual redeem amount after taking penalty into consideration
 
 ```json
 {
@@ -86,8 +124,17 @@
 }
 ```
 
+- `block_height`: the block height to compute the redeem mint at
+- `cluster_token_supply`: total supply for the cluster token
+- `inventory`: current inventory of inventory assets in a cluster
+- `max_tokens`: maximum amount of cluster tokens allowed to burn for pro-rata redeem
+- `redeem_asset_amounts`: amounts expected to receive from burning cluster tokens
+- `asset_prices`: prices of the inventory assets in a cluster
+- `target_weights`: the cluster's current inventory asset weights
+
 ### Params
 
+Returns general contract parameters
 
 ```json
 {

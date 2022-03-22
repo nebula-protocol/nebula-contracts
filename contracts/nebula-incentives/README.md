@@ -4,7 +4,7 @@
 - [Nebula Incentives](#nebula-incentives)
   - [InstantiateMsg](#instantiatemsg)
   - [ExecuteMsg](#executemsg)
-    - [UpdateOwner](#updateowner)
+    - [UpdateConfig](#updateconfig)
     - [Receive](#receive)
     - [Withdraw](#withdraw)
     - [New Penalty Period](#new-penalty-period)
@@ -43,15 +43,19 @@
 
 ## ExecuteMsg
 
-### UpdateOwner
+### UpdateConfig
+
+Updates general contract parameters.
 
 ```json
 {
-  "update_owner": {
+  "update_config": {
     "owner": String
   }
 }
 ```
+
+- `owner`: address of the new owner of the `incentives` contract
 
 ### Receive
 
