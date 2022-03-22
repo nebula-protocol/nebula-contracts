@@ -134,10 +134,20 @@ Calculates the actual redeem amount after taking penalty into consideration
 
 ### Params
 
-Returns general contract parameters
+Returns current penalty parameters
 
 ```json
 {
     "params": {}
+}
+```
+
+### Config
+
+Returns general contract parameters
+
+```json
+{
+    "config": {}
 }
 ```
