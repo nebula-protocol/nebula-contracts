@@ -48,7 +48,7 @@ Updates contract variables, namely the `owner` of the contract and the address o
 
 ### `RegisterMerkleRoot`
 
-Registers a new merkle root under a next stage.
+Registers a new Merkle root under a next stage.
 
 ```json
 {
@@ -76,7 +76,7 @@ Initiates an airdrop claim transaction for the message sender.
 
 - `stage`: stage of airdrop to be claimed
 - `amount`: amount of the airdrop to be claimed by the sender at the specified stage
-- `proof`: merkle proof at the specified stage
+- `proof`: Merkle proof at the specified stage
 
 ## QueryMsg
 
@@ -92,7 +92,7 @@ Returns the current configuration information for the contract
 
 ### MerkleRoot
 
-Returns the merkle root registered under the given stage
+Returns the Merkle root registered under the given stage
 
 ```json
 {
@@ -106,7 +106,7 @@ Returns the merkle root registered under the given stage
 
 ### LatestStage
 
-Returns the latest stage containing a merkle root in the airdrop contract.
+Returns the latest stage containing a Merkle root in the airdrop contract.
 
 ```json
 {

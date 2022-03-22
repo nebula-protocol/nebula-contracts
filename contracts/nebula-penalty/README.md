@@ -10,7 +10,7 @@
 ```
 
 - `owner`: address of the owner of the `penalty` contract
-- `penalty_params`: the paramters for the penalty contract
+- `penalty_params`: the parameters for the penalty contract
 
 ## ExecuteMsg
 
