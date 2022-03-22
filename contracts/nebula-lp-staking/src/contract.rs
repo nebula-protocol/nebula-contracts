@@ -190,7 +190,7 @@ pub fn receive_cw20(
                     "Rewards amount miss matched".to_string(),
                 ));
             }
-            // Desposit the reward
+            // Deposit the reward
             deposit_reward(deps, rewards, rewards_amount)
         }
     }
