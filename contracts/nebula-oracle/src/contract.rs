@@ -9,7 +9,9 @@ use crate::state::{read_config, store_config, Config};
 
 use crate::error::ContractError;
 use astroport::asset::AssetInfo;
-use nebula_protocol::oracle::{ExecuteMsg, InstantiateMsg, PriceResponse, QueryMsg};
+use nebula_protocol::oracle::{
+    ConfigResponse, ExecuteMsg, InstantiateMsg, PriceResponse, QueryMsg,
+};
 use tefi_oracle::hub::{
     HubQueryMsg as TeFiOracleQueryMsg, PriceResponse as TeFiOraclePriceResponse,
 };
@@ -146,6 +148,8 @@ pub fn update_config(
 /// - **msg** is an object of type [`QueryMsg`].
 ///
 /// ## Commands
+/// - **QueryMsg::Config {}** Returns general contract parameters using a custom [`ConfigResponse`] structure.
+///
 /// - **QueryMsg::Price {
 ///             base_asset,
 ///             quote_asset,
@@ -153,11 +157,28 @@ pub fn update_config(
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
+        QueryMsg::Config {} => to_binary(&query_config(deps)?),
         QueryMsg::Price {
             base_asset,
             quote_asset,
         } => to_binary(&query_price(deps, base_asset, quote_asset)?),
     }
+}
+
+/// ## Description
+/// Returns general contract parameters using a custom [`ConfigResponse`] structure.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
+fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
+    let state = read_config(deps.storage)?;
+    let resp = ConfigResponse {
+        owner: state.owner.to_string(),
+        oracle_addr: state.oracle_addr.to_string(),
+        base_denom: state.base_denom.to_string(),
+    };
+
+    Ok(resp)
 }
 
 /// ## Description

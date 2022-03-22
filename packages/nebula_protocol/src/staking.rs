@@ -134,6 +134,8 @@ pub enum QueryMsg {
 pub struct ConfigResponse {
     /// Owner of the contract
     pub owner: String,
+    /// Astroport factory contract address
+    pub astroport_factory: String,
     /// Nebula token contract
     pub nebula_token: String,
 }
