@@ -14,10 +14,18 @@ use nebula_protocol::incentives::{ExtExecuteMsg, PoolType};
 
 use cw20::Cw20ExecuteMsg;
 
-// anybody can deposit rewards...
+/// ## Description
+/// Add rewards to pools. Note that anybody can deposit rewards.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **rewards** is an object of type [`Vec<(u16, String, Uint128)>`] which is a list of rewards to be deposited.
+///     Each tuple contains (pool_type, cluster_contract, amount).
+///
+/// - **rewards_amount** is an object of type [`Uint128`] which is the sum of the rewards in the list.
 pub fn deposit_reward(
     deps: DepsMut,
-    // pool_type, cluster_contract, amount
     rewards: Vec<(u16, String, Uint128)>,
     rewards_amount: Uint128,
 ) -> Result<Response, ContractError> {
@@ -25,10 +33,13 @@ pub fn deposit_reward(
     let n = read_current_n(deps.storage)?;
 
     for (pool_type, cluster_contract, amount) in rewards.iter() {
+        // Validate address format
         let validated_cluster_contract = deps.api.addr_validate(cluster_contract.as_str())?;
+        // Check the pool type
         if !PoolType::ALL_TYPES.contains(&pool_type) {
             return Err(ContractError::Generic("Pool type not found".to_string()));
         }
+        // Update the rewards in the pool
         let mut pool_info: PoolInfo = read_from_pool_bucket(
             &pool_info_read(deps.storage, *pool_type, n),
             &validated_cluster_contract,
@@ -53,7 +64,13 @@ pub fn deposit_reward(
         ]))
 }
 
-// withdraw all rewards or single reward depending on asset_token
+/// ## Description
+/// Withdraws all rewards for the sender.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **info** is an object of type [`MessageInfo`].
 pub fn withdraw_reward(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
     let cfg = read_config(deps.storage)?;
 
@@ -74,10 +91,12 @@ pub fn withdraw_reward(deps: DepsMut, info: MessageInfo) -> Result<Response, Con
         }
     }
 
+    // Compute and aggregate user pending rewards
     for (pool_type, asset_address) in contribution_tuples {
         contributions_to_pending_rewards(deps.storage, &reward_owner, **pool_type, &asset_address)?;
     }
 
+    // Retrieve the total user pending rewards, and reset the pending rewards
     let reward_amt = read_pending_rewards(deps.storage, &reward_owner);
     store_pending_rewards(deps.storage, &reward_owner, Uint128::zero())?;
 
@@ -85,7 +104,7 @@ pub fn withdraw_reward(deps: DepsMut, info: MessageInfo) -> Result<Response, Con
 
     Ok(Response::new()
         .add_messages(vec![
-            // withdraw reward amount from custody contract
+            // Withdraw reward amount from custody contract
             CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: cfg.custody.to_string(),
                 msg: to_binary(&ExtExecuteMsg::RequestNeb { amount: reward_amt })?,
@@ -106,6 +125,11 @@ pub fn withdraw_reward(deps: DepsMut, info: MessageInfo) -> Result<Response, Con
         ]))
 }
 
+/// ## Description
+/// Increases the current penalty period by one.
+///
+/// ## Params
+/// - **storage** is a mutable reference to an object implementing trait [`Storage`].
 pub fn increment_n(storage: &mut dyn Storage) -> StdResult<u64> {
     let current_n = read_current_n(storage)?;
     store_current_n(storage, current_n + 1)?;
