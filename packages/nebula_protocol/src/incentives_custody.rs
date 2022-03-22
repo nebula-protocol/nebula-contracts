@@ -21,7 +21,7 @@ pub enum ExecuteMsg {
     /// OWNER CALLABLE
     /////////////////////
 
-    /// UpdateOwner updates the config of the contract.
+    /// UpdateConfig updates the config of the contract.
     UpdateConfig {
         /// new owner of the contract
         owner: String,

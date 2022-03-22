@@ -68,7 +68,7 @@ fn proper_initialization() {
         }
     );
 
-    let msg = ExecuteMsg::UpdateOwner {
+    let msg = ExecuteMsg::UpdateConfig {
         owner: "owner0001".to_string(),
     };
 
@@ -76,13 +76,13 @@ fn proper_initialization() {
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
     assert_eq!(res, ContractError::Unauthorized {});
 
-    let msg = ExecuteMsg::UpdateOwner {
+    let msg = ExecuteMsg::UpdateConfig {
         owner: "owner0001".to_string(),
     };
 
     let info = mock_info("owner0000", &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-    assert_eq!(res.attributes, vec![attr("action", "update_owner"),]);
+    assert_eq!(res.attributes, vec![attr("action", "update_config"),]);
 
     // it worked, let's query the state
     let config: ConfigResponse = query_config(deps.as_ref()).unwrap();

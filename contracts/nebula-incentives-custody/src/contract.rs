@@ -102,7 +102,7 @@ pub fn update_config(
     set_owner(deps.storage, &deps.api.addr_validate(owner)?)?;
 
     Ok(Response::new().add_attributes(vec![
-        attr("action", "update_owner"),
+        attr("action", "update_config"),
         attr("old_owner", old_owner.to_string()),
         attr("new_owner", owner.to_string()),
     ]))

@@ -13,8 +13,8 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 #[serde(rename_all = "snake_case")]
 pub enum HubExecuteMsg {
-    /// Owner operation to update the owner parameter
-    UpdateOwner { owner: String },
+    /// Owner operation to update the contract parameters
+    UpdateConfig { owner: String },
     /// Registers a new proxy contract for an asset_token
     RegisterProxy {
         asset_token: String,

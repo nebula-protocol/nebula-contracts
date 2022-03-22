@@ -129,7 +129,7 @@ fn test_query_config() {
 }
 
 #[test]
-fn test_update_owner() {
+fn test_update_config() {
     let msg = InstantiateMsg {
         owner: h(OWNER),
         nebula_token: h(NEB_TOKEN),
@@ -160,7 +160,7 @@ fn test_update_owner() {
     assert_eq!(
         res.attributes,
         vec![
-            attr("action", "update_owner"),
+            attr("action", "update_config"),
             attr("old_owner", OWNER),
             attr("new_owner", "owner0001")
         ]
