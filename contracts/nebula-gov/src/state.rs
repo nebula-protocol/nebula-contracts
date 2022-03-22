@@ -9,80 +9,55 @@ use serde::{Deserialize, Serialize};
 use nebula_protocol::common::OrderBy;
 use nebula_protocol::gov::{PollStatus, VoterInfo};
 
+/// config: Config
 static KEY_CONFIG: &[u8] = b"config";
+/// state: State
 static KEY_STATE: &[u8] = b"state";
+/// temporary poll id: u64
 static KEY_TMP_POLL_ID: &[u8] = b"tmp_poll_id";
 
+/// poll indexer: Bucket<poll_status>; poll_id -> true
 static PREFIX_POLL_INDEXER: &[u8] = b"poll_indexer";
+/// poll voter: Bucket<poll_id>; address as bytes -> VoterInfo
 static PREFIX_POLL_VOTER: &[u8] = b"poll_voter";
+/// poll: Poll
 static PREFIX_POLL: &[u8] = b"poll";
+/// bank: TokenManager
 static PREFIX_BANK: &[u8] = b"bank";
 
+/// Maximum number of results when querying.
 const MAX_LIMIT: u32 = 30;
+/// Default number of results when querying if a limit is not specified.
 const DEFAULT_LIMIT: u32 = 10;
 
+//////////////////////////////////////////////////////////////////////
+/// CONFIG
+//////////////////////////////////////////////////////////////////////
+
+/// ## Description
+/// A custom struct for storing governance setting.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
+    /// Owner of the contract
     pub owner: Addr,
+    /// Nebula token contract
     pub nebula_token: Addr,
+    /// Poll quorum
     pub quorum: Decimal,
+    /// Poll pass threshold
     pub threshold: Decimal,
+    /// Poll voting period
     pub voting_period: u64,
+    /// Poll execution delay after passing
     pub effective_delay: u64,
-    pub expiration_period: u64, // deprecated, to remove on next state migration
+    /// DEPRECATED, to remove on next state migration
+    pub expiration_period: u64,
+    /// Poll initial deposit
     pub proposal_deposit: Uint128,
+    /// Reward weight for voters
     pub voter_weight: Decimal,
+    /// Poll snapshot period for the total stake
     pub snapshot_period: u64,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct State {
-    pub contract_addr: Addr,
-    pub poll_count: u64,
-    pub total_share: Uint128,
-    pub total_deposit: Uint128,
-    pub pending_voting_rewards: Uint128,
-}
-
-#[derive(Default, Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct TokenManager {
-    pub share: Uint128,                        // total staked balance
-    pub locked_balance: Vec<(u64, VoterInfo)>, // maps poll_id to weight voted
-    pub participated_polls: Vec<u64>,          // poll_id
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct Poll {
-    pub id: u64,
-    pub creator: Addr,
-    pub status: PollStatus,
-    pub yes_votes: Uint128,
-    pub no_votes: Uint128,
-    pub abstain_votes: Uint128,
-    pub end_time: u64,
-    pub title: String,
-    pub description: String,
-    pub link: Option<String>,
-    pub execute_data: Option<Vec<ExecuteData>>,
-    pub deposit_amount: Uint128,
-    /// Total balance at the end poll
-    pub total_balance_at_end_poll: Option<Uint128>,
-    pub voters_reward: Uint128,
-    pub staked_amount: Option<Uint128>,
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct ExecuteData {
-    pub contract: Addr,
-    pub msg: Binary,
-}
-
-pub fn store_tmp_poll_id(storage: &mut dyn Storage, tmp_poll_id: u64) -> StdResult<()> {
-    singleton(storage, KEY_TMP_POLL_ID).save(&tmp_poll_id)
-}
-
-pub fn read_tmp_poll_id(storage: &dyn Storage) -> StdResult<u64> {
-    singleton_read(storage, KEY_TMP_POLL_ID).load()
 }
 
 pub fn config_store(storage: &mut dyn Storage) -> Singleton<Config> {
@@ -93,6 +68,26 @@ pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<Config> {
     singleton_read(storage, KEY_CONFIG)
 }
 
+//////////////////////////////////////////////////////////////////////
+/// STATE
+//////////////////////////////////////////////////////////////////////
+
+/// ## Description
+/// A custom struct for storing the governance state.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct State {
+    /// Address of the governance contract
+    pub contract_addr: Addr,
+    /// Total number of polls
+    pub poll_count: u64,
+    /// Total staked share. Not equal to the actual total staked due to auto-staked rewards
+    pub total_share: Uint128,
+    /// Total initial deposits of all polls
+    pub total_deposit: Uint128,
+    /// Total pending rewards for voters
+    pub pending_voting_rewards: Uint128,
+}
+
 pub fn state_store(storage: &mut dyn Storage) -> Singleton<State> {
     singleton(storage, KEY_STATE)
 }
@@ -101,13 +96,21 @@ pub fn state_read(storage: &dyn Storage) -> ReadonlySingleton<State> {
     singleton_read(storage, KEY_STATE)
 }
 
-pub fn poll_store(storage: &mut dyn Storage) -> Bucket<Poll> {
-    bucket(storage, PREFIX_POLL)
+//////////////////////////////////////////////////////////////////////
+/// TEMP POLL ID
+//////////////////////////////////////////////////////////////////////
+
+pub fn store_tmp_poll_id(storage: &mut dyn Storage, tmp_poll_id: u64) -> StdResult<()> {
+    singleton(storage, KEY_TMP_POLL_ID).save(&tmp_poll_id)
 }
 
-pub fn poll_read(storage: &dyn Storage) -> ReadonlyBucket<Poll> {
-    bucket_read(storage, PREFIX_POLL)
+pub fn read_tmp_poll_id(storage: &dyn Storage) -> StdResult<u64> {
+    singleton_read(storage, KEY_TMP_POLL_ID).load()
 }
+
+//////////////////////////////////////////////////////////////////////
+/// POLL INDEXER (bucket multilevel)
+//////////////////////////////////////////////////////////////////////
 
 pub fn poll_indexer_store<'a>(
     storage: &'a mut dyn Storage,
@@ -119,46 +122,23 @@ pub fn poll_indexer_store<'a>(
     )
 }
 
-pub fn poll_voter_store(storage: &mut dyn Storage, poll_id: u64) -> Bucket<VoterInfo> {
-    Bucket::multilevel(storage, &[PREFIX_POLL_VOTER, &poll_id.to_be_bytes()])
-}
-
-pub fn poll_voter_read(storage: &dyn Storage, poll_id: u64) -> ReadonlyBucket<VoterInfo> {
-    ReadonlyBucket::multilevel(storage, &[PREFIX_POLL_VOTER, &poll_id.to_be_bytes()])
-}
-
-pub fn read_poll_voters<'a>(
-    storage: &'a dyn Storage,
-    poll_id: u64,
-    start_after: Option<Addr>,
-    limit: Option<u32>,
-    order_by: Option<OrderBy>,
-) -> StdResult<Vec<(Addr, VoterInfo)>> {
-    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
-    let (start, end, order_by) = match order_by {
-        Some(OrderBy::Asc) => (calc_range_start_addr(start_after), None, OrderBy::Asc),
-        _ => (None, calc_range_end_addr(start_after), OrderBy::Desc),
-    };
-
-    let voters: ReadonlyBucket<'a, VoterInfo> =
-        ReadonlyBucket::multilevel(storage, &[PREFIX_POLL_VOTER, &poll_id.to_be_bytes()]);
-    voters
-        .range(start.as_deref(), end.as_deref(), order_by.into())
-        .take(limit)
-        .map(|item| {
-            let (k, v) = item?;
-            Ok((
-                Addr::unchecked(
-                    std::str::from_utf8(&k)
-                        .map_err(|_| StdError::invalid_utf8("invalid address"))?
-                        .to_string(),
-                ),
-                v,
-            ))
-        })
-        .collect()
-}
-
+/// ## Description
+/// Returns a list of polls under the provided criterions.
+///
+/// ## Params
+/// - **storage** is a reference to an object implementing trait [`Storage`].
+///
+/// - **filter** is an object of type [`Option<PollStatus>`] which filters polls
+///     based on the specified poll status.
+///
+/// - **start_after** is an object of type [`Option<u64>`] which is a filter for the poll ID.
+///
+/// - **limit** is an object of type [`Option<u32>`] which limits the number of polls in the query result.
+///
+/// - **order_by** is an object of type [`Option<OrderBy>`] which specifies the ordering of the result.
+///
+/// - **remove_hard_cap** is an object of type [`Option<bool>`] which removes the limit on the
+///     number of the result.
 pub fn read_polls<'a>(
     storage: &'a dyn Storage,
     filter: Option<PollStatus>,
@@ -205,6 +185,139 @@ pub fn read_polls<'a>(
     }
 }
 
+//////////////////////////////////////////////////////////////////////
+/// POLL VOTER (bucket multilevel)
+//////////////////////////////////////////////////////////////////////
+
+pub fn poll_voter_store(storage: &mut dyn Storage, poll_id: u64) -> Bucket<VoterInfo> {
+    Bucket::multilevel(storage, &[PREFIX_POLL_VOTER, &poll_id.to_be_bytes()])
+}
+
+pub fn poll_voter_read(storage: &dyn Storage, poll_id: u64) -> ReadonlyBucket<VoterInfo> {
+    ReadonlyBucket::multilevel(storage, &[PREFIX_POLL_VOTER, &poll_id.to_be_bytes()])
+}
+
+/// ## Description
+/// Returns a list of poll voters of the specified `poll_id` under the provided criterions.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
+///
+/// - **poll_id** is an object of type [`u64`] which is the poll ID.
+///
+/// - **start_after** is an object of type [`Option<String>`] which is a filter for voter address.
+///
+/// - **limit** is an object of type [`Option<u32>`] which limits the number of voters in the query result.
+///
+/// - **order_by** is an object of type [`Option<OrderBy>`] which specifies the ordering of the result.
+pub fn read_poll_voters<'a>(
+    storage: &'a dyn Storage,
+    poll_id: u64,
+    start_after: Option<Addr>,
+    limit: Option<u32>,
+    order_by: Option<OrderBy>,
+) -> StdResult<Vec<(Addr, VoterInfo)>> {
+    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
+    let (start, end, order_by) = match order_by {
+        Some(OrderBy::Asc) => (calc_range_start_addr(start_after), None, OrderBy::Asc),
+        _ => (None, calc_range_end_addr(start_after), OrderBy::Desc),
+    };
+
+    // Get the `poll_id` poll bucket
+    let voters: ReadonlyBucket<'a, VoterInfo> =
+        ReadonlyBucket::multilevel(storage, &[PREFIX_POLL_VOTER, &poll_id.to_be_bytes()]);
+    voters
+        .range(start.as_deref(), end.as_deref(), order_by.into())
+        .take(limit)
+        .map(|item| {
+            let (k, v) = item?;
+            Ok((
+                Addr::unchecked(
+                    std::str::from_utf8(&k)
+                        .map_err(|_| StdError::invalid_utf8("invalid address"))?
+                        .to_string(),
+                ),
+                v,
+            ))
+        })
+        .collect()
+}
+
+//////////////////////////////////////////////////////////////////////
+/// POLL (bucket)
+//////////////////////////////////////////////////////////////////////
+
+/// ## Description
+/// A custom struct for storing poll information.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct Poll {
+    /// Poll ID
+    pub id: u64,
+    /// Poll creator
+    pub creator: Addr,
+    /// Current poll status
+    pub status: PollStatus,
+    /// Current YES votes
+    pub yes_votes: Uint128,
+    /// Current NO votes
+    pub no_votes: Uint128,
+    /// Current ABSTAIN votes
+    pub abstain_votes: Uint128,
+    /// End time of the poll voting period
+    pub end_time: u64,
+    /// Poll title
+    pub title: String,
+    /// Poll description
+    pub description: String,
+    /// Poll link
+    pub link: Option<String>,
+    /// Poll execute data if the poll passes
+    pub execute_data: Option<Vec<ExecuteData>>,
+    /// Initial deposit amount
+    pub deposit_amount: Uint128,
+    /// Total balance at the end poll
+    pub total_balance_at_end_poll: Option<Uint128>,
+    /// Rewards for voters
+    pub voters_reward: Uint128,
+    /// Total staked amount in the governance contract when snapshotted
+    /// -- used for calculating quorum
+    pub staked_amount: Option<Uint128>,
+}
+
+/// ## Description
+/// A custom struct for poll execute data.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct ExecuteData {
+    /// Target contract address to execute a message
+    pub contract: Addr,
+    /// Message to be executed
+    pub msg: Binary,
+}
+
+pub fn poll_store(storage: &mut dyn Storage) -> Bucket<Poll> {
+    bucket(storage, PREFIX_POLL)
+}
+
+pub fn poll_read(storage: &dyn Storage) -> ReadonlyBucket<Poll> {
+    bucket_read(storage, PREFIX_POLL)
+}
+
+//////////////////////////////////////////////////////////////////////
+/// BANK / TOKEN MANAGER (bucket)
+//////////////////////////////////////////////////////////////////////
+
+/// ## Description
+/// A custom struct for user's bank / token manager.
+#[derive(Default, Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct TokenManager {
+    /// Total staked share
+    pub share: Uint128,
+    /// A list of poll_id and vote amount
+    pub locked_balance: Vec<(u64, VoterInfo)>,
+    /// A list of the voter's participating poll_id.
+    pub participated_polls: Vec<u64>,
+}
+
 pub fn bank_store(storage: &mut dyn Storage) -> Bucket<TokenManager> {
     bucket(storage, PREFIX_BANK)
 }
@@ -213,6 +326,17 @@ pub fn bank_read(storage: &dyn Storage) -> ReadonlyBucket<TokenManager> {
     bucket_read(storage, PREFIX_BANK)
 }
 
+/// ## Description
+/// Returns a list of stakers under the provided criterions.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
+///
+/// - **start_after** is an object of type [`Option<String>`] which is a filter for staker address.
+///
+/// - **limit** is an object of type [`Option<u32>`] which limits the number of stakers in the query result.
+///
+/// - **order_by** is an object of type [`Option<OrderBy>`] which specifies the ordering of the result.
 pub fn read_bank_stakers<'a>(
     storage: &'a dyn Storage,
     start_after: Option<Addr>,
@@ -225,7 +349,9 @@ pub fn read_bank_stakers<'a>(
         _ => (None, calc_range_end_addr(start_after), OrderBy::Desc),
     };
 
+    // Get the token manager bucket
     let stakers: ReadonlyBucket<'a, TokenManager> = ReadonlyBucket::new(storage, PREFIX_BANK);
+    // Query a list of stakers with an address from `start` for `limit` accounts
     stakers
         .range(start.as_deref(), end.as_deref(), order_by.into())
         .take(limit)
@@ -243,7 +369,12 @@ pub fn read_bank_stakers<'a>(
         .collect()
 }
 
-// this will set the first key after the provided key, by appending a 1 byte
+//////////////////////////////////////////////////////////////////////
+/// UTILS
+//////////////////////////////////////////////////////////////////////
+
+/// ## Description
+/// Set the first key after the provided key, by appending a byte.
 fn calc_range_start(start_after: Option<u64>) -> Option<Vec<u8>> {
     start_after.map(|id| {
         let mut v = id.to_be_bytes().to_vec();
@@ -252,12 +383,14 @@ fn calc_range_start(start_after: Option<u64>) -> Option<Vec<u8>> {
     })
 }
 
-// this will set the first key after the provided key, by appending a 1 byte
+/// ## Description
+/// Set the first key after the provided key, by appending a byte.
 fn calc_range_end(start_after: Option<u64>) -> Option<Vec<u8>> {
     start_after.map(|id| id.to_be_bytes().to_vec())
 }
 
-// this will set the first key after the provided key, by appending a 1 byte
+/// ## Description
+/// Set the first key after the provided key, by appending a byte
 fn calc_range_start_addr(start_after: Option<Addr>) -> Option<Vec<u8>> {
     start_after.map(|addr| {
         let mut v = addr.as_bytes().to_vec();
@@ -266,7 +399,8 @@ fn calc_range_start_addr(start_after: Option<Addr>) -> Option<Vec<u8>> {
     })
 }
 
-// this will set the first key after the provided key, by appending a 1 byte
+/// ## Description
+/// Set the first key after the provided key, by appending a byte
 fn calc_range_end_addr(start_after: Option<Addr>) -> Option<Vec<u8>> {
     start_after.map(|addr| addr.as_bytes().to_vec())
 }
