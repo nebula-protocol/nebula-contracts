@@ -175,7 +175,7 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let resp = ConfigResponse {
         owner: state.owner.to_string(),
         oracle_addr: state.oracle_addr.to_string(),
-        base_denom: state.base_denom.to_string(),
+        base_denom: state.base_denom,
     };
 
     Ok(resp)
