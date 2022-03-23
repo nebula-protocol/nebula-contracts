@@ -49,10 +49,10 @@ Adds necessary factory contract settings after the initialization
 ```
 
 - `owner`: address of the owner of the `cluster-factory` contract
-- `astroport_factory`: address of the [Astroport](https://astroport.fi) [factory](https://github.com/astroport-fi/astroport-core/tree/main/contracts/factory) contract
+- `astroport_factory`: address of the [Astroport](https://astroport.fi) [`factory`](https://github.com/astroport-fi/astroport-core/tree/main/contracts/factory) contract
 - `nebula_token`: contract address of Nebula Token (NEB)
-- `staking_contract`: address of the [lp-staking](../nebula-lp-staking/) contract
-- `commission_collector`: address of the [collector](../nebula-collector/) contract used to send protocol fees to 
+- `staking_contract`: address of the [`lp-staking`](../nebula-lp-staking/) contract
+- `commission_collector`: address of the [`collector`](../nebula-collector/) contract used to send protocol fees to 
 
 ### UpdateConfig
 

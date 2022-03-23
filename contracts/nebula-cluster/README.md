@@ -74,7 +74,7 @@ Updates contract variables
 
 ### RebalanceCreate
 
-Performs a [CREATE/mint](https://docs.neb.money/protocol/clusters.html#create-mint) operation on cluster, depositing the cluster's inventory assets and minting new cluster tokens
+Performs a [`CREATE/mint`](https://docs.neb.money/protocol/clusters.html#create-mint) operation on cluster, depositing the cluster's inventory assets and minting new cluster tokens
 
 ```json
 {
