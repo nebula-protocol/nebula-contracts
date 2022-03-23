@@ -286,7 +286,7 @@ fn test_update_weight() {
     assert_eq!(
         distribution_info,
         DistributionInfoResponse {
-            weights: vec![(h("asset0000"), 20), (h("nebula0000"), 300)],
+            weights: vec![(h("asset0000"), 20), (h("nebula0000"), 30)],
             last_distributed: 1_571_797_419,
         }
     );
@@ -626,7 +626,7 @@ fn test_set_cluster_token_hook() {
     assert_eq!(
         distribution_info,
         DistributionInfoResponse {
-            weights: vec![(h("cluster_token0000"), 100), (h("nebula0000"), 300)],
+            weights: vec![(h("cluster_token0000"), 100), (h("nebula0000"), 30)],
             last_distributed: 1_571_797_419,
         }
     );
@@ -761,7 +761,7 @@ fn test_set_cluster_token_hook_without_weight() {
     assert_eq!(
         distribution_info,
         DistributionInfoResponse {
-            weights: vec![(h("cluster_token0000"), 30), (h("nebula0000"), 300)],
+            weights: vec![(h("cluster_token0000"), 30), (h("nebula0000"), 30)],
             last_distributed: 1_571_797_419,
         }
     );
@@ -1005,7 +1005,7 @@ fn test_distribute() {
         res.attributes,
         vec![
             attr("action", "distribute"),
-            attr("distribution_amount", "7199"),
+            attr("distribution_amount", "7200"),
         ]
     );
 
@@ -1015,12 +1015,12 @@ fn test_distribute() {
             contract_addr: h("nebula0000"),
             msg: to_binary(&Cw20ExecuteMsg::Send {
                 contract: h("staking0000"),
-                amount: Uint128::new(7199u128),
+                amount: Uint128::new(7200u128),
                 msg: to_binary(&StakingCw20HookMsg::DepositReward {
                     rewards: vec![
-                        (h("cluster_token0000"), Uint128::new(1674)),
-                        (h("cluster_token0001"), Uint128::new(502)),
-                        (h("nebula0000"), Uint128::new(5023)),
+                        (h("cluster_token0000"), Uint128::new(4500)),
+                        (h("cluster_token0001"), Uint128::new(1350)),
+                        (h("nebula0000"), Uint128::new(1350)),
                     ],
                 })
                 .unwrap()
@@ -1038,7 +1038,7 @@ fn test_distribute() {
             weights: vec![
                 (h("cluster_token0000"), 100),
                 (h("cluster_token0001"), 30),
-                (h("nebula0000"), 300)
+                (h("nebula0000"), 30)
             ],
             last_distributed: 1_571_802_819,
         }
@@ -1167,7 +1167,7 @@ fn test_decommission_cluster() {
     assert_eq!(
         distribution_info,
         DistributionInfoResponse {
-            weights: vec![(h("nebula0000"), 300)],
+            weights: vec![(h("nebula0000"), 30)],
             last_distributed: 1_571_797_419,
         }
     );
@@ -1175,7 +1175,7 @@ fn test_decommission_cluster() {
     let res = read_weight(&deps.storage, &Addr::unchecked("asset0000")).unwrap_err();
     assert_eq!(res, StdError::generic_err("No distribution info stored"));
 
-    assert_eq!(read_total_weight(&deps.storage).unwrap(), 300u32);
+    assert_eq!(read_total_weight(&deps.storage).unwrap(), 30u32);
 }
 
 #[test]

@@ -34,7 +34,7 @@ use crate::state::{
 };
 
 /// Nebula reward distribution weight for Nebula staking pool.
-const NEBULA_TOKEN_WEIGHT: u32 = 300u32;
+const NEBULA_TOKEN_WEIGHT: u32 = 30u32;
 /// Default Nebula reward distribution weight for cluster LP staking pool.
 const NORMAL_TOKEN_WEIGHT: u32 = 30u32;
 
