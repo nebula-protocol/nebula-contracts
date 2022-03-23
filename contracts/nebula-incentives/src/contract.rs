@@ -18,12 +18,18 @@ use crate::state::{
     contributions_read, pool_info_read, read_config, read_current_n, read_from_contribution_bucket,
     read_from_pool_bucket, read_pending_rewards, store_config, store_current_n, Config,
 };
+use cw2::set_contract_version;
 use cw20::Cw20ReceiveMsg;
 use nebula_protocol::incentives::{
     ConfigResponse, ContributorPendingRewardsResponse, CurrentContributorInfoResponse, Cw20HookMsg,
     ExecuteMsg, IncentivesPoolInfoResponse, InstantiateMsg, MigrateMsg, PenaltyPeriodResponse,
     PoolType, QueryMsg,
 };
+
+/// Contract name that is used for migration.
+const CONTRACT_NAME: &str = "nebula-incentives";
+/// Contract version that is used for migration.
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// ## Description
 /// Creates a new contract with the specified parameters packed in the `msg` variable.
@@ -45,6 +51,8 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
     // Set the initial contract settings
     store_config(
         deps.storage,

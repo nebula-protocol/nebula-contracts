@@ -17,6 +17,7 @@ use cosmwasm_std::{
     attr, from_binary, to_binary, Binary, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo,
     Reply, ReplyOn, Response, StdError, StdResult, SubMsg, Uint128, WasmMsg,
 };
+use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 
 use nebula_protocol::common::OrderBy;
@@ -25,6 +26,11 @@ use nebula_protocol::gov::{
     PollResponse, PollStatus, PollsResponse, QueryMsg, StateResponse, VoteOption, VoterInfo,
     VotersResponse, VotersResponseItem,
 };
+
+/// Contract name that is used for migration.
+const CONTRACT_NAME: &str = "nebula-gov";
+/// Contract version that is used for migration.
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Poll's title minimum length
 const MIN_TITLE_LENGTH: usize = 4;
@@ -64,6 +70,8 @@ pub fn instantiate(
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
     // Validate values to be between 0-1
     validate_quorum(msg.quorum)?;
     validate_threshold(msg.threshold)?;
@@ -1249,6 +1257,7 @@ fn query_voters(
         voters: voters_response?,
     })
 }
+
 /// ## Description
 /// Exposes the migrate functionality in the contract.
 ///

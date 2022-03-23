@@ -1,4 +1,4 @@
-use crate::contract::{execute, instantiate, query, reply};
+use crate::contract::{execute, instantiate, migrate, query, reply};
 use crate::error::ContractError;
 use crate::querier::load_token_balance;
 use crate::state::{
@@ -11,12 +11,13 @@ use cosmwasm_std::{
     attr, coins, from_binary, to_binary, Addr, Api, ContractResult, CosmosMsg, Decimal, Deps,
     DepsMut, Env, Reply, ReplyOn, Response, StdError, SubMsg, Timestamp, Uint128, WasmMsg,
 };
+use cw2::{get_contract_version, ContractVersion};
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use nebula_protocol::common::OrderBy;
 use nebula_protocol::gov::{
-    ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, PollExecuteMsg, PollResponse,
-    PollStatus, PollsResponse, QueryMsg, SharesResponse, SharesResponseItem, StakerResponse,
-    StateResponse, VoteOption, VoterInfo, VotersResponse, VotersResponseItem,
+    ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, PollExecuteMsg,
+    PollResponse, PollStatus, PollsResponse, QueryMsg, SharesResponse, SharesResponseItem,
+    StakerResponse, StateResponse, VoteOption, VoterInfo, VotersResponse, VotersResponseItem,
 };
 use std::str::FromStr;
 
@@ -4515,4 +4516,25 @@ fn test_unstake_before_claiming_voting_rewards() {
     poll_voter_read(&deps.storage, 1u64)
         .load(deps.api.addr_validate(TEST_VOTER).unwrap().as_bytes())
         .unwrap_err();
+}
+
+#[test]
+fn migration() {
+    let mut deps = mock_dependencies(&[]);
+    mock_instantiate(deps.as_mut());
+
+    // assert contract infos
+    assert_eq!(
+        get_contract_version(&deps.storage),
+        Ok(ContractVersion {
+            contract: "nebula-gov".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string()
+        })
+    );
+
+    // let's migrate the contract
+    let msg = MigrateMsg {};
+
+    // we can just call .unwrap() to assert this was a success
+    let _res = migrate(deps.as_mut(), mock_env(), msg).unwrap();
 }

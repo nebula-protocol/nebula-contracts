@@ -15,7 +15,13 @@ use crate::rewards::{deposit_reward, query_reward_info, withdraw_reward};
 use crate::staking::{auto_stake, auto_stake_hook, bond, unbond};
 use crate::state::{read_config, read_pool_info, store_config, store_pool_info, Config, PoolInfo};
 
+use cw2::set_contract_version;
 use cw20::Cw20ReceiveMsg;
+
+/// Contract name that is used for migration.
+const CONTRACT_NAME: &str = "nebula-lp-staking";
+/// Contract version that is used for migration.
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// ## Description
 /// Creates a new contract with the specified parameters packed in the `msg` variable.
@@ -37,6 +43,8 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
     store_config(
         deps.storage,
         &Config {

@@ -1,4 +1,4 @@
-use crate::contract::{execute, instantiate, query, query_config};
+use crate::contract::{execute, instantiate, migrate, query, query_config};
 use crate::error::ContractError;
 use crate::state::{contributions_read, read_from_contribution_bucket, record_contribution};
 use crate::testing::mock_querier::mock_dependencies;
@@ -12,12 +12,13 @@ use cosmwasm_std::{
     attr, coins, from_binary, to_binary, Addr, BankMsg, CosmosMsg, Decimal, DepsMut, SubMsg,
     Uint128, WasmMsg,
 };
+use cw2::{get_contract_version, ContractVersion};
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 use nebula_protocol::cluster::ExecuteMsg as ClusterExecuteMsg;
 use nebula_protocol::incentives::{
     ConfigResponse, ContributorPendingRewardsResponse, CurrentContributorInfoResponse, Cw20HookMsg,
-    ExecuteMsg, IncentivesPoolInfoResponse, InstantiateMsg, PenaltyPeriodResponse, PoolType,
-    QueryMsg,
+    ExecuteMsg, IncentivesPoolInfoResponse, InstantiateMsg, MigrateMsg, PenaltyPeriodResponse,
+    PoolType, QueryMsg,
 };
 use std::str::FromStr;
 
@@ -1294,4 +1295,25 @@ fn test_record_astroport_impact() {
 
     assert_eq!(contribution.n, 1);
     assert_eq!(contribution.value_contributed, Uint128::new(567));
+}
+
+#[test]
+fn migration() {
+    let mut deps = mock_dependencies(&[]);
+    mock_init(deps.as_mut());
+
+    // assert contract infos
+    assert_eq!(
+        get_contract_version(&deps.storage),
+        Ok(ContractVersion {
+            contract: "nebula-incentives".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string()
+        })
+    );
+
+    // let's migrate the contract
+    let msg = MigrateMsg {};
+
+    // we can just call .unwrap() to assert this was a success
+    let _res = migrate(deps.as_mut(), mock_env(), msg).unwrap();
 }

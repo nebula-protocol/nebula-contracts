@@ -102,12 +102,6 @@ pub enum Cw20HookMsg {
 }
 
 /// ## Description
-/// A struct used for migrating contracts.
-/// Currently take no arguments for migrations
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct MigrateMsg {}
-
-/// ## Description
 /// This structure describes the available query messages for the LP staking contract.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -178,3 +172,9 @@ pub struct RewardInfoResponseItem {
     /// Pending reward from this pool for a staker
     pub pending_reward: Uint128,
 }
+
+/// ## Description
+/// A struct used for migrating contracts.
+/// Currently take no arguments for migrations
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct MigrateMsg {}

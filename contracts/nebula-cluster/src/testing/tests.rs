@@ -7,9 +7,10 @@ use crate::testing::mock_querier::{
 use astroport::asset::{Asset, AssetInfo};
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::*;
+use cw2::{get_contract_version, ContractVersion};
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::cluster::{
-    ClusterConfig, ClusterInfoResponse, ConfigResponse, InstantiateMsg,
+    ClusterConfig, ClusterInfoResponse, ConfigResponse, InstantiateMsg, MigrateMsg,
 };
 use nebula_protocol::cluster::{
     ClusterStateResponse, ExecuteMsg, QueryMsg as ClusterQueryMsg, TargetResponse,
@@ -1088,4 +1089,24 @@ fn decommission_cluster() {
     let info = mock_info(consts::owner().as_str(), &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
     assert_eq!(res, ContractError::ClusterAlreadyDecommissioned {});
+}
+
+#[test]
+fn migration() {
+    let (mut deps, _init_res) = mock_init();
+
+    // assert contract infos
+    assert_eq!(
+        get_contract_version(&deps.storage),
+        Ok(ContractVersion {
+            contract: "nebula-cluster".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string()
+        })
+    );
+
+    // let's migrate the contract
+    let msg = MigrateMsg {};
+
+    // we can just call .unwrap() to assert this was a success
+    let _res = migrate(deps.as_mut(), mock_env(), msg).unwrap();
 }

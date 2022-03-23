@@ -7,11 +7,17 @@ use cosmwasm_std::{
     attr, to_binary, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
     WasmMsg,
 };
+use cw2::set_contract_version;
 
 use astroport::asset::Asset;
 use nebula_protocol::community::{
     ConfigResponse, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
 };
+
+/// Contract name that is used for migration.
+const CONTRACT_NAME: &str = "nebula-community";
+/// Contract version that is used for migration.
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// ## Description
 /// Creates a new contract with the specified parameters packed in the `msg` variable.
@@ -33,6 +39,8 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
     store_config(
         deps.storage,
         &Config {

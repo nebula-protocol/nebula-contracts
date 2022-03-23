@@ -9,13 +9,19 @@ use crate::state::{read_config, store_config, Config};
 
 use crate::error::ContractError;
 use astroport::asset::AssetInfo;
+use cw2::set_contract_version;
 use nebula_protocol::oracle::{
-    ConfigResponse, ExecuteMsg, InstantiateMsg, PriceResponse, QueryMsg,
+    ConfigResponse, ExecuteMsg, InstantiateMsg, MigrateMsg, PriceResponse, QueryMsg,
 };
 use tefi_oracle::hub::{
     HubQueryMsg as TeFiOracleQueryMsg, PriceResponse as TeFiOraclePriceResponse,
 };
 use terra_cosmwasm::{ExchangeRatesResponse, TerraQuerier};
+
+/// Contract name that is used for migration.
+const CONTRACT_NAME: &str = "nebula-oracle";
+/// Contract version that is used for migration.
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// A constant for converting `Decimal` to `Uint128`
 const DECIMAL_FRACTIONAL: Uint128 = Uint128::new(1_000_000_000u128);
@@ -40,6 +46,8 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
     let cfg = Config {
         // Validate address format
         owner: deps.api.addr_validate(msg.owner.as_str())?,
@@ -276,4 +284,18 @@ fn query_cw20_price(deps: Deps, contract_addr: Addr, config: &Config) -> StdResu
         }))?;
 
     Ok((res.rate, res.last_updated))
+}
+
+/// ## Description
+/// Exposes the migrate functionality in the contract.
+///
+/// ## Params
+/// - **_deps** is an object of type [`DepsMut`].
+///
+/// - **_env** is an object of type [`Env`].
+///
+/// - **_msg** is an object of type [`MigrateMsg`].
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    Ok(Response::default())
 }

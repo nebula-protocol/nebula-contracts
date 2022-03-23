@@ -41,12 +41,6 @@ pub enum ExecuteMsg {
 }
 
 /// ## Description
-/// A struct used for migrating contracts.
-/// Currently take no arguments for migrations.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct MigrateMsg {}
-
-/// ## Description
 /// This structure describes the available query messages for the community contract.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -61,3 +55,9 @@ pub enum QueryMsg {
 pub struct ConfigResponse {
     pub owner: String,
 }
+
+/// ## Description
+/// A struct used for migrating contracts.
+/// Currently take no arguments for migrations.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct MigrateMsg {}

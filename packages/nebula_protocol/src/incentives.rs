@@ -262,7 +262,8 @@ pub enum Cw20HookMsg {
 }
 
 /// ## Description
-/// A struct used for migrating contracts. Currently take no arguments for migrations.
+/// A struct used for migrating contracts.
+/// Currently take no arguments for migrations.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct MigrateMsg {}
 

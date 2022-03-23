@@ -51,3 +51,9 @@ pub struct ConfigResponse {
     /// Owner of the airdrop contract
     pub owner: String,
 }
+
+/// ## Description
+/// A struct used for migrating contracts.
+/// Currently take no arguments for migrations.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct MigrateMsg {}
