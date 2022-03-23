@@ -28,6 +28,7 @@ serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 snafu = { version = "0.6.3" }
 cluster-math = { path = "../../libraries/cluster-math" }
 thiserror = { version = "1.0.30" }
+cw2 = { version = "0.9.1" }
 
 [dev-dependencies]
 cosmwasm-schema = { version = "0.16.0" }

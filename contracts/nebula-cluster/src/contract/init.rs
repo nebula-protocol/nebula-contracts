@@ -9,7 +9,13 @@ use crate::{
 };
 use astroport::asset::AssetInfo;
 use cosmwasm_std::{attr, DepsMut, Env, MessageInfo, QuerierWrapper, Response, Uint128};
+use cw2::set_contract_version;
 use nebula_protocol::cluster::{ClusterConfig, InstantiateMsg};
+
+/// Contract name that is used for migration.
+const CONTRACT_NAME: &str = "nebula-cluster";
+/// Contract version that is used for migration.
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// ## Description
 /// Checks for duplicate and unsupported assets
@@ -60,6 +66,8 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
     // Extract params from `msg` as the initial cluster config
     let cfg = ClusterConfig {
         name: msg.name.clone(),

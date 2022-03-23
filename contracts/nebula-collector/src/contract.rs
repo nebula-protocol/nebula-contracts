@@ -16,7 +16,13 @@ use nebula_protocol::gov::Cw20HookMsg as GovCw20HookMsg;
 use astroport::asset::{Asset, AssetInfo, PairInfo};
 use astroport::pair::{Cw20HookMsg as AstroportCw20HookMsg, ExecuteMsg as AstroportExecuteMsg};
 use astroport::querier::{query_balance, query_pair_info, query_token_balance};
+use cw2::set_contract_version;
 use cw20::Cw20ExecuteMsg;
+
+/// Contract name that is used for migration.
+const CONTRACT_NAME: &str = "nebula-collector";
+/// Contract version that is used for migration.
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// ## Description
 /// Creates a new contract with the specified parameters packed in the `msg` variable.
@@ -38,6 +44,8 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
     store_config(
         deps.storage,
         &Config {

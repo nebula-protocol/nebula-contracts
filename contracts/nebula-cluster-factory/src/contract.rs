@@ -8,6 +8,7 @@ use cosmwasm_std::{
     ReplyOn, Response, StdResult, Storage, SubMsg, Uint128, WasmMsg,
 };
 use cosmwasm_std::{entry_point, StdError};
+use cw2::set_contract_version;
 use cw20::{Cw20ExecuteMsg, MinterResponse};
 use protobuf::Message;
 
@@ -16,7 +17,7 @@ use nebula_protocol::cluster::{
 };
 use nebula_protocol::cluster_factory::{
     ClusterExistsResponse, ClusterListResponse, ConfigResponse, DistributionInfoResponse,
-    ExecuteMsg, InstantiateMsg, Params, QueryMsg,
+    ExecuteMsg, InstantiateMsg, MigrateMsg, Params, QueryMsg,
 };
 use nebula_protocol::penalty::ExecuteMsg as PenaltyExecuteMsg;
 use nebula_protocol::staking::{
@@ -32,6 +33,11 @@ use crate::state::{
     remove_params, remove_weight, store_config, store_last_distributed, store_params,
     store_tmp_asset, store_tmp_cluster, store_total_weight, store_weight, Config,
 };
+
+/// Contract name that is used for migration.
+const CONTRACT_NAME: &str = "nebula-cluster-factory";
+/// Contract version that is used for migration.
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Nebula reward distribution weight for Nebula staking pool.
 const NEBULA_TOKEN_WEIGHT: u32 = 30u32;
@@ -61,6 +67,8 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
     store_config(
         deps.storage,
         &Config {
@@ -1020,4 +1028,18 @@ pub fn query_distribution_info(deps: Deps) -> StdResult<DistributionInfoResponse
     };
 
     Ok(resp)
+}
+
+/// ## Description
+/// Exposes the migrate functionality in the contract.
+///
+/// ## Params
+/// - **_deps** is an object of type [`DepsMut`].
+///
+/// - **_env** is an object of type [`Env`].
+///
+/// - **_msg** is an object of type [`MigrateMsg`].
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    Ok(Response::default())
 }

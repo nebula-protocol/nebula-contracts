@@ -11,11 +11,17 @@ use crate::state::{config_store, read_config, store_config, PenaltyConfig};
 use cluster_math::{
     add, div_const, dot, imbalance, int_vec_to_fpdec, mul_const, str_vec_to_fpdec, sub, FPDecimal,
 };
+use cw2::set_contract_version;
 use nebula_protocol::penalty::{
     ConfigResponse, ExecuteMsg, InstantiateMsg, ParamsResponse, PenaltyCreateResponse,
     PenaltyParams, PenaltyRedeemResponse, QueryMsg,
 };
 use std::cmp::{max, min};
+
+/// Contract name that is used for migration.
+const CONTRACT_NAME: &str = "nebula-penalty";
+/// Contract version that is used for migration.
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// ## Description
 /// Creates a new contract with the specified parameters packed in the `msg` variable.
@@ -37,6 +43,8 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
     if msg.penalty_params.penalty_amt_hi != FPDecimal::one() {
         return Err(ContractError::Generic(
             "penalty amount must reach one".to_string(),
