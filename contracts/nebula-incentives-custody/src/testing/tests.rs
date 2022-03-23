@@ -1,11 +1,14 @@
-use crate::contract::{execute, instantiate, query};
+use crate::contract::{execute, instantiate, migrate, query};
 use crate::error::ContractError;
 use crate::state::{read_neb, read_owner};
 use crate::testing::mock_querier::mock_dependencies;
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{attr, from_binary, to_binary, CosmosMsg, SubMsg, Uint128, WasmMsg};
+use cw2::{get_contract_version, ContractVersion};
 use cw20::Cw20ExecuteMsg;
-use nebula_protocol::incentives_custody::{ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg};
+use nebula_protocol::incentives_custody::{
+    ConfigResponse, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
+};
 
 const OWNER: &str = "owner0000";
 const NEB_TOKEN: &str = "nebula_token0000";
@@ -165,4 +168,32 @@ fn test_update_config() {
             attr("new_owner", "owner0001")
         ]
     );
+}
+
+#[test]
+fn migration() {
+    let msg = InstantiateMsg {
+        owner: h(OWNER),
+        nebula_token: h(NEB_TOKEN),
+    };
+
+    let info = mock_info(OWNER, &[]);
+    let mut deps = mock_dependencies(&[]);
+    let _res = instantiate(deps.as_mut(), mock_env(), info, msg)
+        .expect("contract successfully executes InstantiateMsg");
+
+    // assert contract infos
+    assert_eq!(
+        get_contract_version(&deps.storage),
+        Ok(ContractVersion {
+            contract: "nebula-incentives-custody".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string()
+        })
+    );
+
+    // let's migrate the contract
+    let msg = MigrateMsg {};
+
+    // we can just call .unwrap() to assert this was a success
+    let _res = migrate(deps.as_mut(), mock_env(), msg).unwrap();
 }

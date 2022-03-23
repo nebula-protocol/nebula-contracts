@@ -1,4 +1,4 @@
-use crate::contract::{execute, instantiate, query, reply};
+use crate::contract::{execute, instantiate, migrate, query, reply};
 use crate::error::ContractError;
 use crate::response::MsgInstantiateContractResponse;
 use crate::state::{
@@ -14,13 +14,14 @@ use cosmwasm_std::{
     attr, from_binary, to_binary, Addr, Binary, ContractResult, CosmosMsg, Env, Reply, ReplyOn,
     StdError, SubMsg, SubMsgExecutionResponse, Timestamp, Uint128, WasmMsg,
 };
+use cw2::{get_contract_version, ContractVersion};
 use cw20::{Cw20ExecuteMsg, MinterResponse};
 use nebula_protocol::cluster::{
     ExecuteMsg as ClusterExecuteMsg, InstantiateMsg as ClusterInstantiateMsg,
 };
 use nebula_protocol::cluster_factory::{
     ClusterExistsResponse, ClusterListResponse, ConfigResponse, DistributionInfoResponse,
-    ExecuteMsg, InstantiateMsg, Params, QueryMsg,
+    ExecuteMsg, InstantiateMsg, MigrateMsg, Params, QueryMsg,
 };
 use nebula_protocol::penalty::ExecuteMsg as PenaltyExecuteMsg;
 use nebula_protocol::staking::{
@@ -1238,4 +1239,35 @@ fn test_pass_command() {
             msg: Binary::default(),
         }))]
     );
+}
+
+#[test]
+fn migration() {
+    let mut deps = mock_dependencies(&[]);
+
+    let msg = InstantiateMsg {
+        base_denom: BASE_DENOM.to_string(),
+        token_code_id: TOKEN_CODE_ID,
+        cluster_code_id: CLUSTER_CODE_ID,
+        protocol_fee_rate: PROTOCOL_FEE_RATE.to_string(),
+        distribution_schedule: vec![],
+    };
+
+    let info = mock_info("addr0000", &[]);
+    let _res = instantiate(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+
+    // assert contract infos
+    assert_eq!(
+        get_contract_version(&deps.storage),
+        Ok(ContractVersion {
+            contract: "nebula-cluster-factory".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string()
+        })
+    );
+
+    // let's migrate the contract
+    let msg = MigrateMsg {};
+
+    // we can just call .unwrap() to assert this was a success
+    let _res = migrate(deps.as_mut(), mock_env(), msg).unwrap();
 }

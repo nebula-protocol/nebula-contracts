@@ -13,7 +13,7 @@ use cluster_math::{
 };
 use cw2::set_contract_version;
 use nebula_protocol::penalty::{
-    ConfigResponse, ExecuteMsg, InstantiateMsg, ParamsResponse, PenaltyCreateResponse,
+    ConfigResponse, ExecuteMsg, InstantiateMsg, MigrateMsg, ParamsResponse, PenaltyCreateResponse,
     PenaltyParams, PenaltyRedeemResponse, QueryMsg,
 };
 use std::cmp::{max, min};
@@ -706,4 +706,18 @@ pub fn notional_penalty(
         let cutoff = reward_cutoff * e;
         Ok((max(imb0, cutoff) - max(imb1, cutoff)) * reward_amt)
     }
+}
+
+/// ## Description
+/// Exposes the migrate functionality in the contract.
+///
+/// ## Params
+/// - **_deps** is an object of type [`DepsMut`].
+///
+/// - **_env** is an object of type [`Env`].
+///
+/// - **_msg** is an object of type [`MigrateMsg`].
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    Ok(Response::default())
 }

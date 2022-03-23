@@ -1257,6 +1257,7 @@ fn query_voters(
         voters: voters_response?,
     })
 }
+
 /// ## Description
 /// Exposes the migrate functionality in the contract.
 ///

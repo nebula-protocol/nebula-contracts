@@ -1,12 +1,13 @@
-use crate::contract::{execute, instantiate, query};
+use crate::contract::{execute, instantiate, migrate, query};
 use crate::error::ContractError;
 use crate::state::{read_config, Config};
 use crate::testing::mock_querier::mock_dependencies;
 use astroport::asset::AssetInfo;
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{from_binary, Addr, Decimal, StdError};
+use cw2::{get_contract_version, ContractVersion};
 use nebula_protocol::oracle::{
-    ConfigResponse, ExecuteMsg, InstantiateMsg, PriceResponse, QueryMsg,
+    ConfigResponse, ExecuteMsg, InstantiateMsg, MigrateMsg, PriceResponse, QueryMsg,
 };
 use std::str::FromStr;
 
@@ -173,4 +174,28 @@ fn query_price() {
         price.rate,
         Decimal::from_str("0.015052281774035657").unwrap()
     );
+}
+
+#[test]
+fn migration() {
+    let mut deps = mock_dependencies(&[]);
+    let info = mock_info("sender0000", &[]);
+    let msg = init_msg();
+    let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+    assert_eq!(0, res.messages.len());
+
+    // assert contract infos
+    assert_eq!(
+        get_contract_version(&deps.storage),
+        Ok(ContractVersion {
+            contract: "nebula-oracle".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string()
+        })
+    );
+
+    // let's migrate the contract
+    let msg = MigrateMsg {};
+
+    // we can just call .unwrap() to assert this was a success
+    let _res = migrate(deps.as_mut(), mock_env(), msg).unwrap();
 }

@@ -13,7 +13,7 @@ use crate::state::{
 };
 use nebula_protocol::airdrop::{
     ConfigResponse, ExecuteMsg, InstantiateMsg, IsClaimedResponse, LatestStageResponse,
-    MerkleRootResponse, QueryMsg,
+    MerkleRootResponse, MigrateMsg, QueryMsg,
 };
 
 use cw2::set_contract_version;
@@ -408,4 +408,18 @@ pub fn query_is_claimed(deps: Deps, stage: u8, address: String) -> StdResult<IsC
     };
 
     Ok(resp)
+}
+
+/// ## Description
+/// Exposes the migrate functionality in the contract.
+///
+/// ## Params
+/// - **_deps** is an object of type [`DepsMut`].
+///
+/// - **_env** is an object of type [`Env`].
+///
+/// - **_msg** is an object of type [`MigrateMsg`].
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(_deps: DepsMut, _env: Env, _msg: MigrateMsg) -> StdResult<Response> {
+    Ok(Response::default())
 }

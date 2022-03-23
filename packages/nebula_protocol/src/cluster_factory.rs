@@ -163,12 +163,6 @@ pub struct DistributionInfoResponse {
 }
 
 /// ## Description
-/// A struct used for migrating contracts.
-/// Currently take no arguments for migrations.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct MigrateMsg {}
-
-/// ## Description
 /// A custom struct for storing factory parameters.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -197,3 +191,9 @@ pub struct Params {
     /// Target assets and weights
     pub target: Vec<Asset>,
 }
+
+/// ## Description
+/// A struct used for migrating contracts.
+/// Currently take no arguments for migrations.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct MigrateMsg {}

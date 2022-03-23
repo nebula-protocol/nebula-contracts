@@ -1,12 +1,13 @@
 #[cfg(test)]
 mod tests {
 
-    use crate::contract::{execute, instantiate, query};
+    use crate::contract::{execute, instantiate, migrate, query};
     use crate::error::ContractError;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{attr, from_binary, Decimal, Uint128};
+    use cw2::{get_contract_version, ContractVersion};
     use nebula_protocol::staking::{
-        ConfigResponse, ExecuteMsg, InstantiateMsg, PoolInfoResponse, QueryMsg,
+        ConfigResponse, ExecuteMsg, InstantiateMsg, MigrateMsg, PoolInfoResponse, QueryMsg,
     };
 
     #[test]
@@ -133,5 +134,36 @@ mod tests {
                 pending_reward: Uint128::zero(),
             }
         );
+    }
+
+    #[test]
+    fn migration() {
+        let mut deps = mock_dependencies(&[]);
+
+        let msg = InstantiateMsg {
+            owner: "owner".to_string(),
+            nebula_token: "reward".to_string(),
+            astroport_factory: "astroport-factory".to_string(),
+        };
+
+        let info = mock_info("addr", &[]);
+
+        // we can just call .unwrap() to assert this was a success
+        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        // assert contract infos
+        assert_eq!(
+            get_contract_version(&deps.storage),
+            Ok(ContractVersion {
+                contract: "nebula-lp-staking".to_string(),
+                version: env!("CARGO_PKG_VERSION").to_string()
+            })
+        );
+
+        // let's migrate the contract
+        let msg = MigrateMsg {};
+
+        // we can just call .unwrap() to assert this was a success
+        let _res = migrate(deps.as_mut(), mock_env(), msg).unwrap();
     }
 }

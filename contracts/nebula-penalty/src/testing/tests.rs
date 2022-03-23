@@ -1,4 +1,6 @@
-use crate::contract::{execute, get_ema, instantiate, notional_penalty, query, update_ema};
+use crate::contract::{
+    execute, get_ema, instantiate, migrate, notional_penalty, query, update_ema,
+};
 use crate::error::ContractError;
 use crate::state::{read_config, PenaltyConfig};
 use crate::testing::mock_querier::mock_dependencies;
@@ -7,8 +9,9 @@ use cluster_math::{
 };
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{attr, from_binary, Addr, DepsMut, Env, StdError, Timestamp, Uint128};
+use cw2::{get_contract_version, ContractVersion};
 use nebula_protocol::penalty::{
-    ConfigResponse, ExecuteMsg, InstantiateMsg, ParamsResponse, PenaltyCreateResponse,
+    ConfigResponse, ExecuteMsg, InstantiateMsg, MigrateMsg, ParamsResponse, PenaltyCreateResponse,
     PenaltyParams, PenaltyRedeemResponse, QueryMsg,
 };
 use std::str::FromStr;
@@ -424,4 +427,25 @@ fn test_query_config() {
             penalty_params: init_params()
         }
     );
+}
+
+#[test]
+fn migration() {
+    let mut deps = mock_dependencies(&[]);
+    mock_init(deps.as_mut());
+
+    // assert contract infos
+    assert_eq!(
+        get_contract_version(&deps.storage),
+        Ok(ContractVersion {
+            contract: "nebula-penalty".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string()
+        })
+    );
+
+    // let's migrate the contract
+    let msg = MigrateMsg {};
+
+    // we can just call .unwrap() to assert this was a success
+    let _res = migrate(deps.as_mut(), mock_env(), msg).unwrap();
 }

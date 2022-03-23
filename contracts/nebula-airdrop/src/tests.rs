@@ -1,13 +1,14 @@
 #[cfg(test)]
 mod tests {
-    use crate::contract::{execute, instantiate, query};
+    use crate::contract::{execute, instantiate, migrate, query};
     use crate::error::ContractError;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{attr, from_binary, to_binary, CosmosMsg, SubMsg, Uint128, WasmMsg};
+    use cw2::{get_contract_version, ContractVersion};
     use cw20::Cw20ExecuteMsg;
     use nebula_protocol::airdrop::{
         ConfigResponse, ExecuteMsg, InstantiateMsg, IsClaimedResponse, LatestStageResponse,
-        MerkleRootResponse, QueryMsg,
+        MerkleRootResponse, MigrateMsg, QueryMsg,
     };
 
     #[test]
@@ -276,5 +277,34 @@ mod tests {
                 attr("amount", "2000001")
             ]
         );
+    }
+
+    #[test]
+    fn migration() {
+        let mut deps = mock_dependencies(&[]);
+
+        let msg = InstantiateMsg {
+            owner: "owner0000".to_string(),
+            nebula_token: "nebula0000".to_string(),
+        };
+        let info = mock_info("addr0000", &[]);
+
+        // we can just call .unwrap() to assert this was a success
+        let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+        // assert contract infos
+        assert_eq!(
+            get_contract_version(&deps.storage),
+            Ok(ContractVersion {
+                contract: "nebula-airdrop".to_string(),
+                version: env!("CARGO_PKG_VERSION").to_string()
+            })
+        );
+
+        // it worked, let's migrate the contract
+        let msg = MigrateMsg {};
+
+        // we can just call .unwrap() to assert this was a success
+        let _res = migrate(deps.as_mut(), mock_env(), msg).unwrap();
     }
 }
