@@ -22,7 +22,7 @@
 
 ### RequestNeb
 
-Transfer NEB tokens of `amount` from the incentives custody contract to the caller. Only callable by the custody's owner (the [`incentives`](../nebula-incentives/) in real cases)
+Transfers NEB tokens of `amount` from the incentives custody contract to the caller. Only callable by the custody's owner (the [`incentives`](../nebula-incentives/) in real cases)
 
 ```json
 {
@@ -36,7 +36,7 @@ Transfer NEB tokens of `amount` from the incentives custody contract to the call
 
 ### UpdateConfig
 
-Update the owner of the custody contract
+Updates the owner of the custody contract
 
 ```json
 {

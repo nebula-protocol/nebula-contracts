@@ -5,9 +5,9 @@ The airdrop contract stores airdrop information and provides the ability to init
 - [Nebula Airdrop](#nebula-airdrop)
   - [InstantiateMsg](#instantiatemsg)
   - [ExecuteMsg](#executemsg)
-    - [`UpdateConfig`](#updateconfig)
-    - [`RegisterMerkleRoot`](#registermerkleroot)
-    - [`Claim`](#claim)
+    - [UpdateConfig](#updateconfig)
+    - [RegisterMerkleRoot](#registermerkleroot)
+    - [Claim](#claim)
   - [QueryMsg](#querymsg)
     - [Config](#config)
     - [MerkleRoot](#merkleroot)
@@ -30,7 +30,7 @@ The instantiate message takes the address of the `owner` account that will be su
 
 ## ExecuteMsg
 
-### `UpdateConfig`
+### UpdateConfig
 
 Updates contract variables, namely the `owner` of the contract and the address of the Nebula token contract.
 
@@ -46,7 +46,7 @@ Updates contract variables, namely the `owner` of the contract and the address o
 - `owner`: address of the new owner of the `airdrop` contract
 - `nebula_token`: contract address of new Nebula Token (NEB)
 
-### `RegisterMerkleRoot`
+### RegisterMerkleRoot
 
 Registers a new Merkle root under a next stage.
 
@@ -60,7 +60,7 @@ Registers a new Merkle root under a next stage.
 
 - `merkle_root`: the Merkle root to register and for the next stage of the airdrop
 
-### `Claim`
+### Claim
 
 Initiates an airdrop claim transaction for the message sender.
 

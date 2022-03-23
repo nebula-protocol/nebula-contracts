@@ -30,7 +30,7 @@ Updates contract variables
 
 ### Spend
 
-Spend an amount of `asset` from the community pool and send it to `recipient`
+Spends an amount of `asset` from the community pool and send it to `recipient`
 
 ```json
 {
@@ -46,7 +46,7 @@ Spend an amount of `asset` from the community pool and send it to `recipient`
 
 ### PassCommand
 
-Execute the provided `wasm_msg`
+Executes the provided `wasm_msg`
 
 ```json
 {

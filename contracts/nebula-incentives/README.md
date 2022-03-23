@@ -77,7 +77,7 @@ Can be called during a CW20 token transfer when the Gov contract is the recipien
 
 ### Withdraw
 
-Withdraw all incentives rewards
+Withdraws all incentives rewards
 
 ```json
 {
@@ -97,7 +97,7 @@ Initiates a new incentives penalty period and make the reward from the previous 
 
 ### ArbClusterCreate
 
-Initiate an arbitrage mint transaction. This comprises of:
+Initiates an arbitrage mint transaction. This comprises of:
 
 - using `assets` to mint new `cluster_contract` cluster tokens
 - selling the minted tokens on Astroport, controlling the slippage with the `min_ust` option
@@ -118,7 +118,7 @@ Initiate an arbitrage mint transaction. This comprises of:
 
 ### ArbClusterRedeem
 
-Initiate an arbitrage burn transaction. This comprises of:
+Initiates an arbitrage burn transaction. This comprises of:
 
 - Using UST to buy cluster tokens from the CT-UST Astroport pool, controlling the slippage with `min_cluster`
 - Burning the swapped cluster tokens for the cluster's inventory asset tokens
@@ -177,7 +177,7 @@ NEB-incentivized version of the [`cluster`](../nebula-cluster/)'s burn/REDEEM
 
 ### DepositRewards
 
-Deposit incentives rewards. Callable by anyone.
+Deposits incentives rewards. Callable by anyone.
 
 ```json
 {

@@ -74,7 +74,7 @@ Updates contract variables
 
 ### RebalanceCreate
 
-Perform a [CREATE/mint](https://docs.neb.money/protocol/clusters.html#create-mint) operation on cluster, depositing the cluster's inventory assets and minting new cluster tokens
+Performs a [CREATE/mint](https://docs.neb.money/protocol/clusters.html#create-mint) operation on cluster, depositing the cluster's inventory assets and minting new cluster tokens
 
 ```json
 {
@@ -90,7 +90,7 @@ Perform a [CREATE/mint](https://docs.neb.money/protocol/clusters.html#create-min
 
 ### RebalanceRedeem
 
-Perform a [`REDEEM/burn`](https://docs.neb.money/protocol/clusters.html#redeem-burn) operation on the cluster, burning cluster tokens in exchange for the cluster's inventory assets
+Performs a [`REDEEM/burn`](https://docs.neb.money/protocol/clusters.html#redeem-burn) operation on the cluster, burning cluster tokens in exchange for the cluster's inventory assets
 
 ```json
 {
@@ -106,7 +106,7 @@ Perform a [`REDEEM/burn`](https://docs.neb.money/protocol/clusters.html#redeem-b
 
 ### UpdateTarget
 
-Update the target inventory asset weights (only callable by the cluster's owner or target oracle)
+Updates the target inventory asset weights (only callable by the cluster's owner or target oracle)
 
 ```json
 {
@@ -120,7 +120,7 @@ Update the target inventory asset weights (only callable by the cluster's owner 
 
 ### Decommission
 
-Decommission the cluster, marking it as inactive and disabling all functionality excluding pro-rata redeeming of the cluster's inventory assets.
+Decommissions the cluster, marking it as inactive and disabling all functionality excluding pro-rata redeeming of the cluster's inventory assets.
 
 ```json
 {

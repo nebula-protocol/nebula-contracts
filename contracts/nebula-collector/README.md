@@ -33,7 +33,7 @@ The Collector accumulates Nebula protocol fees and swaps them to NEB through the
 
 ### Convert
 
-Convert/swap either:
+Converts/swap either:
 
 - Cluster tokens accrued through protocol fees to UST
 - UST accrued from converting the cluster tokens to NEB
@@ -50,7 +50,7 @@ Convert/swap either:
 
 ### Distribute
 
-Distribute the converted NEB tokens to the `distribution_contract`
+Distributes the converted NEB tokens to the `distribution_contract`
 
 ```json
 {

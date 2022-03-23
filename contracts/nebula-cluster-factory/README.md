@@ -76,7 +76,7 @@ Updates contract variables
 
 ### UpdateWeight
 
-Update the LP rewards distribution weight for a cluster token
+Updates the LP rewards distribution weight for a cluster token
 
 ```json
 {
@@ -92,7 +92,7 @@ Update the LP rewards distribution weight for a cluster token
 
 ### CreateCluster
 
-Create a new cluster. Only callable by the cluster factory's owner.
+Creates a new cluster. Only callable by the cluster factory's owner.
 
 ```json
 {
@@ -145,7 +145,7 @@ Allows the cluster factory to pass `ExecuteMsg` to other contracts. Used for con
 
 ### DecommissionCluster
 
-Decommission a specific cluster, disabling all of its functionality execpet for pro-rata redeem (to allow users to withdraw assets from the cluster's inventory)
+Decommissions a specific cluster, disabling all of its functionality execpet for pro-rata redeem (to allow users to withdraw assets from the cluster's inventory)
 
 ```json
 {
@@ -161,7 +161,7 @@ Decommission a specific cluster, disabling all of its functionality execpet for 
 
 ### Distribute
 
-Distribute rewards to current Cluster-UST and NEB-UST LP stakers. This is done by calculating the amount of NEB tokens to distribute to each pool's stakers using:
+Distributes rewards to current Cluster-UST and NEB-UST LP stakers. This is done by calculating the amount of NEB tokens to distribute to each pool's stakers using:
 
 - each pool's `weight`:
 - the `distribution_schedule`

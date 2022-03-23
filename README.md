@@ -46,7 +46,7 @@ rustup default stable
 rustup target add wasm32-unknown-unknown
 ```
 
-3. Make sure [Docker](https://docker.com)
+3. Make sure [Docker](https://docker.com) is installed on your machine
 
 ### Unit / Integration Test
 
@@ -113,7 +113,8 @@ rustup toolchain install nightly
 
 ### Run
 
-```cargo clippy -- -D warnings
+```
+cargo clippy -- -D warnings
 ```
 
 ## Testing
