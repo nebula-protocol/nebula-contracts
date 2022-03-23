@@ -58,13 +58,15 @@ cargo unit-test
 
 ### Compiling
 
+Go to the contract directory and run
+
 After making sure tests pass, you can compile each contract with the following
 
 ```shell
 RUSTFLAGS='-C link-arg=-s' cargo wasm
-cp ../../target/wasm32-unknown-unknown/release/cw1_subkeys.wasm .
-ls -l cw1_subkeys.wasm
-sha256sum cw1_subkeys.wasm
+cp ../../target/wasm32-unknown-unknown/release/<CONTRACT_NAME>.wasm .
+ls -l <CONTRACT_NAME>.wasm
+sha256sum <CONTRACT_NAME>.wasm
 ```
 
 #### Production
