@@ -658,7 +658,7 @@ fn burn() {
             ("mNFLX", Decimal::from_str("540.82").unwrap()),
         ]);
 
-    // mint first to have underlying assets to redeem
+    // mint first to have inventory assets to redeem
     let asset_amounts = consts::asset_amounts();
 
     deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
@@ -997,7 +997,7 @@ fn decommission_cluster() {
     let config = read_config(&deps.storage).unwrap();
     assert_eq!(config.active, true);
 
-    // mint first to have underlying assets to redeem
+    // mint first to have inventory assets to redeem
     let asset_amounts = consts::asset_amounts();
 
     deps.querier.set_mint_amount(Uint128::from(1_000_000u128));

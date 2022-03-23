@@ -21,7 +21,7 @@ pub enum HubExecuteMsg {
         proxy_addr: String,
         priority: Option<u8>,
     },
-    /// Updates the priority paramter of an existing proxy
+    /// Updates the priority parameter of an existing proxy
     UpdatePriority {
         asset_token: String,
         proxy_addr: String,
