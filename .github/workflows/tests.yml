@@ -23,7 +23,7 @@ jobs:
           profile: minimal
           override: true
       - run: cargo fetch --verbose
-      - run: cargo clippy --all --all-targets -- -D warnings
+      - run: cargo clippy -- -D warnings
 
   rustfmt:
     name: Actions - rustfmt
