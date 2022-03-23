@@ -34,7 +34,7 @@ Nebula ships with a couple default ones, and their code is here.
 
 ### Environment Setup
 
-- Rust v.1.44.1+
+- Rust v.1.57.0
 - `wasm32-unknown-unknown` target
 - Docker
 
@@ -42,7 +42,7 @@ Nebula ships with a couple default ones, and their code is here.
 2. Run the following
 
 ```shell
-rustup default stable
+rustup default 1.57.0
 rustup target add wasm32-unknown-unknown
 ```
 

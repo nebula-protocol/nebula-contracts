@@ -189,7 +189,7 @@ pub fn read_all_weight(storage: &dyn Storage) -> StdResult<Vec<(Addr, u32)>> {
 //////////////////////////////////////////////////////////////////////
 
 pub fn cluster_exists(storage: &dyn Storage, contract_addr: &Addr) -> StdResult<bool> {
-    match ReadonlyBucket::new(storage, PREFIX_CLUSTERS).load(&contract_addr.as_bytes()) {
+    match ReadonlyBucket::new(storage, PREFIX_CLUSTERS).load(contract_addr.as_bytes()) {
         Ok(res) => Ok(res),
         Err(_) => Ok(false),
     }
@@ -215,9 +215,9 @@ pub fn get_cluster_data(storage: &dyn Storage) -> StdResult<Vec<(String, bool)>>
 }
 
 pub fn record_cluster(storage: &mut dyn Storage, contract_addr: &Addr) -> StdResult<()> {
-    Bucket::new(storage, PREFIX_CLUSTERS).save(&contract_addr.as_bytes(), &true)
+    Bucket::new(storage, PREFIX_CLUSTERS).save(contract_addr.as_bytes(), &true)
 }
 
 pub fn deactivate_cluster(storage: &mut dyn Storage, contract_addr: &Addr) -> StdResult<()> {
-    Bucket::new(storage, PREFIX_CLUSTERS).save(&contract_addr.as_bytes(), &false)
+    Bucket::new(storage, PREFIX_CLUSTERS).save(contract_addr.as_bytes(), &false)
 }
