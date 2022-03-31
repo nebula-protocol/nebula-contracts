@@ -1,6 +1,6 @@
 [package]
 name = "nebula-penalty"
-version = "0.1.0"
+version = "1.0.0"
 authors = ["Nebula Protocol <engineering@neb.finance>"]
 edition = "2018"
 
@@ -23,7 +23,7 @@ backtraces = ["cosmwasm-std/backtraces"]
 cosmwasm-std = { version = "0.16.2", default-features = false}
 cosmwasm-storage = { version = "0.16.2" }
 schemars = "0.8.1"
-nebula-protocol = { version = "2.0.0", path = "../../packages/nebula_protocol" }
+nebula-protocol = { version = "1.0.0", path = "../../packages/nebula_protocol" }
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 snafu = { version = "0.6.3" }
 cluster-math = { path = "../../libraries/cluster-math" }

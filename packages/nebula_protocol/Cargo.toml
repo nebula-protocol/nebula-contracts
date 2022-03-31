@@ -1,7 +1,7 @@
 
 [package]
 name = "nebula-protocol"
-version = "2.0.0"
+version = "1.0.0"
 authors = ["Nebula Protocol <engineering@neb.finance>"]
 edition = "2018"
 

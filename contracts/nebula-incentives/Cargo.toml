@@ -1,7 +1,7 @@
 
 [package]
 name = "nebula-incentives"
-version = "0.1.0"
+version = "1.0.0"
 authors = ["Nebula Protocol <engineering@neb.finance>"]
 edition = "2018"
 
@@ -29,7 +29,7 @@ astroport = { path = "../../packages/astroport" }
 schemars = "0.8.1"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 cluster-math = { path = "../../libraries/cluster-math" }
-nebula-protocol = { version = "2.0.0", path = "../../packages/nebula_protocol" }
+nebula-protocol = { version = "1.0.0", path = "../../packages/nebula_protocol" }
 thiserror = { version = "1.0.30" }
 cw2 = { version = "0.9.1" }
 
