@@ -26,7 +26,7 @@ schemars = "0.8.1"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 snafu = { version = "0.6.3" }
 nebula-protocol = { version = "1.0.0", path = "../../packages/nebula_protocol" }
-astroport = { path = "../../packages/astroport" }
+astroport = { version = "1.0" }
 terra-cosmwasm = "2.2.0"
 tefi-oracle = { version = "0.1.0", path = "../../packages/tefi_oracle" }
 thiserror = { version = "1.0.30" }
