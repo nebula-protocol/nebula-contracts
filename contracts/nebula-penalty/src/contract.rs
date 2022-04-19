@@ -657,11 +657,11 @@ pub fn compute_redeem(
 /// - **inventory1** is a reference to an array containing objects of type [`Uint128`] which is
 ///     the inventory of a cluster after the rebalance operation.
 ///
-/// - **target_weights** is a reference to an array containing objects of type [`Uint128`] which is
-///     a list of asset target weights of a cluster.
-///
 /// - **asset_prices** is a reference to an array containing objects of type [`String`] which is
 ///     a list of asset prices of a cluster.
+///
+/// - **target_weights** is a reference to an array containing objects of type [`Uint128`] which is
+///     a list of asset target weights of a cluster.
 pub fn compute_notional_penalty(
     deps: Deps,
     block_height: u64,

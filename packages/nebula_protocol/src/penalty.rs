@@ -112,7 +112,7 @@ pub enum QueryMsg {
 
     /// PenaltyQueryNotional Calculates the notional penalty based on the inventory change at the given height.
     PenaltyQueryNotional {
-        /// a specific height to compute mint at
+        /// a specific height to compute rebalance at
         block_height: u64,
         /// current inventory of inventory assets in a cluster
         inventory0: Vec<Uint128>,
