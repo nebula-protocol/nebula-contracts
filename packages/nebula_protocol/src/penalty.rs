@@ -109,6 +109,20 @@ pub enum QueryMsg {
         /// current target weights of the assets in a cluster
         target_weights: Vec<Uint128>,
     },
+
+    /// PenaltyQueryNotional Calculates the notional penalty based on the inventory change at the given height.
+    PenaltyQueryNotional {
+        /// a specific height to compute rebalance at
+        block_height: u64,
+        /// current inventory of inventory assets in a cluster
+        inventory0: Vec<Uint128>,
+        /// expected inventory after rebalancing
+        inventory1: Vec<Uint128>,
+        /// prices of the inventory assets in a cluster
+        asset_prices: Vec<String>,
+        /// current target weights of the assets in a cluster
+        target_weights: Vec<Uint128>,
+    },
 }
 
 /// ## Description
@@ -143,6 +157,16 @@ pub struct PenaltyRedeemResponse {
     pub penalty: Uint128,
     /// Actual burned cluster token amount
     pub token_cost: Uint128,
+    /// Returned attributes to the caller
+    pub attributes: Vec<Attribute>,
+}
+
+/// ## Description
+/// A custom struct for each query that returns the incurred penalty from rebalancing.
+#[derive(Serialize, Deserialize, JsonSchema)]
+pub struct PenaltyNotionalResponse {
+    /// Incurred penalty / reward from rebalance
+    pub penalty: Uint128,
     /// Returned attributes to the caller
     pub attributes: Vec<Attribute>,
 }

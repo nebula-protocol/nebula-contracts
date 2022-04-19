@@ -12,7 +12,7 @@ use cosmwasm_std::{attr, from_binary, Addr, DepsMut, Env, StdError, Timestamp, U
 use cw2::{get_contract_version, ContractVersion};
 use nebula_protocol::penalty::{
     ConfigResponse, ExecuteMsg, InstantiateMsg, MigrateMsg, ParamsResponse, PenaltyCreateResponse,
-    PenaltyParams, PenaltyRedeemResponse, QueryMsg,
+    PenaltyNotionalResponse, PenaltyParams, PenaltyRedeemResponse, QueryMsg,
 };
 use std::str::FromStr;
 
@@ -375,6 +375,84 @@ fn test_redeem_actions() {
             &_ => panic!("Invalid value found in log"),
         }
     }
+}
+
+#[test]
+fn test_query_penalty() {
+    let mut deps = mock_dependencies(&[]);
+    mock_init(deps.as_mut());
+    let env = mock_env_height(0, 10000);
+
+    // Target weights and prices
+    let p_strs = &["8.7".to_string(), "2.1".to_string(), "3.5".to_string()];
+    let weights = &[Uint128::new(100), Uint128::new(100), Uint128::new(100)];
+
+    let p = str_vec_to_fpdec(p_strs).unwrap();
+
+    // Set up EMA
+    let curr_inv = &[Uint128::new(47), Uint128::new(50), Uint128::new(53)];
+    let nav = dot(&int_vec_to_fpdec(curr_inv), &p);
+    update_ema(deps.as_mut(), 60, nav).unwrap();
+
+    let inv0 = &[Uint128::new(95), Uint128::new(100), Uint128::new(105)];
+
+    // Try imbalance too high
+    let inv1 = &[Uint128::new(90), Uint128::new(100), Uint128::new(110)];
+    let res = query(
+        deps.as_ref(),
+        env.clone(),
+        QueryMsg::PenaltyQueryNotional {
+            block_height: 160,
+            inventory0: inv0.to_vec(),
+            inventory1: inv1.to_vec(),
+            asset_prices: p_strs.to_vec(),
+            target_weights: weights.to_vec(),
+        },
+    );
+    match res {
+        Ok(_) => panic!("Must return error"),
+        Err(StdError::GenericErr { msg, .. }) => assert_eq!(msg, "cluster imbalance too high"),
+        Err(e) => panic!("Unexpected error: {:?}", e),
+    };
+
+    // Try penalty
+    let inv1 = &[Uint128::new(95), Uint128::new(100), Uint128::new(108)];
+    let res = query(
+        deps.as_ref(),
+        env.clone(),
+        QueryMsg::PenaltyQueryNotional {
+            block_height: 160,
+            inventory0: inv0.to_vec(),
+            inventory1: inv1.to_vec(),
+            asset_prices: p_strs.to_vec(),
+            target_weights: weights.to_vec(),
+        },
+    )
+    .unwrap();
+    let response: PenaltyNotionalResponse = from_binary(&res).unwrap();
+    assert_eq!(response.penalty, Uint128::zero());
+    assert_eq!(
+        response.attributes,
+        vec![attr("penalty", "-9.769495573051444318")]
+    );
+
+    // Try reward
+    let inv1 = &[Uint128::new(102), Uint128::new(100), Uint128::new(96)];
+    let res = query(
+        deps.as_ref(),
+        env.clone(),
+        QueryMsg::PenaltyQueryNotional {
+            block_height: 160,
+            inventory0: inv0.to_vec(),
+            inventory1: inv1.to_vec(),
+            asset_prices: p_strs.to_vec(),
+            target_weights: weights.to_vec(),
+        },
+    )
+    .unwrap();
+    let response: PenaltyNotionalResponse = from_binary(&res).unwrap();
+    assert_eq!(response.penalty, Uint128::new(1u128));
+    assert_eq!(response.attributes, vec![attr("penalty", "1.235034965")]);
 }
 
 #[test]

@@ -14,7 +14,7 @@ use cluster_math::{
 use cw2::set_contract_version;
 use nebula_protocol::penalty::{
     ConfigResponse, ExecuteMsg, InstantiateMsg, MigrateMsg, ParamsResponse, PenaltyCreateResponse,
-    PenaltyParams, PenaltyRedeemResponse, QueryMsg,
+    PenaltyNotionalResponse, PenaltyParams, PenaltyRedeemResponse, QueryMsg,
 };
 use std::cmp::{max, min};
 
@@ -371,6 +371,14 @@ pub fn update_ema(
 ///             asset_prices,
 ///             target_weights,
 ///         }** Calculates the actual redeem amount after taking penalty into consideration.
+///
+/// - **QueryMsg::QueryNotionalPenalty {
+///             block_height,
+///             inventory0,
+///             inventory1,
+///             target_weights,
+///             asset_prices,
+///         }** Calculates the notional penalty based on the inventory change at the given height.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
@@ -407,6 +415,20 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             &inventory,
             &max_tokens,
             &redeem_asset_amounts,
+            &asset_prices,
+            &target_weights,
+        )?),
+        QueryMsg::PenaltyQueryNotional {
+            block_height,
+            inventory0,
+            inventory1,
+            asset_prices,
+            target_weights,
+        } => to_binary(&compute_notional_penalty(
+            deps,
+            block_height,
+            &inventory0,
+            &inventory1,
             &asset_prices,
             &target_weights,
         )?),
@@ -619,6 +641,60 @@ pub fn compute_redeem(
             attributes: vec![attr("penalty", &format!("{}", penalty))],
         })
     };
+}
+
+/// ## Description
+/// Calculates penalty / reward for any rebalance operation on a cluster.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
+///
+/// - **block_height** is an object of type [`u64`].
+///
+/// - **inventory0** is a reference to an array containing objects of type [`Uint128`] which is
+///     the current inventory of a cluster.
+///
+/// - **inventory1** is a reference to an array containing objects of type [`Uint128`] which is
+///     the inventory of a cluster after the rebalance operation.
+///
+/// - **asset_prices** is a reference to an array containing objects of type [`String`] which is
+///     a list of asset prices of a cluster.
+///
+/// - **target_weights** is a reference to an array containing objects of type [`Uint128`] which is
+///     a list of asset target weights of a cluster.
+pub fn compute_notional_penalty(
+    deps: Deps,
+    block_height: u64,
+    inventory0: &[Uint128],
+    inventory1: &[Uint128],
+    asset_prices: &[String],
+    target_weights: &[Uint128],
+) -> StdResult<PenaltyNotionalResponse> {
+    // The current inventory before rebalancing
+    let i0 = int_vec_to_fpdec(inventory0);
+    // The inventory after rebalancing
+    let i1 = int_vec_to_fpdec(inventory1);
+    // The current prices of the assets in the cluster
+    let p = str_vec_to_fpdec(asset_prices)?;
+    // The target weights of the assets
+    let w = int_vec_to_fpdec(target_weights);
+
+    // Compute penalty / reward from this rebalance
+    // -- penalty if < 0
+    // -- reward if > 0
+    let penalty = notional_penalty(deps, block_height, &i0, &i1, &w, &p)?;
+
+    Ok(PenaltyNotionalResponse {
+        penalty: Uint128::new(
+            (if penalty.sign == 1 {
+                penalty
+            } else {
+                FPDecimal::zero()
+            })
+            .into(),
+        ),
+        attributes: vec![attr("penalty", &format!("{}", penalty))],
+    })
 }
 
 /// ## Description
