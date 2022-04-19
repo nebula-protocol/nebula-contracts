@@ -126,3 +126,14 @@ Developers are strongly encouraged to write unit tests for new code, and to subm
 ## Bug Bounty
 
 The contracts in this repo are included in a [bug bounty program](https://www.immunefi.com/bounty/nebulaprotocol).
+
+## Deployments
+
+### Mainnet
+
+| contract   | address                                      |
+| ---------- | -------------------------------------------- |
+| NEB Token  | terra1mpq5zkkm39nmjrjg9raknpfrfmcfwv0nh0whvn |
+| Airdrop    | terra1wjqsy2q3xzn3rxv5drutfysvg24pqwsg3nmv0y |
+| Governance | terra1gsq7p9a8uu6wdr78rk9cthz57tzkfzrejhdknf |
+| Community  | terra1g5py2hu8kpenqetv6xjas5z5gtaszhsuk8yn7n |
