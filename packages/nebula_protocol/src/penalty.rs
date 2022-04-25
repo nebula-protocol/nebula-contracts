@@ -167,6 +167,10 @@ pub struct PenaltyRedeemResponse {
 pub struct PenaltyNotionalResponse {
     /// Incurred penalty / reward from rebalance
     pub penalty: Uint128,
+    /// Original imbalance before rebalance
+    pub imbalance0: Uint128,
+    /// Imbalance after rebalance
+    pub imbalance1: Uint128,
     /// Returned attributes to the caller
     pub attributes: Vec<Attribute>,
 }
