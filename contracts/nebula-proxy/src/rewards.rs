@@ -10,7 +10,7 @@ use crate::state::{
     store_pending_rewards, Config, PoolInfo,
 };
 
-use nebula_protocol::incentives::{ExtExecuteMsg, PoolType};
+use nebula_protocol::proxy::{ExtExecuteMsg, PoolType};
 
 use cw20::Cw20ExecuteMsg;
 

@@ -25,14 +25,18 @@ static PREFIX_REWARD: &[u8] = b"reward";
 /// A custom struct for storing the incentives contract setting.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
-    /// Owner of the contract, Gov contract
+    /// Owner of the contract
     pub owner: Addr,
-    /// Proxy contract
-    pub proxy: Addr,
+    /// Cluster factory contract
+    pub factory: Addr,
     /// Custody contract
     pub custody: Addr,
+    /// Astroport factory contract
+    pub astroport_factory: Addr,
     /// Nebula token contract
     pub nebula_token: Addr,
+    /// Base denom, UST
+    pub base_denom: String,
 }
 
 pub fn store_config(storage: &mut dyn Storage, config: &Config) -> StdResult<()> {

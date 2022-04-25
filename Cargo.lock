@@ -987,6 +987,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "nebula-proxy"
+version = "1.0.0"
+dependencies = [
+ "astroport",
+ "cluster-math",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "cw2",
+ "cw20",
+ "nebula-protocol",
+ "schemars",
+ "serde",
+ "terra-cosmwasm",
+ "thiserror",
+]
+
+[[package]]
 name = "num-integer"
 version = "0.1.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"

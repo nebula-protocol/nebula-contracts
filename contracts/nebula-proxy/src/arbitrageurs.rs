@@ -6,7 +6,7 @@ use cosmwasm_std::{
 use crate::rebalancers::{assert_cluster_exists, get_cluster_state};
 use crate::state::{read_config, record_contribution, Config};
 
-use nebula_protocol::incentives::{ExecuteMsg, PoolType};
+use nebula_protocol::proxy::{ExecuteMsg, PoolType};
 
 use astroport::pair::PoolResponse as AstroportPoolResponse;
 use astroport::pair::QueryMsg as AstroportQueryMsg;

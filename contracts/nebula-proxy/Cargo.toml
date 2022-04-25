@@ -1,0 +1,38 @@
+
+[package]
+name = "nebula-proxy"
+version = "1.0.0"
+authors = ["Nebula Protocol <engineering@neb.finance>"]
+edition = "2018"
+
+exclude = [
+  # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
+  "contract.wasm",
+  "hash.txt",
+]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# for quicker tests, cargo test --lib
+# for more explicit tests, cargo test --features=backtraces
+backtraces = ["cosmwasm-std/backtraces"]
+
+[dependencies]
+cw20 = { version = "0.8.0" }
+cosmwasm-std = { version = "0.16.2", default-features = false}
+cosmwasm-storage = { version = "0.16.2" }
+astroport = { version = "1.0" }
+schemars = "0.8.1"
+serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+cluster-math = { path = "../../libraries/cluster-math" }
+nebula-protocol = { version = "1.0.0", path = "../../packages/nebula_protocol" }
+thiserror = { version = "1.0.30" }
+cw2 = { version = "0.9.1" }
+
+[dev-dependencies]
+cosmwasm-schema = "0.16.0"
+terra-cosmwasm = "2.0.0"

@@ -9,4 +9,5 @@ pub mod incentives;
 pub mod incentives_custody;
 pub mod oracle;
 pub mod penalty;
+pub mod proxy;
 pub mod staking;

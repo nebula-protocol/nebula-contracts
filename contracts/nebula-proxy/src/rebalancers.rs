@@ -4,7 +4,7 @@ use cosmwasm_std::{
 };
 
 use crate::state::{read_config, record_contribution};
-use nebula_protocol::incentives::{ExecuteMsg, PoolType};
+use nebula_protocol::proxy::{ExecuteMsg, PoolType};
 
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::cluster::{
