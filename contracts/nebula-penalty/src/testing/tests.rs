@@ -154,7 +154,7 @@ fn test_notional_penalty_math() {
     let p = str_vec_to_fpdec(&["8.7".to_string(), "2.1".to_string(), "3.5".to_string()]).unwrap();
 
     let i1 = int32_vec_to_fpdec(&[90, 100, 110]);
-    let penalty = notional_penalty(deps.as_ref(), 0u64, &i0, &i1, &w, &p).unwrap();
+    let (penalty, _, _) = notional_penalty(deps.as_ref(), 0u64, &i0, &i1, &w, &p).unwrap();
     let res = FPDecimal::from_str("-32.747139223416719612").unwrap();
     assert_eq!(res, penalty);
 
@@ -170,7 +170,7 @@ fn test_notional_penalty_math() {
 
     // Test reward by correcting imbalance
     let i1 = int32_vec_to_fpdec(&[98, 100, 102]);
-    let reward = notional_penalty(deps.as_ref(), 0u64, &i0, &i1, &w, &p).unwrap();
+    let (reward, _, _) = notional_penalty(deps.as_ref(), 0u64, &i0, &i1, &w, &p).unwrap();
     let res = FPDecimal::from_str("1.36418181815").unwrap();
     assert_eq!(res, reward);
 
@@ -188,12 +188,12 @@ fn test_notional_penalty_math() {
     };
 
     let i1 = int32_vec_to_fpdec(&[95, 100, 108]);
-    let penalty = notional_penalty(deps.as_ref(), 160u64, &i0, &i1, &w, &p).unwrap();
+    let (penalty, _, _) = notional_penalty(deps.as_ref(), 160u64, &i0, &i1, &w, &p).unwrap();
     let res = FPDecimal::from_str("-9.769495573051444318").unwrap();
     assert_eq!(res, penalty);
 
     let i1 = int32_vec_to_fpdec(&[102, 100, 96]);
-    let reward = notional_penalty(deps.as_ref(), 160u64, &i0, &i1, &w, &p).unwrap();
+    let (reward, _, _) = notional_penalty(deps.as_ref(), 160u64, &i0, &i1, &w, &p).unwrap();
     let res = FPDecimal::from_str("1.235034965").unwrap();
     assert_eq!(res, reward);
 }
