@@ -512,7 +512,7 @@ pub fn compute_mint(
     // Compute penalty / reward from this rebalance
     // -- penalty if < 0
     // -- reward if > 0
-    let penalty = notional_penalty(deps, block_height, &i0, &i1, &w, &p)?;
+    let (penalty, _, _) = notional_penalty(deps, block_height, &i0, &i1, &w, &p)?;
     // Compute the value of the provided assets with penalty
     // -- notional_value = value_of_the_provided_assets + penalty
     //                   = sum(provided_asset_i * price_i) + penalty
@@ -608,7 +608,7 @@ pub fn compute_redeem(
         // Compute penalty / reward from this rebalance
         // -- penalty if < 0
         // -- reward if > 0
-        let penalty = notional_penalty(deps, block_height, &i0, &i1, &w, &p)?;
+        let (penalty, _, _) = notional_penalty(deps, block_height, &i0, &i1, &w, &p)?;
         // Compute the value of the returned assets with penalty
         // -- notional_value = value_of_the_returned_assets - penalty
         //                   = sum(provided_asset_i * price_i) - penalty
@@ -682,7 +682,7 @@ pub fn compute_notional_penalty(
     // Compute penalty / reward from this rebalance
     // -- penalty if < 0
     // -- reward if > 0
-    let penalty = notional_penalty(deps, block_height, &i0, &i1, &w, &p)?;
+    let (penalty, imb0, imb1) = notional_penalty(deps, block_height, &i0, &i1, &w, &p)?;
 
     Ok(PenaltyNotionalResponse {
         penalty: Uint128::new(
@@ -693,6 +693,8 @@ pub fn compute_notional_penalty(
             })
             .into(),
         ),
+        imbalance0: Uint128::new(imb0.into()),
+        imbalance1: Uint128::new(imb1.into()),
         attributes: vec![attr("penalty", &format!("{}", penalty))],
     })
 }
@@ -723,7 +725,7 @@ pub fn notional_penalty(
     i1: &[FPDecimal],
     w: &[FPDecimal],
     p: &[FPDecimal],
-) -> StdResult<FPDecimal> {
+) -> StdResult<(FPDecimal, FPDecimal, FPDecimal)> {
     let cfg = read_config(deps.storage)?;
 
     // Compute the current imbalance with `i0`
@@ -776,11 +778,19 @@ pub fn notional_penalty(
         let penalty_2 = (imb0_mid_height + imb1_mid_height) * (imb1_mid - imb0_mid).div(2);
 
         let penalty_3 = (max(imb1, cutoff_hi) - max(imb0, cutoff_hi)) * penalty_amt_hi;
-        Ok(FPDecimal::zero() - (penalty_1 + penalty_2 + penalty_3))
+        Ok((
+            FPDecimal::zero() - (penalty_1 + penalty_2 + penalty_3),
+            imb0,
+            imb1,
+        ))
     } else {
         // Imbalance decreases, use reward function
         let cutoff = reward_cutoff * e;
-        Ok((max(imb0, cutoff) - max(imb1, cutoff)) * reward_amt)
+        Ok((
+            (max(imb0, cutoff) - max(imb1, cutoff)) * reward_amt,
+            imb0,
+            imb1,
+        ))
     }
 }
 
