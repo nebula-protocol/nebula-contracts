@@ -3,10 +3,11 @@ use astroport::factory::PairType;
 use astroport::pair::PoolResponse as AstroportPoolResponse;
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    from_binary, from_slice, to_binary, Addr, Coin, ContractResult, OwnedDeps, Querier,
+    attr, from_binary, from_slice, to_binary, Addr, Coin, ContractResult, OwnedDeps, Querier,
     QuerierResult, QueryRequest, SystemError, SystemResult, Uint128, WasmQuery,
 };
 use nebula_protocol::cluster::ClusterStateResponse;
+use nebula_protocol::penalty::PenaltyNotionalResponse;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -73,9 +74,18 @@ impl Querier for WasmMockQuerier {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
-    Pair { asset_infos: [AssetInfo; 2] },
+    Pair {
+        asset_infos: [AssetInfo; 2],
+    },
     ClusterState {},
     Pool {},
+    PenaltyQueryNotional {
+        block_height: u64,
+        inventory0: Vec<Uint128>,
+        inventory1: Vec<Uint128>,
+        asset_prices: Vec<String>,
+        target_weights: Vec<Uint128>,
+    },
 }
 
 impl WasmMockQuerier {
@@ -158,6 +168,18 @@ impl WasmMockQuerier {
                         total_share: Uint128::new(10000),
                     })))
                 }
+                QueryMsg::PenaltyQueryNotional {
+                    block_height: _,
+                    inventory0: _,
+                    inventory1: _,
+                    asset_prices: _,
+                    target_weights: _,
+                } => SystemResult::Ok(ContractResult::from(to_binary(&PenaltyNotionalResponse {
+                    penalty: Uint128::new(4),
+                    imbalance0: Uint128::new(100),
+                    imbalance1: Uint128::new(51),
+                    attributes: vec![attr("penalty", &format!("{}", 4))],
+                }))),
             },
             _ => self.base.handle_query(request),
         }

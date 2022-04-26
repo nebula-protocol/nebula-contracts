@@ -3,19 +3,19 @@ use cosmwasm_std::{
     Response, StdResult, Uint128, WasmMsg, WasmQuery,
 };
 
-use crate::state::{read_config, record_contribution};
-use nebula_protocol::proxy::{ExecuteMsg, PoolType};
+use crate::state::{read_config, Config};
+use nebula_protocol::proxy::ExecuteMsg;
 
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::cluster::{
     ClusterStateResponse, ExecuteMsg as ClusterExecuteMsg, QueryMsg as ClusterQueryMsg,
 };
+use nebula_protocol::incentives::ExecuteMsg as IncentivesExecuteMsg;
 
 use astroport::asset::{Asset, AssetInfo};
 use astroport::querier::query_token_balance;
 
 use crate::error::ContractError;
-use cluster_math::{imbalance, int_vec_to_fpdec, str_vec_to_fpdec};
 use nebula_protocol::cluster_factory::ClusterExistsResponse;
 use nebula_protocol::cluster_factory::QueryMsg::ClusterExists;
 use std::cmp::min;
@@ -44,8 +44,11 @@ pub fn get_cluster_state(deps: Deps, cluster: &Addr) -> StdResult<ClusterStateRe
 ///
 /// - **cluster** is a reference to an object of type [`Addr`] which is
 ///     the address of a cluster.
-pub fn assert_cluster_exists(deps: Deps, cluster: &Addr) -> Result<bool, ContractError> {
-    let cfg = read_config(deps.storage)?;
+pub fn assert_cluster_exists(
+    deps: Deps,
+    cluster: &Addr,
+    cfg: &Config,
+) -> Result<bool, ContractError> {
     // Query cluster status
     let res: ClusterExistsResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: cfg.factory.to_string(),
@@ -64,92 +67,6 @@ pub fn assert_cluster_exists(deps: Deps, cluster: &Addr) -> Result<bool, Contrac
 }
 
 /// ## Description
-/// Computes the current imbalance of a cluster.
-///
-/// ## Params
-/// - **deps** is an object of type [`Deps`].
-///
-/// - **cluster_contract** is a reference to an object of type [`Addr`] which is
-///     the address of a cluster.
-pub fn cluster_imbalance(deps: Deps, cluster_contract: &Addr) -> StdResult<Uint128> {
-    let cluster_state = get_cluster_state(deps, cluster_contract)?;
-
-    // Get the current asset inventories in the cluster
-    let i = int_vec_to_fpdec(&cluster_state.inv);
-    // Get the current asset prices
-    let p = str_vec_to_fpdec(&cluster_state.prices)?;
-
-    // Get the asset target weights of the cluster
-    let target_weights = cluster_state
-        .target
-        .iter()
-        .map(|x| x.amount)
-        .collect::<Vec<_>>();
-    let w = int_vec_to_fpdec(&target_weights);
-
-    Ok(Uint128::new(imbalance(&i, &p, &w).into()))
-}
-
-/// ## Description
-/// Saves the change occurs in the cluster inventory after performing a rebalance action.
-/// This is used to calculate contribution rewards when rebalancing.
-///
-/// ## Params
-/// - **deps** is an object of type [`DepsMut`].
-///
-/// - **env** is an object of type [`Env`].
-///
-/// - **info** is an object of type [`MessageInfo`].
-///
-/// - **rebalancer** is an object of type [`Addr`] which is the address of a user
-///     performing a rebalance.
-///
-/// - **cluster_contract** is an object of type [`Addr`] which is the address of
-///     the cluster contract corresponding to the rebalance.
-///
-/// - **original_imbalance** is an object of type [`Uint128`] which is the imbalance
-///     value of the cluster before performing the rebalance.
-///
-/// ## Executor
-/// Only this contract can execute this.
-pub fn record_rebalancer_rewards(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    rebalancer: Addr,
-    cluster_contract: Addr,
-    original_imbalance: Uint128,
-) -> Result<Response, ContractError> {
-    // Permission check
-    if info.sender != env.contract.address {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    // Compute the current imbalance of the cluster
-    let new_imbalance = cluster_imbalance(deps.as_ref(), &cluster_contract)?;
-    let mut contribution = Uint128::zero();
-
-    // If imbalance reduces
-    if original_imbalance > new_imbalance {
-        contribution = original_imbalance.checked_sub(new_imbalance)?;
-
-        // Save the rebalance contribution
-        record_contribution(
-            deps,
-            &rebalancer,
-            PoolType::REBALANCE,
-            &cluster_contract,
-            contribution,
-        )?;
-    }
-
-    Ok(Response::new().add_attributes(vec![
-        attr("action", "record_rebalancer_rewards"),
-        attr("rebalancer_imbalance_fixed", contribution),
-    ]))
-}
-
-/// ## Description
 /// Calls the actual create logic in a cluster contract used in both arbitraging and rebalancing.
 ///
 /// ## Params
@@ -165,6 +82,9 @@ pub fn record_rebalancer_rewards(
 /// - **cluster_contract** is an object of type [`Addr`] which is the address of
 ///     the cluster contract corresponding to the rebalance.
 ///
+/// - **incentives** is an object of type [`Option<Addr>`] which, if exists, is the
+///     address of the incentives contract.
+///
 /// - **asset_amounts** is a reference to an array containing objects of type [`Asset`]
 ///     which is a list of assets offerred to mint cluster tokens.
 ///
@@ -173,12 +93,14 @@ pub fn record_rebalancer_rewards(
 ///
 /// ## Executor
 /// Only this contract can execute this.
+#[allow(clippy::too_many_arguments)]
 pub fn internal_rewarded_create(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     rebalancer: Addr,
     cluster_contract: Addr,
+    incentives: Option<Addr>,
     asset_amounts: &[Asset],
     min_tokens: Option<Uint128>,
 ) -> Result<Response, ContractError> {
@@ -187,17 +109,17 @@ pub fn internal_rewarded_create(
         return Err(ContractError::Unauthorized {});
     }
 
-    // Calculate the original imbalance of the cluster
-    let original_imbalance = cluster_imbalance(deps.as_ref(), &cluster_contract)?;
+    // Retrieve the current cluster inventory
+    let original_inventory = get_cluster_state(deps.as_ref(), &cluster_contract)?.inv;
 
     // Perpare to transfer to the cluster contract
     let mut funds = vec![];
     let mut create_asset_amounts = vec![];
     let mut messages = vec![];
     for asset in asset_amounts {
-        match asset.clone().info {
+        match asset.info.clone() {
             AssetInfo::NativeToken { denom } => {
-                let amount = (asset.clone().deduct_tax(&deps.querier)?).amount;
+                let amount = (asset.deduct_tax(&deps.querier)?).amount;
 
                 let new_asset = Asset {
                     amount,
@@ -205,10 +127,7 @@ pub fn internal_rewarded_create(
                 };
 
                 create_asset_amounts.push(new_asset);
-                funds.push(Coin {
-                    denom: denom.clone(),
-                    amount,
-                });
+                funds.push(Coin { denom, amount });
             }
             AssetInfo::Token { contract_addr } => {
                 create_asset_amounts.push(asset.clone());
@@ -236,16 +155,19 @@ pub fn internal_rewarded_create(
         funds,
     }));
 
-    // Record the change in the cluster imbalance for contribution rewards
-    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: env.contract.address.to_string(),
-        msg: to_binary(&ExecuteMsg::_RecordRebalancerRewards {
-            rebalancer,
-            cluster_contract,
-            original_imbalance,
-        })?,
-        funds: vec![],
-    }));
+    if let Some(incentives) = incentives {
+        // Record the change in the cluster imbalance for contribution rewards
+        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: incentives.to_string(),
+            msg: to_binary(&IncentivesExecuteMsg::RecordRebalancerRewards {
+                rebalancer,
+                cluster_contract,
+                original_inventory,
+            })?,
+            funds: vec![],
+        }));
+    }
+
     Ok(Response::new()
         .add_messages(messages)
         .add_attributes(vec![attr("action", "internal_rewarded_mint")]))
@@ -271,6 +193,9 @@ pub fn internal_rewarded_create(
 /// - **cluster_token** is an object of type [`Addr`] which is the address of
 ///     the corresponding cluster token contract.
 ///
+/// - **incentives** is an object of type [`Option<Addr>`] which, if exists, is the
+///     address of the incentives contract.
+///
 /// - **max_tokens** is an object of type [`Option<Uint128>`] which is the maximum allowed
 ///     amount of cluster tokens to be burned from this create operation.
 ///
@@ -287,6 +212,7 @@ pub fn internal_rewarded_redeem(
     rebalancer: Addr,
     cluster_contract: Addr,
     cluster_token: Addr,
+    incentives: Option<Addr>,
     max_tokens: Option<Uint128>,
     asset_amounts: Option<Vec<Asset>>,
 ) -> Result<Response, ContractError> {
@@ -305,51 +231,56 @@ pub fn internal_rewarded_redeem(
         Some(tokens) => tokens,
     };
 
-    // Calculate the original imbalance of the cluster
-    let original_imbalance = cluster_imbalance(deps.as_ref(), &cluster_contract)?;
+    // Retrieve the current cluster inventory
+    let original_inventory = get_cluster_state(deps.as_ref(), &cluster_contract)?.inv;
+
+    let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: cluster_token.to_string(),
+        msg: to_binary(&Cw20ExecuteMsg::IncreaseAllowance {
+            spender: cluster_contract.to_string(),
+            amount: max_tokens,
+            expires: None,
+        })?,
+        funds: vec![],
+    })];
+
+    // Call cluster contract to perform the redeem operation
+    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: cluster_contract.to_string(),
+        msg: to_binary(&ClusterExecuteMsg::RebalanceRedeem {
+            max_tokens,
+            asset_amounts,
+        })?,
+        funds: vec![],
+    }));
+
+    if let Some(incentives) = incentives {
+        // Record the change in the cluster imbalance for contribution rewards
+        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: incentives.to_string(),
+            msg: to_binary(&IncentivesExecuteMsg::RecordRebalancerRewards {
+                rebalancer: rebalancer.clone(),
+                cluster_contract,
+                original_inventory,
+            })?,
+            funds: vec![],
+        }));
+    }
+
+    // Returns the remaining cluster tokens back to the rebalancer
+    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: env.contract.address.to_string(),
+        msg: to_binary(&ExecuteMsg::_SendAll {
+            asset_infos: vec![AssetInfo::Token {
+                contract_addr: cluster_token,
+            }],
+            send_to: rebalancer,
+        })?,
+        funds: vec![],
+    }));
 
     Ok(Response::new()
-        .add_messages(vec![
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: cluster_token.to_string(),
-                msg: to_binary(&Cw20ExecuteMsg::IncreaseAllowance {
-                    spender: cluster_contract.to_string(),
-                    amount: max_tokens,
-                    expires: None,
-                })?,
-                funds: vec![],
-            }),
-            // Call cluster contract to perform the redeem operation
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: cluster_contract.to_string(),
-                msg: to_binary(&ClusterExecuteMsg::RebalanceRedeem {
-                    max_tokens,
-                    asset_amounts,
-                })?,
-                funds: vec![],
-            }),
-            // Record the change in the cluster imbalance for contribution rewards
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: env.contract.address.to_string(),
-                msg: to_binary(&ExecuteMsg::_RecordRebalancerRewards {
-                    rebalancer: rebalancer.clone(),
-                    cluster_contract,
-                    original_imbalance,
-                })?,
-                funds: vec![],
-            }),
-            // Returns the remaining cluster tokens back to the rebalancer
-            CosmosMsg::Wasm(WasmMsg::Execute {
-                contract_addr: env.contract.address.to_string(),
-                msg: to_binary(&ExecuteMsg::_SendAll {
-                    asset_infos: vec![AssetInfo::Token {
-                        contract_addr: cluster_token,
-                    }],
-                    send_to: rebalancer,
-                })?,
-                funds: vec![],
-            }),
-        ])
+        .add_messages(messages)
         .add_attributes(vec![attr("action", "internal_rewarded_redeem")]))
 }
 
@@ -381,8 +312,10 @@ pub fn create(
 ) -> Result<Response, ContractError> {
     // Validate address format
     let validated_cluster_contract = deps.api.addr_validate(cluster_contract.as_str())?;
+
+    let cfg = read_config(deps.storage)?;
     // Check if it is an active cluster
-    assert_cluster_exists(deps.as_ref(), &validated_cluster_contract)?;
+    assert_cluster_exists(deps.as_ref(), &validated_cluster_contract, &cfg)?;
 
     // Get the cluster state
     let cluster_state = get_cluster_state(deps.as_ref(), &validated_cluster_contract)?;
@@ -396,9 +329,9 @@ pub fn create(
 
     // Transfer all asset tokens of specified amounts into this incentives contract
     for asset in asset_amounts {
-        match asset.clone().info {
+        match asset.info.clone() {
             AssetInfo::NativeToken { denom: _ } => {
-                asset.clone().assert_sent_native_token_balance(&info)?;
+                asset.assert_sent_native_token_balance(&info)?;
             }
             AssetInfo::Token { contract_addr } => {
                 messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -420,6 +353,7 @@ pub fn create(
         msg: to_binary(&ExecuteMsg::_InternalRewardedCreate {
             rebalancer: info.sender.clone(),
             cluster_contract: validated_cluster_contract,
+            incentives: cfg.incentives,
             asset_amounts: asset_amounts.to_vec(),
             min_tokens,
         })?,
@@ -479,8 +413,10 @@ pub fn redeem(
 ) -> Result<Response, ContractError> {
     // Validate address format
     let validated_cluster_contract = deps.api.addr_validate(cluster_contract.as_str())?;
+
+    let cfg = read_config(deps.storage)?;
     // Check if it is an active cluster
-    assert_cluster_exists(deps.as_ref(), &validated_cluster_contract)?;
+    assert_cluster_exists(deps.as_ref(), &validated_cluster_contract, &cfg)?;
 
     // Get the cluster state
     let cluster_state = get_cluster_state(deps.as_ref(), &validated_cluster_contract)?;
@@ -529,6 +465,7 @@ pub fn redeem(
                     rebalancer: info.sender.clone(),
                     cluster_contract: validated_cluster_contract,
                     cluster_token,
+                    incentives: cfg.incentives,
                     max_tokens: Some(max_tokens),
                     asset_amounts,
                 })?,

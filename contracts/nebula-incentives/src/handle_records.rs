@@ -1,8 +1,7 @@
 use crate::query::query_config;
 use crate::state::record_contribution;
 use cosmwasm_std::{
-    attr, to_binary, Addr, Deps, DepsMut, Env, MessageInfo, QueryRequest, Response, StdResult,
-    Uint128, WasmQuery,
+    attr, to_binary, Addr, DepsMut, Env, MessageInfo, QueryRequest, Response, Uint128, WasmQuery,
 };
 
 use nebula_protocol::incentives::PoolType;
@@ -13,9 +12,10 @@ use astroport::pair::QueryMsg as AstroportQueryMsg;
 
 use nebula_protocol::cluster::{ClusterStateResponse, QueryMsg as ClusterQueryMsg};
 use nebula_protocol::incentives::ConfigResponse;
+use nebula_protocol::penalty::{PenaltyNotionalResponse, QueryMsg as PenaltyQueryMsg};
 
 use crate::error::ContractError;
-use cluster_math::{imbalance, int_vec_to_fpdec, str_vec_to_fpdec, FPDecimal};
+use cluster_math::FPDecimal;
 use std::str::FromStr;
 
 /// ## Description
@@ -164,7 +164,7 @@ pub fn record_astroport_impact(
 /// Only this contract can execute this.
 pub fn record_rebalancer_rewards(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     rebalancer: Addr,
     cluster_contract: Addr,
@@ -178,28 +178,37 @@ pub fn record_rebalancer_rewards(
 
     // Query the cluster state
     let cluster_state: ClusterStateResponse =
-    deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: cluster_contract.to_string(),
-        msg: to_binary(&ClusterQueryMsg::ClusterState {})?,
-    }))?;
+        deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+            contract_addr: cluster_contract.to_string(),
+            msg: to_binary(&ClusterQueryMsg::ClusterState {})?,
+        }))?;
+    // Get the asset target weights of the cluster
+    let target_weights = cluster_state
+        .target
+        .iter()
+        .map(|x| x.amount)
+        .collect::<Vec<_>>();
 
-    // A function for computing the current imbalance of a cluster
-    fn cluster_imbalance(deps: Deps, inventory: &[Uint128], prices: &[String], targets: &[Uint128]) -> StdResult<Uint128> {
-        let i = int_vec_to_fpdec(inventory);
-        let p = str_vec_to_fpdec(prices)?;
-        let w = int_vec_to_fpdec(targets);
+    // Get the penalty and both imbalances before and after rebalance
+    let penalty_response: PenaltyNotionalResponse =
+        deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+            contract_addr: cluster_state.penalty.to_string(),
+            msg: to_binary(&PenaltyQueryMsg::PenaltyQueryNotional {
+                block_height: env.block.height,
+                inventory0: original_inventory,
+                inventory1: cluster_state.inv,
+                asset_prices: cluster_state.prices,
+                target_weights,
+            })?,
+        }))?;
 
-        Ok(Uint128::new(imbalance(&i, &p, &w).into()))
-    }
-
-    // Compute the imbalances of the cluster before and after the rebalance
-    let original_imbalance = cluster_imbalance(deps.as_ref())
-    let new_imbalance = cluster_imbalance(deps.as_ref(), &cluster_contract)?;
     let mut contribution = Uint128::zero();
 
     // If imbalance reduces
-    if original_imbalance > new_imbalance {
-        contribution = original_imbalance.checked_sub(new_imbalance)?;
+    if penalty_response.penalty > Uint128::zero() {
+        contribution = penalty_response
+            .imbalance0
+            .checked_sub(penalty_response.imbalance1)?;
 
         // Save the rebalance contribution
         record_contribution(

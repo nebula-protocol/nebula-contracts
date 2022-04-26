@@ -4,22 +4,19 @@ use cosmwasm_std::{
 };
 
 use crate::rebalancers::{assert_cluster_exists, get_cluster_state};
-use crate::state::{read_config, record_contribution, Config};
+use crate::state::read_config;
 
-use nebula_protocol::proxy::{ExecuteMsg, PoolType};
+use nebula_protocol::proxy::ExecuteMsg;
 
-use astroport::pair::PoolResponse as AstroportPoolResponse;
 use astroport::pair::QueryMsg as AstroportQueryMsg;
 
 use astroport::asset::{Asset, AssetInfo, PairInfo};
 use astroport::pair::{Cw20HookMsg as AstroportCw20HookMsg, ExecuteMsg as AstroportExecuteMsg};
 use astroport::querier::{query_balance, query_pair_info, query_token_balance};
 use cw20::Cw20ExecuteMsg;
-use nebula_protocol::cluster::{ClusterStateResponse, QueryMsg as ClusterQueryMsg};
+use nebula_protocol::incentives::ExecuteMsg as IncentivesExecuteMsg;
 
 use crate::error::ContractError;
-use cluster_math::FPDecimal;
-use std::str::FromStr;
 
 /// ## Description
 /// Queries the given CT-UST pair info from Astroport.
@@ -27,16 +24,23 @@ use std::str::FromStr;
 /// ## Params
 /// - **deps** is an object of type [`Deps`].
 ///
+/// - **astroport_factory** is a reference to an object of type [`Addr`].
+///
+/// - **base_denom** is a reference to an object of type [`String`].
+///
 /// - **cluster_token** is a reference to an object of type [`Addr`].
-pub fn get_pair_info(deps: Deps, cluster_token: &Addr) -> StdResult<PairInfo> {
-    let config: Config = read_config(deps.storage)?;
-    let astroport_factory_raw = config.astroport_factory;
+pub fn get_pair_info(
+    deps: Deps,
+    astroport_factory: &Addr,
+    base_denom: &str,
+    cluster_token: &Addr,
+) -> StdResult<PairInfo> {
     query_pair_info(
         &deps.querier,
-        astroport_factory_raw,
+        astroport_factory.clone(),
         &[
             AssetInfo::NativeToken {
-                denom: config.base_denom,
+                denom: base_denom.to_string(),
             },
             AssetInfo::Token {
                 contract_addr: cluster_token.clone(),
@@ -78,13 +82,13 @@ pub fn arb_cluster_create(
 ) -> Result<Response, ContractError> {
     // Validate address format
     let validated_cluster_contract = deps.api.addr_validate(cluster_contract.as_str())?;
+
+    let cfg = read_config(deps.storage)?;
     // Check if the provided address is an active cluster
-    assert_cluster_exists(deps.as_ref(), &validated_cluster_contract)?;
+    assert_cluster_exists(deps.as_ref(), &validated_cluster_contract, &cfg)?;
 
     let mut messages = vec![];
     let contract = env.contract.address;
-
-    let cfg: Config = read_config(deps.storage)?;
 
     // Get the cluster token contract address
     let cluster_state = get_cluster_state(deps.as_ref(), &validated_cluster_contract)?;
@@ -93,15 +97,18 @@ pub fn arb_cluster_create(
         .addr_validate(cluster_state.cluster_token.as_str())?;
 
     // Retrieve CT-UST pair info
-    let pair_info = get_pair_info(deps.as_ref(), &cluster_token)?;
+    let pair_info = get_pair_info(
+        deps.as_ref(),
+        &cfg.astroport_factory,
+        &cfg.base_denom,
+        &cluster_token,
+    )?;
 
     // Transfer all asset tokens into this incentives contract
     // also prepare to transfer to cluster contract
     for asset in assets {
-        match asset.clone().info {
-            AssetInfo::NativeToken { denom: _ } => {
-                asset.clone().assert_sent_native_token_balance(&info)?
-            }
+        match asset.info.clone() {
+            AssetInfo::NativeToken { denom: _ } => asset.assert_sent_native_token_balance(&info)?,
             AssetInfo::Token { contract_addr } => {
                 messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: contract_addr.to_string(),
@@ -122,6 +129,7 @@ pub fn arb_cluster_create(
         msg: to_binary(&ExecuteMsg::_InternalRewardedCreate {
             rebalancer: info.sender.clone(),
             cluster_contract: validated_cluster_contract.clone(),
+            incentives: cfg.incentives.clone(),
             asset_amounts: assets.to_vec(),
             min_tokens: None,
         })?,
@@ -137,25 +145,28 @@ pub fn arb_cluster_create(
             cluster_token,
             to_ust: true, // how about changing this to to_base
             min_return: min_ust,
+            base_denom: cfg.base_denom.clone(),
         })?,
         funds: vec![],
     }));
 
-    // Record Astroport pool state difference between before and after the arbitrage
-    // This records the arbitrageur contribution used to compute Nebula token rewards
-    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: contract.to_string(),
-        msg: to_binary(&ExecuteMsg::_RecordAstroportImpact {
-            arbitrageur: info.sender.clone(),
-            astroport_pair: pair_info.contract_addr.clone(),
-            cluster_contract: validated_cluster_contract,
-            pool_before: deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-                contract_addr: pair_info.contract_addr.to_string(),
-                msg: to_binary(&AstroportQueryMsg::Pool {})?,
-            }))?,
-        })?,
-        funds: vec![],
-    }));
+    if let Some(incentives) = cfg.incentives {
+        // Record Astroport pool state difference between before and after the arbitrage
+        // This records the arbitrageur contribution used to compute Nebula token rewards
+        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: incentives.to_string(),
+            msg: to_binary(&IncentivesExecuteMsg::RecordAstroportImpact {
+                arbitrageur: info.sender.clone(),
+                astroport_pair: pair_info.contract_addr.clone(),
+                cluster_contract: validated_cluster_contract,
+                pool_before: deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+                    contract_addr: pair_info.contract_addr.to_string(),
+                    msg: to_binary(&AstroportQueryMsg::Pool {})?,
+                }))?,
+            })?,
+            funds: vec![],
+        }));
+    }
 
     // Send all UST from the incentives contract to the sender
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -209,12 +220,9 @@ pub fn arb_cluster_redeem(
     // Validate address format
     let validated_cluster_contract = deps.api.addr_validate(cluster_contract.as_str())?;
 
-    assert_cluster_exists(deps.as_ref(), &validated_cluster_contract)?;
-
-    let mut messages = vec![];
-    let contract = env.contract.address;
-
-    let cfg: Config = read_config(deps.storage)?;
+    let cfg = read_config(deps.storage)?;
+    // Check if the provided address is an active cluster
+    assert_cluster_exists(deps.as_ref(), &validated_cluster_contract, &cfg)?;
 
     // Get the cluster token contract address
     let cluster_state = get_cluster_state(deps.as_ref(), &validated_cluster_contract)?;
@@ -236,44 +244,53 @@ pub fn arb_cluster_redeem(
     asset.assert_sent_native_token_balance(&info)?;
 
     // Retrieve CT-UST pair info
-    let pair_info = get_pair_info(deps.as_ref(), &cluster_token)?;
+    let pair_info = get_pair_info(
+        deps.as_ref(),
+        &cfg.astroport_factory,
+        &cfg.base_denom,
+        &cluster_token,
+    )?;
 
     // Arbitrage on Astroport
     // Swap all received UST to CT
-    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: contract.to_string(),
+    let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: env.contract.address.to_string(),
         msg: to_binary(&ExecuteMsg::_SwapAll {
             astroport_pair: pair_info.contract_addr.clone(),
             cluster_token: cluster_token.clone(),
             to_ust: false,
             min_return: min_cluster,
+            base_denom: cfg.base_denom,
         })?,
         funds: vec![],
-    }));
+    })];
 
-    // Record Astroport pool state difference between before and after the arbitrage
-    // This records the arbitrageur contribution used to compute Nebula token rewards
-    messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: contract.to_string(),
-        msg: to_binary(&ExecuteMsg::_RecordAstroportImpact {
-            arbitrageur: info.sender.clone(),
-            astroport_pair: pair_info.contract_addr.clone(),
-            cluster_contract: validated_cluster_contract.clone(),
-            pool_before: deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-                contract_addr: pair_info.contract_addr.to_string(),
-                msg: to_binary(&AstroportQueryMsg::Pool {})?,
-            }))?,
-        })?,
-        funds: vec![],
-    }));
+    if let Some(incentives) = cfg.incentives.clone() {
+        // Record Astroport pool state difference between before and after the arbitrage
+        // This records the arbitrageur contribution used to compute Nebula token rewards
+        messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: incentives.to_string(),
+            msg: to_binary(&IncentivesExecuteMsg::RecordAstroportImpact {
+                arbitrageur: info.sender.clone(),
+                astroport_pair: pair_info.contract_addr.clone(),
+                cluster_contract: validated_cluster_contract.clone(),
+                pool_before: deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+                    contract_addr: pair_info.contract_addr.to_string(),
+                    msg: to_binary(&AstroportQueryMsg::Pool {})?,
+                }))?,
+            })?,
+            funds: vec![],
+        }));
+    }
 
     // Performs 'Redeem' on the cluster contract burning cluster tokens with pro-rata rates
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: contract.to_string(),
+        contract_addr: env.contract.address.to_string(),
         msg: to_binary(&ExecuteMsg::_InternalRewardedRedeem {
             rebalancer: info.sender.clone(),
             cluster_contract: validated_cluster_contract,
             cluster_token,
+            incentives: cfg.incentives,
             max_tokens: None,
             asset_amounts: None,
         })?,
@@ -288,7 +305,7 @@ pub fn arb_cluster_redeem(
 
     // Send all assets from the redeem operation from the incentives contract to the sender
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: contract.to_string(),
+        contract_addr: env.contract.address.to_string(),
         msg: to_binary(&ExecuteMsg::_SendAll {
             asset_infos,
             send_to: info.sender.clone(),
@@ -299,127 +316,6 @@ pub fn arb_cluster_redeem(
     Ok(Response::new().add_messages(messages).add_attributes(vec![
         attr("action", "arb_cluster_redeem"),
         attr("sender", info.sender.as_str()),
-    ]))
-}
-
-/// ## Description
-/// Saves the change occurs in the Astroport pair pool after performing an arbitrage action.
-/// This is used to calculate contribution rewards when arbitraging.
-///
-/// ## Params
-/// - **deps** is an object of type [`DepsMut`].
-///
-/// - **env** is an object of type [`Env`].
-///
-/// - **info** is an object of type [`MessageInfo`].
-///
-/// - **arbitrageur** is an object of type [`Addr`] which is the address of a user
-///     performing an arbitrage.
-///
-/// - **astroport_pair** is an object of type [`Addr`] which is the address of
-///     the Astroport pair contract that the arbitrage is executed on.
-///
-/// - **cluster_contract** is an object of type [`Addr`] which is the address of
-///     the cluster contract corresponding to the arbitrage.
-///
-/// - **pool_before** is an object of type [`AstroportPoolResponse`] which is the state
-///     of the Astroport pair pool before performing the arbitrage.
-///
-/// ## Executor
-/// Only this contract can execute this.
-pub fn record_astroport_impact(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    arbitrageur: Addr,
-    astroport_pair: Addr,
-    cluster_contract: Addr,
-    pool_before: AstroportPoolResponse,
-) -> Result<Response, ContractError> {
-    // Permission check
-    if info.sender != env.contract.address {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    // Get the current state of the Astroport pair pool
-    let pool_now: AstroportPoolResponse =
-        deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-            contract_addr: astroport_pair.to_string(),
-            msg: to_binary(&AstroportQueryMsg::Pool {})?,
-        }))?;
-
-    // Get the state of the cluster
-    let contract_state: ClusterStateResponse =
-        deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-            contract_addr: cluster_contract.to_string(),
-            msg: to_binary(&ClusterQueryMsg::ClusterState {})?,
-        }))?;
-
-    // Compute Net Asset Value (NAV) of the cluster
-    // -- fair_value (NAV) = sum(price_i * inv_i) / CT_total_supply
-    let mut fair_value = FPDecimal::zero();
-    for i in 0..contract_state.prices.len() {
-        fair_value = fair_value
-            + FPDecimal::from_str(&*contract_state.prices[i])?
-                * FPDecimal::from(contract_state.inv[i].u128());
-    }
-    fair_value = fair_value / FPDecimal::from(contract_state.outstanding_balance_tokens.u128());
-
-    // Unfortunately the product increases with the transaction (due to Astroport fee)
-    // which causes cases where the prices moves in the right direction
-    // but the imbalance computed here goes up
-    // hopefully they are rare enough to ignore
-    fn astroport_imbalance(assets: &[Asset], fair_value: FPDecimal) -> FPDecimal {
-        let sorted_assets = match assets[0].clone().info {
-            AssetInfo::Token { .. } => vec![assets[1].clone(), assets[0].clone()],
-            AssetInfo::NativeToken { .. } => assets.to_vec(),
-        };
-
-        // UST amount in the Astroport pool
-        let amt_denom = FPDecimal::from(sorted_assets[0].amount.u128());
-        // Cluster token (CT) amount in the Astroport pool
-        let amt_ct = FPDecimal::from(sorted_assets[1].amount.u128());
-
-        // Compute the current k = xy = UST_amount * CT_amount
-        let k = amt_denom * amt_ct;
-
-        // How much dollars needs to move to set this cluster back into balance?
-        // First compute what the pool should look like if optimally balanced
-        // `true_amt_denom` and `true_amt_ct` represent what the pool should look like
-        // -- true_amt_denom = true_amt_ct * fair_value    __(1)
-        // -- true_amt_ct = prod / true_amt_denom          __(2)
-        // (1) + (2),
-        // -- true_amt_denom = prod / true_amt_denom * fair_value
-        // -- true_amt_denom = sqrt(prod * fair_value)
-        let true_amt_denom = FPDecimal::_pow(k * fair_value, FPDecimal::one().div(2i128));
-        (amt_denom - true_amt_denom).abs()
-    }
-
-    // Calculate the Astrport pool imbalance before the arbitrage
-    let imb0 = astroport_imbalance(&pool_before.assets.to_vec(), fair_value);
-    // Calculate the Astrport pool imbalance after the arbitrage
-    let imb1 = astroport_imbalance(&pool_now.assets.to_vec(), fair_value);
-
-    // If positive, this arbitrage moved the market price closer to fair value (NAV)
-    let imbalance_fixed = imb0 - imb1;
-    if imbalance_fixed.sign == 1 {
-        let imbalanced_fixed = Uint128::new(imbalance_fixed.into());
-        record_contribution(
-            deps,
-            &arbitrageur,
-            PoolType::ARBITRAGE,
-            &cluster_contract,
-            Uint128::new(imbalanced_fixed.into()),
-        )?;
-    }
-
-    Ok(Response::new().add_attributes(vec![
-        attr("action", "record_astroport_arbitrageur_rewards"),
-        attr("fair_value", &format!("{}", fair_value)),
-        attr("arbitrage_imbalance_fixed", &format!("{}", imbalance_fixed)),
-        attr("arbitrage_imbalance_sign", imbalance_fixed.sign.to_string()),
-        attr("imb0", &format!("{}", imb0)),
-        attr("imb1", &format!("{}", imb1)),
     ]))
 }
 
@@ -445,8 +341,12 @@ pub fn record_astroport_impact(
 /// - **min_return** is an object of type [`Option<Uint128>`] which is the minimum
 ///     return amount expected from the exchange.
 ///
+/// - **base_denom** is an object of type [`String`] which is the base denom for
+///     the proxy contract.
+///
 /// ## Executor
 /// Only this contract can execute this.
+#[allow(clippy::too_many_arguments)]
 pub fn swap_all(
     deps: DepsMut,
     env: Env,
@@ -455,13 +355,13 @@ pub fn swap_all(
     cluster_token: Addr,
     to_ust: bool,
     min_return: Option<Uint128>,
+    base_denom: String,
 ) -> Result<Response, ContractError> {
     // Permission check
     if info.sender != env.contract.address {
         return Err(ContractError::Unauthorized {});
     }
 
-    let config: Config = read_config(deps.storage)?;
     let mut messages = vec![];
 
     let mut logs = vec![
@@ -498,16 +398,12 @@ pub fn swap_all(
     } else {
         // Swap UST -> CT
         // Query UST balance on this incentives contract
-        let amount = query_balance(
-            &deps.querier,
-            env.contract.address,
-            config.base_denom.to_string(),
-        )?;
+        let amount = query_balance(&deps.querier, env.contract.address, base_denom.clone())?;
 
         // Set the input for Astroport to be UST
         let swap_asset = Asset {
             info: AssetInfo::NativeToken {
-                denom: config.base_denom.clone(),
+                denom: base_denom.clone(),
             },
             amount,
         };
@@ -532,7 +428,7 @@ pub fn swap_all(
                 to: None,
             })?,
             funds: vec![Coin {
-                denom: config.base_denom,
+                denom: base_denom,
                 amount,
             }],
         }));

@@ -343,7 +343,8 @@ fn test_record_rebalancer_rewards() {
     let msg = ExecuteMsg::RecordRebalancerRewards {
         cluster_contract: Addr::unchecked("cluster"),
         rebalancer: Addr::unchecked("rebalancer"),
-        original_imbalance: Uint128::new(100),
+        // actually not used
+        original_inventory: vec![Uint128::new(120), Uint128::new(100), Uint128::new(80)],
     };
 
     // unauthorized, sender of the contribution is not Proxy

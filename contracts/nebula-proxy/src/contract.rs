@@ -1,30 +1,14 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 
-use cosmwasm_std::{
-    attr, from_binary, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response,
-    StdError, StdResult, Uint128,
-};
+use cosmwasm_std::{attr, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 
-use crate::arbitrageurs::{
-    arb_cluster_create, arb_cluster_redeem, record_astroport_impact, send_all, swap_all,
-};
+use crate::arbitrageurs::{arb_cluster_create, arb_cluster_redeem, send_all, swap_all};
 use crate::error::ContractError;
-use crate::rebalancers::{
-    create, internal_rewarded_create, internal_rewarded_redeem, record_rebalancer_rewards, redeem,
-};
-use crate::rewards::{deposit_reward, increment_n, withdraw_reward};
-use crate::state::{
-    contributions_read, pool_info_read, read_config, read_current_n, read_from_contribution_bucket,
-    read_from_pool_bucket, read_pending_rewards, store_config, store_current_n, Config,
-};
+use crate::rebalancers::{create, internal_rewarded_create, internal_rewarded_redeem, redeem};
+use crate::state::{read_config, store_config, Config};
 use cw2::set_contract_version;
-use cw20::Cw20ReceiveMsg;
-use nebula_protocol::proxy::{
-    ConfigResponse, ContributorPendingRewardsResponse, CurrentContributorInfoResponse, Cw20HookMsg,
-    ExecuteMsg, IncentivesPoolInfoResponse, InstantiateMsg, MigrateMsg, PenaltyPeriodResponse,
-    PoolType, QueryMsg,
-};
+use nebula_protocol::proxy::{ConfigResponse, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 /// Contract name that is used for migration.
 const CONTRACT_NAME: &str = "nebula-proxy";
@@ -53,20 +37,21 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
+    let mut config = Config {
+        factory: deps.api.addr_validate(msg.factory.as_str())?,
+        incentives: None,
+        astroport_factory: deps.api.addr_validate(msg.astroport_factory.as_str())?,
+        nebula_token: deps.api.addr_validate(msg.nebula_token.as_str())?,
+        base_denom: msg.base_denom,
+        owner: deps.api.addr_validate(msg.owner.as_str())?,
+    };
+
+    if let Some(incentives) = msg.incentives {
+        config.incentives = Some(deps.api.addr_validate(incentives.as_str())?);
+    }
+
     // Set the initial contract settings
-    store_config(
-        deps.storage,
-        &Config {
-            factory: deps.api.addr_validate(msg.factory.as_str())?,
-            custody: deps.api.addr_validate(msg.custody.as_str())?,
-            astroport_factory: deps.api.addr_validate(msg.astroport_factory.as_str())?,
-            nebula_token: deps.api.addr_validate(msg.nebula_token.as_str())?,
-            base_denom: msg.base_denom,
-            owner: deps.api.addr_validate(msg.owner.as_str())?,
-        },
-    )?;
-    // Set the current penalty period to be 0
-    store_current_n(deps.storage, 0)?;
+    store_config(deps.storage, &config)?;
     Ok(Response::default())
 }
 
@@ -104,19 +89,6 @@ pub fn instantiate(
 ///             asset_infos,
 ///             send_to,
 ///          }** Sends all specifed assets to the provided receiver.
-///
-/// - **ExecuteMsg::_RecordAstroportImpact {
-///             arbitrageur,
-///             astroport_pair,
-///             cluster_contract,
-///             pool_before,
-///         }** Records arbitrage contribution for the reward distribution.
-///
-///  - **ExecuteMsg::_RecordRebalancerRewards {
-///             rebalancer,
-///             cluster_contract,
-///             original_imbalance,
-///         }** Records rebalance contribution for the reward distribution.
 ///
 /// - **ExecuteMsg::_InternalRewardedCreate {
 ///             rebalancer,
@@ -164,15 +136,15 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::UpdateConfig { owner } => update_config(deps, info, &owner),
-        ExecuteMsg::Receive(msg) => receive_cw20(deps, info, msg),
-        ExecuteMsg::Withdraw {} => withdraw_reward(deps, info),
-        ExecuteMsg::NewPenaltyPeriod {} => new_penalty_period(deps, info),
+        ExecuteMsg::UpdateConfig { owner, incentives } => {
+            update_config(deps, info, owner, incentives)
+        }
         ExecuteMsg::_SwapAll {
             astroport_pair,
             cluster_token,
             to_ust,
             min_return,
+            base_denom,
         } => swap_all(
             deps,
             env,
@@ -181,40 +153,16 @@ pub fn execute(
             cluster_token,
             to_ust,
             min_return,
+            base_denom,
         ),
         ExecuteMsg::_SendAll {
             asset_infos,
             send_to,
         } => send_all(deps, env, info, &asset_infos, send_to),
-        ExecuteMsg::_RecordAstroportImpact {
-            arbitrageur,
-            astroport_pair,
-            cluster_contract,
-            pool_before,
-        } => record_astroport_impact(
-            deps,
-            env,
-            info,
-            arbitrageur,
-            astroport_pair,
-            cluster_contract,
-            pool_before,
-        ),
-        ExecuteMsg::_RecordRebalancerRewards {
-            rebalancer,
-            cluster_contract,
-            original_imbalance,
-        } => record_rebalancer_rewards(
-            deps,
-            env,
-            info,
-            rebalancer,
-            cluster_contract,
-            original_imbalance,
-        ),
         ExecuteMsg::_InternalRewardedCreate {
             rebalancer,
             cluster_contract,
+            incentives,
             asset_amounts,
             min_tokens,
         } => internal_rewarded_create(
@@ -223,6 +171,7 @@ pub fn execute(
             info,
             rebalancer,
             cluster_contract,
+            incentives,
             &asset_amounts,
             min_tokens,
         ),
@@ -230,6 +179,7 @@ pub fn execute(
             rebalancer,
             cluster_contract,
             cluster_token,
+            incentives,
             max_tokens,
             asset_amounts,
         } => internal_rewarded_redeem(
@@ -239,6 +189,7 @@ pub fn execute(
             rebalancer,
             cluster_contract,
             cluster_token,
+            incentives,
             max_tokens,
             asset_amounts,
         ),
@@ -280,7 +231,7 @@ pub fn execute(
 ///
 /// - **info** is an object of type [`MessageInfo`].
 ///
-/// - **owner** is a reference to an object of type [`String`] which is an
+/// - **owner** is an object of type [`Option<String>`] which is an
 ///     address to claim the ownership of the contract.
 ///
 /// ## Executor
@@ -288,94 +239,33 @@ pub fn execute(
 pub fn update_config(
     deps: DepsMut,
     info: MessageInfo,
-    owner: &str,
+    owner: Option<String>,
+    incentives: Option<Option<String>>,
 ) -> Result<Response, ContractError> {
-    // Validate the address
-    let validated_owner = deps.api.addr_validate(owner)?;
-
-    let cfg = read_config(deps.storage)?;
+    let mut config = read_config(deps.storage)?;
 
     // Permission check
-    if info.sender != cfg.owner {
+    if info.sender != config.owner {
         return Err(ContractError::Unauthorized {});
     }
 
-    // Change owner and save
-    let mut new_cfg = cfg;
-    new_cfg.owner = validated_owner;
-    store_config(deps.storage, &new_cfg)?;
+    if let Some(owner) = owner {
+        // Validate address format
+        config.owner = deps.api.addr_validate(owner.as_str())?;
+    }
+
+    match incentives {
+        Some(Some(incentives)) => {
+            // Validate address format
+            config.incentives = Some(deps.api.addr_validate(incentives.as_str())?)
+        }
+        Some(None) => config.incentives = None,
+        None => (),
+    }
+
+    store_config(deps.storage, &config)?;
 
     Ok(Response::new().add_attributes(vec![attr("action", "update_config")]))
-}
-
-/// ## Description
-/// Receives CW20 tokens and executes a hook message.
-///
-/// ## Params
-/// - **deps** is an object of type [`DepsMut`].
-///
-/// - **info** is an object of type [`MessageInfo`].
-///
-/// - **cw20_msg** is an object of type [`Cw20ReceiveMsg`] which is a hook message to be executed.
-pub fn receive_cw20(
-    deps: DepsMut,
-    info: MessageInfo,
-    cw20_msg: Cw20ReceiveMsg,
-) -> Result<Response, ContractError> {
-    let msg = cw20_msg.msg;
-    let config: Config = read_config(deps.storage)?;
-
-    match from_binary(&msg)? {
-        Cw20HookMsg::DepositReward { rewards } => {
-            // Permission check - need to only be sent from Nebula token contract
-            if config.nebula_token != info.sender {
-                return Err(ContractError::Unauthorized {});
-            }
-
-            let mut rewards_amount = Uint128::zero();
-            for (_, _, amount) in rewards.iter() {
-                rewards_amount += *amount;
-            }
-            // Validate the transferred amount
-            if rewards_amount != cw20_msg.amount {
-                return Err(ContractError::Generic(
-                    "Rewards amount miss matched".to_string(),
-                ));
-            }
-            // Add rewards to their pools -- rebalance or arbitrage
-            deposit_reward(deps, rewards, cw20_msg.amount)
-        }
-    }
-}
-
-/// ## Description
-/// Increments the penalty period by one.
-///
-/// ## Params
-/// - **deps** is an object of type [`DepsMut`].
-///
-/// - **info** is an object of type [`MessageInfo`].
-///
-/// ## Executor
-/// Only the owner can execute this.
-pub fn new_penalty_period(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
-    let cfg = read_config(deps.storage)?;
-
-    // Permission check
-    if info.sender != cfg.owner {
-        return Err(ContractError::Unauthorized {});
-    }
-
-    // Get the current penalty period
-    let n = read_current_n(deps.storage)?;
-    // Increases the penalty period by 1
-    let new_n = increment_n(deps.storage)?;
-
-    Ok(Response::new().add_attributes(vec![
-        attr("action", "new_penalty_period"),
-        attr("previous_n", n.to_string()),
-        attr("current_n", new_n.to_string()),
-    ]))
 }
 
 /// ## Description
@@ -390,50 +280,10 @@ pub fn new_penalty_period(deps: DepsMut, info: MessageInfo) -> Result<Response, 
 ///
 /// ## Commands
 /// - **QueryMsg::Config {}** Returns general contract parameters using a custom [`ConfigResponse`] structure.
-///
-/// - **QueryMsg::PenaltyPeriod {}** Returns the current penalty period.
-///
-/// - **QueryMsg::PoolInfo {
-///             pool_type,
-///             cluster_address,
-///             n,
-///         }** Returns information of a specific pool type of a cluster address.
-///
-/// - **QueryMsg::CurrentContributorInfo {
-///             pool_type,
-///             contributor_address,
-///             cluster_address,
-///         }** Returns the latest contribution of an address to a pool type of a cluster address.
-///
-/// - **QueryMsg::ContributorPendingRewards {
-///             contributor_address,
-///         }** Returns the current pending rewards for an address.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_binary(&query_config(deps)?),
-        QueryMsg::PenaltyPeriod {} => to_binary(&query_penalty_period(deps)?),
-        QueryMsg::PoolInfo {
-            pool_type,
-            cluster_address,
-            n,
-        } => to_binary(&query_pool_info(deps, pool_type, cluster_address, n)?),
-        QueryMsg::CurrentContributorInfo {
-            pool_type,
-            contributor_address,
-            cluster_address,
-        } => to_binary(&query_contributor_info(
-            deps,
-            pool_type,
-            contributor_address,
-            cluster_address,
-        )?),
-        QueryMsg::ContributorPendingRewards {
-            contributor_address,
-        } => to_binary(&query_contributor_pending_rewards(
-            deps,
-            contributor_address,
-        )?),
     }
 }
 
@@ -444,166 +294,20 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
 /// - **deps** is an object of type [`Deps`].
 pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let state = read_config(deps.storage)?;
-    let resp = ConfigResponse {
+    let mut resp = ConfigResponse {
         factory: state.factory.to_string(),
-        custody: state.custody.to_string(),
+        incentives: None,
         astroport_factory: state.astroport_factory.to_string(),
         nebula_token: state.nebula_token.to_string(),
         base_denom: state.base_denom,
         owner: state.owner.to_string(),
     };
 
-    Ok(resp)
-}
-
-/// ## Description
-/// Returns the current penalty period.
-///
-/// ## Params
-/// - **deps** is an object of type [`Deps`].
-pub fn query_penalty_period(deps: Deps) -> StdResult<PenaltyPeriodResponse> {
-    let n = read_current_n(deps.storage)?;
-    let resp = PenaltyPeriodResponse { n };
-    Ok(resp)
-}
-
-/// ## Description
-/// Returns information of a specific pool type of a cluster address.
-///
-/// ## Params
-/// - **deps** is an object of type [`Deps`].
-///
-/// - **pool_type** is an object of type [`u16`] which is a pool reward type.
-///
-/// - **cluster_address** is an object of type [`String`] which is the address
-///     of a cluster contract.
-///
-/// - **n** is an object of type [`Option<u64>`] which is a penalty period.
-pub fn query_pool_info(
-    deps: Deps,
-    pool_type: u16,
-    cluster_address: String,
-    n: Option<u64>,
-) -> StdResult<IncentivesPoolInfoResponse> {
-    let n = match n {
-        Some(_) => n.unwrap(),
-        None => read_current_n(deps.storage)?,
-    };
-    // Get the reward pool bucket of the given pool type
-    let pool_bucket = pool_info_read(deps.storage, pool_type, n);
-    // Retrieve the contract related pool info from the pool bucket
-    let pool_info = read_from_pool_bucket(
-        &pool_bucket,
-        &deps.api.addr_validate(cluster_address.as_str())?,
-    );
-    let resp = IncentivesPoolInfoResponse {
-        value_total: pool_info.value_total,
-        reward_total: pool_info.reward_total,
-    };
-    Ok(resp)
-}
-
-/// ## Description
-/// Returns the latest contribution of an address to a pool type of a cluster address.
-///
-/// ## Params
-/// - **deps** is an object of type [`Deps`].
-///
-/// - **pool_type** is an object of type [`u16`] which is a pool reward type.
-///
-/// - **contributor_address** is an object of type [`String`] which is the address
-///     of a contributor.
-///
-/// - **cluster_address** is an object of type [`String`] which is the address
-///     of a cluster contract.
-pub fn query_contributor_info(
-    deps: Deps,
-    pool_type: u16,
-    contributor_address: String,
-    cluster_address: String,
-) -> StdResult<CurrentContributorInfoResponse> {
-    // Get the contribution bucket based on the given pool type and address
-    let contribution_bucket = contributions_read(
-        deps.storage,
-        &deps.api.addr_validate(contributor_address.as_str())?,
-        pool_type,
-    );
-    // Find the contribution on a specific cluster from the contribution bucket
-    let contributions = read_from_contribution_bucket(
-        &contribution_bucket,
-        &deps.api.addr_validate(cluster_address.as_str())?,
-    );
-    let resp = CurrentContributorInfoResponse {
-        n: contributions.n,
-        value_contributed: contributions.value_contributed,
-    };
-    Ok(resp)
-}
-
-/// ## Description
-/// Returns the current pending rewards for an address.
-///
-/// ## Params
-/// - **deps** is an object of type [`Deps`].
-///
-/// - **contributor_address** is an object of type [`String`] which is the address
-///     of a contributor.
-pub fn query_contributor_pending_rewards(
-    deps: Deps,
-    contributor_address: String,
-) -> StdResult<ContributorPendingRewardsResponse> {
-    // Validate address format
-    let validated_contributor = deps.api.addr_validate(contributor_address.as_str())?;
-    let mut contribution_tuples = vec![];
-
-    // For each pool type, list all contributed clusters
-    for i in PoolType::ALL_TYPES.iter() {
-        let contribution_bucket = contributions_read(deps.storage, &validated_contributor, **i);
-        // Get all clusters with a specific reward pool type
-        for kv in contribution_bucket.range(None, None, Order::Ascending) {
-            let (k, _) = kv?;
-
-            // Validate address format of the cluster contract
-            let asset_address = deps.api.addr_validate(
-                std::str::from_utf8(&k)
-                    .map_err(|_| StdError::generic_err("Invalid asset address"))?,
-            )?;
-            contribution_tuples.push((i, asset_address));
-        }
+    if let Some(incentives) = state.incentives {
+        resp.incentives = Some(incentives.to_string())
     }
 
-    // Get pending rewards that were moved to `pending_rewards` due to
-    // newer contributions in the current penalty period
-    let mut pending_rewards = read_pending_rewards(
-        deps.storage,
-        &deps.api.addr_validate(contributor_address.as_str())?,
-    );
-
-    // Get the lastest penalty period
-    let n = read_current_n(deps.storage)?;
-    // Get rewards from older contributions that are not moved as there
-    // is no contribution in the current penalty period replacing them
-    for (pool_type, asset_address) in contribution_tuples {
-        let contribution_bucket =
-            contributions_read(deps.storage, &validated_contributor, **pool_type);
-        // Get the latest contribution on the cluster of a specific pool type
-        let contribution = read_from_contribution_bucket(&contribution_bucket, &asset_address);
-
-        // The reward from older penalty period is still here
-        if contribution.value_contributed != Uint128::zero() && contribution.n != n {
-            // Get the total rewards a pool type in the cluster
-            let pool_bucket = pool_info_read(deps.storage, **pool_type, contribution.n);
-            let pool_info = read_from_pool_bucket(&pool_bucket, &asset_address);
-            // Calculate the user pending rewards of the pool type in the cluster
-            let new_pending_reward = Uint128::new(
-                pool_info.reward_total.u128() * contribution.value_contributed.u128()
-                    / pool_info.value_total.u128(),
-            );
-            pending_rewards += new_pending_reward;
-        }
-    }
-
-    Ok(ContributorPendingRewardsResponse { pending_rewards })
+    Ok(resp)
 }
 
 /// ## Description
