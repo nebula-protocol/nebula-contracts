@@ -109,9 +109,6 @@ pub fn internal_rewarded_create(
         return Err(ContractError::Unauthorized {});
     }
 
-    // Retrieve the current cluster inventory
-    let original_inventory = get_cluster_state(deps.as_ref(), &cluster_contract)?.inv;
-
     // Perpare to transfer to the cluster contract
     let mut funds = vec![];
     let mut create_asset_amounts = vec![];
@@ -156,6 +153,9 @@ pub fn internal_rewarded_create(
     }));
 
     if let Some(incentives) = incentives {
+        // Retrieve the current cluster inventory
+        let original_inventory = get_cluster_state(deps.as_ref(), &cluster_contract)?.inv;
+
         // Record the change in the cluster imbalance for contribution rewards
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: incentives.to_string(),
@@ -231,9 +231,6 @@ pub fn internal_rewarded_redeem(
         Some(tokens) => tokens,
     };
 
-    // Retrieve the current cluster inventory
-    let original_inventory = get_cluster_state(deps.as_ref(), &cluster_contract)?.inv;
-
     let mut messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: cluster_token.to_string(),
         msg: to_binary(&Cw20ExecuteMsg::IncreaseAllowance {
@@ -255,6 +252,9 @@ pub fn internal_rewarded_redeem(
     }));
 
     if let Some(incentives) = incentives {
+        // Retrieve the current cluster inventory
+        let original_inventory = get_cluster_state(deps.as_ref(), &cluster_contract)?.inv;
+
         // Record the change in the cluster imbalance for contribution rewards
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: incentives.to_string(),

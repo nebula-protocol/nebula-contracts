@@ -99,7 +99,7 @@ fn proper_initialization() {
 
     let info = mock_info("owner0001", &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-    assert_eq!(res.attributes, vec![attr("action", "update_config"),]);
+    assert_eq!(res.attributes, vec![attr("action", "update_config")]);
 
     // it worked, let's query the state
     let config: ConfigResponse = query_config(deps.as_ref()).unwrap();
