@@ -1,6 +1,5 @@
 use cosmwasm_std::{
-    attr, to_binary, CosmosMsg, DepsMut, MessageInfo, Order, Response, StdResult, Storage, Uint128,
-    WasmMsg,
+    attr, to_binary, CosmosMsg, DepsMut, MessageInfo, Order, Response, Uint128, WasmMsg,
 };
 
 use crate::error::ContractError;
@@ -126,12 +125,32 @@ pub fn withdraw_reward(deps: DepsMut, info: MessageInfo) -> Result<Response, Con
 }
 
 /// ## Description
-/// Increases the current penalty period by one.
+/// Increments the penalty period by one.
 ///
 /// ## Params
-/// - **storage** is a mutable reference to an object implementing trait [`Storage`].
-pub fn increment_n(storage: &mut dyn Storage) -> StdResult<u64> {
-    let current_n = read_current_n(storage)?;
-    store_current_n(storage, current_n + 1)?;
-    Ok(current_n + 1)
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// ## Executor
+/// Only the owner can execute this.
+pub fn new_penalty_period(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+    let cfg = read_config(deps.storage)?;
+
+    // Permission check
+    if info.sender != cfg.owner {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    // Get the current penalty period
+    let n = read_current_n(deps.storage)?;
+    // Increases the penalty period by 1
+    let new_n = n + 1;
+    store_current_n(deps.storage, new_n)?;
+
+    Ok(Response::new().add_attributes(vec![
+        attr("action", "new_penalty_period"),
+        attr("previous_n", n.to_string()),
+        attr("current_n", new_n.to_string()),
+    ]))
 }

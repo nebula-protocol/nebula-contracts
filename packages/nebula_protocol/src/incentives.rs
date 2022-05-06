@@ -1,7 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use astroport::asset::{Asset, AssetInfo};
 use astroport::pair::PoolResponse as AstroportPoolResponse;
 use cosmwasm_std::{Addr, Uint128};
 use cw20::Cw20ReceiveMsg;
@@ -10,18 +9,14 @@ use cw20::Cw20ReceiveMsg;
 /// This structure stores the basic settings for creating a new incentives contract.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
-    /// Cluster factory contract
-    pub factory: String,
+    /// Owner of the contract, Gov contract
+    pub owner: String,
+    /// Proxy contract
+    pub proxy: String,
     /// Custody contract
     pub custody: String,
-    /// Astroport factory contract
-    pub astroport_factory: String,
     /// Nebula token contract
     pub nebula_token: String,
-    /// Base denom, UST
-    pub base_denom: String,
-    /// Owner of the contract
-    pub owner: String,
 }
 
 /// ## Description
@@ -45,29 +40,11 @@ pub enum ExecuteMsg {
     NewPenaltyPeriod {},
 
     /////////////////////
-    /// INTERNAL
+    /// OWNER CALLABLE
     /////////////////////
 
-    /// _SendAll sends all specified assets to an address.
-    _SendAll {
-        /// assets to be sent
-        asset_infos: Vec<AssetInfo>,
-        /// receiver address
-        send_to: Addr,
-    },
-    /// _SwapAll changes either all CT -> UST or UST -> CT.
-    _SwapAll {
-        /// Astroport pair contract
-        astroport_pair: Addr,
-        /// cluster token (CT) contract
-        cluster_token: Addr,
-        /// expected return from the swap
-        min_return: Option<Uint128>,
-        /// swap direction
-        to_ust: bool,
-    },
-    /// _RecordAstroportImpact records arbitrage contribution for the reward distribution.
-    _RecordAstroportImpact {
+    /// RecordAstroportImpact records arbitrage contribution for the reward distribution.
+    RecordAstroportImpact {
         /// an address performing the arbitrage
         arbitrageur: Addr,
         /// Astroport pair contract
@@ -77,82 +54,20 @@ pub enum ExecuteMsg {
         /// Astroport pair pool state before arbitrage
         pool_before: AstroportPoolResponse,
     },
-    /// _RecordRebalancerRewards records rebalance contribution for the reward distribution.
-    _RecordRebalancerRewards {
+    /// RecordRebalancerRewards records rebalance contribution for the reward distribution.
+    RecordRebalancerRewards {
         /// an address performing the rebalance
         rebalancer: Addr,
         /// cluster contract
         cluster_contract: Addr,
-        /// imbalance value before rebalance
-        original_imbalance: Uint128,
-    },
-    /// _InternalRewardedCreate calls the actual create logic in a cluster contract
-    /// used in both arbitraging and rebalancing.
-    _InternalRewardedCreate {
-        /// an address performing the rebalance
-        rebalancer: Addr,
-        /// cluster contract
-        cluster_contract: Addr,
-        /// asset amounts used to mint CT
-        asset_amounts: Vec<Asset>,
-        /// minimum amount of CT required from minting
-        min_tokens: Option<Uint128>,
-    },
-    /// _InternalRewardedRedeem calls the actual redeem logic in a cluster contract
-    /// used in both arbitraging and rebalancing.
-    _InternalRewardedRedeem {
-        /// an address performing the rebalance
-        rebalancer: Addr,
-        /// cluster contract
-        cluster_contract: Addr,
-        /// cluster token contract
-        cluster_token: Addr,
-        /// maximum amount of CT allowed to be burned
-        max_tokens: Option<Uint128>,
-        /// asset amounts required from burning CT if specified
-        asset_amounts: Option<Vec<Asset>>,
+        /// cluster inventory before rebalance
+        original_inventory: Vec<Uint128>,
     },
 
     /////////////////////
     /// USER CALLABLE
     /////////////////////
 
-    /// ArbClusterCreate executes the create operation and uses CT to arbitrage on Astroport.
-    ArbClusterCreate {
-        /// cluster contract
-        cluster_contract: String,
-        /// assets offerred for minting
-        assets: Vec<Asset>,
-        /// minimum returned UST when arbitraging
-        min_ust: Option<Uint128>,
-    },
-    /// ArbClusterRedeem executes arbitrage on Astroport to get CT and perform the redeem operation.
-    ArbClusterRedeem {
-        /// cluster contract
-        cluster_contract: String,
-        /// UST amount
-        asset: Asset,
-        /// minimum returned cluster tokens when arbitraging
-        min_cluster: Option<Uint128>,
-    },
-    /// IncentivesCreate executes the create operation on a specific cluster.
-    IncentivesCreate {
-        /// cluster contract
-        cluster_contract: String,
-        /// assets offerred for minting
-        asset_amounts: Vec<Asset>,
-        /// minimum cluster tokens returned
-        min_tokens: Option<Uint128>,
-    },
-    /// IncentivesRedeem executes the redeem operation on a specific cluster.
-    IncentivesRedeem {
-        /// cluster contract
-        cluster_contract: String,
-        /// maximum amount of cluster tokens (CT) allowed to be burned
-        max_tokens: Uint128,
-        /// specific asset amounts returned from burning cluster tokens
-        asset_amounts: Option<Vec<Asset>>,
-    },
     /// Withdraw withdraws all rewards for the sender.
     Withdraw {},
 }
@@ -197,18 +112,14 @@ pub enum QueryMsg {
 /// A custom struct for each query response that returns general contract settings/configs.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ConfigResponse {
-    /// Cluster factory contract
-    pub factory: String,
-    /// Astroport factory contract
-    pub astroport_factory: String,
-    /// Nebula token contract
-    pub nebula_token: String,
-    /// Base denom, UST
-    pub base_denom: String,
-    /// Owner of the contract
+    /// Owner of the contract, Gov contract
     pub owner: String,
+    /// Proxy contract
+    pub proxy: String,
     /// Incentives custody contract
     pub custody: String,
+    /// Nebula token contract
+    pub nebula_token: String,
 }
 
 /// ## Description

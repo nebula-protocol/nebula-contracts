@@ -11,6 +11,7 @@ members = [
   "contracts/nebula-incentives-custody",
   "contracts/nebula-lp-staking",
   "contracts/nebula-penalty",
+  "contracts/nebula-proxy",
   "libraries/*",
   "packages/*"
 ]
