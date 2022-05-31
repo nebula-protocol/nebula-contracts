@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use cosmwasm_std::testing::{MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
     from_slice, Coin, Empty, OwnedDeps, Querier, QuerierResult, QueryRequest, SystemError,
@@ -17,6 +19,7 @@ pub fn mock_dependencies(
         storage: MockStorage::default(),
         api: MockApi::default(),
         querier: custom_querier,
+        custom_query_type: PhantomData,
     }
 }
 
