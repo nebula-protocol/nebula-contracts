@@ -165,9 +165,6 @@ pub fn auto_stake(
         env.contract.address.clone(),
     )?;
 
-    // Compute tax
-    let tax_amount: Uint128 = native_asset.compute_tax(&deps.querier)?;
-
     // 1. Transfer token asset to LP staking contract
     // 2. Increase allowance of token for the Astroport pair contract
     // 3. Provide liquidity and get LP tokens
@@ -200,7 +197,7 @@ pub fn auto_stake(
                 msg: to_binary(&PairExecuteMsg::ProvideLiquidity {
                     assets: [
                         Asset {
-                            amount: native_asset.amount.checked_sub(tax_amount)?,
+                            amount: native_asset.amount,
                             info: native_asset.info.clone(),
                         },
                         Asset {
@@ -216,7 +213,7 @@ pub fn auto_stake(
                 })?,
                 funds: vec![Coin {
                     denom: native_asset.info.to_string(),
-                    amount: native_asset.amount.checked_sub(tax_amount)?,
+                    amount: native_asset.amount,
                 }],
             }),
             // Execute staking hook which stakes LP tokens in the name of the sender
@@ -234,7 +231,6 @@ pub fn auto_stake(
         .add_attributes(vec![
             attr("action", "auto_stake"),
             attr("asset_token", token_addr.to_string()),
-            attr("tax_amount", tax_amount.to_string()),
         ]))
 }
 

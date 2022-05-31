@@ -12,7 +12,7 @@ mod tests {
 
     #[test]
     fn proper_initialization() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
 
         let msg = InstantiateMsg {
             owner: "owner".to_string(),
@@ -40,7 +40,7 @@ mod tests {
 
     #[test]
     fn update_config() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
 
         let msg = InstantiateMsg {
             owner: "owner".to_string(),
@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn test_register() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
 
         let msg = InstantiateMsg {
             owner: "owner".to_string(),
@@ -138,7 +138,7 @@ mod tests {
 
     #[test]
     fn migration() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
 
         let msg = InstantiateMsg {
             owner: "owner".to_string(),
