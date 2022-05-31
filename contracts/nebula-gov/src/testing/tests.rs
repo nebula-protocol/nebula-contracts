@@ -282,7 +282,7 @@ fn create_poll_msg(
 fn happy_days_create_poll() {
     let mut deps = mock_dependencies(&[]);
     mock_instantiate(deps.as_mut());
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(VOTING_TOKEN, &[]);
 
     let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
@@ -290,7 +290,7 @@ fn happy_days_create_poll() {
     let execute_res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
     assert_create_poll_result(
         1,
-        env.block.time.plus_seconds(DEFAULT_VOTING_PERIOD).seconds(),
+        env.block.height + DEFAULT_VOTING_PERIOD,
         TEST_CREATOR,
         execute_res,
         deps.as_ref(),
@@ -333,7 +333,7 @@ fn query_polls() {
                 id: 1u64,
                 creator: TEST_CREATOR.to_string(),
                 status: PollStatus::InProgress,
-                end_time: 10000u64,
+                end_height: 10000u64,
                 title: "test".to_string(),
                 description: "test".to_string(),
                 link: Some("http://google.com".to_string()),
@@ -350,7 +350,7 @@ fn query_polls() {
                 id: 2u64,
                 creator: TEST_CREATOR.to_string(),
                 status: PollStatus::InProgress,
-                end_time: 10000u64,
+                end_height: 10000u64,
                 title: "test2".to_string(),
                 description: "test2".to_string(),
                 link: None,
@@ -384,7 +384,7 @@ fn query_polls() {
             id: 2u64,
             creator: TEST_CREATOR.to_string(),
             status: PollStatus::InProgress,
-            end_time: 10000u64,
+            end_height: 10000u64,
             title: "test2".to_string(),
             description: "test2".to_string(),
             link: None,
@@ -417,7 +417,7 @@ fn query_polls() {
             id: 1u64,
             creator: TEST_CREATOR.to_string(),
             status: PollStatus::InProgress,
-            end_time: 10000u64,
+            end_height: 10000u64,
             title: "test".to_string(),
             description: "test".to_string(),
             link: Some("http://google.com".to_string()),
@@ -450,7 +450,7 @@ fn query_polls() {
             id: 2u64,
             creator: TEST_CREATOR.to_string(),
             status: PollStatus::InProgress,
-            end_time: 10000u64,
+            end_height: 10000u64,
             title: "test2".to_string(),
             description: "test2".to_string(),
             link: None,
@@ -500,7 +500,7 @@ fn create_poll_no_quorum() {
 }
 
 #[test]
-fn fails_end_poll_before_end_time() {
+fn fails_end_poll_before_end_height() {
     let mut deps = mock_dependencies(&[]);
     mock_instantiate(deps.as_mut());
     let env = mock_env_height(0, 0);
@@ -519,7 +519,7 @@ fn fails_end_poll_before_end_time() {
 
     let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: 1 }).unwrap();
     let value: PollResponse = from_binary(&res).unwrap();
-    assert_eq!(DEFAULT_VOTING_PERIOD, value.end_time);
+    assert_eq!(DEFAULT_VOTING_PERIOD, value.end_height);
 
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
     let env = mock_env_height(0, 0);
@@ -533,13 +533,13 @@ fn fails_end_poll_before_end_time() {
 
 #[test]
 fn happy_days_end_poll() {
-    const POLL_START_TIME: u64 = 1000;
+    const POLL_START_HEIGHT: u64 = 1000;
     const POLL_ID: u64 = 1;
     let stake_amount = 1000;
 
     let mut deps = mock_dependencies(&coins(1000, VOTING_TOKEN));
     mock_instantiate(deps.as_mut());
-    let mut creator_env = mock_env_height(0, POLL_START_TIME);
+    let mut creator_env = mock_env_height(POLL_START_HEIGHT, 0);
     let mut creator_info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
 
     let exec_msg_bz = to_binary(&Cw20ExecuteMsg::Burn {
@@ -566,12 +566,7 @@ fn happy_days_end_poll() {
 
     assert_create_poll_result(
         1,
-        creator_env
-            .block
-            .time
-            .plus_seconds(DEFAULT_VOTING_PERIOD)
-            .nanos()
-            / 1_000_000_000u64,
+        creator_env.block.height + DEFAULT_VOTING_PERIOD,
         TEST_CREATOR,
         execute_res,
         deps.as_ref(),
@@ -607,7 +602,7 @@ fn happy_days_end_poll() {
         vote: VoteOption::Yes,
         amount: Uint128::from(stake_amount),
     };
-    let env = mock_env_height(0, POLL_START_TIME);
+    let env = mock_env_height(POLL_START_HEIGHT, 0);
     let info = mock_info(TEST_VOTER, &[]);
     let execute_res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -637,7 +632,7 @@ fn happy_days_end_poll() {
     );
 
     creator_info.sender = Addr::unchecked(TEST_CREATOR);
-    creator_env.block.time = creator_env.block.time.plus_seconds(DEFAULT_VOTING_PERIOD);
+    creator_env.block.height += DEFAULT_VOTING_PERIOD;
 
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
     let execute_res = execute(
@@ -693,7 +688,7 @@ fn happy_days_end_poll() {
         ContractError::ValueHasNotExpired("Effective delay".to_string())
     );
 
-    creator_env.block.time = creator_env.block.time.plus_seconds(DEFAULT_EFFECTIVE_DELAY);
+    creator_env.block.height += DEFAULT_EFFECTIVE_DELAY;
     let msg = ExecuteMsg::ExecutePoll { poll_id: 1 };
     let execute_res = execute(deps.as_mut(), creator_env, creator_info, msg).unwrap();
     assert_eq!(
@@ -781,13 +776,13 @@ fn happy_days_end_poll() {
 
 #[test]
 fn failed_execute_poll_no_data() {
-    const POLL_START_TIME: u64 = 1000;
+    const POLL_START_HEIGHT: u64 = 1000;
     const POLL_ID: u64 = 1;
     let stake_amount = 1000;
 
     let mut deps = mock_dependencies(&coins(1000, VOTING_TOKEN));
     mock_instantiate(deps.as_mut());
-    let mut creator_env = mock_env_height(0, POLL_START_TIME);
+    let mut creator_env = mock_env_height(POLL_START_HEIGHT, 0);
     let creator_info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
 
     let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
@@ -802,11 +797,7 @@ fn failed_execute_poll_no_data() {
 
     assert_create_poll_result(
         1,
-        creator_env
-            .block
-            .time
-            .plus_seconds(DEFAULT_VOTING_PERIOD)
-            .seconds(),
+        creator_env.block.height + DEFAULT_VOTING_PERIOD,
         TEST_CREATOR,
         execute_res,
         deps.as_ref(),
@@ -842,7 +833,7 @@ fn failed_execute_poll_no_data() {
         vote: VoteOption::Yes,
         amount: Uint128::from(stake_amount),
     };
-    let env = mock_env_height(0, POLL_START_TIME);
+    let env = mock_env_height(POLL_START_HEIGHT, 0);
     let info = mock_info(TEST_VOTER, &[]);
     let execute_res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -857,7 +848,7 @@ fn failed_execute_poll_no_data() {
         ]
     );
 
-    creator_env.block.time = creator_env.block.time.plus_seconds(DEFAULT_VOTING_PERIOD);
+    creator_env.block.height += DEFAULT_VOTING_PERIOD;
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
     let execute_res = execute(
         deps.as_mut(),
@@ -890,7 +881,7 @@ fn failed_execute_poll_no_data() {
     );
 
     // Try to execute the poll
-    creator_env.block.time = creator_env.block.time.plus_seconds(DEFAULT_EFFECTIVE_DELAY);
+    creator_env.block.height += DEFAULT_EFFECTIVE_DELAY;
     let msg = ExecuteMsg::ExecutePoll { poll_id: 1 };
     let execute_res = execute(deps.as_mut(), creator_env, creator_info, msg).unwrap_err();
     assert_eq!(
@@ -901,13 +892,13 @@ fn failed_execute_poll_no_data() {
 
 #[test]
 fn failed_execute_poll() {
-    const POLL_START_TIME: u64 = 1000;
+    const POLL_START_HEIGHT: u64 = 1000;
     const POLL_ID: u64 = 1;
     let stake_amount = 1000;
 
     let mut deps = mock_dependencies(&coins(1000, VOTING_TOKEN));
     mock_instantiate(deps.as_mut());
-    let mut creator_env = mock_env_height(0, POLL_START_TIME);
+    let mut creator_env = mock_env_height(POLL_START_HEIGHT, 0);
     let creator_info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
 
     let exec_msg_bz = to_binary(&Cw20ExecuteMsg::Burn {
@@ -934,11 +925,7 @@ fn failed_execute_poll() {
 
     assert_create_poll_result(
         1,
-        creator_env
-            .block
-            .time
-            .plus_seconds(DEFAULT_VOTING_PERIOD)
-            .seconds(),
+        creator_env.block.height + DEFAULT_VOTING_PERIOD,
         TEST_CREATOR,
         execute_res,
         deps.as_ref(),
@@ -974,7 +961,7 @@ fn failed_execute_poll() {
         vote: VoteOption::Yes,
         amount: Uint128::from(stake_amount),
     };
-    let env = mock_env_height(0, POLL_START_TIME);
+    let env = mock_env_height(POLL_START_HEIGHT, 0);
     let info = mock_info(TEST_VOTER, &[]);
     let execute_res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -989,7 +976,7 @@ fn failed_execute_poll() {
         ]
     );
 
-    creator_env.block.time = creator_env.block.time.plus_seconds(DEFAULT_VOTING_PERIOD);
+    creator_env.block.height += DEFAULT_VOTING_PERIOD;
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
     let execute_res = execute(
         deps.as_mut(),
@@ -1022,7 +1009,7 @@ fn failed_execute_poll() {
     );
 
     // Try to execute the poll
-    creator_env.block.time = creator_env.block.time.plus_seconds(DEFAULT_EFFECTIVE_DELAY);
+    creator_env.block.height += DEFAULT_EFFECTIVE_DELAY;
     let msg = ExecuteMsg::ExecutePoll { poll_id: 1 };
     let execute_res = execute(deps.as_mut(), creator_env, creator_info, msg).unwrap();
     assert_eq!(
@@ -1098,12 +1085,7 @@ fn end_poll_zero_quorum() {
     .unwrap();
     assert_create_poll_result(
         1,
-        creator_env
-            .block
-            .time
-            .plus_seconds(DEFAULT_VOTING_PERIOD)
-            .nanos()
-            / 1_000_000_000u64,
+        creator_env.block.height.clone() + DEFAULT_VOTING_PERIOD,
         TEST_CREATOR,
         execute_res,
         deps.as_ref(),
@@ -1128,7 +1110,7 @@ fn end_poll_zero_quorum() {
 
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
     creator_info.sender = Addr::unchecked(TEST_CREATOR);
-    creator_env.block.time = creator_env.block.time.plus_seconds(DEFAULT_VOTING_PERIOD);
+    creator_env.block.height += DEFAULT_VOTING_PERIOD;
 
     let execute_res = execute(deps.as_mut(), creator_env, creator_info, msg).unwrap();
 
@@ -1203,19 +1185,14 @@ fn end_poll_quorum_rejected() {
         msg,
     )
     .unwrap();
-    let end_time = creator_env
-        .block
-        .time
-        .plus_seconds(DEFAULT_VOTING_PERIOD)
-        .nanos()
-        / 1_000_000_000u64;
+    let end_height = creator_env.block.height + DEFAULT_VOTING_PERIOD;
     assert_eq!(
         execute_res.attributes,
         vec![
             attr("action", "create_poll"),
             attr("creator", TEST_CREATOR),
             attr("poll_id", "1"),
-            attr("end_time", end_time.to_string()),
+            attr("end_height", end_height.to_string()),
         ]
     );
 
@@ -1267,7 +1244,7 @@ fn end_poll_quorum_rejected() {
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
 
     creator_info.sender = Addr::unchecked(TEST_CREATOR);
-    creator_env.block.time = creator_env.block.time.plus_seconds(DEFAULT_VOTING_PERIOD);
+    creator_env.block.height += DEFAULT_VOTING_PERIOD;
 
     let execute_res = execute(deps.as_mut(), creator_env, creator_info, msg).unwrap();
     assert_eq!(
@@ -1296,26 +1273,21 @@ fn end_poll_quorum_rejected_noting_staked() {
         msg,
     )
     .unwrap();
-    let end_time = creator_env
-        .block
-        .time
-        .plus_seconds(DEFAULT_VOTING_PERIOD)
-        .nanos()
-        / 1_000_000_000u64;
+    let end_height = creator_env.block.height + DEFAULT_VOTING_PERIOD;
     assert_eq!(
         execute_res.attributes,
         vec![
             attr("action", "create_poll"),
             attr("creator", TEST_CREATOR),
             attr("poll_id", "1"),
-            attr("end_time", end_time.to_string()),
+            attr("end_height", end_height.to_string()),
         ]
     );
 
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
 
     creator_info.sender = Addr::unchecked(TEST_CREATOR);
-    let env = mock_env_height(0, end_time);
+    let env = mock_env_height(end_height, 0);
 
     let execute_res = execute(deps.as_mut(), env, creator_info, msg).unwrap();
     assert_eq!(
@@ -1347,19 +1319,14 @@ fn end_poll_nay_rejected() {
         msg,
     )
     .unwrap();
-    let end_time = creator_env
-        .block
-        .time
-        .plus_seconds(DEFAULT_VOTING_PERIOD)
-        .nanos()
-        / 1_000_000_000u64;
+    let end_height = creator_env.block.height + DEFAULT_VOTING_PERIOD;
     assert_eq!(
         execute_res.attributes,
         vec![
             attr("action", "create_poll"),
             attr("creator", TEST_CREATOR),
             attr("poll_id", "1"),
-            attr("end_time", end_time.to_string()),
+            attr("end_height", end_height.to_string()),
         ]
     );
 
@@ -1425,7 +1392,7 @@ fn end_poll_nay_rejected() {
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
 
     creator_info.sender = Addr::unchecked(TEST_CREATOR);
-    creator_env.block.time = creator_env.block.time.plus_seconds(DEFAULT_VOTING_PERIOD);
+    creator_env.block.height += DEFAULT_VOTING_PERIOD;
     let execute_res = execute(deps.as_mut(), creator_env, creator_info, msg).unwrap();
     assert_eq!(
         execute_res.attributes,
@@ -1481,7 +1448,7 @@ fn fails_cast_vote_not_enough_staked() {
         deps.as_ref(),
     );
 
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(TEST_VOTER, &coins(11, VOTING_TOKEN));
     let msg = ExecuteMsg::CastVote {
         poll_id: 1,
@@ -1539,7 +1506,7 @@ fn happy_days_cast_vote() {
         deps.as_ref(),
     );
 
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(TEST_VOTER, &coins(11, VOTING_TOKEN));
     let amount = 10u128;
     let msg = ExecuteMsg::CastVote {
@@ -1797,7 +1764,7 @@ fn withdraw_voting_tokens() {
                 yes_votes: Uint128::zero(),
                 no_votes: Uint128::zero(),
                 abstain_votes: Uint128::zero(),
-                end_time: 0u64,
+                end_height: 0u64,
                 title: "title".to_string(),
                 description: "description".to_string(),
                 deposit_amount: Uint128::zero(),
@@ -1820,7 +1787,7 @@ fn withdraw_voting_tokens() {
                 yes_votes: Uint128::zero(),
                 no_votes: Uint128::zero(),
                 abstain_votes: Uint128::zero(),
-                end_time: 0u64,
+                end_height: 0u64,
                 title: "title".to_string(),
                 description: "description".to_string(),
                 deposit_amount: Uint128::zero(),
@@ -1961,7 +1928,7 @@ fn fails_cast_vote_twice() {
     let mut deps = mock_dependencies(&[]);
     mock_instantiate(deps.as_mut());
 
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
 
     let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
@@ -1969,7 +1936,7 @@ fn fails_cast_vote_twice() {
 
     assert_create_poll_result(
         1,
-        env.block.time.plus_seconds(DEFAULT_VOTING_PERIOD).seconds(),
+        env.block.height + DEFAULT_VOTING_PERIOD,
         TEST_CREATOR,
         execute_res,
         deps.as_ref(),
@@ -2006,7 +1973,7 @@ fn fails_cast_vote_twice() {
         vote: VoteOption::Yes,
         amount: Uint128::from(amount),
     };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(TEST_VOTER, &[]);
     let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
     assert_cast_vote_success(TEST_VOTER, amount, 1, VoteOption::Yes, execute_res);
@@ -2218,13 +2185,13 @@ fn share_calculation_with_voter_rewards() {
     assert_eq!(0, init_res.messages.len());
 
     // create poll
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
     let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
     let execute_res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
     assert_create_poll_result(
         1,
-        env.block.time.plus_seconds(DEFAULT_VOTING_PERIOD).seconds(),
+        env.block.height + DEFAULT_VOTING_PERIOD,
         TEST_CREATOR,
         execute_res,
         deps.as_ref(),
@@ -2337,7 +2304,7 @@ fn share_calculation_with_voter_rewards() {
 // helper to confirm the expected create_poll response
 fn assert_create_poll_result(
     poll_id: u64,
-    end_time: u64,
+    end_height: u64,
     creator: &str,
     execute_res: Response,
     deps: Deps,
@@ -2348,7 +2315,7 @@ fn assert_create_poll_result(
             attr("action", "create_poll"),
             attr("creator", creator),
             attr("poll_id", poll_id.to_string()),
-            attr("end_time", end_time.to_string()),
+            attr("end_height", end_height.to_string()),
         ]
     );
 
@@ -2487,7 +2454,7 @@ fn update_config() {
     assert_eq!(Decimal::percent(1), config.voter_weight);
     assert_eq!(60u64, config.snapshot_period);
 
-    // Unauthorzied err
+    // Unauthorized err
     let info = mock_info(TEST_CREATOR, &[]);
     let msg = ExecuteMsg::UpdateConfig {
         owner: None,
@@ -2522,15 +2489,15 @@ fn distribute_voting_rewards() {
     let _res = instantiate(deps.as_mut(), mock_env(), info, msg)
         .expect("contract successfully handles InstantiateMsg");
 
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
-    let poll_end_time = env.block.time.plus_seconds(DEFAULT_VOTING_PERIOD).seconds();
+    let poll_end_height = env.block.height + DEFAULT_VOTING_PERIOD;
     let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
     let execute_res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
     assert_create_poll_result(
         1,
-        env.block.time.plus_seconds(DEFAULT_VOTING_PERIOD).seconds(),
+        env.block.height + DEFAULT_VOTING_PERIOD,
         TEST_CREATOR,
         execute_res,
         deps.as_ref(),
@@ -2560,7 +2527,7 @@ fn distribute_voting_rewards() {
         vote: VoteOption::Yes,
         amount: Uint128::from(stake_amount),
     };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(TEST_VOTER, &[]);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -2583,19 +2550,19 @@ fn distribute_voting_rewards() {
 
     // FAIL - there is no finished polls, amount to withdraw is 0, returning error
     let msg = ExecuteMsg::WithdrawVotingRewards { poll_id: None };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(TEST_VOTER, &[]);
     let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
     assert_eq!(res, ContractError::NothingToWithdraw {});
 
-    let env = mock_env_height(0, poll_end_time);
+    let env = mock_env_height(poll_end_height, 0);
     let info = mock_info(TEST_VOTER, &[]);
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
     // SUCCESS
     let msg = ExecuteMsg::WithdrawVotingRewards { poll_id: None };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(TEST_VOTER, &[]);
     let res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -2645,15 +2612,15 @@ fn stake_voting_rewards() {
     let _res = instantiate(deps.as_mut(), mock_env(), info, msg)
         .expect("contract successfully handles InstantiateMsg");
 
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
-    let poll_end_time = env.block.time.plus_seconds(DEFAULT_VOTING_PERIOD).seconds();
+    let poll_end_height = env.block.height + DEFAULT_VOTING_PERIOD;
     let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
     let execute_res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
     assert_create_poll_result(
         1,
-        env.block.time.plus_seconds(DEFAULT_VOTING_PERIOD).seconds(),
+        env.block.height + DEFAULT_VOTING_PERIOD,
         TEST_CREATOR,
         execute_res,
         deps.as_ref(),
@@ -2683,7 +2650,7 @@ fn stake_voting_rewards() {
         vote: VoteOption::Yes,
         amount: Uint128::from(stake_amount),
     };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(TEST_VOTER, &[]);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -2706,12 +2673,12 @@ fn stake_voting_rewards() {
 
     // FAIL - there is no finished polls, amount to withdraw is 0, returning error
     let msg = ExecuteMsg::StakeVotingRewards { poll_id: None };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(TEST_VOTER, &[]);
     let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
     assert_eq!(res, ContractError::NothingToWithdraw {});
 
-    let env = mock_env_height(0, poll_end_time);
+    let env = mock_env_height(poll_end_height, 0);
     let info = mock_info(TEST_VOTER, &[]);
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
@@ -2726,7 +2693,7 @@ fn stake_voting_rewards() {
 
     // SUCCESS
     let msg = ExecuteMsg::StakeVotingRewards { poll_id: None };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(TEST_VOTER, &[]);
     let res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -2744,7 +2711,7 @@ fn stake_voting_rewards() {
 
     // FAIL - already withdrawn
     let msg = ExecuteMsg::StakeVotingRewards { poll_id: None };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(TEST_VOTER, &[]);
     let res = execute(deps.as_mut(), env, info, msg).unwrap_err();
     assert_eq!(res, ContractError::NothingToWithdraw {});
@@ -2793,9 +2760,9 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
         .expect("contract successfully handles InstantiateMsg");
 
     // create polls
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
-    let poll_end_time = env.block.time.plus_seconds(DEFAULT_VOTING_PERIOD).seconds();
+    let poll_end_height = env.block.height + DEFAULT_VOTING_PERIOD;
     // poll 1
     let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
     let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
@@ -2817,7 +2784,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
             &Uint128::new((ALICE_STAKE + DEFAULT_PROPOSAL_DEPOSIT * 2) as u128),
         )],
     )]);
-    // Alice stakes 750 MIR
+    // Alice stakes 750 NEB
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: ALICE.to_string(),
         amount: Uint128::from(ALICE_STAKE),
@@ -2832,7 +2799,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
             &Uint128::new((ALICE_STAKE + BOB_STAKE + DEFAULT_PROPOSAL_DEPOSIT * 2) as u128),
         )],
     )]);
-    // Bob stakes 250 MIR
+    // Bob stakes 250 NEB
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: BOB.to_string(),
         amount: Uint128::from(BOB_STAKE),
@@ -2848,7 +2815,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
             ),
         )],
     )]);
-    // Cindy stakes 250 MIR
+    // Cindy stakes 250 NEB
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: CINDY.to_string(),
         amount: Uint128::from(CINDY_STAKE),
@@ -2862,7 +2829,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
         vote: VoteOption::Yes,
         amount: Uint128::from(ALICE_STAKE),
     };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(ALICE, &[]);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
     // Bob votes on proposals 1 and 2
@@ -2871,7 +2838,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
         vote: VoteOption::Abstain,
         amount: Uint128::from(BOB_STAKE),
     };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(BOB, &[]);
     let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
     let msg = ExecuteMsg::CastVote {
@@ -2886,7 +2853,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
         vote: VoteOption::Abstain,
         amount: Uint128::from(CINDY_STAKE),
     };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(CINDY, &[]);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -2904,7 +2871,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
         )],
     )]);
 
-    // Collector sends 2000 MIR with 50% voting weight
+    // Collector sends 2000 NEB with 50% voting weight
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: TEST_COLLECTOR.to_string(),
         amount: Uint128::from(2000000000u128),
@@ -2915,7 +2882,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
     // End the polls
-    let env = mock_env_height(0, poll_end_time);
+    let env = mock_env_height(poll_end_height, 0);
     let info = mock_info(TEST_VOTER, &[]);
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
     let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
@@ -2924,7 +2891,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
 
     let msg = ExecuteMsg::WithdrawVotingRewards { poll_id: None };
     // ALICE withdraws voting rewards
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(ALICE, &[]);
     let res = execute(deps.as_mut(), env, info, msg.clone()).unwrap();
     assert_eq!(
@@ -2937,7 +2904,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
     );
 
     // BOB withdraws voting rewards
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(BOB, &[]);
 
     let res = execute(deps.as_mut(), env, info, msg.clone()).unwrap();
@@ -2951,7 +2918,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
     );
 
     // CINDY
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(CINDY, &[]);
     let res = execute(deps.as_mut(), env, info, msg).unwrap();
     assert_eq!(
@@ -2992,7 +2959,7 @@ fn distribute_voting_rewards_only_to_polls_in_progress() {
                 yes_votes: Uint128::zero(),
                 no_votes: Uint128::zero(),
                 abstain_votes: Uint128::zero(),
-                end_time: 0u64,
+                end_height: 0u64,
                 title: "title".to_string(),
                 description: "description".to_string(),
                 deposit_amount: Uint128::zero(),
@@ -3015,7 +2982,7 @@ fn distribute_voting_rewards_only_to_polls_in_progress() {
                 yes_votes: Uint128::zero(),
                 no_votes: Uint128::zero(),
                 abstain_votes: Uint128::zero(),
-                end_time: 0u64,
+                end_height: 0u64,
                 title: "title".to_string(),
                 description: "description".to_string(),
                 deposit_amount: Uint128::zero(),
@@ -3067,7 +3034,7 @@ fn distribute_voting_rewards_only_to_polls_in_progress() {
                 yes_votes: Uint128::zero(),
                 no_votes: Uint128::zero(),
                 abstain_votes: Uint128::zero(),
-                end_time: 0u64,
+                end_height: 0u64,
                 title: "title".to_string(),
                 description: "description".to_string(),
                 deposit_amount: Uint128::zero(),
@@ -3084,7 +3051,7 @@ fn distribute_voting_rewards_only_to_polls_in_progress() {
                 yes_votes: Uint128::zero(),
                 no_votes: Uint128::zero(),
                 abstain_votes: Uint128::zero(),
-                end_time: 0u64,
+                end_height: 0u64,
                 title: "title".to_string(),
                 description: "description".to_string(),
                 deposit_amount: Uint128::zero(),
@@ -3115,9 +3082,9 @@ fn test_staking_and_voting_rewards() {
     let _res = instantiate(deps.as_mut(), mock_env(), info, msg)
         .expect("contract successfully handles InstantiateMsg");
 
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
-    let poll_end_time = env.block.time.plus_seconds(DEFAULT_VOTING_PERIOD).seconds();
+    let poll_end_height = env.block.height + DEFAULT_VOTING_PERIOD;
     // poll 1
     let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
@@ -3134,7 +3101,7 @@ fn test_staking_and_voting_rewards() {
             &Uint128::new((ALICE_STAKE + DEFAULT_PROPOSAL_DEPOSIT) as u128),
         )],
     )]);
-    // Alice stakes 750 MIR
+    // Alice stakes 750 NEB
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: ALICE.to_string(),
         amount: Uint128::from(ALICE_STAKE),
@@ -3149,7 +3116,7 @@ fn test_staking_and_voting_rewards() {
             &Uint128::new((ALICE_STAKE + BOB_STAKE + DEFAULT_PROPOSAL_DEPOSIT) as u128),
         )],
     )]);
-    // Bob stakes 250 MIR
+    // Bob stakes 250 NEB
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: BOB.to_string(),
         amount: Uint128::from(BOB_STAKE),
@@ -3163,7 +3130,7 @@ fn test_staking_and_voting_rewards() {
         vote: VoteOption::Yes,
         amount: Uint128::from(ALICE_STAKE),
     };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(ALICE, &[]);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
     // Bob votes
@@ -3172,7 +3139,7 @@ fn test_staking_and_voting_rewards() {
         vote: VoteOption::Abstain,
         amount: Uint128::from(BOB_STAKE),
     };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(BOB, &[]);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -3186,7 +3153,7 @@ fn test_staking_and_voting_rewards() {
         )],
     )]);
 
-    // Collector sends 2000 MIR with 50% voting weight
+    // Collector sends 2000 NEB with 50% voting weight
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: TEST_COLLECTOR.to_string(),
         amount: Uint128::from(2_000_000_000u128),
@@ -3197,7 +3164,7 @@ fn test_staking_and_voting_rewards() {
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
     // End the poll
-    let env = mock_env_height(0, poll_end_time);
+    let env = mock_env_height(poll_end_height, 0);
     let info = mock_info(TEST_VOTER, &[]);
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
     let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
@@ -3264,7 +3231,7 @@ fn test_staking_and_voting_rewards() {
 
     let msg = ExecuteMsg::WithdrawVotingRewards { poll_id: None };
     // ALICE withdraws voting rewards
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(ALICE, &[]);
     let res = execute(deps.as_mut(), env, info, msg.clone()).unwrap();
     assert_eq!(
@@ -3277,7 +3244,7 @@ fn test_staking_and_voting_rewards() {
     );
 
     // BOB withdraws voting rewards
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(BOB, &[]);
     let res = execute(deps.as_mut(), env, info, msg).unwrap();
     assert_eq!(
@@ -3331,7 +3298,7 @@ fn test_staking_and_voting_rewards() {
 }
 
 #[test]
-fn test_abstain_votes_theshold() {
+fn test_abstain_votes_threshold() {
     let mut deps = mock_dependencies(&[]);
     let msg = InstantiateMsg {
         nebula_token: VOTING_TOKEN.to_string(),
@@ -3348,9 +3315,9 @@ fn test_abstain_votes_theshold() {
     let _res = instantiate(deps.as_mut(), mock_env(), info, msg)
         .expect("contract successfully handles InstantiateMsg");
 
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
-    let poll_end_time = env.block.time.plus_seconds(DEFAULT_VOTING_PERIOD).seconds();
+    let poll_end_height = env.block.height + DEFAULT_VOTING_PERIOD;
     let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -3368,7 +3335,7 @@ fn test_abstain_votes_theshold() {
             &Uint128::new((ALICE_STAKE + DEFAULT_PROPOSAL_DEPOSIT) as u128),
         )],
     )]);
-    // Alice stakes 750 MIR
+    // Alice stakes 750 NEB
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: ALICE.to_string(),
         amount: Uint128::from(ALICE_STAKE),
@@ -3383,7 +3350,7 @@ fn test_abstain_votes_theshold() {
             &Uint128::new((ALICE_STAKE + BOB_STAKE + DEFAULT_PROPOSAL_DEPOSIT) as u128),
         )],
     )]);
-    // Bob stakes 250 MIR
+    // Bob stakes 250 NEB
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: BOB.to_string(),
         amount: Uint128::from(BOB_STAKE),
@@ -3399,7 +3366,7 @@ fn test_abstain_votes_theshold() {
             ),
         )],
     )]);
-    // Cindy stakes 260 MIR
+    // Cindy stakes 260 NEB
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: CINDY.to_string(),
         amount: Uint128::from(CINDY_STAKE),
@@ -3413,7 +3380,7 @@ fn test_abstain_votes_theshold() {
         vote: VoteOption::Abstain,
         amount: Uint128::from(ALICE_STAKE),
     };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(ALICE, &[]);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
     // Bob votes
@@ -3422,7 +3389,7 @@ fn test_abstain_votes_theshold() {
         vote: VoteOption::No,
         amount: Uint128::from(BOB_STAKE),
     };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(BOB, &[]);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
     // Cindy votes
@@ -3431,13 +3398,13 @@ fn test_abstain_votes_theshold() {
         vote: VoteOption::Yes,
         amount: Uint128::from(CINDY_STAKE),
     };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(CINDY, &[]);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
 
-    let env = mock_env_height(0, poll_end_time);
+    let env = mock_env_height(poll_end_height, 0);
     let info = mock_info(TEST_VOTER, &[]);
     let execute_res = execute(deps.as_mut(), env, info, msg).unwrap();
     // abstain votes should not affect threshold, so poll is passed
@@ -3470,9 +3437,9 @@ fn test_abstain_votes_quorum() {
     let _res = instantiate(deps.as_mut(), mock_env(), info, msg)
         .expect("contract successfully handles InstantiateMsg");
 
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
-    let poll_end_time = env.block.time.plus_seconds(DEFAULT_VOTING_PERIOD).seconds();
+    let poll_end_height = env.block.height + DEFAULT_VOTING_PERIOD;
     let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -3490,7 +3457,7 @@ fn test_abstain_votes_quorum() {
             &Uint128::new((ALICE_STAKE + DEFAULT_PROPOSAL_DEPOSIT) as u128),
         )],
     )]);
-    // Alice stakes 750 MIR
+    // Alice stakes 750 NEB
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: ALICE.to_string(),
         amount: Uint128::from(ALICE_STAKE),
@@ -3505,7 +3472,7 @@ fn test_abstain_votes_quorum() {
             &Uint128::new((ALICE_STAKE + BOB_STAKE + DEFAULT_PROPOSAL_DEPOSIT) as u128),
         )],
     )]);
-    // Bob stakes 50 MIR
+    // Bob stakes 50 NEB
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: BOB.to_string(),
         amount: Uint128::from(BOB_STAKE),
@@ -3521,7 +3488,7 @@ fn test_abstain_votes_quorum() {
             ),
         )],
     )]);
-    // Cindy stakes 50 MIR
+    // Cindy stakes 50 NEB
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: CINDY.to_string(),
         amount: Uint128::from(CINDY_STAKE),
@@ -3535,7 +3502,7 @@ fn test_abstain_votes_quorum() {
         vote: VoteOption::Abstain,
         amount: Uint128::from(ALICE_STAKE),
     };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(ALICE, &[]);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
     // Bob votes
@@ -3544,7 +3511,7 @@ fn test_abstain_votes_quorum() {
         vote: VoteOption::Yes,
         amount: Uint128::from(BOB_STAKE),
     };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(BOB, &[]);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
     // Cindy votes
@@ -3553,13 +3520,13 @@ fn test_abstain_votes_quorum() {
         vote: VoteOption::Yes,
         amount: Uint128::from(CINDY_STAKE),
     };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(CINDY, &[]);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
 
-    let env = mock_env_height(0, poll_end_time);
+    let env = mock_env_height(poll_end_height, 0);
     let info = mock_info(TEST_VOTER, &[]);
     let execute_res = execute(deps.as_mut(), env, info, msg).unwrap();
     // abstain votes make the poll surpass quorum
@@ -3573,9 +3540,9 @@ fn test_abstain_votes_quorum() {
         ]
     );
 
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
-    let poll_end_time = env.block.time.plus_seconds(DEFAULT_VOTING_PERIOD).seconds();
+    let poll_end_height = env.block.height + DEFAULT_VOTING_PERIOD;
     let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -3587,7 +3554,7 @@ fn test_abstain_votes_quorum() {
         vote: VoteOption::Yes,
         amount: Uint128::from(BOB_STAKE),
     };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(BOB, &[]);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
     // Cindy votes
@@ -3596,16 +3563,16 @@ fn test_abstain_votes_quorum() {
         vote: VoteOption::Yes,
         amount: Uint128::from(CINDY_STAKE),
     };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(CINDY, &[]);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
     let msg = ExecuteMsg::EndPoll { poll_id: 2 };
 
-    let env = mock_env_height(0, poll_end_time);
+    let env = mock_env_height(poll_end_height, 0);
     let info = mock_info(TEST_VOTER, &[]);
     let execute_res = execute(deps.as_mut(), env, info, msg).unwrap();
-    // without abstain votes, quroum is not reached
+    // without abstain votes, quorum is not reached
     assert_eq!(
         execute_res.attributes,
         vec![
@@ -3796,23 +3763,18 @@ fn snapshot_poll() {
         msg,
     )
     .unwrap();
-    let end_time = creator_env
-        .block
-        .time
-        .plus_seconds(DEFAULT_VOTING_PERIOD)
-        .nanos()
-        / 1_000_000_000u64;
+    let end_height = creator_env.block.height + DEFAULT_VOTING_PERIOD;
     assert_eq!(
         execute_res.attributes,
         vec![
             attr("action", "create_poll"),
             attr("creator", TEST_CREATOR),
             attr("poll_id", "1"),
-            attr("end_time", end_time.to_string()),
+            attr("end_height", end_height.to_string()),
         ]
     );
 
-    //must not be executed
+    // must not be executed
     let snapshot_err = execute(
         deps.as_mut(),
         creator_env.clone(),
@@ -3825,11 +3787,8 @@ fn snapshot_poll() {
         snapshot_err
     );
 
-    // change time
-    creator_env.block.time = creator_env
-        .block
-        .time
-        .plus_seconds(DEFAULT_VOTING_PERIOD - 10);
+    // change height
+    creator_env.block.height += DEFAULT_VOTING_PERIOD - 10;
 
     deps.querier.with_token_balances(&[(
         &VOTING_TOKEN.to_string(),
@@ -3856,7 +3815,7 @@ fn snapshot_poll() {
         ]
     );
 
-    //must not be executed
+    // must not be executed
     let snapshot_error = execute(
         deps.as_mut(),
         creator_env,
@@ -3913,7 +3872,7 @@ fn happy_days_cast_vote_with_snapshot() {
         deps.as_ref(),
     );
 
-    //cast_vote without snapshot
+    // cast_vote without snapshot
     let env = mock_env_height(0, 0);
     let info = mock_info(TEST_VOTER, &coins(11, VOTING_TOKEN));
     let amount = 10u128;
@@ -3939,9 +3898,9 @@ fn happy_days_cast_vote_with_snapshot() {
     let res = query(deps.as_ref(), mock_env(), QueryMsg::Poll { poll_id: 1 }).unwrap();
     let value: PollResponse = from_binary(&res).unwrap();
     assert_eq!(value.staked_amount, None);
-    let end_time = value.end_time;
+    let end_height = value.end_height;
 
-    //cast another vote
+    // cast another vote
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: TEST_VOTER_2.to_string(),
         amount: Uint128::from(11u128),
@@ -3957,7 +3916,7 @@ fn happy_days_cast_vote_with_snapshot() {
         vote: VoteOption::Yes,
         amount: Uint128::from(10u128),
     };
-    let env = mock_env_height(0, end_time - 9);
+    let env = mock_env_height(end_height - 9u64, 0);
     let info = mock_info(TEST_VOTER_2, &[]);
     let execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
     assert_cast_vote_success(TEST_VOTER_2, amount, 1, VoteOption::Yes, execute_res);
@@ -3966,7 +3925,7 @@ fn happy_days_cast_vote_with_snapshot() {
     let value: PollResponse = from_binary(&res).unwrap();
     assert_eq!(value.staked_amount, Some(Uint128::new(22)));
 
-    // snanpshot poll will not go through
+    // snapshot poll will not go through
     let snap_error = execute(
         deps.as_mut(),
         env,
@@ -4002,7 +3961,7 @@ fn happy_days_cast_vote_with_snapshot() {
         vote: VoteOption::Yes,
         amount: Uint128::from(10u128),
     };
-    let env = mock_env_height(0, end_time - 8);
+    let env = mock_env_height(end_height - 8u64, 0);
     let info = mock_info(TEST_VOTER_3, &[]);
     let execute_res = execute(deps.as_mut(), env, info, msg).unwrap();
     assert_cast_vote_success(TEST_VOTER_3, amount, 1, VoteOption::Yes, execute_res);
@@ -4014,14 +3973,14 @@ fn happy_days_cast_vote_with_snapshot() {
 
 #[test]
 fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
-    const POLL_START_TIME: u64 = 1000;
+    const POLL_START_HEIGHT: u64 = 1000;
     const POLL_ID: u64 = 1;
     let stake_amount = 1000;
 
     let mut deps = mock_dependencies(&coins(1000, VOTING_TOKEN));
     mock_instantiate(deps.as_mut());
 
-    let mut creator_env = mock_env_height(0, POLL_START_TIME);
+    let mut creator_env = mock_env_height(POLL_START_HEIGHT, 0);
     let mut creator_info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
 
     let exec_msg_bz = to_binary(&Cw20ExecuteMsg::Burn {
@@ -4049,12 +4008,7 @@ fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
 
     assert_create_poll_result(
         1,
-        creator_env
-            .block
-            .time
-            .plus_seconds(DEFAULT_VOTING_PERIOD)
-            .nanos()
-            / 1_000_000_000u64,
+        creator_env.block.height + DEFAULT_VOTING_PERIOD,
         TEST_CREATOR,
         execute_res,
         deps.as_ref(),
@@ -4105,10 +4059,7 @@ fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
         ]
     );
 
-    creator_env.block.time = creator_env
-        .block
-        .time
-        .plus_seconds(DEFAULT_VOTING_PERIOD - 10);
+    creator_env.block.height += DEFAULT_VOTING_PERIOD - 10;
 
     // did not SnapshotPoll
 
@@ -4121,7 +4072,7 @@ fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
         )],
     )]);
 
-    //cast another vote
+    // cast another vote
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: TEST_VOTER_2.to_string(),
         amount: Uint128::from(8 * stake_amount as u128),
@@ -4137,7 +4088,7 @@ fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
         vote: VoteOption::Yes,
         amount: Uint128::from(stake_amount),
     };
-    let env = mock_env_height(creator_env.block.height, 10000);
+    let env = mock_env_height(10000, creator_env.block.time.seconds());
     let info = mock_info(TEST_VOTER_2, &[]);
     let execute_res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -4153,7 +4104,7 @@ fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
     );
 
     creator_info.sender = Addr::unchecked(TEST_CREATOR);
-    creator_env.block.time = creator_env.block.time.plus_seconds(10);
+    creator_env.block.height += 10u64;
 
     // quorum must reach
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
@@ -4179,14 +4130,14 @@ fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
 
 #[test]
 fn happy_days_end_poll_with_controlled_quorum() {
-    const POLL_START_TIME: u64 = 1000;
+    const POLL_START_HEIGHT: u64 = 1000;
     const POLL_ID: u64 = 1;
     let stake_amount = 1000;
 
     let mut deps = mock_dependencies(&coins(1000, VOTING_TOKEN));
     mock_instantiate(deps.as_mut());
 
-    let mut creator_env = mock_env_height(0, POLL_START_TIME);
+    let mut creator_env = mock_env_height(POLL_START_HEIGHT, 0);
     let mut creator_info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
 
     let exec_msg_bz = to_binary(&Cw20ExecuteMsg::Burn {
@@ -4214,12 +4165,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
 
     assert_create_poll_result(
         1,
-        creator_env
-            .block
-            .time
-            .plus_seconds(DEFAULT_VOTING_PERIOD)
-            .nanos()
-            / 1_000_000_000u64,
+        creator_env.block.height + DEFAULT_VOTING_PERIOD,
         TEST_CREATOR,
         execute_res,
         deps.as_ref(),
@@ -4255,7 +4201,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
         vote: VoteOption::Yes,
         amount: Uint128::from(stake_amount),
     };
-    let env = mock_env_height(0, POLL_START_TIME);
+    let env = mock_env_height(POLL_START_HEIGHT, 0);
     let info = mock_info(TEST_VOTER, &[]);
     let execute_res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -4270,10 +4216,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
         ]
     );
 
-    creator_env.block.time = creator_env
-        .block
-        .time
-        .plus_seconds(DEFAULT_VOTING_PERIOD - 10);
+    creator_env.block.height += DEFAULT_VOTING_PERIOD - 10u64;
 
     // send SnapshotPoll
     let fix_res = execute(
@@ -4302,7 +4245,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
         )],
     )]);
 
-    //cast another vote
+    // cast another vote
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: TEST_VOTER_2.to_string(),
         amount: Uint128::from(8 * stake_amount as u128),
@@ -4317,7 +4260,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
         vote: VoteOption::Yes,
         amount: Uint128::from(8 * stake_amount),
     };
-    let env = mock_env_height(creator_env.block.height, 10000);
+    let env = mock_env_height(10000, creator_env.block.time.seconds());
     let info = mock_info(TEST_VOTER_2, &[]);
     let execute_res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -4333,7 +4276,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
     );
 
     creator_info.sender = Addr::unchecked(TEST_CREATOR);
-    creator_env.block.time = creator_env.block.time.plus_seconds(10);
+    creator_env.block.height += 10u64;
 
     // quorum must reach
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
@@ -4401,12 +4344,12 @@ fn test_unstake_before_claiming_voting_rewards() {
     let _res = instantiate(deps.as_mut(), mock_env(), info, msg)
         .expect("contract successfully handles InstantiateMsg");
 
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
     let info = mock_info(VOTING_TOKEN, &[]);
     let handle_res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
-    let poll_end_time = env.block.time.plus_seconds(DEFAULT_VOTING_PERIOD).seconds();
-    assert_create_poll_result(1, poll_end_time, TEST_CREATOR, handle_res, deps.as_ref());
+    let poll_end_height = env.block.height + DEFAULT_VOTING_PERIOD;
+    assert_create_poll_result(1, poll_end_height, TEST_CREATOR, handle_res, deps.as_ref());
 
     let stake_amount = 100u128;
 
@@ -4430,7 +4373,7 @@ fn test_unstake_before_claiming_voting_rewards() {
         vote: VoteOption::Yes,
         amount: Uint128::from(stake_amount),
     };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let info = mock_info(TEST_VOTER, &[]);
     let _res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
@@ -4452,7 +4395,7 @@ fn test_unstake_before_claiming_voting_rewards() {
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
     // END POLL
-    let env = mock_env_height(10000, poll_end_time);
+    let env = mock_env_height(poll_end_height, 0);
     let info = mock_info(TEST_VOTER, &[]);
     let msg = ExecuteMsg::EndPoll { poll_id: 1 };
     let _res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
@@ -4494,7 +4437,7 @@ fn test_unstake_before_claiming_voting_rewards() {
 
     // SUCCESS
     let msg = ExecuteMsg::WithdrawVotingRewards { poll_id: None };
-    let env = mock_env_height(0, 10000);
+    let env = mock_env_height(10000, 0);
     let res = execute(deps.as_mut(), env, info, msg).unwrap();
 
     // user can withdraw 50% of total staked (weight = 50% poll share = 100%)
