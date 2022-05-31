@@ -27,7 +27,7 @@ serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 snafu = { version = "0.6.3" }
 cw20 = { version = "0.13.2" }
 base64 = "*"
-astroport = { version = "1.0" }
+astroport = { path = "../../packages/astroport"  }
 cluster-math = { path = "../../libraries/cluster-math" }
 nebula-protocol = { version = "1.0.0", path = "../../packages/nebula_protocol" }
 thiserror = { version = "1.0.30" }

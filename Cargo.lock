@@ -19,27 +19,12 @@ dependencies = [
 
 [[package]]
 name = "astroport"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b56c6d8a5a14a5f569a3473a962ed1d12bfec2a19ef43584c86aae5667bdeaa8"
-dependencies = [
- "cosmwasm-std 0.16.7",
- "cw-storage-plus 0.8.1",
- "cw20 0.8.1",
- "schemars 0.8.10",
- "serde",
- "terra-cosmwasm",
- "uint",
-]
-
-[[package]]
-name = "astroport"
 version = "2.0.0"
 dependencies = [
  "cosmwasm-schema 1.0.0",
  "cosmwasm-std 1.0.0",
- "cw-storage-plus 0.13.2",
- "cw20 0.13.2",
+ "cw-storage-plus",
+ "cw20",
  "schemars 0.8.10",
  "serde",
  "uint",
@@ -451,17 +436,6 @@ dependencies = [
 
 [[package]]
 name = "cw-storage-plus"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1e867b9972b83b32e00e878dfbff48299ba26618dabeb19b9c56fae176dc225"
-dependencies = [
- "cosmwasm-std 0.16.7",
- "schemars 0.8.10",
- "serde",
-]
-
-[[package]]
-name = "cw-storage-plus"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9336ecef1e19d56cf6e3e932475fc6a3dee35eec5a386e07917a1d1ba6bb0e35"
@@ -484,37 +458,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "cw0"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c497f885a40918a02df7d938c81809965fa05cfc21b3dc591e9950237b5de0a9"
-dependencies = [
- "cosmwasm-std 0.16.7",
- "schemars 0.8.10",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "cw2"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "993df11574f29574dd443eb0c189484bb91bc0638b6de3e32ab7f9319c92122d"
 dependencies = [
  "cosmwasm-std 1.0.0",
- "cw-storage-plus 0.13.2",
- "schemars 0.8.10",
- "serde",
-]
-
-[[package]]
-name = "cw20"
-version = "0.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a11a2adbd52258f5b4ed5323f62bc6e559f2cefbe52ef0e58290016fde5bb083"
-dependencies = [
- "cosmwasm-std 0.16.7",
- "cw0",
+ "cw-storage-plus",
  "schemars 0.8.10",
  "serde",
 ]
@@ -995,7 +945,7 @@ dependencies = [
  "cosmwasm-std 1.0.0",
  "cosmwasm-storage",
  "cw2",
- "cw20 0.13.2",
+ "cw20",
  "hex",
  "nebula-protocol",
  "schemars 0.8.10",
@@ -1009,14 +959,14 @@ dependencies = [
 name = "nebula-cluster"
 version = "1.0.0"
 dependencies = [
- "astroport 1.0.1",
+ "astroport",
  "base64",
  "cluster-math",
  "cosmwasm-schema 1.0.0",
  "cosmwasm-std 1.0.0",
  "cosmwasm-storage",
  "cw2",
- "cw20 0.13.2",
+ "cw20",
  "nebula-protocol",
  "plotters",
  "pretty_assertions",
@@ -1030,13 +980,13 @@ dependencies = [
 name = "nebula-cluster-factory"
 version = "1.0.0"
 dependencies = [
- "astroport 1.0.1",
+ "astroport",
  "cluster-math",
  "cosmwasm-schema 1.0.0",
  "cosmwasm-std 1.0.0",
  "cosmwasm-storage",
  "cw2",
- "cw20 0.13.2",
+ "cw20",
  "nebula-protocol",
  "protobuf",
  "schemars 0.8.10",
@@ -1049,12 +999,12 @@ dependencies = [
 name = "nebula-collector"
 version = "1.0.0"
 dependencies = [
- "astroport 1.0.1",
+ "astroport",
  "cosmwasm-schema 1.0.0",
  "cosmwasm-std 1.0.0",
  "cosmwasm-storage",
  "cw2",
- "cw20 0.13.2",
+ "cw20",
  "nebula-protocol",
  "schemars 0.8.10",
  "serde",
@@ -1065,12 +1015,12 @@ dependencies = [
 name = "nebula-community"
 version = "1.0.0"
 dependencies = [
- "astroport 1.0.1",
+ "astroport",
  "cosmwasm-schema 1.0.0",
  "cosmwasm-std 1.0.0",
  "cosmwasm-storage",
  "cw2",
- "cw20 0.13.2",
+ "cw20",
  "nebula-protocol",
  "schemars 0.8.10",
  "serde",
@@ -1086,7 +1036,7 @@ dependencies = [
  "cosmwasm-std 1.0.0",
  "cosmwasm-storage",
  "cw2",
- "cw20 0.13.2",
+ "cw20",
  "hex",
  "nebula-protocol",
  "schemars 0.8.10",
@@ -1098,13 +1048,13 @@ dependencies = [
 name = "nebula-incentives"
 version = "1.0.0"
 dependencies = [
- "astroport 1.0.1",
+ "astroport",
  "cluster-math",
  "cosmwasm-schema 1.0.0",
  "cosmwasm-std 1.0.0",
  "cosmwasm-storage",
  "cw2",
- "cw20 0.13.2",
+ "cw20",
  "nebula-protocol",
  "schemars 0.8.10",
  "serde",
@@ -1119,7 +1069,7 @@ dependencies = [
  "cosmwasm-std 1.0.0",
  "cosmwasm-storage",
  "cw2",
- "cw20 0.13.2",
+ "cw20",
  "nebula-protocol",
  "schemars 0.8.10",
  "serde",
@@ -1131,12 +1081,12 @@ dependencies = [
 name = "nebula-lp-staking"
 version = "1.0.0"
 dependencies = [
- "astroport 1.0.1",
+ "astroport",
  "cosmwasm-schema 1.0.0",
  "cosmwasm-std 1.0.0",
  "cosmwasm-storage",
  "cw2",
- "cw20 0.13.2",
+ "cw20",
  "nebula-protocol",
  "schemars 0.8.10",
  "serde",
@@ -1147,7 +1097,7 @@ dependencies = [
 name = "nebula-oracle"
 version = "1.0.0"
 dependencies = [
- "astroport 1.0.1",
+ "astroport",
  "cosmwasm-schema 1.0.0",
  "cosmwasm-std 1.0.0",
  "cosmwasm-storage",
@@ -1180,12 +1130,12 @@ dependencies = [
 name = "nebula-protocol"
 version = "1.0.0"
 dependencies = [
- "astroport 1.0.1",
+ "astroport",
  "cluster-math",
  "cosmwasm-schema 0.13.2",
  "cosmwasm-std 1.0.0",
  "cosmwasm-storage",
- "cw20 0.13.2",
+ "cw20",
  "schemars 0.8.10",
  "serde",
 ]
@@ -1748,17 +1698,6 @@ dependencies = [
  "schemars 0.8.10",
  "serde",
  "thiserror",
-]
-
-[[package]]
-name = "terra-cosmwasm"
-version = "2.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "552f18cba2b535d1f8c0e3b3f37696820b954bc7535d2e33909f2a6342302718"
-dependencies = [
- "cosmwasm-std 0.16.7",
- "schemars 0.8.10",
- "serde",
 ]
 
 [[package]]

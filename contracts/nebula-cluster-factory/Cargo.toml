@@ -21,7 +21,7 @@ backtraces = ["cosmwasm-std/backtraces"]
 
 [dependencies]
 cw20 = { version = "0.13.2" }
-astroport = { version = "1.0" }
+astroport = { path = "../../packages/astroport"  }
 cluster-math = { path = "../../libraries/cluster-math" }
 cosmwasm-std = { version = "1.0.0", default-features = false }
 cosmwasm-storage = { version = "1.0.0", default-features = false, features = ["iterator"] }
