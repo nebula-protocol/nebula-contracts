@@ -303,7 +303,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
 ///
 /// - **voting_period** is an object of type [`Option<u64>`] which is a poll voting period.
 ///
-/// - **effective_delay** is an object of type [`Option<u64>`] which is a new delay time for
+/// - **effective_delay** is an object of type [`Option<u64>`] which is a new delay blocks for
 ///     a poll to be executed after reaching the voting period.
 ///
 /// - **proposal_deposit** is an object of type [`Option<Uint128>`] which is a minimum deposit
@@ -312,7 +312,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
 /// - **voter_weight** is an object of type [`Option<Decimal>`] which is a ratio of a total reward
 ///     distributed to voters.
 ///
-/// - **snapshot_period** is an object of type [`Option<u64>`] which is a snapshot time to lock
+/// - **snapshot_period** is an object of type [`Option<u64>`] which is a snapshot blocks to lock
 ///     the current quorum of the poll.
 ///
 /// ## Executor
@@ -567,7 +567,7 @@ pub fn create_poll(
 
     // Validate address format
     let sender_address = deps.api.addr_validate(proposer.as_str())?;
-    let current_seconds = env.block.time.seconds();
+    let current_block_height = env.block.height;
 
     // Create the poll
     let new_poll = Poll {
@@ -577,7 +577,7 @@ pub fn create_poll(
         yes_votes: Uint128::zero(),
         no_votes: Uint128::zero(),
         abstain_votes: Uint128::zero(),
-        end_time: current_seconds + config.voting_period,
+        end_height: current_block_height + config.voting_period,
         title,
         description,
         link,
@@ -601,7 +601,7 @@ pub fn create_poll(
         attr("action", "create_poll"),
         attr("creator", sender_address.to_string()),
         attr("poll_id", &poll_id.to_string()),
-        attr("end_time", new_poll.end_time.to_string()),
+        attr("end_height", new_poll.end_height.to_string()),
     ]);
     Ok(r)
 }
@@ -623,10 +623,10 @@ pub fn end_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, Contr
         return Err(ContractError::PollNotInProgress {});
     }
 
-    let current_seconds = env.block.time.seconds();
+    let current_block_height = env.block.height;
 
     // Can only end a poll past its voting period
-    if a_poll.end_time > current_seconds {
+    if a_poll.end_height > current_block_height {
         return Err(ContractError::ValueHasNotExpired(
             "Voting period".to_string(),
         ));
@@ -741,8 +741,8 @@ pub fn execute_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, C
     }
 
     // Need to wait after the effective delay before executing the poll
-    let current_seconds = env.block.time.seconds();
-    if a_poll.end_time + config.effective_delay > current_seconds {
+    let current_block_height = env.block.height;
+    if a_poll.end_height + config.effective_delay > current_block_height {
         return Err(ContractError::ValueHasNotExpired(
             "Effective delay".to_string(),
         ));
@@ -847,9 +847,9 @@ pub fn cast_vote(
     }
 
     let mut a_poll: Poll = poll_store(deps.storage).load(&poll_id.to_be_bytes())?;
-    let current_seconds = env.block.time.seconds();
+    let current_block_height = env.block.height;
     // Can only cast vote on an in-progress poll that is not past the voting period
-    if a_poll.status != PollStatus::InProgress || current_seconds > a_poll.end_time {
+    if a_poll.status != PollStatus::InProgress || current_block_height > a_poll.end_height {
         return Err(ContractError::PollNotInProgress {});
     }
     let key = sender_address.as_bytes();
@@ -902,8 +902,8 @@ pub fn cast_vote(
     poll_voter_store(deps.storage, poll_id).save(key, &vote_info)?;
 
     // Processing snapshot
-    let time_to_end = a_poll.end_time - current_seconds;
-    if time_to_end < config.snapshot_period && a_poll.staked_amount.is_none() {
+    let blocks_to_end = a_poll.end_height - current_block_height;
+    if blocks_to_end < config.snapshot_period && a_poll.staked_amount.is_none() {
         a_poll.staked_amount = Some(total_balance);
     }
 
@@ -938,10 +938,10 @@ pub fn snapshot_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, 
     }
 
     // Check if we have reached the snapshot period
-    let current_seconds = env.block.time.seconds();
-    let time_to_end = a_poll.end_time - current_seconds;
+    let current_block_height = env.block.height;
+    let blocks_to_end = a_poll.end_height - current_block_height;
 
-    if time_to_end > config.snapshot_period {
+    if blocks_to_end > config.snapshot_period {
         return Err(ContractError::Generic(
             "Cannot snapshot at this height".to_string(),
         ));
@@ -1102,7 +1102,7 @@ fn query_poll(deps: Deps, poll_id: u64) -> StdResult<PollResponse> {
         id: poll.id,
         creator: poll.creator.to_string(),
         status: poll.status,
-        end_time: poll.end_time,
+        end_height: poll.end_height,
         title: poll.title,
         description: poll.description,
         link: poll.link,
@@ -1157,7 +1157,7 @@ fn query_polls(
                 id: poll.id,
                 creator: poll.creator.to_string(),
                 status: poll.status.clone(),
-                end_time: poll.end_time,
+                end_height: poll.end_height,
                 title: poll.title.to_string(),
                 description: poll.description.to_string(),
                 link: poll.link.clone(),
