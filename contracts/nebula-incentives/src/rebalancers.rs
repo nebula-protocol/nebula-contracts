@@ -195,23 +195,15 @@ pub fn internal_rewarded_create(
     let mut create_asset_amounts = vec![];
     let mut messages = vec![];
     for asset in asset_amounts {
+        create_asset_amounts.push(asset.clone());
         match asset.clone().info {
             AssetInfo::NativeToken { denom } => {
-                let amount = (asset.clone().deduct_tax(&deps.querier)?).amount;
-
-                let new_asset = Asset {
-                    amount,
-                    ..asset.clone()
-                };
-
-                create_asset_amounts.push(new_asset);
                 funds.push(Coin {
                     denom: denom.clone(),
-                    amount,
+                    amount: asset.amount,
                 });
             }
             AssetInfo::Token { contract_addr } => {
-                create_asset_amounts.push(asset.clone());
                 messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: contract_addr.to_string(),
                     msg: to_binary(&Cw20ExecuteMsg::IncreaseAllowance {

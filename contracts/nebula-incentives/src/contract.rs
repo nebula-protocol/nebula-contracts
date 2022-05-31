@@ -96,7 +96,7 @@ pub fn instantiate(
 /// - **ExecuteMsg::_SwapAll {
 ///             astroport_pair,
 ///             cluster_token,
-///             to_ust,
+///             to_base_denom,
 ///             min_return,
 ///         }** Swaps either all UST to the specified cluster token or vice versa.
 ///
@@ -171,7 +171,7 @@ pub fn execute(
         ExecuteMsg::_SwapAll {
             astroport_pair,
             cluster_token,
-            to_ust,
+            to_base_denom,
             min_return,
         } => swap_all(
             deps,
@@ -179,7 +179,7 @@ pub fn execute(
             info,
             astroport_pair,
             cluster_token,
-            to_ust,
+            to_base_denom,
             min_return,
         ),
         ExecuteMsg::_SendAll {
