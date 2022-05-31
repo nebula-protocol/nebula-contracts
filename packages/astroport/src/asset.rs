@@ -6,7 +6,7 @@ use crate::factory::PairType;
 use crate::pair::QueryMsg as PairQueryMsg;
 use crate::querier::{query_balance, query_token_balance, query_token_symbol};
 use cosmwasm_std::{
-    to_binary, Addr, Api, BankMsg, Coin, CosmosMsg, MessageInfo, QuerierWrapper, StdError,
+    coin, to_binary, Addr, Api, BankMsg, CosmosMsg, MessageInfo, QuerierWrapper, StdError,
     StdResult, Uint128, WasmMsg,
 };
 use cw20::{Cw20ExecuteMsg, Cw20QueryMsg, MinterResponse};
@@ -32,31 +32,12 @@ impl fmt::Display for Asset {
     }
 }
 
-/// Decimal points
-// static DECIMAL_FRACTION: Uint128 = Uint128::new(1_000_000_000_000_000_000u128);
-
 impl Asset {
     /// Returns true if the token is native. Otherwise returns false.
     /// ## Params
     /// * **self** is the type of the caller object.
     pub fn is_native_token(&self) -> bool {
         self.info.is_native_token()
-    }
-
-    /// Calculates and returns a deducted tax for transferring the native token from the chain. For other tokens it returns an [`Err`].
-    /// ## Params
-    /// * **self** is the type of the caller object.
-    ///
-    /// * **querier** is an object of type [`QuerierWrapper`]
-    pub fn deduct_tax(&self, _querier: &QuerierWrapper) -> StdResult<Coin> {
-        if let AssetInfo::NativeToken { denom } = &self.info {
-            Ok(Coin {
-                denom: denom.to_string(),
-                amount: self.amount,
-            })
-        } else {
-            Err(StdError::generic_err("cannot deduct tax from token asset"))
-        }
     }
 
     /// Returns a message of type [`CosmosMsg`].
@@ -73,7 +54,7 @@ impl Asset {
     /// * **recipient** is the address where the funds will be sent.
     pub fn into_msg(
         self,
-        querier: &QuerierWrapper,
+        _querier: &QuerierWrapper,
         recipient: impl Into<String>,
     ) -> StdResult<CosmosMsg> {
         let recipient = recipient.into();
@@ -86,9 +67,9 @@ impl Asset {
                 })?,
                 funds: vec![],
             })),
-            AssetInfo::NativeToken { .. } => Ok(CosmosMsg::Bank(BankMsg::Send {
+            AssetInfo::NativeToken { denom } => Ok(CosmosMsg::Bank(BankMsg::Send {
                 to_address: recipient,
-                amount: vec![self.deduct_tax(querier)?],
+                amount: vec![coin(self.amount.u128(), denom)],
             })),
         }
     }
