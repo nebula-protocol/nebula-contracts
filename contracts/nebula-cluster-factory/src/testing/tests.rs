@@ -11,8 +11,8 @@ use astroport::factory::{ExecuteMsg as AstroportFactoryExecuteMsg, PairType};
 use astroport::token::InstantiateMsg as TokenInstantiateMsg;
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    attr, from_binary, to_binary, Addr, Binary, ContractResult, CosmosMsg, Env, Reply, ReplyOn,
-    StdError, SubMsg, SubMsgExecutionResponse, Timestamp, Uint128, WasmMsg,
+    attr, from_binary, to_binary, Addr, Binary, CosmosMsg, Env, Reply, ReplyOn, StdError, SubMsg,
+    SubMsgResponse, SubMsgResult, Timestamp, Uint128, WasmMsg,
 };
 use cw2::{get_contract_version, ContractVersion};
 use cw20::{Cw20ExecuteMsg, MinterResponse};
@@ -426,7 +426,7 @@ fn test_token_creation_hook() {
 
     let reply_msg = Reply {
         id: 1,
-        result: ContractResult::Ok(SubMsgExecutionResponse {
+        result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
             data: Some(token_inst_res.write_to_bytes().unwrap().into()),
         }),
@@ -537,7 +537,7 @@ fn test_set_cluster_token_hook() {
 
     let reply_msg = Reply {
         id: 1,
-        result: ContractResult::Ok(SubMsgExecutionResponse {
+        result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
             data: Some(token_inst_res.write_to_bytes().unwrap().into()),
         }),
@@ -555,7 +555,7 @@ fn test_set_cluster_token_hook() {
 
     let reply_msg2 = Reply {
         id: 2,
-        result: ContractResult::Ok(SubMsgExecutionResponse {
+        result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
             data: Some(token_inst_res.write_to_bytes().unwrap().into()),
         }),
@@ -675,7 +675,7 @@ fn test_set_cluster_token_hook_without_weight() {
 
     let reply_msg = Reply {
         id: 1,
-        result: ContractResult::Ok(SubMsgExecutionResponse {
+        result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
             data: Some(token_inst_res.write_to_bytes().unwrap().into()),
         }),
@@ -690,7 +690,7 @@ fn test_set_cluster_token_hook_without_weight() {
 
     let reply_msg2 = Reply {
         id: 2,
-        result: ContractResult::Ok(SubMsgExecutionResponse {
+        result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
             data: Some(token_inst_res.write_to_bytes().unwrap().into()),
         }),
@@ -811,7 +811,7 @@ fn test_astroport_creation_hook() {
 
     let reply_msg = Reply {
         id: 1,
-        result: ContractResult::Ok(SubMsgExecutionResponse {
+        result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
             data: Some(token_inst_res.write_to_bytes().unwrap().into()),
         }),
@@ -826,7 +826,7 @@ fn test_astroport_creation_hook() {
 
     let reply_msg2 = Reply {
         id: 2,
-        result: ContractResult::Ok(SubMsgExecutionResponse {
+        result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
             data: Some(token_inst_res.write_to_bytes().unwrap().into()),
         }),
@@ -838,7 +838,7 @@ fn test_astroport_creation_hook() {
 
     let reply_msg3 = Reply {
         id: 3,
-        result: ContractResult::Ok(SubMsgExecutionResponse {
+        result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
             data: None,
         }),
@@ -906,7 +906,7 @@ fn test_distribute() {
 
     let reply_msg = Reply {
         id: 1,
-        result: ContractResult::Ok(SubMsgExecutionResponse {
+        result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
             data: Some(token_inst_res.write_to_bytes().unwrap().into()),
         }),
@@ -922,7 +922,7 @@ fn test_distribute() {
 
     let reply_msg2 = Reply {
         id: 2,
-        result: ContractResult::Ok(SubMsgExecutionResponse {
+        result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
             data: Some(token_inst_res.write_to_bytes().unwrap().into()),
         }),
@@ -932,7 +932,7 @@ fn test_distribute() {
 
     let reply_msg3 = Reply {
         id: 3,
-        result: ContractResult::Ok(SubMsgExecutionResponse {
+        result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
             data: None,
         }),
@@ -957,7 +957,7 @@ fn test_distribute() {
 
     let reply_msg = Reply {
         id: 1,
-        result: ContractResult::Ok(SubMsgExecutionResponse {
+        result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
             data: Some(token_inst_res.write_to_bytes().unwrap().into()),
         }),
@@ -970,7 +970,7 @@ fn test_distribute() {
 
     let reply_msg2 = Reply {
         id: 2,
-        result: ContractResult::Ok(SubMsgExecutionResponse {
+        result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
             data: Some(token_inst_res.write_to_bytes().unwrap().into()),
         }),
@@ -980,7 +980,7 @@ fn test_distribute() {
 
     let reply_msg3 = Reply {
         id: 3,
-        result: ContractResult::Ok(SubMsgExecutionResponse {
+        result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
             data: None,
         }),
@@ -1091,7 +1091,7 @@ fn test_decommission_cluster() {
 
     let reply_msg = Reply {
         id: 1,
-        result: ContractResult::Ok(SubMsgExecutionResponse {
+        result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
             data: Some(token_inst_res.write_to_bytes().unwrap().into()),
         }),
@@ -1106,7 +1106,7 @@ fn test_decommission_cluster() {
 
     let reply_msg2 = Reply {
         id: 2,
-        result: ContractResult::Ok(SubMsgExecutionResponse {
+        result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
             data: Some(token_inst_res.write_to_bytes().unwrap().into()),
         }),
@@ -1118,7 +1118,7 @@ fn test_decommission_cluster() {
 
     let reply_msg3 = Reply {
         id: 3,
-        result: ContractResult::Ok(SubMsgExecutionResponse {
+        result: SubMsgResult::Ok(SubMsgResponse {
             events: vec![],
             data: None,
         }),
