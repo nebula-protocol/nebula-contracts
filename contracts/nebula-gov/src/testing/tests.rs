@@ -8,8 +8,8 @@ use crate::state::{
 use crate::testing::mock_querier::mock_dependencies;
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
 use cosmwasm_std::{
-    attr, coins, from_binary, to_binary, Addr, Api, ContractResult, CosmosMsg, Decimal, Deps,
-    DepsMut, Env, Reply, ReplyOn, Response, StdError, SubMsg, Timestamp, Uint128, WasmMsg,
+    attr, coins, from_binary, to_binary, Addr, Api, CosmosMsg, Decimal, Deps, DepsMut, Env, Reply,
+    ReplyOn, Response, StdError, SubMsg, SubMsgResult, Timestamp, Uint128, WasmMsg,
 };
 use cw2::{get_contract_version, ContractVersion};
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
@@ -1045,7 +1045,7 @@ fn failed_execute_poll() {
 
     let reply_msg = Reply {
         id: 1,
-        result: ContractResult::Err("Error".to_string()),
+        result: SubMsgResult::Err("Error".to_string()),
     };
     let res = reply(deps.as_mut(), mock_env(), reply_msg).unwrap();
     assert_eq!(res.attributes, vec![attr("action", "failed_poll")]);
