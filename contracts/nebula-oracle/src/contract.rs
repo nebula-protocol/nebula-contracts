@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    attr, to_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, QueryRequest,
-    Response, StdResult, Uint128, WasmQuery,
+    attr, to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, QueryRequest, Response,
+    StdResult, WasmQuery,
 };
 
 use crate::state::{read_config, store_config, Config};
@@ -21,9 +21,6 @@ use tefi_oracle::hub::{
 const CONTRACT_NAME: &str = "nebula-oracle";
 /// Contract version that is used for migration.
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-
-/// A constant for converting `Decimal` to `Uint128`
-const DECIMAL_FRACTIONAL: Uint128 = Uint128::new(1_000_000_000u128);
 
 /// ## Description
 /// Creates a new contract with the specified parameters packed in the `msg` variable.
@@ -242,7 +239,7 @@ fn query_asset_price(deps: Deps, asset: AssetInfo) -> StdResult<(Decimal, u64)> 
     deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: config.oracle_addr.to_string(),
         msg: to_binary(&TeFiOracleQueryMsg::Price {
-            asset_token: asset_token,
+            asset_token,
             timeframe: None,
         })
         .unwrap(),
