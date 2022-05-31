@@ -211,10 +211,7 @@ fn query_price(
 
     // Compute the price
     // -- rate = price_base / price_quote
-    let rate = Decimal::from_ratio(
-        price_base * DECIMAL_FRACTIONAL,
-        price_quote * DECIMAL_FRACTIONAL,
-    );
+    let rate = price_base / price_quote;
 
     Ok(PriceResponse {
         rate,

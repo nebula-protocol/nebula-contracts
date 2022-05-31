@@ -9,11 +9,6 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 use tefi_oracle::hub::PriceResponse;
 
-const DECIMAL_FRACTIONAL: Uint128 = Uint128::new(1_000_000_000u128);
-pub fn decimal_division(a: Decimal, b: Decimal) -> Decimal {
-    Decimal::from_ratio(DECIMAL_FRACTIONAL * a, b * DECIMAL_FRACTIONAL)
-}
-
 /// mock_dependencies is a drop-in replacement for cosmwasm_std::testing::mock_dependencies
 /// this uses our CustomQuerier.
 pub fn mock_dependencies(
@@ -102,7 +97,7 @@ impl WasmMockQuerier {
 }
 
 impl WasmMockQuerier {
-    pub fn new(base: MockQuerier<TerraQueryWrapper>) -> Self {
+    pub fn new(base: MockQuerier) -> Self {
         WasmMockQuerier {
             base,
             tefi_oracle_querier: TefiOracleQuerier::default(),
