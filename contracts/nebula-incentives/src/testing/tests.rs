@@ -596,7 +596,7 @@ fn test_incentives_arb_cluster_mint() {
                 msg: to_binary(&ExecuteMsg::_SwapAll {
                     astroport_pair: Addr::unchecked("uusd_cluster_pair"),
                     cluster_token: Addr::unchecked("cluster_token"),
-                    to_ust: true,
+                    to_base_denom: true,
                     min_return: None
                 })
                 .unwrap(),
@@ -694,7 +694,7 @@ fn test_incentives_arb_cluster_redeem() {
                 msg: to_binary(&ExecuteMsg::_SwapAll {
                     astroport_pair: Addr::unchecked("uusd_cluster_pair"),
                     cluster_token: Addr::unchecked("cluster_token"),
-                    to_ust: false,
+                    to_base_denom: false,
                     min_return: None
                 })
                 .unwrap(),
@@ -784,11 +784,6 @@ fn test_send_all() {
         )],
     )]);
 
-    deps.querier.with_tax(
-        Decimal::percent(1),
-        &[(&"native_asset0000".to_string(), &Uint128::new(1000000u128))],
-    );
-
     let asset_infos = vec![
         AssetInfo::Token {
             contract_addr: Addr::unchecked("asset0000"),
@@ -822,7 +817,7 @@ fn test_send_all() {
             })),
             SubMsg::new(CosmosMsg::Bank(BankMsg::Send {
                 to_address: "owner0000".to_string(),
-                amount: coins(990, &"native_asset0000".to_string()),
+                amount: coins(1000, &"native_asset0000".to_string()),
             })),
         ]
     );
@@ -850,17 +845,12 @@ fn test_swap_all() {
         )],
     )]);
 
-    deps.querier.with_tax(
-        Decimal::percent(1),
-        &[(&"uusd".to_string(), &Uint128::new(1000000u128))],
-    );
-
-    // Test to_ust is true
+    // Test to_base_denom is true
     // without min_return
     let msg = ExecuteMsg::_SwapAll {
         astroport_pair: Addr::unchecked("astroport_pair"),
         cluster_token: Addr::unchecked("cluster_token"),
-        to_ust: true,
+        to_base_denom: true,
         min_return: None,
     };
 
@@ -890,7 +880,7 @@ fn test_swap_all() {
     let msg = ExecuteMsg::_SwapAll {
         astroport_pair: Addr::unchecked("astroport_pair"),
         cluster_token: Addr::unchecked("cluster_token"),
-        to_ust: true,
+        to_base_denom: true,
         min_return: Some(Uint128::new(500)),
     };
 
@@ -916,12 +906,12 @@ fn test_swap_all() {
         }))]
     );
 
-    // Test to_ust is false
+    // Test to_base_denom is false
     // without min_return
     let msg = ExecuteMsg::_SwapAll {
         astroport_pair: Addr::unchecked("astroport_pair"),
         cluster_token: Addr::unchecked("cluster_token"),
-        to_ust: false,
+        to_base_denom: false,
         min_return: None,
     };
 
@@ -934,7 +924,7 @@ fn test_swap_all() {
             contract_addr: "astroport_pair".to_string(),
             msg: to_binary(&AstroportExecuteMsg::Swap {
                 offer_asset: Asset {
-                    amount: Uint128::new(990),
+                    amount: Uint128::new(1000),
                     info: AssetInfo::NativeToken {
                         denom: "uusd".to_string()
                     }
@@ -944,7 +934,7 @@ fn test_swap_all() {
                 to: None,
             })
             .unwrap(),
-            funds: coins(990, &"uusd".to_string()),
+            funds: coins(1000, &"uusd".to_string()),
         }))]
     );
 
@@ -952,7 +942,7 @@ fn test_swap_all() {
     let msg = ExecuteMsg::_SwapAll {
         astroport_pair: Addr::unchecked("astroport_pair"),
         cluster_token: Addr::unchecked("cluster_token"),
-        to_ust: false,
+        to_base_denom: false,
         min_return: Some(Uint128::new(500)),
     };
 
@@ -965,17 +955,17 @@ fn test_swap_all() {
             contract_addr: "astroport_pair".to_string(),
             msg: to_binary(&AstroportExecuteMsg::Swap {
                 offer_asset: Asset {
-                    amount: Uint128::new(990),
+                    amount: Uint128::new(1000),
                     info: AssetInfo::NativeToken {
                         denom: "uusd".to_string()
                     }
                 },
                 max_spread: Some(Decimal::zero()),
-                belief_price: Some(Decimal::from_str("1.98").unwrap()),
+                belief_price: Some(Decimal::from_str("2.00").unwrap()),
                 to: None,
             })
             .unwrap(),
-            funds: coins(990, &"uusd".to_string()),
+            funds: coins(1000, &"uusd".to_string()),
         }))]
     );
 }
@@ -985,11 +975,6 @@ fn test_incentives_internal_rewarded_mint() {
     let mut deps = mock_dependencies(&[]);
 
     mock_init(deps.as_mut());
-
-    deps.querier.with_tax(
-        Decimal::percent(1),
-        &[(&"native_asset0000".to_string(), &Uint128::new(1000000u128))],
-    );
 
     let asset_amounts = vec![
         Asset {
@@ -1025,7 +1010,7 @@ fn test_incentives_internal_rewarded_mint() {
     let env = mock_env();
     let res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
 
-    let create_asset_amounts_after_tax = vec![
+    let create_asset_amounts = vec![
         Asset {
             info: AssetInfo::Token {
                 contract_addr: Addr::unchecked("asset0000"),
@@ -1042,7 +1027,7 @@ fn test_incentives_internal_rewarded_mint() {
             info: AssetInfo::NativeToken {
                 denom: "native_asset0000".to_string(),
             },
-            amount: Uint128::new(99),
+            amount: Uint128::new(100),
         },
     ];
 
@@ -1073,10 +1058,10 @@ fn test_incentives_internal_rewarded_mint() {
                 contract_addr: "cluster".to_string(),
                 msg: to_binary(&ClusterExecuteMsg::RebalanceCreate {
                     min_tokens: None,
-                    asset_amounts: create_asset_amounts_after_tax,
+                    asset_amounts: create_asset_amounts,
                 })
                 .unwrap(),
-                funds: coins(99, &"native_asset0000".to_string()),
+                funds: coins(100, &"native_asset0000".to_string()),
             })),
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.to_string(),

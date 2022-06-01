@@ -135,7 +135,7 @@ pub fn arb_cluster_create(
         msg: to_binary(&ExecuteMsg::_SwapAll {
             astroport_pair: pair_info.contract_addr.clone(),
             cluster_token,
-            to_ust: true, // how about changing this to to_base
+            to_base_denom: true, // how about changing this to to_base
             min_return: min_ust,
         })?,
         funds: vec![],
@@ -245,7 +245,7 @@ pub fn arb_cluster_redeem(
         msg: to_binary(&ExecuteMsg::_SwapAll {
             astroport_pair: pair_info.contract_addr.clone(),
             cluster_token: cluster_token.clone(),
-            to_ust: false,
+            to_base_denom: false,
             min_return: min_cluster,
         })?,
         funds: vec![],
@@ -440,7 +440,7 @@ pub fn record_astroport_impact(
 /// - **cluster_contract** is an object of type [`Addr`] which is the address of
 ///     the cluster contract corresponding to the arbitrage.
 ///
-/// - **to_ust** is an object of type [`bool`] which determines the swap direction.
+/// - **to_base_denom** is an object of type [`bool`] which determines the swap direction.
 ///
 /// - **min_return** is an object of type [`Option<Uint128>`] which is the minimum
 ///     return amount expected from the exchange.
@@ -453,7 +453,7 @@ pub fn swap_all(
     info: MessageInfo,
     astroport_pair: Addr,
     cluster_token: Addr,
-    to_ust: bool,
+    to_base_denom: bool,
     min_return: Option<Uint128>,
 ) -> Result<Response, ContractError> {
     // Permission check
@@ -466,17 +466,17 @@ pub fn swap_all(
 
     let mut logs = vec![
         attr("action", "swap_all"),
-        attr("to_usd", to_ust.to_string()),
+        attr("to_base_denom", to_base_denom.to_string()),
     ];
 
-    if to_ust {
-        // Swap CT -> UST
+    if to_base_denom {
+        // Swap CT -> BASE_DENOM
         // Query CT balance on this incentives contract
         let amount =
             query_token_balance(&deps.querier, cluster_token.clone(), env.contract.address)?;
 
         // Calculate the belief price
-        // -- belief_price = provided_CT / expected_UST
+        // -- belief_price = provided_CT / expected_BASE_DENOM
         let belief_price = min_return.map(|expected_ust| Decimal::from_ratio(amount, expected_ust));
 
         // Swap CT -> UST on Astroport pair pool
@@ -496,15 +496,15 @@ pub fn swap_all(
         logs.push(attr("amount", amount));
         logs.push(attr("addr", astroport_pair.to_string()));
     } else {
-        // Swap UST -> CT
-        // Query UST balance on this incentives contract
+        // Swap BASE_DENOM -> CT
+        // Query BASE_DENOM balance on this incentives contract
         let amount = query_balance(
             &deps.querier,
             env.contract.address,
             config.base_denom.to_string(),
         )?;
 
-        // Set the input for Astroport to be UST
+        // Set the input for Astroport to be BASE_DENOM
         let swap_asset = Asset {
             info: AssetInfo::NativeToken {
                 denom: config.base_denom.clone(),
@@ -512,14 +512,11 @@ pub fn swap_all(
             amount,
         };
 
-        // Deduct tax first
-        let amount = (swap_asset.deduct_tax(&deps.querier)?).amount;
-
         // Calculate the belief price
-        // -- belief_price = provided_UST / expected_CT
+        // -- belief_price = provided_BASE_DENOM / expected_CT
         let belief_price = min_return.map(|expected_ct| Decimal::from_ratio(amount, expected_ct));
 
-        // Swap UST -> CT on Astroport pair pool
+        // Swap BASE_DENOM -> CT on Astroport pair pool
         messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: astroport_pair.to_string(),
             msg: to_binary(&AstroportExecuteMsg::Swap {

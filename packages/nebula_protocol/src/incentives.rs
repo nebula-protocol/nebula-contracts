@@ -55,7 +55,7 @@ pub enum ExecuteMsg {
         /// receiver address
         send_to: Addr,
     },
-    /// _SwapAll changes either all CT -> UST or UST -> CT.
+    /// _SwapAll changes either all CT -> BASE_DENOM or BASE_DENOM -> CT.
     _SwapAll {
         /// Astroport pair contract
         astroport_pair: Addr,
@@ -64,7 +64,7 @@ pub enum ExecuteMsg {
         /// expected return from the swap
         min_return: Option<Uint128>,
         /// swap direction
-        to_ust: bool,
+        to_base_denom: bool,
     },
     /// _RecordAstroportImpact records arbitrage contribution for the reward distribution.
     _RecordAstroportImpact {
