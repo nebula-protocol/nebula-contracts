@@ -14,7 +14,7 @@ mod tests {
 
     #[test]
     fn test_deposit_reward() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
 
         let msg = InstantiateMsg {
             owner: "owner".to_string(),
@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn test_deposit_reward_when_no_bonding() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
 
         let msg = InstantiateMsg {
             owner: "owner".to_string(),
@@ -138,7 +138,7 @@ mod tests {
 
     #[test]
     fn test_before_share_changes() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
 
         let msg = InstantiateMsg {
             owner: "owner".to_string(),
@@ -254,7 +254,7 @@ mod tests {
 
     #[test]
     fn test_withdraw() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
 
         let msg = InstantiateMsg {
             owner: "owner".to_string(),
@@ -319,7 +319,7 @@ mod tests {
 
     #[test]
     fn withdraw_multiple_rewards() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
 
         let msg = InstantiateMsg {
             owner: "owner".to_string(),

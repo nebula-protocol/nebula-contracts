@@ -50,7 +50,7 @@ pub fn deposit_reward(
 
             // Update the reward index
             // -- new_reward_index = old_reward_index + reward_per_bond_this_round
-            pool_info.reward_index = pool_info.reward_index + normal_reward_per_bond;
+            pool_info.reward_index += normal_reward_per_bond;
         }
 
         store_pool_info(deps.storage, &validated_asset_token, &pool_info)?;

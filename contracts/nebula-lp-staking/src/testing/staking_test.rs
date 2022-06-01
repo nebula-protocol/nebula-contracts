@@ -18,7 +18,7 @@ mod tests {
 
     #[test]
     fn test_bond_tokens() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
 
         let msg = InstantiateMsg {
             owner: "owner".to_string(),
@@ -140,7 +140,7 @@ mod tests {
 
     #[test]
     fn test_unbond() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
 
         let msg = InstantiateMsg {
             owner: "owner".to_string(),
@@ -398,7 +398,7 @@ mod tests {
                                 info: AssetInfo::NativeToken {
                                     denom: "uusd".to_string()
                                 },
-                                amount: Uint128::new(99u128),
+                                amount: Uint128::new(100u128),
                             },
                             Asset {
                                 info: AssetInfo::Token {
@@ -414,7 +414,7 @@ mod tests {
                     .unwrap(),
                     funds: vec![Coin {
                         denom: "uusd".to_string(),
-                        amount: Uint128::new(99u128), // 1% tax
+                        amount: Uint128::new(100u128), // 1% tax
                     }],
                 })),
                 SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
