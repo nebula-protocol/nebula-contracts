@@ -123,7 +123,7 @@ pub fn auto_stake(
     let mut native_asset_op: Option<Asset> = None;
     let mut token_info_op: Option<(Addr, Uint128)> = None;
 
-    // Extract UST and CT from the given list `assets`
+    // Extract BASE_DENOM and CT from the given list `assets`
     for asset in assets.iter() {
         match asset.info.clone() {
             AssetInfo::NativeToken { .. } => {
@@ -131,7 +131,7 @@ pub fn auto_stake(
                 native_asset_op = Some(asset.clone())
             }
             AssetInfo::Token { contract_addr } => {
-                token_info_op = Some(((contract_addr), asset.amount))
+                token_info_op = Some((contract_addr, asset.amount))
             }
         }
     }
