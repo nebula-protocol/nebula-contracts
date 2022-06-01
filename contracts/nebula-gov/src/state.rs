@@ -263,8 +263,8 @@ pub struct Poll {
     pub no_votes: Uint128,
     /// Current ABSTAIN votes
     pub abstain_votes: Uint128,
-    /// End time of the poll voting period
-    pub end_time: u64,
+    /// End height of the poll voting period
+    pub end_height: u64,
     /// Poll title
     pub title: String,
     /// Poll description

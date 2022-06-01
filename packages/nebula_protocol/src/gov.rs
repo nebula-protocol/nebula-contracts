@@ -246,8 +246,8 @@ pub struct PollResponse {
     pub creator: String,
     /// Poll status
     pub status: PollStatus,
-    /// Poll end time
-    pub end_time: u64,
+    /// Poll end height
+    pub end_height: u64,
     /// Poll title
     pub title: String,
     /// Poll description
@@ -262,7 +262,7 @@ pub struct PollResponse {
     pub yes_votes: Uint128,
     /// Amount of NO votes
     pub no_votes: Uint128,
-    /// Amount of ABSTAIN votes      
+    /// Amount of ABSTAIN votes
     pub abstain_votes: Uint128,
     /// Total staked at end poll
     pub total_balance_at_end_poll: Option<Uint128>,
