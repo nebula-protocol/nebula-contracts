@@ -108,9 +108,6 @@ fn query_price() {
     deps.querier.set_tefi_oracle_prices(vec![
         ("token0001", Decimal::from_str("765.52").unwrap()),
         ("token0002", Decimal::from_str("1.9234").unwrap()),
-    ]);
-
-    deps.querier.set_terra_oracle_prices(vec![
         ("uluna", Decimal::from_str("66.435110305004678719").unwrap()),
         ("uusd", Decimal::from_str("1.00").unwrap()),
     ]);
@@ -127,7 +124,9 @@ fn query_price() {
     let res = query(deps.as_ref(), mock_env(), msg).unwrap_err();
     assert_eq!(
         res,
-        StdError::generic_err("Querier system error: Cannot parse request: No oracle price exists in: {\"price\":{\"asset_token\":\"nebulatoken\",\"timeframe\":null}}")
+        StdError::generic_err(
+            "Querier system error: Cannot parse request: No oracle price exists in: {\"price\":{\"asset_token\":\"nebulatoken\",\"timeframe\":null}}"
+        )
     );
 
     // no native oracle price exists
@@ -143,7 +142,7 @@ fn query_price() {
     assert_eq!(
         res,
         StdError::generic_err(
-            "Querier system error: Cannot parse request: No native denom exists in: \"ukrw\""
+            "Querier system error: Cannot parse request: No oracle price exists in: {\"price\":{\"asset_token\":\"ukrw\",\"timeframe\":null}}"
         )
     );
 
@@ -172,7 +171,7 @@ fn query_price() {
     let price: PriceResponse = from_binary(&res).unwrap();
     assert_eq!(
         price.rate,
-        Decimal::from_str("0.015052281774035657").unwrap()
+        Decimal::from_str("0.015052281774034597").unwrap()
     );
 }
 

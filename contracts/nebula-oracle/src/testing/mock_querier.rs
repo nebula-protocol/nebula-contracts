@@ -28,7 +28,6 @@ pub fn mock_dependencies(
 
 pub struct WasmMockQuerier {
     pub base: MockQuerier,
-    pub terra_oracle_querier: TerraOracleQuerier,
     pub tefi_oracle_querier: TefiOracleQuerier,
 }
 
@@ -101,24 +100,7 @@ impl WasmMockQuerier {
         WasmMockQuerier {
             base,
             tefi_oracle_querier: TefiOracleQuerier::default(),
-            terra_oracle_querier: TerraOracleQuerier::default(),
         }
-    }
-
-    pub fn set_terra_oracle_price(&mut self, native_denom: String, price: Decimal) -> &mut Self {
-        self.terra_oracle_querier.denoms.insert(native_denom, price);
-        self
-    }
-
-    pub fn set_terra_oracle_prices<T, U>(&mut self, price_data: T) -> &mut Self
-    where
-        T: IntoIterator<Item = (U, Decimal)>,
-        U: ToString,
-    {
-        for (denom, price) in price_data.into_iter() {
-            self.set_terra_oracle_price(denom.to_string(), price);
-        }
-        self
     }
 
     pub fn set_tefi_oracle_price(&mut self, asset_address: String, price: Decimal) -> &mut Self {

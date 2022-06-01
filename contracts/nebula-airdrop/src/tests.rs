@@ -13,7 +13,7 @@ mod tests {
 
     #[test]
     fn proper_initialization() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
 
         let msg = InstantiateMsg {
             owner: "owner0000".to_string(),
@@ -38,7 +38,7 @@ mod tests {
 
     #[test]
     fn update_config() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
 
         let msg = InstantiateMsg {
             owner: String::from("owner0000"),
@@ -76,7 +76,7 @@ mod tests {
 
     #[test]
     fn register_merkle_root() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
 
         let msg = InstantiateMsg {
             owner: String::from("owner0000"),
@@ -144,7 +144,7 @@ mod tests {
 
     #[test]
     fn claim() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
 
         let msg = InstantiateMsg {
             owner: String::from("owner0000"),
@@ -281,7 +281,7 @@ mod tests {
 
     #[test]
     fn migration() {
-        let mut deps = mock_dependencies(&[]);
+        let mut deps = mock_dependencies();
 
         let msg = InstantiateMsg {
             owner: "owner0000".to_string(),
