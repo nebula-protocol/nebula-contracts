@@ -1,8 +1,8 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    attr, to_binary, Addr, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, QueryRequest,
-    Response, StdResult, Uint128, WasmQuery,
+    attr, to_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, QueryRequest, Response,
+    StdResult, WasmQuery,
 };
 
 use crate::state::{read_config, store_config, Config};
@@ -16,15 +16,11 @@ use nebula_protocol::oracle::{
 use tefi_oracle::hub::{
     HubQueryMsg as TeFiOracleQueryMsg, PriceResponse as TeFiOraclePriceResponse,
 };
-use terra_cosmwasm::{ExchangeRatesResponse, TerraQuerier};
 
 /// Contract name that is used for migration.
 const CONTRACT_NAME: &str = "nebula-oracle";
 /// Contract version that is used for migration.
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
-
-/// A constant for converting `Decimal` to `Uint128`
-const DECIMAL_FRACTIONAL: Uint128 = Uint128::new(1_000_000_000u128);
 
 /// ## Description
 /// Creates a new contract with the specified parameters packed in the `msg` variable.
@@ -212,10 +208,7 @@ fn query_price(
 
     // Compute the price
     // -- rate = price_base / price_quote
-    let rate = Decimal::from_ratio(
-        price_base * DECIMAL_FRACTIONAL,
-        price_quote * DECIMAL_FRACTIONAL,
-    );
+    let rate = price_base / price_quote;
 
     Ok(PriceResponse {
         rate,
@@ -234,54 +227,23 @@ fn query_price(
 fn query_asset_price(deps: Deps, asset: AssetInfo) -> StdResult<(Decimal, u64)> {
     let config: Config = read_config(deps.storage)?;
 
-    match asset {
-        // If native, query on-chain
-        AssetInfo::NativeToken { denom } => query_native_price(deps, denom, &config),
-        // Otherwise, query from Tefi oracle hub
-        AssetInfo::Token { contract_addr } => query_cw20_price(deps, contract_addr, &config),
-    }
-}
+    let asset_token = match asset {
+        // If native, query with denom
+        AssetInfo::NativeToken { denom } => denom,
+        // Otherwise, query with cw20 address
+        AssetInfo::Token { contract_addr } => contract_addr.to_string(),
+    };
 
-/// ## Description
-/// Queries on-chain the latest price of a native asset in uusd.
-///
-/// ## Params
-/// - **deps** is an object of type [`Deps`].
-///
-/// - **denom** is an object of type [`String`] which is a denom of a native asset.
-///
-/// - **config** is a reference to an object of type [`Config`] which is the configuration
-///     of this oracle contract, including the contract default denom, UST (uusd).
-fn query_native_price(deps: Deps, denom: String, config: &Config) -> StdResult<(Decimal, u64)> {
-    let terra_querier = TerraQuerier::new(&deps.querier);
-    // Get the price of a native asset in uusd (on-chain)
-    let res: ExchangeRatesResponse =
-        terra_querier.query_exchange_rates(denom, vec![config.base_denom.clone()])?;
-
-    Ok((res.exchange_rates[0].exchange_rate, u64::MAX))
-}
-
-/// ## Description
-/// Queries, from TeFi oracle hub, the latest price of a CW20 asset in uusd.
-///
-/// ## Params
-/// - **deps** is an object of type [`Deps`].
-///
-/// - **contract_addr** is an object of type [`String`] which is an address of a CW20 token contract.
-///
-/// - **config** is a reference to an object of type [`Config`] which is the configuration
-///     of this oracle contract, including the contract default denom, UST (uusd).
-fn query_cw20_price(deps: Deps, contract_addr: Addr, config: &Config) -> StdResult<(Decimal, u64)> {
     let res: TeFiOraclePriceResponse =
-        // Get the price of a CW20 asset in uusd (from TeFi oracle hub contract)
-        deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-            contract_addr: config.oracle_addr.to_string(),
-            msg: to_binary(&TeFiOracleQueryMsg::Price {
-                asset_token: contract_addr.to_string(),
-                timeframe: None,
-            })
-            .unwrap(),
-        }))?;
+    // Get the price of a CW20 asset in uusd (from TeFi oracle hub contract)
+    deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+        contract_addr: config.oracle_addr.to_string(),
+        msg: to_binary(&TeFiOracleQueryMsg::Price {
+            asset_token,
+            timeframe: None,
+        })
+        .unwrap(),
+    }))?;
 
     Ok((res.rate, res.last_updated))
 }
