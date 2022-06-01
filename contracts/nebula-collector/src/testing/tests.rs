@@ -4,7 +4,7 @@ use crate::testing::mock_querier::mock_dependencies;
 use astroport::asset::{Asset, AssetInfo};
 use astroport::pair::{Cw20HookMsg as AstroportCw20HookMsg, ExecuteMsg as AstroportExecuteMsg};
 use cosmwasm_std::testing::{mock_env, mock_info, MOCK_CONTRACT_ADDR};
-use cosmwasm_std::{from_binary, to_binary, Coin, CosmosMsg, Decimal, SubMsg, Uint128, WasmMsg};
+use cosmwasm_std::{from_binary, to_binary, Coin, CosmosMsg, SubMsg, Uint128, WasmMsg};
 use cw2::{get_contract_version, ContractVersion};
 use cw20::Cw20ExecuteMsg;
 use nebula_protocol::collector::{
@@ -44,17 +44,12 @@ fn test_convert() {
         amount: Uint128::new(100u128),
     }]);
     deps.querier.with_token_balances(&[(
-        &"tokenAAPL".to_string(),
+        &"tokenaapl".to_string(),
         &[(&MOCK_CONTRACT_ADDR.to_string(), &Uint128::new(100u128))],
     )]);
 
-    deps.querier.with_tax(
-        Decimal::percent(1),
-        &[(&"uusd".to_string(), &Uint128::new(1000000u128))],
-    );
-
     deps.querier.with_astroport_pairs(&[
-        (&"uusdtokenAAPL".to_string(), &"pairAAPL".to_string()),
+        (&"uusdtokenaapl".to_string(), &"pairAAPL".to_string()),
         (&"uusdtokennebula".to_string(), &"pairnebula".to_string()),
     ]);
 
@@ -70,7 +65,7 @@ fn test_convert() {
     let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
     let msg = ExecuteMsg::Convert {
-        asset_token: "tokenAAPL".to_string(),
+        asset_token: "tokenaapl".to_string(),
     };
 
     let info = mock_info("addr0000", &[]);
@@ -78,7 +73,7 @@ fn test_convert() {
     assert_eq!(
         res.messages,
         vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: "tokenAAPL".to_string(),
+            contract_addr: "tokenaapl".to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Send {
                 contract: "pairAAPL".to_string(),
                 amount: Uint128::new(100u128),
@@ -101,7 +96,6 @@ fn test_convert() {
     let info = mock_info("addr0000", &[]);
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
-    // tax deduct 100 => 99
     assert_eq!(
         res.messages,
         vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -111,7 +105,7 @@ fn test_convert() {
                     info: AssetInfo::NativeToken {
                         denom: "uusd".to_string()
                     },
-                    amount: Uint128::new(99u128),
+                    amount: Uint128::new(100u128),
                 },
                 max_spread: None,
                 belief_price: None,
@@ -119,7 +113,7 @@ fn test_convert() {
             })
             .unwrap(),
             funds: vec![Coin {
-                amount: Uint128::new(99u128),
+                amount: Uint128::new(100u128),
                 denom: "uusd".to_string(),
             }],
         }))]

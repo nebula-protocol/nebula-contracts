@@ -232,9 +232,6 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> Result<Response,
             amount,
         };
 
-        // Deduct tax first
-        let amount = (swap_asset.deduct_tax(&deps.querier)?).amount;
-
         // Execute swap from UST to NEB on Astroport UST-NEB pair contract
         messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: pair_info.contract_addr.to_string(),
