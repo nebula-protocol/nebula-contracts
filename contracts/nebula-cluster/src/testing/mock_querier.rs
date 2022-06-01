@@ -13,8 +13,8 @@ use nebula_protocol::{
     penalty::{PenaltyCreateResponse, PenaltyRedeemResponse, QueryMsg as PenaltyQueryMsg},
 };
 use std::collections::HashMap;
+use std::marker::PhantomData;
 use std::str::FromStr;
-use terra_cosmwasm::*;
 
 const DECIMAL_FRACTIONAL: Uint128 = Uint128::new(1_000_000_000u128);
 pub fn decimal_division(a: Decimal, b: Decimal) -> Decimal {
@@ -147,7 +147,7 @@ pub mod consts {
 }
 
 pub struct WasmMockQuerier {
-    pub base: MockQuerier<TerraQueryWrapper>,
+    pub base: MockQuerier<Empty>,
     pub token_querier: TokenQuerier,     // token balances
     pub balance_querier: BalanceQuerier, // native balances
     pub oracle_querier: OracleQuerier,   // token registered prices
@@ -157,7 +157,7 @@ pub struct WasmMockQuerier {
 impl Querier for WasmMockQuerier {
     fn raw_query(&self, bin_request: &[u8]) -> QuerierResult {
         // MockQuerier doesn't support Custom, so we ignore it completely here
-        let request: QueryRequest<TerraQueryWrapper> = match from_slice(bin_request) {
+        let request: QueryRequest<Empty> = match from_slice(bin_request) {
             Ok(v) => v,
             Err(e) => {
                 return SystemResult::Err(SystemError::InvalidRequest {
@@ -171,29 +171,8 @@ impl Querier for WasmMockQuerier {
 }
 
 impl WasmMockQuerier {
-    pub fn execute_query(&self, request: &QueryRequest<TerraQueryWrapper>) -> QuerierResult {
+    pub fn execute_query(&self, request: &QueryRequest<Empty>) -> QuerierResult {
         match &request {
-            QueryRequest::Custom(TerraQueryWrapper { route, query_data }) => {
-                if route == &TerraRoute::Treasury {
-                    match query_data {
-                        TerraQuery::TaxRate {} => {
-                            let res = TaxRateResponse {
-                                rate: Decimal::zero(),
-                            };
-                            SystemResult::Ok(ContractResult::from(to_binary(&res)))
-                        }
-                        TerraQuery::TaxCap { .. } => {
-                            let res = TaxCapResponse {
-                                cap: Uint128::new(1000000),
-                            };
-                            SystemResult::Ok(ContractResult::from(to_binary(&res)))
-                        }
-                        _ => panic!("Mock querier not implemented"),
-                    }
-                } else {
-                    panic!("Mock querier not implemented")
-                }
-            }
             QueryRequest::Bank(BankQuery::Balance { address, denom }) => {
                 // Do for native
                 let denom_data = match self.balance_querier.balances.get(denom) {
@@ -395,7 +374,7 @@ pub struct OracleQuerier {
 }
 
 impl WasmMockQuerier {
-    pub fn new(base: MockQuerier<TerraQueryWrapper>) -> Self {
+    pub fn new(base: MockQuerier<Empty>) -> Self {
         WasmMockQuerier {
             base,
             token_querier: TokenQuerier::default(),
@@ -497,6 +476,7 @@ pub fn mock_dependencies(
         storage: MockStorage::default(),
         api: MockApi::default(),
         querier: custom_querier,
+        custom_query_type: PhantomData,
     }
 }
 
