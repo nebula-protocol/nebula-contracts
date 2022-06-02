@@ -123,14 +123,14 @@ pub enum ExecuteMsg {
         cluster_contract: String,
         /// assets offerred for minting
         assets: Vec<Asset>,
-        /// minimum returned UST when arbitraging
+        /// minimum returned BASE_DENOM when arbitraging
         min_ust: Option<Uint128>,
     },
     /// ArbClusterRedeem executes arbitrage on Astroport to get CT and perform the redeem operation.
     ArbClusterRedeem {
         /// cluster contract
         cluster_contract: String,
-        /// UST amount
+        /// BASE_DENOM amount
         asset: Asset,
         /// minimum returned cluster tokens when arbitraging
         min_cluster: Option<Uint128>,

@@ -27,6 +27,8 @@ use nebula_protocol::{
 /// - **asset_info** is a reference to an object of type [`AssetInfo`].
 ///
 /// - **stale_threshold** is an object of type [`u64`].
+///
+/// - **quote_denom** is an object of type [`String`].
 pub fn query_price(
     querier: &QuerierWrapper,
     pricing_oracle_address: &Addr,
@@ -34,6 +36,7 @@ pub fn query_price(
     // Prices from before < stale_threshold are considered stale
     // and result in an error
     stale_threshold: u64,
+    quote_denom: &String,
 ) -> StdResult<String> {
     // Perform query
     let res: PriceResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
@@ -41,7 +44,7 @@ pub fn query_price(
         msg: to_binary(&OracleQueryMsg::Price {
             base_asset: asset_info.clone(),
             quote_asset: AssetInfo::NativeToken {
-                denom: "uusd".to_string(),
+                denom: quote_denom.to_string(),
             },
         })?,
     }))?;
@@ -139,6 +142,23 @@ pub fn query_cw20_token_supply(
 }
 
 /// ## Description
+/// Queries the cluster factory config
+///
+/// ## Params
+/// - **querier** is a reference to an object of type [`QuerierWrapper`].
+///
+/// - **factory_address** is a reference to an object of type [`Addr`].
+pub fn query_factory_config(
+    querier: &QuerierWrapper,
+    factory_address: &Addr,
+) -> StdResult<FactoryConfigResponse> {
+    querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+        contract_addr: factory_address.to_string(),
+        msg: to_binary(&FactoryQueryMsg::Config {})?,
+    }))
+}
+
+/// ## Description
 /// Queries the cluster factory contract for the collector contract address
 /// and the current fee rate.
 ///
@@ -150,12 +170,19 @@ pub fn query_collector_contract_address(
     querier: &QuerierWrapper,
     factory_address: &Addr,
 ) -> StdResult<(String, String)> {
-    let res: FactoryConfigResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: factory_address.to_string(),
-        msg: to_binary(&FactoryQueryMsg::Config {})?,
-    }))?;
-
+    let res = query_factory_config(&querier, &factory_address)?;
     Ok((res.commission_collector, res.protocol_fee_rate))
+}
+
+/// ## Description
+/// Queries the cluster factory contract for the base denom
+///
+/// ## Params
+/// - **querier** is a reference to an object of type [`QuerierWrapper`].
+///
+/// - **factory_address** is a reference to an object of type [`Addr`].
+pub fn query_base_denom(querier: &QuerierWrapper, factory_address: &Addr) -> StdResult<String> {
+    Ok(query_factory_config(&querier, &factory_address)?.base_denom)
 }
 
 /// ## Description

@@ -236,7 +236,7 @@ pub fn post_initialize(
 
     let neb_addr = config.nebula_token;
 
-    // Create NEB-UST LP on Astroport
+    // Create NEB-BASE_DENOM LP on Astroport
     astroport_creation_hook(deps, env, neb_addr)
 }
 
@@ -526,7 +526,6 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
         3 => {
             // Get the cluster token address for querying UST-token LP pair
             let cluster_token = read_tmp_asset(deps.storage)?;
-
             // Callback steps after creating a new Astroport pair contract
             astroport_creation_hook(deps, env, cluster_token)
         }
@@ -680,7 +679,7 @@ pub fn cluster_token_creation_hook(
                 })?,
             }),
         ])
-        // Execute `CreatePair` submessage to set up Astroport "UST - cluster token" pair
+        // Execute `CreatePair` submessage to set up Astroport "BASE_DENOM - cluster token" pair
         // with submessage ID as 3 for Reply callback
         .add_submessages(vec![SubMsg {
             msg: WasmMsg::Execute {
@@ -733,7 +732,7 @@ pub fn astroport_creation_hook(
     // Create the pair asset for retrieving the pair info in Astroport
     let asset_infos = [
         AssetInfo::NativeToken {
-            denom: "uusd".to_string(),
+            denom: config.base_denom,
         },
         AssetInfo::Token {
             contract_addr: cluster_token.clone(),
@@ -759,7 +758,7 @@ pub fn astroport_creation_hook(
 
 /// ## Description
 /// Executes distribute operation to distribute Nebula inflation rewards on all LP staking pools
-/// -- "UST - NEB" LP staking pool + "UST - cluster token" LP staking pools.
+/// -- "BASE_DENOM - NEB" LP staking pool + "BASE_DENOM - cluster token" LP staking pools.
 ///
 /// ## Params
 /// - **deps** is an object of type [`DepsMut`].

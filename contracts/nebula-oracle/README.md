@@ -16,7 +16,7 @@ Prices are only considered valid for 60 seconds. If no new prices are published 
 
 - `owner`: address of the owner of the `oracle` contract
 - `oracle_addr`: address of the [TeFi Oracle Hub](https://github.com/terra-money/tefi-oracle-contracts/tree/main/contracts/oracle-hub) contract
-- `base_denom` base denom when calculating prices (`uusd` in real cases)
+- `base_denom` base denom when calculating prices (`TODO` in real cases)
 
 ## ExecuteMsg
 

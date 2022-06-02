@@ -30,7 +30,7 @@ fn init_msg() -> InstantiateMsg {
         custody: ("custody".to_string()),
         astroport_factory: ("astroport_factory".to_string()),
         nebula_token: ("nebula_token".to_string()),
-        base_denom: "uusd".to_string(),
+        base_denom: "uasset".to_string(),
         owner: ("owner0000".to_string()),
     }
 }
@@ -65,7 +65,7 @@ fn proper_initialization() {
             custody: "custody".to_string(),
             nebula_token: "nebula_token".to_string(),
             astroport_factory: "astroport_factory".to_string(),
-            base_denom: "uusd".to_string(),
+            base_denom: "uasset".to_string(),
         }
     );
 
@@ -95,7 +95,7 @@ fn proper_initialization() {
             custody: ("custody".to_string()),
             nebula_token: "nebula_token".to_string(),
             astroport_factory: "astroport_factory".to_string(),
-            base_denom: "uusd".to_string(),
+            base_denom: "uasset".to_string(),
         }
     );
 }
@@ -522,8 +522,8 @@ fn test_incentives_arb_cluster_mint() {
     mock_init(deps.as_mut());
 
     deps.querier.with_astroport_pairs(&[(
-        &"uusdcluster_token".to_string(),
-        &"uusd_cluster_pair".to_string(),
+        &"uassetcluster_token".to_string(),
+        &"uasset_cluster_pair".to_string(),
     )]);
 
     let asset_amounts = vec![
@@ -594,7 +594,7 @@ fn test_incentives_arb_cluster_mint() {
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::_SwapAll {
-                    astroport_pair: Addr::unchecked("uusd_cluster_pair"),
+                    astroport_pair: Addr::unchecked("uasset_cluster_pair"),
                     cluster_token: Addr::unchecked("cluster_token"),
                     to_base_denom: true,
                     min_return: None
@@ -606,7 +606,7 @@ fn test_incentives_arb_cluster_mint() {
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::_RecordAstroportImpact {
                     arbitrageur: info.sender.clone(),
-                    astroport_pair: Addr::unchecked("uusd_cluster_pair"),
+                    astroport_pair: Addr::unchecked("uasset_cluster_pair"),
                     cluster_contract: Addr::unchecked("cluster"),
                     pool_before: AstroportPoolResponse {
                         assets: [
@@ -618,7 +618,7 @@ fn test_incentives_arb_cluster_mint() {
                             },
                             Asset {
                                 info: AssetInfo::NativeToken {
-                                    denom: "uusd".to_string(),
+                                    denom: "uasset".to_string(),
                                 },
                                 amount: Uint128::new(100),
                             },
@@ -633,7 +633,7 @@ fn test_incentives_arb_cluster_mint() {
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::_SendAll {
                     asset_infos: vec![AssetInfo::NativeToken {
-                        denom: "uusd".to_string(),
+                        denom: "uasset".to_string(),
                     }],
                     send_to: info.sender,
                 })
@@ -651,8 +651,8 @@ fn test_incentives_arb_cluster_redeem() {
     mock_init(deps.as_mut());
 
     deps.querier.with_astroport_pairs(&[(
-        &"uusdcluster_token".to_string(),
-        &"uusd_cluster_pair".to_string(),
+        &"uassetcluster_token".to_string(),
+        &"uasset_cluster_pair".to_string(),
     )]);
 
     let msg = ExecuteMsg::ArbClusterRedeem {
@@ -666,7 +666,7 @@ fn test_incentives_arb_cluster_redeem() {
         min_cluster: None,
     };
 
-    let info = mock_info("owner0000", &coins(100, &"uusd".to_string()));
+    let info = mock_info("owner0000", &coins(100, &"uasset".to_string()));
     let env = mock_env();
     let res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap_err();
     assert_eq!(res, ContractError::Generic("Not native token".to_string()));
@@ -675,14 +675,14 @@ fn test_incentives_arb_cluster_redeem() {
         cluster_contract: "cluster".to_string(),
         asset: Asset {
             info: AssetInfo::NativeToken {
-                denom: "uusd".to_string(),
+                denom: "uasset".to_string(),
             },
             amount: Uint128::new(100),
         },
         min_cluster: None,
     };
 
-    let info = mock_info("owner0000", &coins(100, &"uusd".to_string()));
+    let info = mock_info("owner0000", &coins(100, &"uasset".to_string()));
     let env = mock_env();
     let res = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
 
@@ -692,7 +692,7 @@ fn test_incentives_arb_cluster_redeem() {
             SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::_SwapAll {
-                    astroport_pair: Addr::unchecked("uusd_cluster_pair"),
+                    astroport_pair: Addr::unchecked("uasset_cluster_pair"),
                     cluster_token: Addr::unchecked("cluster_token"),
                     to_base_denom: false,
                     min_return: None
@@ -704,7 +704,7 @@ fn test_incentives_arb_cluster_redeem() {
                 contract_addr: env.contract.address.to_string(),
                 msg: to_binary(&ExecuteMsg::_RecordAstroportImpact {
                     arbitrageur: info.sender.clone(),
-                    astroport_pair: Addr::unchecked("uusd_cluster_pair"),
+                    astroport_pair: Addr::unchecked("uasset_cluster_pair"),
                     cluster_contract: Addr::unchecked("cluster"),
                     pool_before: AstroportPoolResponse {
                         assets: [
@@ -716,7 +716,7 @@ fn test_incentives_arb_cluster_redeem() {
                             },
                             Asset {
                                 info: AssetInfo::NativeToken {
-                                    denom: "uusd".to_string(),
+                                    denom: "uasset".to_string(),
                                 },
                                 amount: Uint128::new(100),
                             },
@@ -838,7 +838,7 @@ fn test_swap_all() {
     )]);
 
     deps.querier.with_native_balances(&[(
-        &"uusd".to_string(),
+        &"uasset".to_string(),
         &[(
             &MOCK_CONTRACT_ADDR.to_string(),
             &Uint128::new((1000) as u128),
@@ -926,7 +926,7 @@ fn test_swap_all() {
                 offer_asset: Asset {
                     amount: Uint128::new(1000),
                     info: AssetInfo::NativeToken {
-                        denom: "uusd".to_string()
+                        denom: "uasset".to_string()
                     }
                 },
                 max_spread: Some(Decimal::zero()),
@@ -934,7 +934,7 @@ fn test_swap_all() {
                 to: None,
             })
             .unwrap(),
-            funds: coins(1000, &"uusd".to_string()),
+            funds: coins(1000, &"uasset".to_string()),
         }))]
     );
 
@@ -957,7 +957,7 @@ fn test_swap_all() {
                 offer_asset: Asset {
                     amount: Uint128::new(1000),
                     info: AssetInfo::NativeToken {
-                        denom: "uusd".to_string()
+                        denom: "uasset".to_string()
                     }
                 },
                 max_spread: Some(Decimal::zero()),
@@ -965,7 +965,7 @@ fn test_swap_all() {
                 to: None,
             })
             .unwrap(),
-            funds: coins(1000, &"uusd".to_string()),
+            funds: coins(1000, &"uasset".to_string()),
         }))]
     );
 }
@@ -1224,8 +1224,8 @@ fn test_record_astroport_impact() {
     mock_init(deps.as_mut());
 
     deps.querier.with_astroport_pairs(&[(
-        &"uusdcluster_token".to_string(),
-        &"uusd_cluster_pair".to_string(),
+        &"uassetcluster_token".to_string(),
+        &"uasset_cluster_pair".to_string(),
     )]);
 
     let msg = ExecuteMsg::NewPenaltyPeriod {};
@@ -1235,7 +1235,7 @@ fn test_record_astroport_impact() {
     let msg = ExecuteMsg::_RecordAstroportImpact {
         cluster_contract: Addr::unchecked("cluster"),
         arbitrageur: Addr::unchecked("arbitrageur"),
-        astroport_pair: Addr::unchecked("uusd_cluster_pair"),
+        astroport_pair: Addr::unchecked("uasset_cluster_pair"),
         pool_before: AstroportPoolResponse {
             assets: [
                 Asset {
@@ -1246,7 +1246,7 @@ fn test_record_astroport_impact() {
                 },
                 Asset {
                     info: AssetInfo::NativeToken {
-                        denom: "uusd".to_string(),
+                        denom: "uasset".to_string(),
                     },
                     amount: Uint128::new(1000),
                 },

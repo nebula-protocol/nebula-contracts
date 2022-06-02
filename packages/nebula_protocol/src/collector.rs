@@ -39,7 +39,7 @@ pub enum ExecuteMsg {
     /// USER CALLABLE
     /////////////////////
 
-    /// Convert swaps UST to NEB or any CT token to UST.
+    /// Convert swaps BASE_DENOM to NEB or any CT token to UST.
     Convert { asset_token: String },
     /// Send collected fee/rewards to Governance contract.
     Distribute {},

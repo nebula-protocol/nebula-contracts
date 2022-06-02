@@ -3,7 +3,7 @@ use cosmwasm_std::entry_point;
 
 use cosmwasm_std::{to_binary, Binary, Deps, Env, StdError, StdResult, Uint128};
 
-use crate::ext_query::{query_cw20_token_supply, query_price};
+use crate::ext_query::{query_base_denom, query_cw20_token_supply, query_price};
 use crate::state::{read_asset_balance, read_config, read_target_asset_data};
 use astroport::asset::AssetInfo;
 use nebula_protocol::cluster::{
@@ -114,6 +114,8 @@ pub fn query_cluster_state(
         ));
     }
 
+    let base_denom = query_base_denom(&deps.querier, &cfg.factory)?;
+
     // Get asset prices from the pricing oracle contract
     let prices = asset_infos
         .iter()
@@ -123,6 +125,7 @@ pub fn query_cluster_state(
                 &cfg.pricing_oracle,
                 asset_info,
                 stale_threshold,
+                &base_denom,
             )
         })
         .collect::<StdResult<Vec<String>>>()?;

@@ -161,7 +161,7 @@ Decommissions a specific cluster, disabling all of its functionality execpet for
 
 ### Distribute
 
-Distributes rewards to current Cluster-UST and NEB-UST LP stakers. This is done by calculating the amount of NEB tokens to distribute to each pool's stakers using:
+Distributes rewards to current Cluster-BASE_DENOM and NEB-BASE_DENOM LP stakers. This is done by calculating the amount of NEB tokens to distribute to each pool's stakers using:
 
 - each pool's `weight`:
 - the `distribution_schedule`

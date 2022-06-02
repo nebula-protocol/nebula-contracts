@@ -98,7 +98,7 @@ pub fn instantiate(
 ///             cluster_token,
 ///             to_base_denom,
 ///             min_return,
-///         }** Swaps either all UST to the specified cluster token or vice versa.
+///         }** Swaps either all BASE_DENOM to the specified cluster token or vice versa.
 ///
 /// - **ExecuteMsg::_SendAll {
 ///             asset_infos,
