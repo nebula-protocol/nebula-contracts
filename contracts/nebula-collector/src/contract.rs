@@ -83,7 +83,7 @@ pub fn instantiate(
 ///
 /// - **ExecuteMsg::Convert {
 ///             asset_token,
-///         }** Swaps BASE_DENOM to NEB or any cluster token to UST.
+///         }** Swaps BASE_DENOM to NEB or any cluster token to BASE_DENOM.
 ///
 /// - **ExecuteMsg::Distribute {}** sends all collected fee to the Governance contract.
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -132,7 +132,7 @@ pub fn execute(
 ///     Nebula token contract.
 ///
 /// - **base_denom** is an object of type [`Option<String>`] which is the base denom
-///     for all operations, supposedly UST.
+///     for all operations.
 ///
 /// - **owner** is an object of type [`Option<String>`] which is an owner address to update.
 ///
@@ -186,7 +186,7 @@ pub fn update_config(
 /// ## Description
 /// Swaps the given asset to another. If `asset_token` is
 /// - Nebula token contract, trade all BASE_DENOM in the contract to Nebula tokens.
-/// - Other CT tokens, trade all of those tokens in the contract to UST.
+/// - Other CT tokens, trade all of those tokens in the contract to BASE_DENOM.
 ///
 /// ## Params
 /// - **deps** is an object of type [`DepsMut`].
@@ -232,7 +232,7 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> Result<Response,
             amount,
         };
 
-        // Execute swap from BASE_DENOM to NEB on Astroport UST-NEB pair contract
+        // Execute swap from BASE_DENOM to NEB on Astroport BASE_DENOM-NEB pair contract
         messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: pair_info.contract_addr.to_string(),
             msg: to_binary(&AstroportExecuteMsg::Swap {
@@ -250,7 +250,7 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> Result<Response,
             }],
         })];
     } else {
-        // If the given asset is a CT token, trade the given CT token => UST
+        // If the given asset is a CT token, trade the given CT token => BASE_DENOM
 
         // Query the given CT token balance of the collector contract
         let amount = query_token_balance(

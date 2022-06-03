@@ -524,7 +524,7 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
             )
         }
         3 => {
-            // Get the cluster token address for querying UST-token LP pair
+            // Get the cluster token address for querying BASE_DENOM-token LP pair
             let cluster_token = read_tmp_asset(deps.storage)?;
             // Callback steps after creating a new Astroport pair contract
             astroport_creation_hook(deps, env, cluster_token)

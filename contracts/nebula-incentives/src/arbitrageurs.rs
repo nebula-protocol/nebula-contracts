@@ -47,7 +47,7 @@ pub fn get_pair_info(deps: Deps, cluster_token: &Addr) -> StdResult<PairInfo> {
 
 /// ## Description
 /// Executes the create operation and uses cluster tokens (CT) to arbitrage on Astroport.
-/// #### Assets -> UST
+/// #### Assets -> BASE_DENOM
 /// 1. Mint cluster tokens (CT) from the provided assets
 /// 2. Swap all cluster tokens to BASE_DENOM on Astroport
 /// 3. Record difference / change in Astroport pool before and after the swap
@@ -66,7 +66,7 @@ pub fn get_pair_info(deps: Deps, cluster_token: &Addr) -> StdResult<PairInfo> {
 /// - **assets** is a reference to an array containing objects of type [`Asset`] which is a list
 ///     of assets used to mint cluster tokens for arbitraging.
 ///
-/// - **min_ust** is an object of type [`Option<Uint128>`] which is the minimum return amount
+/// - **min_return** is an object of type [`Option<Uint128>`] which is the minimum return amount
 ///     of BASE_DENOM required when swapping on Astroport.
 pub fn arb_cluster_create(
     deps: DepsMut,
@@ -74,7 +74,7 @@ pub fn arb_cluster_create(
     info: MessageInfo,
     cluster_contract: String,
     assets: &[Asset],
-    min_ust: Option<Uint128>,
+    min_return: Option<Uint128>,
 ) -> Result<Response, ContractError> {
     // Validate address format
     let validated_cluster_contract = deps.api.addr_validate(cluster_contract.as_str())?;
@@ -129,14 +129,14 @@ pub fn arb_cluster_create(
     }));
 
     // Arbitrage on Astroport
-    // Swap all minted cluster tokens to UST
+    // Swap all minted cluster tokens to BASE_DENOM
     messages.push(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: contract.to_string(),
         msg: to_binary(&ExecuteMsg::_SwapAll {
             astroport_pair: pair_info.contract_addr.clone(),
             cluster_token,
             to_base_denom: true, // how about changing this to to_base
-            min_return: min_ust,
+            min_return,
         })?,
         funds: vec![],
     }));
@@ -193,7 +193,7 @@ pub fn arb_cluster_create(
 /// - **cluster_contract** is an object of type [String`] which is the address of
 ///     a cluster contract.
 ///
-/// - **asset** is an object of type [`Asset`] which contains the amount of UST
+/// - **asset** is an object of type [`Asset`] which contains the amount of BASE_DENOM
 ///     used for arbitraging the CT-BASE_DENOM pair.
 ///
 /// - **min_return** is an object of type [`Option<Uint32>`] which is the minimum return amount
@@ -380,7 +380,7 @@ pub fn record_astroport_impact(
         // Cluster token (CT) amount in the Astroport pool
         let amt_ct = FPDecimal::from(sorted_assets[1].amount.u128());
 
-        // Compute the current k = xy = UST_amount * CT_amount
+        // Compute the current k = xy = BASE_DENOM_amount * CT_amount
         let k = amt_denom * amt_ct;
 
         // How much dollars needs to move to set this cluster back into balance?

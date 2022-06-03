@@ -18,7 +18,7 @@ pub struct Config {
     pub owner: Addr,
     /// TeFi oracle hub contract
     pub oracle_addr: Addr,
-    /// Base denom, UST
+    /// Base denom
     pub base_denom: String,
 }
 

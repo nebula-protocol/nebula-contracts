@@ -550,7 +550,7 @@ fn test_incentives_arb_cluster_mint() {
     let msg = ExecuteMsg::ArbClusterCreate {
         cluster_contract: "cluster".to_string(),
         assets: asset_amounts.clone(),
-        min_ust: None,
+        min_return: None,
     };
 
     let info = mock_info("owner0000", &coins(100, &"native_asset0000".to_string()));

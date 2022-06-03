@@ -72,7 +72,7 @@ pub struct ConfigResponse {
     pub owner: String,
     /// TeFi Oracle Hub contract
     pub oracle_addr: String,
-    /// Base denom, UST
+    /// Base denom
     pub base_denom: String,
 }
 

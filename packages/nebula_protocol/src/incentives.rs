@@ -18,7 +18,7 @@ pub struct InstantiateMsg {
     pub astroport_factory: String,
     /// Nebula token contract
     pub nebula_token: String,
-    /// Base denom, UST
+    /// Base denom
     pub base_denom: String,
     /// Owner of the contract
     pub owner: String,
@@ -124,7 +124,7 @@ pub enum ExecuteMsg {
         /// assets offerred for minting
         assets: Vec<Asset>,
         /// minimum returned BASE_DENOM when arbitraging
-        min_ust: Option<Uint128>,
+        min_return: Option<Uint128>,
     },
     /// ArbClusterRedeem executes arbitrage on Astroport to get CT and perform the redeem operation.
     ArbClusterRedeem {
@@ -203,7 +203,7 @@ pub struct ConfigResponse {
     pub astroport_factory: String,
     /// Nebula token contract
     pub nebula_token: String,
-    /// Base denom, UST
+    /// Base denom
     pub base_denom: String,
     /// Owner of the contract
     pub owner: String,

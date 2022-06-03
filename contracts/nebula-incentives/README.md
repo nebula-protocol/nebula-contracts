@@ -100,21 +100,21 @@ Initiates a new incentives penalty period and make the reward from the previous 
 Initiates an arbitrage mint transaction. This comprises of:
 
 - using `assets` to mint new `cluster_contract` cluster tokens
-- selling the minted tokens on Astroport, controlling the slippage with the `min_ust` option
+- selling the minted tokens on Astroport, controlling the slippage with the `min_return` option
 
 ```json
 {
   "arb_cluster_create": {
     "cluster_contract": String,
     "assets": Vec<Asset>,
-    "min_ust": Option<Uint128>
+    "min_return": Option<Uint128>
   }
 }
 ```
 
 - `cluter_contract`: address of the clsuter contract to mint tokens from
 - `assets`: list of assets and amounts to use to mint the cluster tokens
-- `min_ust`: minimum amount of BASE_DENOM expected to receive back when selling the minted cluster tokens on Astroport (for slippage control)
+- `min_return`: minimum amount of BASE_DENOM expected to receive back when selling the minted cluster tokens on Astroport (for slippage control)
 
 ### ArbClusterRedeem
 

@@ -105,7 +105,7 @@ pub fn execute(
 /// - **oracle_addr** is an object of type [`Option<String>`] which is an address
 ///     of a TeFi oracle hub contract.
 ///
-/// - **base_denom** is an object of type [`Option<String>`] which is a base denom, UST.
+/// - **base_denom** is an object of type [`Option<String>`] which is a base denom.
 ///
 /// ## Executor
 /// Only the owner can execute this.

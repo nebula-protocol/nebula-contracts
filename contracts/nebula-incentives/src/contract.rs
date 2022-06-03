@@ -136,7 +136,7 @@ pub fn instantiate(
 /// - **ExecuteMsg::ArbClusterCreate {
 ///             cluster_contract,
 ///             assets,
-///             min_ust,
+///             min_return,
 ///         } ** Executes the create operation and uses CT to arbitrage on Astroport.
 ///
 /// - **ExecuteMsg::ArbClusterRedeem {
@@ -245,8 +245,8 @@ pub fn execute(
         ExecuteMsg::ArbClusterCreate {
             cluster_contract,
             assets,
-            min_ust,
-        } => arb_cluster_create(deps, env, info, cluster_contract, &assets, min_ust),
+            min_return,
+        } => arb_cluster_create(deps, env, info, cluster_contract, &assets, min_return),
         ExecuteMsg::ArbClusterRedeem {
             cluster_contract,
             asset,
