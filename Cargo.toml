@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "contracts/nebula-admin-manager",
   "contracts/nebula-airdrop",
   "contracts/nebula-cluster",
   "contracts/nebula-cluster-factory",

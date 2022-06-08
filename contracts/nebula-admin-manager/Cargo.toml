@@ -1,0 +1,34 @@
+[package]
+name = "nebula-admin-manager"
+version = "1.0.0"
+authors = ["Nebula Protocol <engineering@neb.finance>"]
+edition = "2018"
+
+exclude = [
+  # Those files are rust-optimizer artifacts. You might want to commit them for convenience but they should not be part of the source code publication.
+  "contract.wasm",
+  "hash.txt",
+]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# for more explicit tests, cargo test --features=backtraces
+backtraces = ["cosmwasm-std/backtraces"]
+
+[dependencies]
+cosmwasm-std = { version = "1.0.0", default-features = false }
+cosmwasm-storage = { version = "1.0.0", default-features = false, features = ["iterator"] }
+cw-storage-plus = { version = "0.13.4" }
+schemars = "0.8.1"
+serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+nebula-protocol = { version = "1.0.0", path = "../../packages/nebula_protocol" }
+thiserror = { version = "1.0.30" }
+cw2 = { version = "0.13.4" }
+
+[dev-dependencies]
+# cosmwasm-vm = { version = "0.16.0", default-features = false }
+cosmwasm-schema = "1.0.0"
