@@ -11,13 +11,13 @@ mod tests {
         MigrationItem, MigrationRecordResponse, MigrationRecordsResponse, QueryMsg,
     };
 
-    fn mock_env_with_block_time(time: u64) -> Env {
+    fn mock_env_with_block_height(height: u64) -> Env {
         let env = mock_env();
-        // register time
+        // register height
         Env {
             block: BlockInfo {
-                height: 1,
-                time: Timestamp::from_seconds(time),
+                height,
+                time: Timestamp::from_seconds(10000000u64),
                 chain_id: "phoenix-1".to_string(),
             },
             ..env
@@ -143,7 +143,7 @@ mod tests {
             MigrationRecordsResponse {
                 records: vec![MigrationRecordResponse {
                     executor: "owner0000".to_string(),
-                    time: mock_env().block.time.seconds(),
+                    height: mock_env().block.height,
                     migrations: vec![
                         MigrationItem {
                             contract: "contract0000".to_string(),
@@ -182,7 +182,7 @@ mod tests {
 
         // successful attempt
         let info = mock_info("owner0000", &[]);
-        let env = mock_env_with_block_time(10u64);
+        let env = mock_env_with_block_height(10u64);
         let res = execute(deps.as_mut(), env, info, msg).unwrap();
         assert_eq!(
             res.attributes,
@@ -211,8 +211,8 @@ mod tests {
             AuthRecordsResponse {
                 records: vec![AuthRecordResponse {
                     address: "auth0000".to_string(),
-                    start_time: 10u64,
-                    end_time: 110u64,
+                    start_height: 10u64,
+                    end_height: 110u64,
                 }]
             }
         );
@@ -233,7 +233,7 @@ mod tests {
         };
 
         let info = mock_info("owner0000", &[]);
-        let env = mock_env_with_block_time(10u64);
+        let env = mock_env_with_block_height(10u64);
         execute(deps.as_mut(), env, info, msg).unwrap();
 
         let msg = ExecuteMsg::ClaimAdmin {
@@ -247,12 +247,12 @@ mod tests {
 
         // claim after claim_end, expect an unauthorized error
         let info = mock_info("auth0000", &[]);
-        let env = mock_env_with_block_time(111u64);
+        let env = mock_env_with_block_height(111u64);
         let err = execute(deps.as_mut(), env, info.clone(), msg.clone()).unwrap_err();
         assert_eq!(err, ContractError::Unauthorized {});
 
         // successful attempt
-        let env = mock_env_with_block_time(109u64);
+        let env = mock_env_with_block_height(109u64);
         let res = execute(deps.as_mut(), env, info, msg).unwrap();
         assert_eq!(
             res.attributes,
@@ -284,19 +284,19 @@ mod tests {
             authorized_addr: "auth0000".to_string(),
         };
         let info = mock_info("owner0000", &[]);
-        let env = mock_env_with_block_time(10u64);
+        let env = mock_env_with_block_height(10u64);
         execute(deps.as_mut(), env, info.clone(), msg).unwrap();
 
         let msg = ExecuteMsg::AuthorizeClaim {
             authorized_addr: "auth0001".to_string(),
         };
-        let env = mock_env_with_block_time(20u64);
+        let env = mock_env_with_block_height(20u64);
         execute(deps.as_mut(), env, info.clone(), msg).unwrap();
 
         let msg = ExecuteMsg::AuthorizeClaim {
             authorized_addr: "auth0002".to_string(),
         };
-        let env = mock_env_with_block_time(30u64);
+        let env = mock_env_with_block_height(30u64);
         execute(deps.as_mut(), env, info, msg).unwrap();
 
         let res: AuthRecordsResponse = from_binary(
@@ -317,18 +317,18 @@ mod tests {
                 records: vec![
                     AuthRecordResponse {
                         address: "auth0002".to_string(),
-                        start_time: 30u64,
-                        end_time: 130u64,
+                        start_height: 30u64,
+                        end_height: 130u64,
                     },
                     AuthRecordResponse {
                         address: "auth0001".to_string(),
-                        start_time: 20u64,
-                        end_time: 120u64,
+                        start_height: 20u64,
+                        end_height: 120u64,
                     },
                     AuthRecordResponse {
                         address: "auth0000".to_string(),
-                        start_time: 10u64,
-                        end_time: 110u64,
+                        start_height: 10u64,
+                        end_height: 110u64,
                     }
                 ]
             }
@@ -351,8 +351,8 @@ mod tests {
             AuthRecordsResponse {
                 records: vec![AuthRecordResponse {
                     address: "auth0001".to_string(),
-                    start_time: 20u64,
-                    end_time: 120u64,
+                    start_height: 20u64,
+                    end_height: 120u64,
                 },]
             }
         );
@@ -376,7 +376,7 @@ mod tests {
             )],
         };
         let info = mock_info("owner0000", &[]);
-        let env = mock_env_with_block_time(10u64);
+        let env = mock_env_with_block_height(10u64);
         execute(deps.as_mut(), env, info.clone(), msg).unwrap();
 
         let msg = ExecuteMsg::ExecuteMigrations {
@@ -386,7 +386,7 @@ mod tests {
                 to_binary(&Empty {}).unwrap(),
             )],
         };
-        let env = mock_env_with_block_time(20u64);
+        let env = mock_env_with_block_height(20u64);
         execute(deps.as_mut(), env, info.clone(), msg).unwrap();
 
         let msg = ExecuteMsg::ExecuteMigrations {
@@ -396,7 +396,7 @@ mod tests {
                 to_binary(&Empty {}).unwrap(),
             )],
         };
-        let env = mock_env_with_block_time(30u64);
+        let env = mock_env_with_block_height(30u64);
         execute(deps.as_mut(), env, info, msg).unwrap();
 
         let res: MigrationRecordsResponse = from_binary(
@@ -417,7 +417,7 @@ mod tests {
                 records: vec![
                     MigrationRecordResponse {
                         executor: "owner0000".to_string(),
-                        time: 30u64,
+                        height: 30u64,
                         migrations: vec![MigrationItem {
                             contract: "contract0002".to_string(),
                             new_code_id: 14u64,
@@ -426,7 +426,7 @@ mod tests {
                     },
                     MigrationRecordResponse {
                         executor: "owner0000".to_string(),
-                        time: 20u64,
+                        height: 20u64,
                         migrations: vec![MigrationItem {
                             contract: "contract0001".to_string(),
                             new_code_id: 13u64,
@@ -435,7 +435,7 @@ mod tests {
                     },
                     MigrationRecordResponse {
                         executor: "owner0000".to_string(),
-                        time: 10u64,
+                        height: 10u64,
                         migrations: vec![MigrationItem {
                             contract: "contract0000".to_string(),
                             new_code_id: 12u64,
@@ -463,7 +463,7 @@ mod tests {
             MigrationRecordsResponse {
                 records: vec![MigrationRecordResponse {
                     executor: "owner0000".to_string(),
-                    time: 20u64,
+                    height: 20u64,
                     migrations: vec![MigrationItem {
                         contract: "contract0001".to_string(),
                         new_code_id: 13u64,

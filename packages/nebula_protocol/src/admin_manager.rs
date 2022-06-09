@@ -58,14 +58,14 @@ pub enum QueryMsg {
     Config {},
     /// MigrationRecords returns the history of [`ExecuteMsg::ExecuteMigrations`] records.
     MigrationRecords {
-        /// Optional timestamp in seconds to return the migration history from
+        /// Optional block height to return the migration history from
         start_after: Option<u64>,
         /// Optional max number of migration records to return
         limit: Option<u32>,
     },
     /// AuthRecords returns the history of [`ExecuteMsg::AuthorizeClaim`] transactions
     AuthRecords {
-        /// Optional timestamp in seconds to return the migration history from
+        /// Optional block height to return the migration history from
         start_after: Option<u64>,
         /// Optional max number of migration records to return
         limit: Option<u32>,
@@ -89,10 +89,10 @@ pub struct ConfigResponse {
 pub struct AuthRecordResponse {
     /// Address of an authorized account
     pub address: String,
-    /// Start time of the authorized period
-    pub start_time: u64,
-    /// End time of the authorized period
-    pub end_time: u64,
+    /// Start block height of the authorized period
+    pub start_height: u64,
+    /// End block height of the authorized period
+    pub end_height: u64,
 }
 
 /// ## Description
@@ -122,8 +122,8 @@ pub struct MigrationItem {
 pub struct MigrationRecordResponse {
     /// Address of an executor
     pub executor: String,
-    /// Timestamp in seconds of the execution
-    pub time: u64,
+    /// Block height of the execution
+    pub height: u64,
     /// A list of migrations and their details in the execution
     pub migrations: Vec<MigrationItem>,
 }

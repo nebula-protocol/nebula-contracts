@@ -3,8 +3,8 @@ use cosmwasm_std::entry_point;
 
 use crate::error::ContractError;
 use crate::state::{
-    is_addr_authorized, AuthRecord, Config, MigrationRecord, AUTH_LIST, AUTH_RECORDS_BY_TIME,
-    CONFIG, MIGRATION_RECORDS_BY_TIME,
+    is_addr_authorized, AuthRecord, Config, MigrationRecord, AUTH_LIST, AUTH_RECORDS_BY_HEIGHT,
+    CONFIG, MIGRATION_RECORDS_BY_HEIGHT,
 };
 
 use cosmwasm_std::{
@@ -114,13 +114,13 @@ pub fn try_execute_migrations(
     }
 
     let number_of_migrations = migration_msgs.len();
-    let current_block_time = env.block.time.seconds();
+    let current_block_height = env.block.height;
     let migration_record = MigrationRecord {
         executor: info.sender,
-        time: current_block_time,
+        height: current_block_height,
         migrations: migrations_raw,
     };
-    MIGRATION_RECORDS_BY_TIME.save(deps.storage, current_block_time, &migration_record)?;
+    MIGRATION_RECORDS_BY_HEIGHT.save(deps.storage, current_block_height, &migration_record)?;
 
     Ok(Response::new()
         .add_messages(migration_msgs)
@@ -143,16 +143,16 @@ pub fn try_authorize_claim(
     }
 
     let validated_authorized_addr = deps.api.addr_validate(authorized_addr.as_str())?;
-    let claim_start = env.block.time.seconds();
+    let claim_start = env.block.height;
     let claim_end = claim_start + config.admin_claim_period;
 
     let record = AuthRecord {
         address: validated_authorized_addr.clone(),
-        start_time: claim_start,
-        end_time: claim_end,
+        start_height: claim_start,
+        end_height: claim_end,
     };
     AUTH_LIST.save(deps.storage, validated_authorized_addr, &claim_end)?;
-    AUTH_RECORDS_BY_TIME.save(deps.storage, claim_start, &record)?;
+    AUTH_RECORDS_BY_HEIGHT.save(deps.storage, claim_start, &record)?;
 
     Ok(Response::new().add_attributes(vec![
         attr("action", "authorize_claim"),
@@ -170,7 +170,7 @@ pub fn try_claim_admin(
 ) -> Result<Response, ContractError> {
     let validated_contract = deps.api.addr_validate(contract.as_str())?;
 
-    if !is_addr_authorized(deps.storage, info.sender.clone(), env.block.time.seconds()) {
+    if !is_addr_authorized(deps.storage, info.sender.clone(), env.block.height) {
         return Err(ContractError::Unauthorized {});
     }
 
@@ -217,7 +217,7 @@ pub fn query_auth_records(
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
     let end = start_after.map(Bound::exclusive);
 
-    let records = AUTH_RECORDS_BY_TIME
+    let records = AUTH_RECORDS_BY_HEIGHT
         .range(deps.storage, None, end, Order::Descending)
         .take(limit)
         .map(|item| {
@@ -225,8 +225,8 @@ pub fn query_auth_records(
 
             Ok(AuthRecordResponse {
                 address: record.address.to_string(),
-                start_time: record.start_time,
-                end_time: record.end_time,
+                start_height: record.start_height,
+                end_height: record.end_height,
             })
         })
         .collect::<Result<Vec<AuthRecordResponse>, ContractError>>()?;
@@ -242,7 +242,7 @@ pub fn query_migration_records(
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
     let end = start_after.map(Bound::exclusive);
 
-    let records = MIGRATION_RECORDS_BY_TIME
+    let records = MIGRATION_RECORDS_BY_HEIGHT
         .range(deps.storage, None, end, Order::Descending)
         .take(limit)
         .map(|item| {
@@ -262,7 +262,7 @@ pub fn query_migration_records(
 
             Ok(MigrationRecordResponse {
                 executor: record.executor.to_string(),
-                time: record.time,
+                height: record.height,
                 migrations: migration_items,
             })
         })
