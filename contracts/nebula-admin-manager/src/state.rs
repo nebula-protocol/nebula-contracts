@@ -12,9 +12,13 @@ pub const AUTH_LIST: Map<Addr, u64> = Map::new("auth_list");
 /// CONFIG
 //////////////////////////////////////////////////////////////////////
 
+/// ## Description
+/// This structure holds the admin manager contract parameters
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct Config {
+    /// Owner of the admin manager contract
     pub owner: Addr,
+    /// The duration of admin privilege delegation to a defined address when `AuthorizeClaim` occurs.
     pub admin_claim_period: u64,
 }
 
@@ -22,10 +26,15 @@ pub struct Config {
 /// AUTH RECORD
 //////////////////////////////////////////////////////////////////////
 
+/// ## Description
+/// This structure holds an address and its related authorization block height.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct AuthRecord {
+    /// Address of an authorized account
     pub address: Addr,
+    /// Start block height of the authorized period
     pub start_height: u64,
+    /// End block height of the authorized period
     pub end_height: u64,
 }
 
@@ -40,9 +49,15 @@ pub fn is_addr_authorized(storage: &dyn Storage, address: Addr, current_height: 
 /// MIGRATION RECORD
 //////////////////////////////////////////////////////////////////////
 
+/// ## Description
+/// This structure holds records for each `ExecuteMigrations` execution.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct MigrationRecord {
+    /// Address of the transaction executor
     pub executor: Addr,
+    /// Block height of the execution
     pub height: u64,
+    /// A list of migrations and their details in the execution.
+    /// Each tuple contains (contract_address, code_id, MigrateMsg)
     pub migrations: Vec<(Addr, u64, Binary)>,
 }

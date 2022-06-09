@@ -23,9 +23,24 @@ const CONTRACT_NAME: &str = "nebula-admin-manager";
 /// Contract version that is used for migration.
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// Maximum number of entries to be returned in a single query.
 const MAX_LIMIT: u32 = 30;
+/// Default number of entries to be returned in a single query.
 const DEFAULT_LIMIT: u32 = 10;
 
+/// ## Description
+/// Creates a new contract with the specified parameters in the [`InstantiateMsg`].
+/// Returns the [`Response`] with the specified attributes if the operation was successful, or a [`ContractError`] if
+/// the contract was not created.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **_env** is an object of type [`Env`].
+///
+/// - **_info** is an object of type [`MessageInfo`].
+///
+/// - **msg** is a message of type [`InstantiateMsg`] which contains the basic settings for creating a contract.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
     deps: DepsMut,
@@ -45,6 +60,34 @@ pub fn instantiate(
     Ok(Response::default())
 }
 
+/// ## Description
+/// Exposes all the execute functions available in the contract.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **_env** is an object of type [`Env`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **msg** is an object of type [`ExecuteMsg`].
+///
+/// ## Commands
+/// - **ExecuteMsg::UpdateOwner {
+///             owner,
+///         }** Updates the owner address of the admin manager contract.
+///
+/// - **ExecuteMsg::ExecuteMigrations {
+///             migrations,
+///         }** Migrates the specified contracts to the new code_ids.
+///
+/// - **ExecuteMsg::AuthorizeClaim {
+///             authorized_addr,
+///         }** Delegates admin privileges to migrate contracts to a specified address.
+///
+/// - **ExecuteMsg::ClaimAdmin {
+///             contract,
+///         }** Claims the rights to the admin role.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
@@ -64,6 +107,18 @@ pub fn execute(
     }
 }
 
+/// ## Description
+/// Updates the owner address of the admin manager contract. Returns a [`ContractError`] on failure.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **owner** is an object of type [`String`] which is a new owner address to update.
+///
+/// ## Executor
+/// Only the owner can execute this.
 pub fn try_update_owner(
     deps: DepsMut,
     info: MessageInfo,
@@ -86,6 +141,21 @@ pub fn try_update_owner(
     ]))
 }
 
+/// ## Description
+/// Migrates the specified contracts to the new code_ids. Returns a [`ContractError`] on failure.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **env** is an object of type [`Env`].
+///
+/// - **migrations** is an object of type [`Vec<(String, u64, Binary)>`] which is a list of migrations to be executed.
+///     Each tuple contains (contract_address, code_id, MigrateMsg).
+///
+/// ## Executor
+/// Only the owner can execute this.
 pub fn try_execute_migrations(
     deps: DepsMut,
     info: MessageInfo,
@@ -130,6 +200,20 @@ pub fn try_execute_migrations(
         ]))
 }
 
+/// ## Description
+/// Delegates admin privileges to migrate contracts to a specified address. Returns a [`ContractError`] on failure.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **env** is an object of type [`Env`].
+///
+/// - **authorized_addr** is an object of type [`String`] which is an address to temporarily delegate the admin privilege to.
+///
+/// ## Executor
+/// Only the owner can execute this.
 pub fn try_authorize_claim(
     deps: DepsMut,
     info: MessageInfo,
@@ -162,6 +246,17 @@ pub fn try_authorize_claim(
     ]))
 }
 
+/// ## Description
+/// Claims the rights to the admin role. Returns a [`ContractError`] on failure.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **env** is an object of type [`Env`].
+///
+/// - **contract** is an object of type [`String`] which is an address of contract that the user will have the rights to migrate.
 pub fn try_claim_admin(
     deps: DepsMut,
     info: MessageInfo,
@@ -185,6 +280,28 @@ pub fn try_claim_admin(
         ]))
 }
 
+/// ## Description
+/// Exposes all the queries available in the contract.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
+///
+/// - **_env** is an object of type [`Env`].
+///
+/// - **msg** is an object of type [`QueryMsg`].
+///
+/// ## Commands
+/// - **QueryMsg::Config {}** Returns general contract parameters using a custom [`ConfigResponse`] structure.
+///
+/// - **QueryMsg::AuthRecords {
+///             start_after,
+///             limit
+///         }** Returns the history of [`ExecuteMsg::AuthorizeClaim`] transactions.
+///
+/// - **QueryMsg::MigrationRecords {
+///             start_after,
+///             limit
+///         }** Returns the history of [`ExecuteMsg::ExecuteMigrations`] records.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractError> {
     let res = match msg {
@@ -200,6 +317,11 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> Result<Binary, ContractErr
     res.map_err(|err| err.into())
 }
 
+/// ## Description
+/// Returns general contract parameters using a custom [`ConfigResponse`] structure.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
 pub fn query_config(deps: Deps) -> Result<ConfigResponse, ContractError> {
     let config = CONFIG.load(deps.storage)?;
 
@@ -209,6 +331,15 @@ pub fn query_config(deps: Deps) -> Result<ConfigResponse, ContractError> {
     })
 }
 
+/// ## Description
+/// Returns the history of [`ExecuteMsg::AuthorizeClaim`] transactions.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
+///
+/// - **start_after** is an object of type [`Option<u64>`].
+///
+/// - **limit** is an object of type [`Option<u32>`].
 pub fn query_auth_records(
     deps: Deps,
     start_after: Option<u64>,
@@ -234,6 +365,15 @@ pub fn query_auth_records(
     Ok(AuthRecordsResponse { records })
 }
 
+/// ## Description
+/// Returns the history of [`ExecuteMsg::ExecuteMigrations`] records.
+///
+/// ## Params
+/// - **deps** is an object of type [`Deps`].
+///
+/// - **start_after** is an object of type [`Option<u64>`].
+///
+/// - **limit** is an object of type [`Option<u32>`].
 pub fn query_migration_records(
     deps: Deps,
     start_after: Option<u64>,

@@ -84,7 +84,7 @@ pub struct ConfigResponse {
 }
 
 /// ## Description
-/// A custom struct for an address and its related authorization timestamp.
+/// A custom struct for an address and its related authorization block height.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct AuthRecordResponse {
     /// Address of an authorized account
@@ -100,7 +100,7 @@ pub struct AuthRecordResponse {
 /// in a custom [`AuthRecordResponse`] structure.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct AuthRecordsResponse {
-    /// A list of an address and its related authorization timestamp
+    /// A list of an address and its related authorization block height
     pub records: Vec<AuthRecordResponse>,
 }
 
