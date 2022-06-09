@@ -10,6 +10,7 @@ These contracts hold the core logic of the base protocol.
 
 | Contract                                                        | Description                                                                    |
 | --------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [`nebula-admin-manager`](./contracts/nebula-admin-manager/)     | Responsible for executing contract migrations and admin role transfers         |
 | [`nebula-airdrop`](./contracts/nebula-airdrop/)                 | Logic for NEB airdrop to LUNA stakers                                          |
 | [`nebula-cluster`](./contracts/nebula-cluster/)                 | Logic for mechanisms of individual clusters                                    |
 | [`nebula-cluster-factory`](./contracts/nebula-cluster-factory/) | Defines procedure for creating new Clusters                                    |

@@ -65,9 +65,9 @@ pub enum QueryMsg {
     },
     /// AuthRecords returns the history of [`ExecuteMsg::AuthorizeClaim`] transactions
     AuthRecords {
-        /// Optional block height to return the migration history from
+        /// Optional block height to return the auth history from
         start_after: Option<u64>,
-        /// Optional max number of migration records to return
+        /// Optional max number of auth records to return
         limit: Option<u32>,
     },
 }
