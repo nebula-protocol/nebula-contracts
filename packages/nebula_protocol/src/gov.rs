@@ -12,20 +12,16 @@ use crate::common::OrderBy;
 pub struct InstantiateMsg {
     /// Nebula token address
     pub nebula_token: String,
-    /// Poll quorum, threshold for votes in a poll for to be effecive
-    pub quorum: Decimal,
-    /// Threshold for a poll to pass
-    pub threshold: Decimal,
-    /// Voting period for each poll
-    pub voting_period: u64,
     /// Delay before a poll is executed after the poll passes
     pub effective_delay: u64,
-    /// Required amount for an initial deposit
-    pub proposal_deposit: Uint128,
+    pub default_poll_config: PollConfig,
+    pub migration_poll_config: PollConfig,
+    pub auth_admin_poll_config: PollConfig,
     /// Reward ratio for voters, 0-1
     pub voter_weight: Decimal,
-    /// Period allowed for a poll snaphost
+    /// Period allowed for a poll snapshot
     pub snapshot_period: u64,
+    pub admin_manager: String,
 }
 
 /// ## Description
@@ -44,20 +40,16 @@ pub enum ExecuteMsg {
     UpdateConfig {
         /// address to claim the contract ownership
         owner: Option<String>,
-        /// quorum to update
-        quorum: Option<Decimal>,
-        /// threshold for a poll to pass
-        threshold: Option<Decimal>,
-        /// voting period
-        voting_period: Option<u64>,
         /// delay before a poll is executed
         effective_delay: Option<u64>,
-        /// required amount for an initial deposit
-        proposal_deposit: Option<Uint128>,
+        default_poll_config: Option<PollConfig>,
+        migration_poll_config: Option<PollConfig>,
+        auth_admin_poll_config: Option<PollConfig>,
         /// reward ratio for voters, 0-1
         voter_weight: Option<Decimal>,
         /// period allowed for a poll snapshot
         snapshot_period: Option<u64>,
+        admin_manager: Option<String>,
     },
 
     /////////////////////
@@ -123,6 +115,7 @@ pub enum Cw20HookMsg {
         link: Option<String>,
         /// poll execute message
         execute_msgs: Option<Vec<PollExecuteMsg>>,
+        admin_action: Option<PollAdminAction>,
     },
     /// DepositReward adds rewards to be distributed among stakers and voters.
     DepositReward {},
@@ -137,6 +130,40 @@ pub struct PollExecuteMsg {
     pub contract: String,
     /// Message to be executed
     pub msg: Binary,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct PollConfig {
+    pub proposal_deposit: Uint128,
+    pub voting_period: u64,
+    pub quorum: Decimal,
+    pub threshold: Decimal,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[allow(clippy::large_enum_variant)]
+pub enum PollAdminAction {
+    /// Updates migration manager owner
+    UpdateOwner { owner: String },
+    /// Executes a set of migrations. The poll can be executes as soon as it reaches the quorum and threshold
+    ExecuteMigrations {
+        migrations: Vec<(String, u64, Binary)>,
+    },
+    /// Transfer admin privileges over Mirror contracts to the authorized_addr
+    AuthorizeClaim { authorized_addr: String },
+    /// Updates Governance contract configuration
+    UpdateConfig {
+        owner: Option<String>,
+        effective_delay: Option<u64>,
+        default_poll_config: Option<PollConfig>,
+        migration_poll_config: Option<PollConfig>,
+        auth_admin_poll_config: Option<PollConfig>,
+        voter_weight: Option<Decimal>,
+        snapshot_period: Option<u64>,
+        admin_manager: Option<String>,
+    },
 }
 
 /// ## Description
@@ -206,20 +233,16 @@ pub struct ConfigResponse {
     pub owner: String,
     /// Nebula token contract address
     pub nebula_token: String,
-    /// Poll quorum, threshold for votes in a poll for to be effecive
-    pub quorum: Decimal,
-    /// Threshold for a poll to pass
-    pub threshold: Decimal,
-    /// Voting period for each poll
-    pub voting_period: u64,
     /// Delay before a poll is executed after the poll passes
     pub effective_delay: u64,
-    /// Required amount for an initial deposit
-    pub proposal_deposit: Uint128,
+    pub default_poll_config: PollConfig,
+    pub migration_poll_config: PollConfig,
+    pub auth_admin_poll_config: PollConfig,
     /// Reward ratio for voters, 0-1
     pub voter_weight: Decimal,
     /// Period allowed for a poll snaphost
     pub snapshot_period: u64,
+    pub admin_manager: String,
 }
 
 /// ## Description
@@ -270,6 +293,7 @@ pub struct PollResponse {
     pub voters_reward: Uint128,
     /// Snapshot staked amount
     pub staked_amount: Option<Uint128>,
+    pub admin_action: Option<PollAdminAction>,
 }
 
 /// ## Description

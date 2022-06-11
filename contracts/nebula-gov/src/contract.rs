@@ -22,9 +22,9 @@ use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
 
 use nebula_protocol::common::OrderBy;
 use nebula_protocol::gov::{
-    ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, PollExecuteMsg,
-    PollResponse, PollStatus, PollsResponse, QueryMsg, StateResponse, VoteOption, VoterInfo,
-    VotersResponse, VotersResponseItem,
+    ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, PollAdminAction,
+    PollConfig, PollExecuteMsg, PollResponse, PollStatus, PollsResponse, QueryMsg, StateResponse,
+    VoteOption, VoterInfo, VotersResponse, VotersResponseItem,
 };
 
 /// Contract name that is used for migration.
@@ -72,23 +72,23 @@ pub fn instantiate(
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    // Validate values to be between 0-1
-    validate_quorum(msg.quorum)?;
-    validate_threshold(msg.threshold)?;
+    validate_poll_config(&msg.default_poll_config)?;
+    validate_poll_config(&msg.migration_poll_config)?;
+    validate_poll_config(&msg.auth_admin_poll_config)?;
     validate_voter_weight(msg.voter_weight)?;
 
     // Populate the contract setting from the message
     let config = Config {
         nebula_token: deps.api.addr_validate(msg.nebula_token.as_str())?,
         owner: info.sender,
-        quorum: msg.quorum,
-        threshold: msg.threshold,
-        voting_period: msg.voting_period,
         effective_delay: msg.effective_delay,
+        default_poll_config: msg.default_poll_config,
+        migration_poll_config: msg.migration_poll_config,
+        auth_admin_poll_config: msg.auth_admin_poll_config,
         expiration_period: 0u64, // deprecated
-        proposal_deposit: msg.proposal_deposit,
         voter_weight: msg.voter_weight,
         snapshot_period: msg.snapshot_period,
+        admin_manager: deps.api.addr_validate(msg.admin_manager.as_str())?,
     };
 
     // Initialize the contract state
@@ -172,24 +172,24 @@ pub fn execute(
         ExecuteMsg::Receive(msg) => receive_cw20(deps, env, info, msg),
         ExecuteMsg::UpdateConfig {
             owner,
-            quorum,
-            threshold,
-            voting_period,
             effective_delay,
-            proposal_deposit,
+            default_poll_config,
+            migration_poll_config,
+            auth_admin_poll_config,
             voter_weight,
             snapshot_period,
+            admin_manager,
         } => update_config(
             deps,
             info,
             owner,
-            quorum,
-            threshold,
-            voting_period,
             effective_delay,
-            proposal_deposit,
+            default_poll_config,
+            migration_poll_config,
+            auth_admin_poll_config,
             voter_weight,
             snapshot_period,
+            admin_manager,
         ),
         ExecuteMsg::WithdrawVotingTokens { amount } => withdraw_voting_tokens(deps, info, amount),
         ExecuteMsg::WithdrawVotingRewards { poll_id } => {
@@ -243,6 +243,7 @@ pub fn receive_cw20(
             description,
             link,
             execute_msgs,
+            admin_action,
         }) => create_poll(
             deps,
             env,
@@ -252,6 +253,7 @@ pub fn receive_cw20(
             description,
             link,
             execute_msgs,
+            admin_action,
         ),
         // If `DepositReward`, deposits a reward to stakers and in-progress polls
         Ok(Cw20HookMsg::DepositReward {}) => deposit_reward(deps, cw20_msg.amount),
@@ -322,13 +324,13 @@ pub fn update_config(
     deps: DepsMut,
     info: MessageInfo,
     owner: Option<String>,
-    quorum: Option<Decimal>,
-    threshold: Option<Decimal>,
-    voting_period: Option<u64>,
     effective_delay: Option<u64>,
-    proposal_deposit: Option<Uint128>,
+    default_poll_config: Option<PollConfig>,
+    migration_poll_config: Option<PollConfig>,
+    auth_admin_poll_config: Option<PollConfig>,
     voter_weight: Option<Decimal>,
     snapshot_period: Option<u64>,
+    admin_manager: Option<String>,
 ) -> Result<Response, ContractError> {
     let api = deps.api;
     config_store(deps.storage).update(|mut config| {
@@ -342,28 +344,23 @@ pub fn update_config(
             config.owner = api.addr_validate(owner.as_str())?;
         }
 
-        if let Some(quorum) = quorum {
-            // Validate value to be between 0-1
-            validate_quorum(quorum)?;
-            config.quorum = quorum;
-        }
-
-        if let Some(threshold) = threshold {
-            // Validate value to be between 0-1
-            validate_threshold(threshold)?;
-            config.threshold = threshold;
-        }
-
-        if let Some(voting_period) = voting_period {
-            config.voting_period = voting_period;
-        }
-
         if let Some(effective_delay) = effective_delay {
             config.effective_delay = effective_delay;
         }
 
-        if let Some(proposal_deposit) = proposal_deposit {
-            config.proposal_deposit = proposal_deposit;
+        if let Some(default_poll_config) = default_poll_config {
+            validate_poll_config(&default_poll_config)?;
+            config.default_poll_config = default_poll_config;
+        }
+
+        if let Some(migration_poll_config) = migration_poll_config {
+            validate_poll_config(&migration_poll_config)?;
+            config.migration_poll_config = migration_poll_config;
+        }
+
+        if let Some(auth_admin_poll_config) = auth_admin_poll_config {
+            validate_poll_config(&auth_admin_poll_config)?;
+            config.auth_admin_poll_config = auth_admin_poll_config;
         }
 
         if let Some(voter_weight) = voter_weight {
@@ -374,6 +371,10 @@ pub fn update_config(
 
         if let Some(snapshot_period) = snapshot_period {
             config.snapshot_period = snapshot_period;
+        }
+
+        if let Some(admin_manager) = admin_manager {
+            config.admin_manager = api.addr_validate(admin_manager.as_str())?;
         }
 
         Ok(config)
@@ -464,6 +465,13 @@ fn validate_threshold(threshold: Decimal) -> Result<(), ContractError> {
     }
 }
 
+fn validate_poll_config(poll_config: &PollConfig) -> Result<(), ContractError> {
+    validate_quorum(poll_config.quorum)?;
+    validate_threshold(poll_config.threshold)?;
+
+    Ok(())
+}
+
 /// ## Description
 /// Returns an error if the voter weight is invalid, require 0-1.
 ///
@@ -510,6 +518,7 @@ pub fn create_poll(
     description: String,
     link: Option<String>,
     poll_execute_msgs: Option<Vec<PollExecuteMsg>>,
+    poll_admin_action: Option<PollAdminAction>,
 ) -> Result<Response, ContractError> {
     // Validate string values
     validate_title(&title)?;
@@ -518,11 +527,37 @@ pub fn create_poll(
 
     let config: Config = config_store(deps.storage).load()?;
 
+    let current_block_height = env.block.height;
+    let (proposal_deposit, end_height, max_polls_in_progress) = match poll_admin_action.clone() {
+        None => (
+            config.default_poll_config.proposal_deposit,
+            current_block_height + config.default_poll_config.voting_period,
+            MAX_POLLS_IN_PROGRESS,
+        ),
+        Some(PollAdminAction::ExecuteMigrations { migrations }) => {
+            for (contract_addr, _, _) in migrations.iter() {
+                deps.api.addr_validate(contract_addr.as_str())?;
+            }
+
+            (
+                config.migration_poll_config.proposal_deposit,
+                current_block_height + config.migration_poll_config.voting_period,
+                MAX_POLLS_IN_PROGRESS + 10usize,
+            )
+        }
+        // Other admin actions
+        _ => (
+            config.auth_admin_poll_config.proposal_deposit,
+            current_block_height + config.auth_admin_poll_config.voting_period,
+            MAX_POLLS_IN_PROGRESS + 10usize,
+        ),
+    };
+
     // Check if deposit amount is more than the deposit threshold
-    if deposit_amount < config.proposal_deposit {
+    if deposit_amount < proposal_deposit {
         return Err(ContractError::Generic(format!(
             "Must deposit more than {} token",
-            config.proposal_deposit
+            proposal_deposit
         )));
     }
 
@@ -536,7 +571,7 @@ pub fn create_poll(
         Some(true),
     )?
     .len();
-    if polls_in_progress.gt(&MAX_POLLS_IN_PROGRESS) {
+    if polls_in_progress.gt(&max_polls_in_progress) {
         return Err(ContractError::Generic(
             "Too many polls in progress".to_string(),
         ));
@@ -549,25 +584,48 @@ pub fn create_poll(
     state.poll_count += 1;
     state.total_deposit += deposit_amount;
 
-    // Extract the execute data from the message if any
-    let poll_execute_data = poll_execute_msgs.map(|poll_execute_msgs| {
-        poll_execute_msgs
-            .iter()
-            .map(|poll_execute_msg| -> ExecuteData {
-                ExecuteData {
-                    contract: deps
+    // Extract the execute data or admin actions from the message if any
+
+    let poll_execute_data: Option<Vec<ExecuteData>> =
+        if let Some(poll_execute_msgs) = poll_execute_msgs {
+            if poll_admin_action.is_some() {
+                return Err(ContractError::Generic(
+                    "Cannot create a poll with both execute msgs and admin actions".to_string(),
+                ));
+            }
+            let execute_msgs: Result<Vec<ExecuteData>, ContractError> = poll_execute_msgs
+                .iter()
+                .map(|poll_execute_msg| -> Result<ExecuteData, ContractError> {
+                    let validated_target_contract = deps
                         .api
                         .addr_validate(poll_execute_msg.contract.as_str())
-                        .unwrap(),
-                    msg: poll_execute_msg.msg.clone(),
-                }
-            })
-            .collect()
-    });
+                        .unwrap();
+                    if validated_target_contract == config.admin_manager
+                        || validated_target_contract == env.contract.address
+                    {
+                        return Err(ContractError::Generic(
+                        "Cannot create a normal poll targeting the governance or the admin manager"
+                            .to_string(),
+                    ));
+                    }
+
+                    Ok(ExecuteData {
+                        contract: deps
+                            .api
+                            .addr_validate(poll_execute_msg.contract.as_str())
+                            .unwrap(),
+                        msg: poll_execute_msg.msg.clone(),
+                    })
+                })
+                .collect();
+
+            Some(execute_msgs?)
+        } else {
+            None
+        };
 
     // Validate address format
     let sender_address = deps.api.addr_validate(proposer.as_str())?;
-    let current_block_height = env.block.height;
 
     // Create the poll
     let new_poll = Poll {
@@ -577,7 +635,7 @@ pub fn create_poll(
         yes_votes: Uint128::zero(),
         no_votes: Uint128::zero(),
         abstain_votes: Uint128::zero(),
-        end_height: current_block_height + config.voting_period,
+        end_height,
         title,
         description,
         link,
@@ -586,6 +644,7 @@ pub fn create_poll(
         total_balance_at_end_poll: None,
         voters_reward: Uint128::zero(),
         staked_amount: None,
+        admin_action: poll_admin_action,
     };
 
     // Save the poll
@@ -616,7 +675,25 @@ pub fn create_poll(
 ///
 /// - **poll_id** is an object of type [`u64`] which is the poll ID to be ended.
 pub fn end_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, ContractError> {
+    let config: Config = config_read(deps.storage).load()?;
     let mut a_poll: Poll = poll_store(deps.storage).load(&poll_id.to_be_bytes())?;
+    let (target_quorum, target_threshold, is_fast_track) = match a_poll.admin_action {
+        Some(PollAdminAction::ExecuteMigrations { .. }) => (
+            config.migration_poll_config.quorum,
+            config.migration_poll_config.threshold,
+            true,
+        ),
+        Some(_) => (
+            config.auth_admin_poll_config.quorum,
+            config.auth_admin_poll_config.threshold,
+            false,
+        ),
+        None => (
+            config.default_poll_config.quorum,
+            config.default_poll_config.threshold,
+            false,
+        ),
+    };
 
     // Can only end an in-progress poll
     if a_poll.status != PollStatus::InProgress {
@@ -625,8 +702,8 @@ pub fn end_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, Contr
 
     let current_block_height = env.block.height;
 
-    // Can only end a poll past its voting period
-    if a_poll.end_height > current_block_height {
+    // Can only end a poll past its voting period or a fast track poll
+    if a_poll.end_height > current_block_height && !is_fast_track {
         return Err(ContractError::ValueHasNotExpired(
             "Voting period".to_string(),
         ));
@@ -644,14 +721,13 @@ pub fn end_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, Contr
     let mut passed = false;
 
     let mut messages: Vec<CosmosMsg> = vec![];
-    let config: Config = config_read(deps.storage).load()?;
     let mut state: State = state_read(deps.storage).load()?;
 
     let (quorum, staked_weight) = if state.total_share.u128() == 0 {
         // If there is no staked, `quorum` and `staked_weight` are 0
         (Decimal::zero(), Uint128::zero())
     } else if let Some(staked_amount) = a_poll.staked_amount {
-        // If a snapshot is made, find `quorom` and `stake_weight` from the total stake at snapshot
+        // If a snapshot is made, find `quorum` and `stake_weight` from the total stake at snapshot
         (
             Decimal::from_ratio(tallied_weight, staked_amount),
             staked_amount,
@@ -670,12 +746,12 @@ pub fn end_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, Contr
         )
     };
 
-    if tallied_weight == 0 || quorum < config.quorum {
+    if tallied_weight == 0 || quorum < target_quorum {
         // Quorum: More than quorum of the total staked tokens at the end of the voting
         // period need to have participated in the vote.
         rejected_reason = "Quorum not reached";
     } else {
-        if yes != 0u128 && Decimal::from_ratio(yes, yes + no) > config.threshold {
+        if yes != 0u128 && Decimal::from_ratio(yes, yes + no) > target_threshold {
             // Threshold: More than 50% of the tokens that participated in the vote
             // (after excluding “Abstain” votes) need to have voted in favor of the proposal (“Yes”).
             poll_status = PollStatus::Passed;
@@ -695,6 +771,17 @@ pub fn end_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, Contr
                 })?,
             }))
         }
+    }
+
+    // If the poll is fast track and is rejected, we return error instead of updating state
+    // the poll can still pass until the poll end_height
+    if poll_status.eq(&PollStatus::Rejected)
+        && is_fast_track
+        && a_poll.end_height > current_block_height
+    {
+        return Err(ContractError::Generic(
+            "Fastrack poll has not reached the target quorum or threshold".to_string(),
+        ));
     }
 
     // Decrease total deposit amount
@@ -733,6 +820,12 @@ pub fn execute_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, C
     let config: Config = config_read(deps.storage).load()?;
     let mut a_poll: Poll = poll_store(deps.storage).load(&poll_id.to_be_bytes())?;
 
+    let (is_fast_track, admin_msg) = match a_poll.admin_action {
+        Some(PollAdminAction::ExecuteMigrations { .. }) => (true, a_poll.admin_action.clone()),
+        Some(_) => (false, a_poll.admin_action.clone()),
+        None => (false, None),
+    };
+
     // Can only execute a passed poll
     if a_poll.status != PollStatus::Passed {
         return Err(ContractError::Generic(
@@ -740,20 +833,45 @@ pub fn execute_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, C
         ));
     }
 
-    // Need to wait after the effective delay before executing the poll
+    // If not a fast track poll, need to wait after the effective delay before executing the poll
     let current_block_height = env.block.height;
-    if a_poll.end_height + config.effective_delay > current_block_height {
+    if a_poll.end_height + config.effective_delay > current_block_height && !is_fast_track {
         return Err(ContractError::ValueHasNotExpired(
             "Effective delay".to_string(),
         ));
     }
 
-    // Check if there is execute data in the poll
-    if a_poll.execute_data.is_none() {
+    // Parse execute data or admin action in the poll
+    let messages: Vec<SubMsg> = if let Some(ref execute_data) = a_poll.execute_data {
+        execute_data.iter().map(fill_msg).collect()
+    } else if let Some(admin_msg) = admin_msg {
+        match admin_msg {
+            PollAdminAction::UpdateConfig { .. } => vec![SubMsg {
+                msg: CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: env.contract.address.to_string(),
+                    msg: to_binary(&admin_msg)?,
+                    funds: vec![],
+                }),
+                gas_limit: None,
+                id: POLL_EXECUTE_REPLY_ID,
+                reply_on: ReplyOn::Error,
+            }],
+            _ => vec![SubMsg {
+                msg: CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: config.admin_manager.to_string(),
+                    msg: to_binary(&admin_msg)?,
+                    funds: vec![],
+                }),
+                gas_limit: None,
+                id: POLL_EXECUTE_REPLY_ID,
+                reply_on: ReplyOn::Error,
+            }],
+        }
+    } else {
         return Err(ContractError::Generic(
             "Poll has no execute data".to_string(),
         ));
-    }
+    };
 
     // Update poll indexer of the poll from Passed to Executed
     poll_indexer_store(deps.storage, &PollStatus::Passed).remove(&poll_id.to_be_bytes());
@@ -763,8 +881,6 @@ pub fn execute_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, C
     a_poll.status = PollStatus::Executed;
     poll_store(deps.storage).save(&poll_id.to_be_bytes(), &a_poll)?;
 
-    // Retrieve the execute messages
-    let messages: Vec<SubMsg> = a_poll.execute_data.unwrap().iter().map(fill_msg).collect();
     store_tmp_poll_id(deps.storage, a_poll.id)?;
 
     Ok(Response::new()
@@ -1056,13 +1172,13 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     Ok(ConfigResponse {
         owner: config.owner.to_string(),
         nebula_token: config.nebula_token.to_string(),
-        quorum: config.quorum,
-        threshold: config.threshold,
-        voting_period: config.voting_period,
         effective_delay: config.effective_delay,
-        proposal_deposit: config.proposal_deposit,
+        default_poll_config: config.default_poll_config,
+        migration_poll_config: config.migration_poll_config,
+        auth_admin_poll_config: config.auth_admin_poll_config,
         voter_weight: config.voter_weight,
         snapshot_period: config.snapshot_period,
+        admin_manager: config.admin_manager.to_string(),
     })
 }
 
@@ -1124,6 +1240,7 @@ fn query_poll(deps: Deps, poll_id: u64) -> StdResult<PollResponse> {
         total_balance_at_end_poll: poll.total_balance_at_end_poll,
         voters_reward: poll.voters_reward,
         staked_amount: poll.staked_amount,
+        admin_action: poll.admin_action,
     })
 }
 
@@ -1179,6 +1296,7 @@ fn query_polls(
                 total_balance_at_end_poll: poll.total_balance_at_end_poll,
                 voters_reward: poll.voters_reward,
                 staked_amount: poll.staked_amount,
+                admin_action: poll.admin_action.clone(),
             })
         })
         .collect();

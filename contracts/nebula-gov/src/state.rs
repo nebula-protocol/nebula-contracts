@@ -7,7 +7,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use nebula_protocol::common::OrderBy;
-use nebula_protocol::gov::{PollStatus, VoterInfo};
+use nebula_protocol::gov::{PollAdminAction, PollConfig, PollStatus, VoterInfo};
 
 /// config: Config
 static KEY_CONFIG: &[u8] = b"config";
@@ -42,22 +42,18 @@ pub struct Config {
     pub owner: Addr,
     /// Nebula token contract
     pub nebula_token: Addr,
-    /// Poll quorum
-    pub quorum: Decimal,
-    /// Poll pass threshold
-    pub threshold: Decimal,
-    /// Poll voting period
-    pub voting_period: u64,
     /// Poll execution delay after passing
     pub effective_delay: u64,
+    pub default_poll_config: PollConfig,
+    pub migration_poll_config: PollConfig,
+    pub auth_admin_poll_config: PollConfig,
     /// DEPRECATED, to remove on next state migration
     pub expiration_period: u64,
-    /// Poll initial deposit
-    pub proposal_deposit: Uint128,
     /// Reward weight for voters
     pub voter_weight: Decimal,
     /// Poll snapshot period for the total stake
     pub snapshot_period: u64,
+    pub admin_manager: Addr,
 }
 
 pub fn config_store(storage: &mut dyn Storage) -> Singleton<Config> {
@@ -282,6 +278,7 @@ pub struct Poll {
     /// Total staked amount in the governance contract when snapshotted
     /// -- used for calculating quorum
     pub staked_amount: Option<Uint128>,
+    pub admin_action: Option<PollAdminAction>,
 }
 
 /// ## Description
