@@ -1,3 +1,4 @@
+pub mod admin_manager;
 pub mod airdrop;
 pub mod cluster;
 pub mod cluster_factory;

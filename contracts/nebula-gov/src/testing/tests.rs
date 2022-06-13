@@ -13,11 +13,13 @@ use cosmwasm_std::{
 };
 use cw2::{get_contract_version, ContractVersion};
 use cw20::{Cw20ExecuteMsg, Cw20ReceiveMsg};
+use nebula_protocol::admin_manager::ExecuteMsg as ManagerExecuteMsg;
 use nebula_protocol::common::OrderBy;
 use nebula_protocol::gov::{
-    ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, PollExecuteMsg,
-    PollResponse, PollStatus, PollsResponse, QueryMsg, SharesResponse, SharesResponseItem,
-    StakerResponse, StateResponse, VoteOption, VoterInfo, VotersResponse, VotersResponseItem,
+    ConfigResponse, Cw20HookMsg, ExecuteMsg, InstantiateMsg, MigrateMsg, PollAdminAction,
+    PollConfig, PollExecuteMsg, PollResponse, PollStatus, PollsResponse, QueryMsg, SharesResponse,
+    SharesResponseItem, StakerResponse, StateResponse, VoteOption, VoterInfo, VotersResponse,
+    VotersResponseItem,
 };
 use std::str::FromStr;
 
@@ -27,24 +29,48 @@ const TEST_VOTER: &str = "voter1";
 const TEST_VOTER_2: &str = "voter2";
 const TEST_VOTER_3: &str = "voter3";
 const TEST_COLLECTOR: &str = "collector";
+const TEST_ADMIN_MANAGER: &str = "admin_manager";
 const DEFAULT_QUORUM: u64 = 30u64;
 const DEFAULT_THRESHOLD: u64 = 50u64;
 const DEFAULT_VOTING_PERIOD: u64 = 10000u64;
+const DEFAULT_MIGRATION_QUORUM: u64 = 40u64;
+const DEFAULT_MIGRATION_THRESHOLD: u64 = 60u64;
+const DEFAULT_MIGRATION_VOTING_PERIOD: u64 = 20000u64;
+const DEFAULT_AUTH_ADMIN_QUORUM: u64 = 50u64;
+const DEFAULT_AUTH_ADMIN_THRESHOLD: u64 = 70u64;
+const DEFAULT_AUTH_ADMIN_VOTING_PERIOD: u64 = 30000u64;
 const DEFAULT_EFFECTIVE_DELAY: u64 = 10000u64;
 const DEFAULT_PROPOSAL_DEPOSIT: u128 = 10000000000u128;
+const DEFAULT_MIGRATION_PROPOSAL_DEPOSIT: u128 = 20000000000u128;
+const DEFAULT_AUTH_ADMIN_PROPOSAL_DEPOSIT: u128 = 30000000000u128;
 const DEFAULT_VOTER_WEIGHT: Decimal = Decimal::zero();
 const DEFAULT_SNAPSHOT_PERIOD: u64 = 10u64;
 
 fn mock_instantiate(deps: DepsMut) {
     let msg = InstantiateMsg {
         nebula_token: VOTING_TOKEN.to_string(),
-        quorum: Decimal::percent(DEFAULT_QUORUM),
-        threshold: Decimal::percent(DEFAULT_THRESHOLD),
-        voting_period: DEFAULT_VOTING_PERIOD,
         effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
+        default_poll_config: PollConfig {
+            proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
+            voting_period: DEFAULT_VOTING_PERIOD,
+            quorum: Decimal::percent(DEFAULT_QUORUM),
+            threshold: Decimal::percent(DEFAULT_THRESHOLD),
+        },
+        migration_poll_config: PollConfig {
+            proposal_deposit: Uint128::new(DEFAULT_MIGRATION_PROPOSAL_DEPOSIT),
+            voting_period: DEFAULT_MIGRATION_VOTING_PERIOD,
+            quorum: Decimal::percent(DEFAULT_MIGRATION_QUORUM),
+            threshold: Decimal::percent(DEFAULT_MIGRATION_THRESHOLD),
+        },
+        auth_admin_poll_config: PollConfig {
+            proposal_deposit: Uint128::new(DEFAULT_AUTH_ADMIN_PROPOSAL_DEPOSIT),
+            voting_period: DEFAULT_AUTH_ADMIN_VOTING_PERIOD,
+            quorum: Decimal::percent(DEFAULT_AUTH_ADMIN_QUORUM),
+            threshold: Decimal::percent(DEFAULT_AUTH_ADMIN_THRESHOLD),
+        },
         voter_weight: DEFAULT_VOTER_WEIGHT,
         snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
+        admin_manager: TEST_ADMIN_MANAGER.to_string(),
     };
 
     let info = mock_info(TEST_CREATOR, &[]);
@@ -62,13 +88,28 @@ fn mock_env_height(height: u64, time: u64) -> Env {
 fn init_msg() -> InstantiateMsg {
     InstantiateMsg {
         nebula_token: VOTING_TOKEN.to_string(),
-        quorum: Decimal::percent(DEFAULT_QUORUM),
-        threshold: Decimal::percent(DEFAULT_THRESHOLD),
-        voting_period: DEFAULT_VOTING_PERIOD,
         effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
+        default_poll_config: PollConfig {
+            proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
+            voting_period: DEFAULT_VOTING_PERIOD,
+            quorum: Decimal::percent(DEFAULT_QUORUM),
+            threshold: Decimal::percent(DEFAULT_THRESHOLD),
+        },
+        migration_poll_config: PollConfig {
+            proposal_deposit: Uint128::new(DEFAULT_MIGRATION_PROPOSAL_DEPOSIT),
+            voting_period: DEFAULT_MIGRATION_VOTING_PERIOD,
+            quorum: Decimal::percent(DEFAULT_MIGRATION_QUORUM),
+            threshold: Decimal::percent(DEFAULT_MIGRATION_THRESHOLD),
+        },
+        auth_admin_poll_config: PollConfig {
+            proposal_deposit: Uint128::new(DEFAULT_AUTH_ADMIN_PROPOSAL_DEPOSIT),
+            voting_period: DEFAULT_AUTH_ADMIN_VOTING_PERIOD,
+            quorum: Decimal::percent(DEFAULT_AUTH_ADMIN_QUORUM),
+            threshold: Decimal::percent(DEFAULT_AUTH_ADMIN_THRESHOLD),
+        },
         voter_weight: DEFAULT_VOTER_WEIGHT,
         snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
+        admin_manager: TEST_ADMIN_MANAGER.to_string(),
     }
 }
 
@@ -87,14 +128,29 @@ fn proper_initialization() {
         Config {
             nebula_token: deps.api.addr_validate(VOTING_TOKEN).unwrap(),
             owner: deps.api.addr_validate(TEST_CREATOR).unwrap(),
-            quorum: Decimal::percent(DEFAULT_QUORUM),
-            threshold: Decimal::percent(DEFAULT_THRESHOLD),
-            voting_period: DEFAULT_VOTING_PERIOD,
             effective_delay: DEFAULT_EFFECTIVE_DELAY,
-            proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
+            default_poll_config: PollConfig {
+                proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
+                voting_period: DEFAULT_VOTING_PERIOD,
+                quorum: Decimal::percent(DEFAULT_QUORUM),
+                threshold: Decimal::percent(DEFAULT_THRESHOLD),
+            },
+            migration_poll_config: PollConfig {
+                proposal_deposit: Uint128::new(DEFAULT_MIGRATION_PROPOSAL_DEPOSIT),
+                voting_period: DEFAULT_MIGRATION_VOTING_PERIOD,
+                quorum: Decimal::percent(DEFAULT_MIGRATION_QUORUM),
+                threshold: Decimal::percent(DEFAULT_MIGRATION_THRESHOLD),
+            },
+            auth_admin_poll_config: PollConfig {
+                proposal_deposit: Uint128::new(DEFAULT_AUTH_ADMIN_PROPOSAL_DEPOSIT),
+                voting_period: DEFAULT_AUTH_ADMIN_VOTING_PERIOD,
+                quorum: Decimal::percent(DEFAULT_AUTH_ADMIN_QUORUM),
+                threshold: Decimal::percent(DEFAULT_AUTH_ADMIN_THRESHOLD),
+            },
             voter_weight: DEFAULT_VOTER_WEIGHT,
             snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
             expiration_period: 0u64, // deprecated
+            admin_manager: deps.api.addr_validate(TEST_ADMIN_MANAGER).unwrap(),
         }
     );
 
@@ -126,13 +182,28 @@ fn fails_create_poll_invalid_quorum() {
     let info = mock_info("voter", &coins(11, VOTING_TOKEN));
     let msg = InstantiateMsg {
         nebula_token: VOTING_TOKEN.to_string(),
-        quorum: Decimal::percent(101),
-        threshold: Decimal::percent(DEFAULT_THRESHOLD),
-        voting_period: DEFAULT_VOTING_PERIOD,
         effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
+        default_poll_config: PollConfig {
+            proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
+            voting_period: DEFAULT_VOTING_PERIOD,
+            quorum: Decimal::percent(101),
+            threshold: Decimal::percent(DEFAULT_THRESHOLD),
+        },
+        migration_poll_config: PollConfig {
+            proposal_deposit: Uint128::new(DEFAULT_MIGRATION_PROPOSAL_DEPOSIT),
+            voting_period: DEFAULT_MIGRATION_VOTING_PERIOD,
+            quorum: Decimal::percent(DEFAULT_MIGRATION_QUORUM),
+            threshold: Decimal::percent(DEFAULT_MIGRATION_THRESHOLD),
+        },
+        auth_admin_poll_config: PollConfig {
+            proposal_deposit: Uint128::new(DEFAULT_AUTH_ADMIN_PROPOSAL_DEPOSIT),
+            voting_period: DEFAULT_AUTH_ADMIN_VOTING_PERIOD,
+            quorum: Decimal::percent(DEFAULT_AUTH_ADMIN_QUORUM),
+            threshold: Decimal::percent(DEFAULT_AUTH_ADMIN_THRESHOLD),
+        },
         voter_weight: DEFAULT_VOTER_WEIGHT,
         snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
+        admin_manager: TEST_ADMIN_MANAGER.to_string(),
     };
 
     let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap_err();
@@ -148,13 +219,28 @@ fn fails_create_poll_invalid_threshold() {
     let info = mock_info("voter", &coins(11, VOTING_TOKEN));
     let msg = InstantiateMsg {
         nebula_token: VOTING_TOKEN.to_string(),
-        quorum: Decimal::percent(DEFAULT_QUORUM),
-        threshold: Decimal::percent(101),
-        voting_period: DEFAULT_VOTING_PERIOD,
         effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
+        default_poll_config: PollConfig {
+            proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
+            voting_period: DEFAULT_VOTING_PERIOD,
+            quorum: Decimal::percent(DEFAULT_QUORUM),
+            threshold: Decimal::percent(DEFAULT_THRESHOLD),
+        },
+        migration_poll_config: PollConfig {
+            proposal_deposit: Uint128::new(DEFAULT_MIGRATION_PROPOSAL_DEPOSIT),
+            voting_period: DEFAULT_MIGRATION_VOTING_PERIOD,
+            quorum: Decimal::percent(DEFAULT_MIGRATION_QUORUM),
+            threshold: Decimal::percent(101),
+        },
+        auth_admin_poll_config: PollConfig {
+            proposal_deposit: Uint128::new(DEFAULT_AUTH_ADMIN_PROPOSAL_DEPOSIT),
+            voting_period: DEFAULT_AUTH_ADMIN_VOTING_PERIOD,
+            quorum: Decimal::percent(DEFAULT_AUTH_ADMIN_QUORUM),
+            threshold: Decimal::percent(DEFAULT_AUTH_ADMIN_THRESHOLD),
+        },
         voter_weight: DEFAULT_VOTER_WEIGHT,
         snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
+        admin_manager: TEST_ADMIN_MANAGER.to_string(),
     };
 
     let res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap_err();
@@ -169,7 +255,7 @@ fn fails_create_poll_invalid_title() {
     let mut deps = mock_dependencies(&[]);
     mock_instantiate(deps.as_mut());
 
-    let msg = create_poll_msg("a".to_string(), "test".to_string(), None, None);
+    let msg = create_poll_msg("a".to_string(), "test".to_string(), None, None, None);
     let info = mock_info(VOTING_TOKEN, &[]);
     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
     assert_eq!(res, ContractError::ValueTooShort("Title".to_string()));
@@ -179,6 +265,7 @@ fn fails_create_poll_invalid_title() {
             "test".to_string(),
             None,
             None,
+        None
         );
 
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
@@ -190,7 +277,7 @@ fn fails_create_poll_invalid_description() {
     let mut deps = mock_dependencies(&[]);
     mock_instantiate(deps.as_mut());
 
-    let msg = create_poll_msg("test".to_string(), "a".to_string(), None, None);
+    let msg = create_poll_msg("test".to_string(), "a".to_string(), None, None, None);
     let info = mock_info(VOTING_TOKEN, &[]);
     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
     assert_eq!(res, ContractError::ValueTooShort("Description".to_string()));
@@ -200,6 +287,7 @@ fn fails_create_poll_invalid_description() {
             "0123456789012345678901234567890123456789012345678901234567890123401234567890123456789012345678901234567890123456789012345678901234012345678901234567890123456789012345678901234567890123456789012340123456789012345678901234567890123456789012345678901234567890123401234567890123456789012345678901234567890123456789012345678901234".to_string(),
             None,
             None,
+        None,
         );
 
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
@@ -216,6 +304,7 @@ fn fails_create_poll_invalid_link() {
         "test".to_string(),
         Some("http://hih".to_string()),
         None,
+        None,
     );
     let info = mock_info(VOTING_TOKEN, &[]);
     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
@@ -226,6 +315,7 @@ fn fails_create_poll_invalid_link() {
             "test".to_string(),
             Some("0123456789012345678901234567890123456789012345678901234567890123401234567890123456789012345678901234567890123456789012345678901234012345678901234567890123456789012345678901234567890123456789012340123456789012345678901234567890123456789012345678901234567890123401234567890123456789012345678901234567890123456789012345678901234".to_string()),
             None,
+        None,
         );
 
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
@@ -245,6 +335,7 @@ fn fails_create_poll_invalid_deposit() {
             description: "TESTTEST".to_string(),
             link: None,
             execute_msgs: None,
+            admin_action: None,
         })
         .unwrap(),
     });
@@ -264,6 +355,7 @@ fn create_poll_msg(
     description: String,
     link: Option<String>,
     execute_msgs: Option<Vec<PollExecuteMsg>>,
+    admin_action: Option<PollAdminAction>,
 ) -> ExecuteMsg {
     ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: TEST_CREATOR.to_string(),
@@ -273,6 +365,29 @@ fn create_poll_msg(
             description,
             link,
             execute_msgs,
+            admin_action,
+        })
+        .unwrap(),
+    })
+}
+
+fn create_admin_poll_msg(
+    title: String,
+    description: String,
+    link: Option<String>,
+    execute_msgs: Option<Vec<PollExecuteMsg>>,
+    admin_action: Option<PollAdminAction>,
+    proposal_deposit: Uint128,
+) -> ExecuteMsg {
+    ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_CREATOR.to_string(),
+        amount: proposal_deposit,
+        msg: to_binary(&Cw20HookMsg::CreatePoll {
+            title,
+            description,
+            execute_msgs,
+            link,
+            admin_action,
         })
         .unwrap(),
     })
@@ -285,7 +400,7 @@ fn happy_days_create_poll() {
     let env = mock_env_height(10000, 0);
     let info = mock_info(VOTING_TOKEN, &[]);
 
-    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None, None);
 
     let execute_res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
     assert_create_poll_result(
@@ -309,9 +424,10 @@ fn query_polls() {
         "test".to_string(),
         Some("http://google.com".to_string()),
         None,
+        None,
     );
     let _execute_res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
-    let msg = create_poll_msg("test2".to_string(), "test2".to_string(), None, None);
+    let msg = create_poll_msg("test2".to_string(), "test2".to_string(), None, None, None);
     let _execute_res = execute(deps.as_mut(), env, info, msg).unwrap();
 
     let res = query(
@@ -345,6 +461,7 @@ fn query_polls() {
                 voters_reward: Uint128::zero(),
                 abstain_votes: Uint128::zero(),
                 staked_amount: None,
+                admin_action: None,
             },
             PollResponse {
                 id: 2u64,
@@ -362,6 +479,7 @@ fn query_polls() {
                 voters_reward: Uint128::zero(),
                 abstain_votes: Uint128::zero(),
                 staked_amount: None,
+                admin_action: None,
             },
         ]
     );
@@ -396,6 +514,7 @@ fn query_polls() {
             voters_reward: Uint128::zero(),
             abstain_votes: Uint128::zero(),
             staked_amount: None,
+            admin_action: None,
         },]
     );
 
@@ -429,6 +548,7 @@ fn query_polls() {
             voters_reward: Uint128::zero(),
             abstain_votes: Uint128::zero(),
             staked_amount: None,
+            admin_action: None,
         }]
     );
 
@@ -462,6 +582,7 @@ fn query_polls() {
             voters_reward: Uint128::zero(),
             abstain_votes: Uint128::zero(),
             staked_amount: None,
+            admin_action: None,
         },]
     );
 
@@ -487,7 +608,7 @@ fn create_poll_no_quorum() {
     let env = mock_env_height(0, 0);
     let info = mock_info(VOTING_TOKEN, &[]);
 
-    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None, None);
 
     let execute_res = execute(deps.as_mut(), env, info, msg).unwrap();
     assert_create_poll_result(
@@ -506,7 +627,7 @@ fn fails_end_poll_before_end_height() {
     let env = mock_env_height(0, 0);
     let info = mock_info(VOTING_TOKEN, &[]);
 
-    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None, None);
 
     let execute_res = execute(deps.as_mut(), env, info, msg).unwrap();
     assert_create_poll_result(
@@ -554,6 +675,7 @@ fn happy_days_end_poll() {
             contract: VOTING_TOKEN.to_string(),
             msg: exec_msg_bz.clone(),
         }]),
+        None,
     );
 
     let execute_res = execute(
@@ -785,7 +907,7 @@ fn failed_execute_poll_no_data() {
     let mut creator_env = mock_env_height(POLL_START_HEIGHT, 0);
     let creator_info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
 
-    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None, None);
 
     let execute_res = execute(
         deps.as_mut(),
@@ -913,6 +1035,7 @@ fn failed_execute_poll() {
             contract: VOTING_TOKEN.to_string(),
             msg: exec_msg_bz.clone(),
         }]),
+        None,
     );
 
     let execute_res = execute(
@@ -1074,6 +1197,7 @@ fn end_poll_zero_quorum() {
             })
             .unwrap(),
         }]),
+        None,
     );
 
     let execute_res = execute(
@@ -1175,7 +1299,7 @@ fn end_poll_quorum_rejected() {
     let mut deps = mock_dependencies(&coins(100, VOTING_TOKEN));
     mock_instantiate(deps.as_mut());
 
-    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None, None);
     let mut creator_env = mock_env();
     let mut creator_info = mock_info(VOTING_TOKEN, &[]);
     let execute_res = execute(
@@ -1263,7 +1387,7 @@ fn end_poll_quorum_rejected_noting_staked() {
     let mut deps = mock_dependencies(&coins(100, VOTING_TOKEN));
     mock_instantiate(deps.as_mut());
 
-    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None, None);
     let creator_env = mock_env();
     let mut creator_info = mock_info(VOTING_TOKEN, &[]);
     let execute_res = execute(
@@ -1310,7 +1434,7 @@ fn end_poll_nay_rejected() {
     let mut creator_env = mock_env();
     let mut creator_info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
 
-    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None, None);
 
     let execute_res = execute(
         deps.as_mut(),
@@ -1412,7 +1536,7 @@ fn fails_cast_vote_not_enough_staked() {
     let env = mock_env_height(0, 0);
     let info = mock_info(VOTING_TOKEN, &[]);
 
-    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None, None);
 
     let execute_res = execute(deps.as_mut(), env, info, msg).unwrap();
     assert_create_poll_result(
@@ -1470,7 +1594,7 @@ fn happy_days_cast_vote() {
 
     let env = mock_env_height(0, 0);
     let info = mock_info(VOTING_TOKEN, &[]);
-    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None, None);
 
     let execute_res = execute(deps.as_mut(), env, info, msg).unwrap();
     assert_create_poll_result(
@@ -1773,6 +1897,7 @@ fn withdraw_voting_tokens() {
                 total_balance_at_end_poll: None,
                 voters_reward: Uint128::zero(),
                 staked_amount: None,
+                admin_action: None,
             },
         )
         .unwrap();
@@ -1796,6 +1921,7 @@ fn withdraw_voting_tokens() {
                 total_balance_at_end_poll: None,
                 voters_reward: Uint128::zero(),
                 staked_amount: None,
+                admin_action: None,
             },
         )
         .unwrap();
@@ -1931,7 +2057,7 @@ fn fails_cast_vote_twice() {
     let env = mock_env_height(10000, 0);
     let info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
 
-    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None, None);
     let execute_res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
     assert_create_poll_result(
@@ -2171,14 +2297,8 @@ fn share_calculation_with_voter_rewards() {
 
     // initialize the store
     let msg = InstantiateMsg {
-        nebula_token: VOTING_TOKEN.to_string(),
-        quorum: Decimal::percent(DEFAULT_QUORUM),
-        threshold: Decimal::percent(DEFAULT_THRESHOLD),
-        voting_period: DEFAULT_VOTING_PERIOD,
-        effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
         voter_weight: Decimal::percent(50), // distribute 50% rewards to voters
-        snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
+        ..init_msg()
     };
     let info = mock_info(TEST_VOTER, &coins(2, VOTING_TOKEN));
     let init_res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -2187,7 +2307,7 @@ fn share_calculation_with_voter_rewards() {
     // create poll
     let env = mock_env_height(10000, 0);
     let info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
-    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None, None);
     let execute_res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
     assert_create_poll_result(
         1,
@@ -2333,6 +2453,38 @@ fn assert_create_poll_result(
     );
 }
 
+fn assert_create_admin_poll_result(
+    poll_id: u64,
+    end_height: u64,
+    creator: &str,
+    execute_res: Response,
+    deps: Deps,
+    proposal_deposit: Uint128,
+) {
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "create_poll"),
+            attr("creator", creator),
+            attr("poll_id", poll_id.to_string()),
+            attr("end_height", end_height.to_string()),
+        ]
+    );
+
+    //confirm poll count
+    let state: State = state_read(deps.storage).load().unwrap();
+    assert_eq!(
+        state,
+        State {
+            contract_addr: deps.api.addr_validate(MOCK_CONTRACT_ADDR).unwrap(),
+            poll_count: 1,
+            total_share: Uint128::zero(),
+            total_deposit: proposal_deposit,
+            pending_voting_rewards: Uint128::zero(),
+        }
+    );
+}
+
 fn assert_stake_tokens_result(
     total_share: u128,
     total_deposit: u128,
@@ -2387,13 +2539,13 @@ fn update_config() {
     // invalid voter weight
     let msg = ExecuteMsg::UpdateConfig {
         owner: None,
-        quorum: None,
-        threshold: None,
-        voting_period: None,
         effective_delay: None,
-        proposal_deposit: None,
+        default_poll_config: None,
+        migration_poll_config: None,
+        auth_admin_poll_config: None,
         voter_weight: Some(Decimal::from_str("1.5").unwrap()),
         snapshot_period: None,
+        admin_manager: None,
     };
     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
     assert_eq!(
@@ -2404,13 +2556,13 @@ fn update_config() {
     // update owner
     let msg = ExecuteMsg::UpdateConfig {
         owner: Some("addr0001".to_string()),
-        quorum: None,
-        threshold: None,
-        voting_period: None,
         effective_delay: None,
-        proposal_deposit: None,
+        default_poll_config: None,
+        migration_poll_config: None,
+        auth_admin_poll_config: None,
         voter_weight: None,
         snapshot_period: None,
+        admin_manager: None,
     };
 
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -2420,23 +2572,37 @@ fn update_config() {
     let res = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
     let config: ConfigResponse = from_binary(&res).unwrap();
     assert_eq!("addr0001", config.owner.as_str());
-    assert_eq!(Decimal::percent(DEFAULT_QUORUM), config.quorum);
-    assert_eq!(Decimal::percent(DEFAULT_THRESHOLD), config.threshold);
-    assert_eq!(DEFAULT_VOTING_PERIOD, config.voting_period);
-    assert_eq!(DEFAULT_EFFECTIVE_DELAY, config.effective_delay);
-    assert_eq!(DEFAULT_PROPOSAL_DEPOSIT, config.proposal_deposit.u128());
 
     // update left items
+    let new_default_poll_config = PollConfig {
+        proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT + 1),
+        voting_period: DEFAULT_VOTING_PERIOD + 2,
+        quorum: Decimal::percent(DEFAULT_QUORUM + 3),
+        threshold: Decimal::percent(DEFAULT_THRESHOLD + 4),
+    };
+    let new_migration_poll_config = PollConfig {
+        proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT + 5),
+        voting_period: DEFAULT_VOTING_PERIOD + 6,
+        quorum: Decimal::percent(DEFAULT_QUORUM + 7),
+        threshold: Decimal::percent(DEFAULT_THRESHOLD + 8),
+    };
+    let new_auth_admin_poll_config = PollConfig {
+        proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT + 9),
+        voting_period: DEFAULT_VOTING_PERIOD + 10,
+        quorum: Decimal::percent(DEFAULT_QUORUM + 11),
+        threshold: Decimal::percent(DEFAULT_THRESHOLD + 12),
+    };
+
     let info = mock_info("addr0001", &[]);
     let msg = ExecuteMsg::UpdateConfig {
         owner: None,
-        quorum: Some(Decimal::percent(20)),
-        threshold: Some(Decimal::percent(75)),
-        voting_period: Some(20000u64),
         effective_delay: Some(20000u64),
-        proposal_deposit: Some(Uint128::new(123u128)),
+        default_poll_config: Some(new_default_poll_config.clone()),
+        migration_poll_config: Some(new_migration_poll_config.clone()),
+        auth_admin_poll_config: Some(new_auth_admin_poll_config.clone()),
         voter_weight: Some(Decimal::percent(1)),
         snapshot_period: Some(60u64),
+        admin_manager: Some("new_admin_mgr0000".to_string()),
     };
 
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -2446,25 +2612,25 @@ fn update_config() {
     let res = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
     let config: ConfigResponse = from_binary(&res).unwrap();
     assert_eq!("addr0001", config.owner.as_str());
-    assert_eq!(Decimal::percent(20), config.quorum);
-    assert_eq!(Decimal::percent(75), config.threshold);
-    assert_eq!(20000u64, config.voting_period);
     assert_eq!(20000u64, config.effective_delay);
-    assert_eq!(123u128, config.proposal_deposit.u128());
+    assert_eq!(new_default_poll_config, config.default_poll_config);
+    assert_eq!(new_migration_poll_config, config.migration_poll_config);
+    assert_eq!(new_auth_admin_poll_config, config.auth_admin_poll_config);
     assert_eq!(Decimal::percent(1), config.voter_weight);
     assert_eq!(60u64, config.snapshot_period);
+    assert_eq!("new_admin_mgr0000", config.admin_manager.as_str());
 
     // Unauthorized err
     let info = mock_info(TEST_CREATOR, &[]);
     let msg = ExecuteMsg::UpdateConfig {
         owner: None,
-        quorum: None,
-        threshold: None,
-        voting_period: None,
         effective_delay: None,
-        proposal_deposit: None,
+        default_poll_config: None,
+        migration_poll_config: None,
+        auth_admin_poll_config: None,
         voter_weight: None,
         snapshot_period: None,
+        admin_manager: None,
     };
 
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
@@ -2475,14 +2641,8 @@ fn update_config() {
 fn distribute_voting_rewards() {
     let mut deps = mock_dependencies(&[]);
     let msg = InstantiateMsg {
-        nebula_token: VOTING_TOKEN.to_string(),
-        quorum: Decimal::percent(DEFAULT_QUORUM),
-        threshold: Decimal::percent(DEFAULT_THRESHOLD),
-        voting_period: DEFAULT_VOTING_PERIOD,
-        effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
         voter_weight: Decimal::percent(50), // distribute 50% rewards to voters
-        snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
+        ..init_msg()
     };
 
     let info = mock_info(TEST_CREATOR, &[]);
@@ -2492,7 +2652,7 @@ fn distribute_voting_rewards() {
     let env = mock_env_height(10000, 0);
     let info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
     let poll_end_height = env.block.height + DEFAULT_VOTING_PERIOD;
-    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None, None);
     let execute_res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
     assert_create_poll_result(
@@ -2598,14 +2758,8 @@ fn distribute_voting_rewards() {
 fn stake_voting_rewards() {
     let mut deps = mock_dependencies(&[]);
     let msg = InstantiateMsg {
-        nebula_token: VOTING_TOKEN.to_string(),
-        quorum: Decimal::percent(DEFAULT_QUORUM),
-        threshold: Decimal::percent(DEFAULT_THRESHOLD),
-        voting_period: DEFAULT_VOTING_PERIOD,
-        effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
         voter_weight: Decimal::percent(50), // distribute 50% rewards to voters
-        snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
+        ..init_msg()
     };
 
     let info = mock_info(TEST_CREATOR, &[]);
@@ -2615,7 +2769,7 @@ fn stake_voting_rewards() {
     let env = mock_env_height(10000, 0);
     let info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
     let poll_end_height = env.block.height + DEFAULT_VOTING_PERIOD;
-    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None, None);
     let execute_res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
     assert_create_poll_result(
@@ -2746,14 +2900,8 @@ fn stake_voting_rewards() {
 fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
     let mut deps = mock_dependencies(&[]);
     let msg = InstantiateMsg {
-        nebula_token: VOTING_TOKEN.to_string(),
-        quorum: Decimal::percent(DEFAULT_QUORUM),
-        threshold: Decimal::percent(DEFAULT_THRESHOLD),
-        voting_period: DEFAULT_VOTING_PERIOD,
-        effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
         voter_weight: Decimal::percent(50), // distribute 50% rewards to voters
-        snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
+        ..init_msg()
     };
     let info = mock_info(TEST_CREATOR, &[]);
     let _res = instantiate(deps.as_mut(), mock_env(), info, msg)
@@ -2764,10 +2912,10 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
     let info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
     let poll_end_height = env.block.height + DEFAULT_VOTING_PERIOD;
     // poll 1
-    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None, None);
     let _res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
     // poll 2
-    let msg = create_poll_msg("test2".to_string(), "test2".to_string(), None, None);
+    let msg = create_poll_msg("test2".to_string(), "test2".to_string(), None, None, None);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
     const ALICE: &str = "alice";
@@ -2935,14 +3083,8 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
 fn distribute_voting_rewards_only_to_polls_in_progress() {
     let mut deps = mock_dependencies(&[]);
     let msg = InstantiateMsg {
-        nebula_token: VOTING_TOKEN.to_string(),
-        quorum: Decimal::percent(DEFAULT_QUORUM),
-        threshold: Decimal::percent(DEFAULT_THRESHOLD),
-        voting_period: DEFAULT_VOTING_PERIOD,
-        effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
         voter_weight: Decimal::percent(50), // distribute 50% rewards to voters
-        snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
+        ..init_msg()
     };
     let info = mock_info(TEST_CREATOR, &[]);
     let _res = instantiate(deps.as_mut(), mock_env(), info, msg)
@@ -2968,6 +3110,7 @@ fn distribute_voting_rewards_only_to_polls_in_progress() {
                 total_balance_at_end_poll: None,
                 voters_reward: Uint128::zero(),
                 staked_amount: None,
+                admin_action: None,
             },
         )
         .unwrap();
@@ -2991,6 +3134,7 @@ fn distribute_voting_rewards_only_to_polls_in_progress() {
                 total_balance_at_end_poll: None,
                 voters_reward: Uint128::zero(),
                 staked_amount: None,
+                admin_action: None,
             },
         )
         .unwrap();
@@ -3043,6 +3187,7 @@ fn distribute_voting_rewards_only_to_polls_in_progress() {
                 total_balance_at_end_poll: None,
                 voters_reward: Uint128::from(1000000000u128),
                 staked_amount: None,
+                admin_action: None,
             },
             PollResponse {
                 id: 2u64,
@@ -3060,6 +3205,7 @@ fn distribute_voting_rewards_only_to_polls_in_progress() {
                 total_balance_at_end_poll: None,
                 voters_reward: Uint128::zero(),
                 staked_amount: None,
+                admin_action: None,
             },
         ]
     );
@@ -3069,14 +3215,8 @@ fn distribute_voting_rewards_only_to_polls_in_progress() {
 fn test_staking_and_voting_rewards() {
     let mut deps = mock_dependencies(&[]);
     let msg = InstantiateMsg {
-        nebula_token: VOTING_TOKEN.to_string(),
-        quorum: Decimal::percent(DEFAULT_QUORUM),
-        threshold: Decimal::percent(DEFAULT_THRESHOLD),
-        voting_period: DEFAULT_VOTING_PERIOD,
-        effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
         voter_weight: Decimal::percent(50), // distribute 50% rewards to voters
-        snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
+        ..init_msg()
     };
     let info = mock_info(TEST_CREATOR, &[]);
     let _res = instantiate(deps.as_mut(), mock_env(), info, msg)
@@ -3086,7 +3226,7 @@ fn test_staking_and_voting_rewards() {
     let info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
     let poll_end_height = env.block.height + DEFAULT_VOTING_PERIOD;
     // poll 1
-    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None, None);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
     const ALICE: &str = "alice";
@@ -3300,16 +3440,7 @@ fn test_staking_and_voting_rewards() {
 #[test]
 fn test_abstain_votes_threshold() {
     let mut deps = mock_dependencies(&[]);
-    let msg = InstantiateMsg {
-        nebula_token: VOTING_TOKEN.to_string(),
-        quorum: Decimal::percent(DEFAULT_QUORUM),
-        threshold: Decimal::percent(DEFAULT_THRESHOLD),
-        voting_period: DEFAULT_VOTING_PERIOD,
-        effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
-        voter_weight: Decimal::percent(50), // distribute 50% rewards to voters
-        snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
-    };
+    let msg = init_msg();
 
     let info = mock_info(TEST_CREATOR, &[]);
     let _res = instantiate(deps.as_mut(), mock_env(), info, msg)
@@ -3318,7 +3449,7 @@ fn test_abstain_votes_threshold() {
     let env = mock_env_height(10000, 0);
     let info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
     let poll_end_height = env.block.height + DEFAULT_VOTING_PERIOD;
-    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None, None);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
     const ALICE: &str = "alice";
@@ -3422,16 +3553,7 @@ fn test_abstain_votes_threshold() {
 #[test]
 fn test_abstain_votes_quorum() {
     let mut deps = mock_dependencies(&[]);
-    let msg = InstantiateMsg {
-        nebula_token: VOTING_TOKEN.to_string(),
-        quorum: Decimal::percent(DEFAULT_QUORUM),
-        threshold: Decimal::percent(DEFAULT_THRESHOLD),
-        voting_period: DEFAULT_VOTING_PERIOD,
-        effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
-        voter_weight: Decimal::percent(50), // distribute 50% rewards to voters
-        snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
-    };
+    let msg = init_msg();
 
     let info = mock_info(TEST_CREATOR, &[]);
     let _res = instantiate(deps.as_mut(), mock_env(), info, msg)
@@ -3440,7 +3562,7 @@ fn test_abstain_votes_quorum() {
     let env = mock_env_height(10000, 0);
     let info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
     let poll_end_height = env.block.height + DEFAULT_VOTING_PERIOD;
-    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None, None);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
     const ALICE: &str = "alice";
@@ -3543,7 +3665,7 @@ fn test_abstain_votes_quorum() {
     let env = mock_env_height(10000, 0);
     let info = mock_info(VOTING_TOKEN, &coins(2, VOTING_TOKEN));
     let poll_end_height = env.block.height + DEFAULT_VOTING_PERIOD;
-    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None, None);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
     // Alice doesn't vote
@@ -3753,7 +3875,7 @@ fn snapshot_poll() {
     let mut deps = mock_dependencies(&coins(100, VOTING_TOKEN));
     mock_instantiate(deps.as_mut());
 
-    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None, None);
     let mut creator_env = mock_env();
     let creator_info = mock_info(VOTING_TOKEN, &[]);
     let execute_res = execute(
@@ -3836,7 +3958,7 @@ fn happy_days_cast_vote_with_snapshot() {
 
     let env = mock_env_height(0, 0);
     let info = mock_info(VOTING_TOKEN, &[]);
-    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None, None);
 
     let execute_res = execute(deps.as_mut(), env, info, msg).unwrap();
     assert_create_poll_result(
@@ -3996,6 +4118,7 @@ fn fails_end_poll_quorum_inflation_without_snapshot_poll() {
             contract: VOTING_TOKEN.to_string(),
             msg: exec_msg_bz,
         }]),
+        None,
     );
 
     let execute_res = execute(
@@ -4153,6 +4276,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
             contract: VOTING_TOKEN.to_string(),
             msg: exec_msg_bz,
         }]),
+        None,
     );
 
     let execute_res = execute(
@@ -4330,14 +4454,8 @@ fn happy_days_end_poll_with_controlled_quorum() {
 fn test_unstake_before_claiming_voting_rewards() {
     let mut deps = mock_dependencies(&[]);
     let msg = InstantiateMsg {
-        nebula_token: VOTING_TOKEN.to_string(),
-        quorum: Decimal::percent(DEFAULT_QUORUM),
-        threshold: Decimal::percent(DEFAULT_THRESHOLD),
-        voting_period: DEFAULT_VOTING_PERIOD,
-        effective_delay: DEFAULT_EFFECTIVE_DELAY,
-        proposal_deposit: Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
         voter_weight: Decimal::percent(50),
-        snapshot_period: DEFAULT_SNAPSHOT_PERIOD,
+        ..init_msg()
     };
 
     let info = mock_info(TEST_CREATOR, &[]);
@@ -4345,7 +4463,7 @@ fn test_unstake_before_claiming_voting_rewards() {
         .expect("contract successfully handles InstantiateMsg");
 
     let env = mock_env_height(10000, 0);
-    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None);
+    let msg = create_poll_msg("test".to_string(), "test".to_string(), None, None, None);
     let info = mock_info(VOTING_TOKEN, &[]);
     let handle_res = execute(deps.as_mut(), env.clone(), info.clone(), msg).unwrap();
     let poll_end_height = env.block.height + DEFAULT_VOTING_PERIOD;
@@ -4459,6 +4577,448 @@ fn test_unstake_before_claiming_voting_rewards() {
     poll_voter_read(&deps.storage, 1u64)
         .load(deps.api.addr_validate(TEST_VOTER).unwrap().as_bytes())
         .unwrap_err();
+}
+
+#[test]
+fn create_auth_admin_poll_config() {
+    const POLL_START_HEIGHT: u64 = 1000;
+    let stake_amount = 1000;
+
+    let mut deps = mock_dependencies(&coins(1000, VOTING_TOKEN));
+    mock_instantiate(deps.as_mut());
+    let mut creator_env = mock_env_height(POLL_START_HEIGHT, 0);
+    let mut creator_info = mock_info(VOTING_TOKEN, &[]);
+
+    let exec_msg_bz = to_binary(&Cw20ExecuteMsg::Burn {
+        amount: Uint128::new(123),
+    })
+    .unwrap();
+
+    let msg = create_admin_poll_msg(
+        "test".to_string(),
+        "test".to_string(),
+        None,
+        Some(vec![PollExecuteMsg {
+            contract: VOTING_TOKEN.to_string(),
+            msg: exec_msg_bz.clone(),
+        }]),
+        Some(PollAdminAction::AuthorizeClaim {
+            authorized_addr: "someaddrr0000".to_string(),
+        }),
+        Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
+    );
+    // expect error, deposit not enough
+    let err = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg,
+    )
+    .unwrap_err();
+    assert_eq!(
+        err,
+        ContractError::Generic(format!(
+            "Must deposit more than {} token",
+            DEFAULT_AUTH_ADMIN_PROPOSAL_DEPOSIT
+        ))
+    );
+
+    let msg = create_admin_poll_msg(
+        "test".to_string(),
+        "test".to_string(),
+        None,
+        Some(vec![PollExecuteMsg {
+            contract: VOTING_TOKEN.to_string(),
+            msg: exec_msg_bz,
+        }]),
+        Some(PollAdminAction::AuthorizeClaim {
+            authorized_addr: "someaddrr0000".to_string(),
+        }),
+        Uint128::new(DEFAULT_AUTH_ADMIN_PROPOSAL_DEPOSIT),
+    );
+    // expect error, cannot create poll with admin action and execute msg
+    let err = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg,
+    )
+    .unwrap_err();
+    assert_eq!(
+        err,
+        ContractError::Generic(
+            "Cannot create a poll with both execute msgs and admin actions".to_string()
+        )
+    );
+
+    let msg = create_admin_poll_msg(
+        "test".to_string(),
+        "test".to_string(),
+        None,
+        None,
+        Some(PollAdminAction::AuthorizeClaim {
+            authorized_addr: "someaddr0000".to_string(),
+        }),
+        Uint128::new(DEFAULT_AUTH_ADMIN_PROPOSAL_DEPOSIT),
+    );
+
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg,
+    )
+    .unwrap();
+
+    assert_create_admin_poll_result(
+        1,
+        creator_env.block.height + DEFAULT_AUTH_ADMIN_VOTING_PERIOD,
+        TEST_CREATOR,
+        execute_res,
+        deps.as_ref(),
+        Uint128::new(DEFAULT_AUTH_ADMIN_PROPOSAL_DEPOSIT),
+    );
+
+    let res = query(
+        deps.as_ref(),
+        mock_env(),
+        QueryMsg::Polls {
+            filter: None,
+            start_after: None,
+            limit: None,
+            order_by: Some(OrderBy::Asc),
+        },
+    )
+    .unwrap();
+    let response: PollsResponse = from_binary(&res).unwrap();
+    assert_eq!(
+        response.polls,
+        vec![PollResponse {
+            id: 1u64,
+            creator: TEST_CREATOR.to_string(),
+            status: PollStatus::InProgress,
+            end_height: creator_env.block.height + DEFAULT_AUTH_ADMIN_VOTING_PERIOD,
+            title: "test".to_string(),
+            description: "test".to_string(),
+            link: None,
+            deposit_amount: Uint128::new(DEFAULT_AUTH_ADMIN_PROPOSAL_DEPOSIT),
+            execute_data: None,
+            yes_votes: Uint128::zero(),
+            no_votes: Uint128::zero(),
+            total_balance_at_end_poll: None,
+            voters_reward: Uint128::zero(),
+            abstain_votes: Uint128::zero(),
+            staked_amount: None,
+            admin_action: Some(PollAdminAction::AuthorizeClaim {
+                authorized_addr: "someaddr0000".to_string(),
+            }),
+        }]
+    );
+
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new((stake_amount + DEFAULT_AUTH_ADMIN_PROPOSAL_DEPOSIT) as u128),
+        )],
+    )]);
+
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER.to_string(),
+        amount: Uint128::from(stake_amount as u128),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap(),
+    });
+
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let execute_res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    assert_stake_tokens_result(
+        stake_amount,
+        DEFAULT_AUTH_ADMIN_PROPOSAL_DEPOSIT,
+        stake_amount,
+        1,
+        execute_res,
+        deps.as_ref(),
+    );
+
+    let msg = ExecuteMsg::CastVote {
+        poll_id: 1,
+        vote: VoteOption::Yes,
+        amount: Uint128::from(stake_amount),
+    };
+    let env = mock_env_height(POLL_START_HEIGHT, 0);
+    let info = mock_info(TEST_VOTER, &[]);
+    execute(deps.as_mut(), env, info, msg).unwrap();
+
+    creator_info.sender = Addr::unchecked(TEST_CREATOR);
+    creator_env.block.height = creator_env.block.height + DEFAULT_AUTH_ADMIN_VOTING_PERIOD;
+
+    let msg = ExecuteMsg::EndPoll { poll_id: 1 };
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg,
+    )
+    .unwrap();
+
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "end_poll"),
+            attr("poll_id", "1"),
+            attr("rejected_reason", ""),
+            attr("passed", "true"),
+        ]
+    );
+    assert_eq!(
+        execute_res.messages,
+        vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: VOTING_TOKEN.to_string(),
+            msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                recipient: TEST_CREATOR.to_string(),
+                amount: Uint128::new(DEFAULT_AUTH_ADMIN_PROPOSAL_DEPOSIT),
+            })
+            .unwrap(),
+            funds: vec![],
+        }))]
+    );
+
+    // End poll will withdraw deposit balance
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new(stake_amount as u128),
+        )],
+    )]);
+
+    creator_env.block.height += DEFAULT_EFFECTIVE_DELAY;
+    let msg = ExecuteMsg::ExecutePoll { poll_id: 1 };
+    let execute_res = execute(deps.as_mut(), creator_env, creator_info, msg).unwrap();
+    assert_eq!(
+        execute_res.messages,
+        vec![SubMsg {
+            msg: CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: TEST_ADMIN_MANAGER.to_string(),
+                msg: to_binary(&ManagerExecuteMsg::AuthorizeClaim {
+                    authorized_addr: "someaddr0000".to_string(),
+                })
+                .unwrap(),
+                funds: vec![],
+            }),
+            gas_limit: None,
+            id: 1u64,
+            reply_on: ReplyOn::Error,
+        }]
+    );
+    assert_eq!(
+        execute_res.attributes,
+        vec![attr("action", "execute_poll"), attr("poll_id", "1"),]
+    );
+}
+
+#[test]
+fn create_migration_poll_config() {
+    const POLL_START_HEIGHT: u64 = 1000;
+    let stake_amount = 1000;
+
+    let mut deps = mock_dependencies(&coins(1000, VOTING_TOKEN));
+    mock_instantiate(deps.as_mut());
+    let creator_env = mock_env_height(POLL_START_HEIGHT, 0);
+    let mut creator_info = mock_info(VOTING_TOKEN, &[]);
+
+    let migration_msg = to_binary(&MigrateMsg {}).unwrap();
+    let msg = create_admin_poll_msg(
+        "test".to_string(),
+        "test".to_string(),
+        None,
+        None,
+        Some(PollAdminAction::ExecuteMigrations {
+            migrations: vec![("contract0000".to_string(), 0, migration_msg.clone())],
+        }),
+        Uint128::new(DEFAULT_PROPOSAL_DEPOSIT),
+    );
+    // expect error, deposit not enough
+    let err = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg,
+    )
+    .unwrap_err();
+    assert_eq!(
+        err,
+        ContractError::Generic(format!(
+            "Must deposit more than {} token",
+            DEFAULT_MIGRATION_PROPOSAL_DEPOSIT
+        ))
+    );
+
+    let msg = create_admin_poll_msg(
+        "test".to_string(),
+        "test".to_string(),
+        None,
+        None,
+        Some(PollAdminAction::ExecuteMigrations {
+            migrations: vec![("contract0000".to_string(), 0, migration_msg.clone())],
+        }),
+        Uint128::new(DEFAULT_MIGRATION_PROPOSAL_DEPOSIT),
+    );
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg,
+    )
+    .unwrap();
+
+    assert_create_admin_poll_result(
+        1,
+        creator_env.block.height + DEFAULT_MIGRATION_VOTING_PERIOD,
+        TEST_CREATOR,
+        execute_res,
+        deps.as_ref(),
+        Uint128::new(DEFAULT_MIGRATION_PROPOSAL_DEPOSIT),
+    );
+
+    let res = query(
+        deps.as_ref(),
+        mock_env(),
+        QueryMsg::Polls {
+            filter: None,
+            start_after: None,
+            limit: None,
+            order_by: Some(OrderBy::Asc),
+        },
+    )
+    .unwrap();
+    let response: PollsResponse = from_binary(&res).unwrap();
+    assert_eq!(
+        response.polls,
+        vec![PollResponse {
+            id: 1u64,
+            creator: TEST_CREATOR.to_string(),
+            status: PollStatus::InProgress,
+            end_height: creator_env.block.height + DEFAULT_MIGRATION_VOTING_PERIOD,
+            title: "test".to_string(),
+            description: "test".to_string(),
+            link: None,
+            deposit_amount: Uint128::new(DEFAULT_MIGRATION_PROPOSAL_DEPOSIT),
+            execute_data: None,
+            yes_votes: Uint128::zero(),
+            no_votes: Uint128::zero(),
+            total_balance_at_end_poll: None,
+            voters_reward: Uint128::zero(),
+            abstain_votes: Uint128::zero(),
+            staked_amount: None,
+            admin_action: Some(PollAdminAction::ExecuteMigrations {
+                migrations: vec![("contract0000".to_string(), 0, migration_msg.clone())],
+            }),
+        }]
+    );
+
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new((stake_amount + DEFAULT_MIGRATION_PROPOSAL_DEPOSIT) as u128),
+        )],
+    )]);
+
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER.to_string(),
+        amount: Uint128::from(stake_amount as u128),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap(),
+    });
+
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let execute_res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    assert_stake_tokens_result(
+        stake_amount,
+        DEFAULT_MIGRATION_PROPOSAL_DEPOSIT,
+        stake_amount,
+        1,
+        execute_res,
+        deps.as_ref(),
+    );
+
+    let msg = ExecuteMsg::CastVote {
+        poll_id: 1,
+        vote: VoteOption::Yes,
+        amount: Uint128::from(stake_amount),
+    };
+    let env = mock_env_height(POLL_START_HEIGHT, 0);
+    let info = mock_info(TEST_VOTER, &[]);
+    execute(deps.as_mut(), env, info, msg).unwrap();
+
+    creator_info.sender = Addr::unchecked(TEST_CREATOR);
+
+    // no need to wait for voting period to end
+
+    let msg = ExecuteMsg::EndPoll { poll_id: 1 };
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg,
+    )
+    .unwrap();
+
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "end_poll"),
+            attr("poll_id", "1"),
+            attr("rejected_reason", ""),
+            attr("passed", "true"),
+        ]
+    );
+    assert_eq!(
+        execute_res.messages,
+        vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: VOTING_TOKEN.to_string(),
+            msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                recipient: TEST_CREATOR.to_string(),
+                amount: Uint128::new(DEFAULT_MIGRATION_PROPOSAL_DEPOSIT),
+            })
+            .unwrap(),
+            funds: vec![],
+        }))]
+    );
+
+    // End poll will withdraw deposit balance
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new(stake_amount as u128),
+        )],
+    )]);
+
+    // no need to wait for effective delay
+
+    let msg = ExecuteMsg::ExecutePoll { poll_id: 1 };
+    let execute_res = execute(deps.as_mut(), creator_env, creator_info, msg).unwrap();
+    assert_eq!(
+        execute_res.messages,
+        vec![SubMsg {
+            msg: CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: TEST_ADMIN_MANAGER.to_string(),
+                msg: to_binary(&ManagerExecuteMsg::ExecuteMigrations {
+                    migrations: vec![("contract0000".to_string(), 0, migration_msg)]
+                })
+                .unwrap(),
+                funds: vec![],
+            }),
+            gas_limit: None,
+            id: 1u64,
+            reply_on: ReplyOn::Error,
+        }]
+    );
+    assert_eq!(
+        execute_res.attributes,
+        vec![attr("action", "execute_poll"), attr("poll_id", "1"),]
+    );
 }
 
 #[test]
