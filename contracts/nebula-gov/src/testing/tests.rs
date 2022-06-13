@@ -4632,7 +4632,7 @@ fn create_auth_admin_poll_config() {
             msg: exec_msg_bz,
         }]),
         Some(PollAdminAction::AuthorizeClaim {
-            authorized_addr: "someaddrr0000".to_string(),
+            authorized_addr: "someaddr0000".to_string(),
         }),
         Uint128::new(DEFAULT_AUTH_ADMIN_PROPOSAL_DEPOSIT),
     );
@@ -4802,6 +4802,178 @@ fn create_auth_admin_poll_config() {
                 contract_addr: TEST_ADMIN_MANAGER.to_string(),
                 msg: to_binary(&ManagerExecuteMsg::AuthorizeClaim {
                     authorized_addr: "someaddr0000".to_string(),
+                })
+                .unwrap(),
+                funds: vec![],
+            }),
+            gas_limit: None,
+            id: 1u64,
+            reply_on: ReplyOn::Error,
+        }]
+    );
+    assert_eq!(
+        execute_res.attributes,
+        vec![attr("action", "execute_poll"), attr("poll_id", "1"),]
+    );
+}
+
+#[test]
+fn create_update_config_poll_config() {
+    const POLL_START_HEIGHT: u64 = 1000;
+    let stake_amount = 1000;
+
+    let mut deps = mock_dependencies(&coins(1000, VOTING_TOKEN));
+    mock_instantiate(deps.as_mut());
+    let mut creator_env = mock_env_height(POLL_START_HEIGHT, 0);
+    let mut creator_info = mock_info(VOTING_TOKEN, &[]);
+
+    // First let's update owner to the governance itself
+    let info = mock_info(TEST_CREATOR, &[]);
+    let msg = ExecuteMsg::UpdateConfig {
+        owner: Some(MOCK_CONTRACT_ADDR.to_string()),
+        effective_delay: None,
+        default_poll_config: None,
+        migration_poll_config: None,
+        auth_admin_poll_config: None,
+        voter_weight: None,
+        snapshot_period: None,
+        admin_manager: None,
+    };
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    assert_eq!(0, res.messages.len());
+
+    let msg = create_admin_poll_msg(
+        "test".to_string(),
+        "test".to_string(),
+        None,
+        None,
+        Some(PollAdminAction::UpdateConfig {
+            owner: Some("new_owner".to_string()),
+            effective_delay: None,
+            default_poll_config: None,
+            migration_poll_config: None,
+            auth_admin_poll_config: None,
+            voter_weight: None,
+            snapshot_period: None,
+            admin_manager: None,
+        }),
+        Uint128::new(DEFAULT_AUTH_ADMIN_PROPOSAL_DEPOSIT),
+    );
+
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg,
+    )
+    .unwrap();
+
+    assert_create_admin_poll_result(
+        1,
+        creator_env.block.height + DEFAULT_AUTH_ADMIN_VOTING_PERIOD,
+        TEST_CREATOR,
+        execute_res,
+        deps.as_ref(),
+        Uint128::new(DEFAULT_AUTH_ADMIN_PROPOSAL_DEPOSIT),
+    );
+
+    // Stake some tokens and vote
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new((stake_amount + DEFAULT_AUTH_ADMIN_PROPOSAL_DEPOSIT) as u128),
+        )],
+    )]);
+
+    let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
+        sender: TEST_VOTER.to_string(),
+        amount: Uint128::from(stake_amount as u128),
+        msg: to_binary(&Cw20HookMsg::StakeVotingTokens {}).unwrap(),
+    });
+
+    let info = mock_info(VOTING_TOKEN, &[]);
+    let execute_res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    assert_stake_tokens_result(
+        stake_amount,
+        DEFAULT_AUTH_ADMIN_PROPOSAL_DEPOSIT,
+        stake_amount,
+        1,
+        execute_res,
+        deps.as_ref(),
+    );
+
+    let msg = ExecuteMsg::CastVote {
+        poll_id: 1,
+        vote: VoteOption::Yes,
+        amount: Uint128::from(stake_amount),
+    };
+    let env = mock_env_height(POLL_START_HEIGHT, 0);
+    let info = mock_info(TEST_VOTER, &[]);
+    execute(deps.as_mut(), env, info, msg).unwrap();
+
+    creator_info.sender = Addr::unchecked(TEST_CREATOR);
+    creator_env.block.height = creator_env.block.height + DEFAULT_AUTH_ADMIN_VOTING_PERIOD;
+
+    let msg = ExecuteMsg::EndPoll { poll_id: 1 };
+    let execute_res = execute(
+        deps.as_mut(),
+        creator_env.clone(),
+        creator_info.clone(),
+        msg,
+    )
+    .unwrap();
+
+    assert_eq!(
+        execute_res.attributes,
+        vec![
+            attr("action", "end_poll"),
+            attr("poll_id", "1"),
+            attr("rejected_reason", ""),
+            attr("passed", "true"),
+        ]
+    );
+    assert_eq!(
+        execute_res.messages,
+        vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: VOTING_TOKEN.to_string(),
+            msg: to_binary(&Cw20ExecuteMsg::Transfer {
+                recipient: TEST_CREATOR.to_string(),
+                amount: Uint128::new(DEFAULT_AUTH_ADMIN_PROPOSAL_DEPOSIT),
+            })
+            .unwrap(),
+            funds: vec![],
+        }))]
+    );
+
+    // End poll will withdraw deposit balance
+    deps.querier.with_token_balances(&[(
+        &VOTING_TOKEN.to_string(),
+        &[(
+            &MOCK_CONTRACT_ADDR.to_string(),
+            &Uint128::new(stake_amount as u128),
+        )],
+    )]);
+
+    // Wait for Effective Delay
+    creator_env.block.height += DEFAULT_EFFECTIVE_DELAY;
+
+    let msg = ExecuteMsg::ExecutePoll { poll_id: 1 };
+    let execute_res = execute(deps.as_mut(), creator_env.clone(), creator_info, msg).unwrap();
+    assert_eq!(
+        execute_res.messages,
+        vec![SubMsg {
+            msg: CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: MOCK_CONTRACT_ADDR.to_string(),
+                msg: to_binary(&ExecuteMsg::UpdateConfig {
+                    owner: Some("new_owner".to_string()),
+                    effective_delay: None,
+                    default_poll_config: None,
+                    migration_poll_config: None,
+                    auth_admin_poll_config: None,
+                    voter_weight: None,
+                    snapshot_period: None,
+                    admin_manager: None
                 })
                 .unwrap(),
                 funds: vec![],
