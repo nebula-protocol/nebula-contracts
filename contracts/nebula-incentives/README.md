@@ -38,7 +38,7 @@
 - `custody`: address of the [`nebula-incentives-custody`](../nebula-incentives-custody/) contract
 - `astroport_factory`: address of the [Astroport](https://astroport.fi) [factory](https://github.com/astroport-fi/astroport-core/tree/main/contracts/factory) contract
 - `nebula_token`: contract address of Nebula Token (NEB)
-- `base_denom`: contract's base denomination (usually `uusd`)
+- `base_denom`: contract's base denomination (usually `TODO`)
 - `owner`: address of the owner of the `incentives` contract
 
 ## ExecuteMsg
@@ -100,27 +100,27 @@ Initiates a new incentives penalty period and make the reward from the previous 
 Initiates an arbitrage mint transaction. This comprises of:
 
 - using `assets` to mint new `cluster_contract` cluster tokens
-- selling the minted tokens on Astroport, controlling the slippage with the `min_ust` option
+- selling the minted tokens on Astroport, controlling the slippage with the `min_return` option
 
 ```json
 {
   "arb_cluster_create": {
     "cluster_contract": String,
     "assets": Vec<Asset>,
-    "min_ust": Option<Uint128>
+    "min_return": Option<Uint128>
   }
 }
 ```
 
 - `cluter_contract`: address of the clsuter contract to mint tokens from
 - `assets`: list of assets and amounts to use to mint the cluster tokens
-- `min_ust`: minimum amount of UST expected to receive back when selling the minted cluster tokens on Astroport (for slippage control)
+- `min_return`: minimum amount of BASE_DENOM expected to receive back when selling the minted cluster tokens on Astroport (for slippage control)
 
 ### ArbClusterRedeem
 
 Initiates an arbitrage burn transaction. This comprises of:
 
-- Using UST to buy cluster tokens from the CT-UST Astroport pool, controlling the slippage with `min_cluster`
+- Using BASE_DENOM to buy cluster tokens from the CT-BASE_DENOM Astroport pool, controlling the slippage with `min_cluster`
 - Burning the swapped cluster tokens for the cluster's inventory asset tokens
 
 ```json
@@ -134,7 +134,7 @@ Initiates an arbitrage burn transaction. This comprises of:
 ```
 
 - `cluster_contract`: address of the clsuter contract to buy from Astroport and burn tokens from
-- `asset`: asset to use to buy cluster tokens from Astroport (always `uusd`)
+- `asset`: asset to use to buy cluster tokens from Astroport (always `TODO`)
 - `min_cluster`: minimum amount of cluster tokens expected to receive back when buying from Astroport pool (for slippage control)
 
 ### IncentivesCreate

@@ -90,10 +90,10 @@ impl WasmMockQuerier {
                             liquidity_token: Addr::unchecked(v),
                             asset_infos: [
                                 AssetInfo::NativeToken {
-                                    denom: "uusd".to_string(),
+                                    denom: "uasset".to_string(),
                                 },
                                 AssetInfo::NativeToken {
-                                    denom: "uusd".to_string(),
+                                    denom: "uasset".to_string(),
                                 },
                             ],
                             pair_type: PairType::Xyk {},

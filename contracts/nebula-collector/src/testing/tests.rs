@@ -21,7 +21,7 @@ fn proper_initialization() {
         distribution_contract: ("gov0000".to_string()),
         nebula_token: ("nebula0000".to_string()),
         owner: ("owner0000".to_string()),
-        base_denom: "uusd".to_string(),
+        base_denom: "uasset".to_string(),
     };
 
     let info = mock_info("addr0000", &[]);
@@ -34,13 +34,13 @@ fn proper_initialization() {
     let res = query(deps.as_ref(), mock_env(), msg).unwrap();
     let decoded_res: ConfigResponse = from_binary(&res).unwrap();
     assert_eq!("astroportfactory", decoded_res.astroport_factory.as_str());
-    assert_eq!("uusd", decoded_res.base_denom.as_str());
+    assert_eq!("uasset", decoded_res.base_denom.as_str());
 }
 
 #[test]
 fn test_convert() {
     let mut deps = mock_dependencies(&[Coin {
-        denom: "uusd".to_string(),
+        denom: "uasset".to_string(),
         amount: Uint128::new(100u128),
     }]);
     deps.querier.with_token_balances(&[(
@@ -49,8 +49,8 @@ fn test_convert() {
     )]);
 
     deps.querier.with_astroport_pairs(&[
-        (&"uusdtokenaapl".to_string(), &"pairAAPL".to_string()),
-        (&"uusdtokennebula".to_string(), &"pairnebula".to_string()),
+        (&"uassettokenaapl".to_string(), &"pairAAPL".to_string()),
+        (&"uassettokennebula".to_string(), &"pairnebula".to_string()),
     ]);
 
     let msg = InstantiateMsg {
@@ -58,7 +58,7 @@ fn test_convert() {
         distribution_contract: ("gov0000".to_string()),
         nebula_token: ("tokennebula".to_string()),
         owner: ("owner0000".to_string()),
-        base_denom: "uusd".to_string(),
+        base_denom: "uasset".to_string(),
     };
 
     let info = mock_info("addr0000", &[]);
@@ -103,7 +103,7 @@ fn test_convert() {
             msg: to_binary(&AstroportExecuteMsg::Swap {
                 offer_asset: Asset {
                     info: AssetInfo::NativeToken {
-                        denom: "uusd".to_string()
+                        denom: "uasset".to_string()
                     },
                     amount: Uint128::new(100u128),
                 },
@@ -114,7 +114,7 @@ fn test_convert() {
             .unwrap(),
             funds: vec![Coin {
                 amount: Uint128::new(100u128),
-                denom: "uusd".to_string(),
+                denom: "uasset".to_string(),
             }],
         }))]
     );
@@ -133,7 +133,7 @@ fn test_distribute() {
         distribution_contract: ("gov0000".to_string()),
         nebula_token: ("nebula0000".to_string()),
         owner: ("owner0000".to_string()),
-        base_denom: "uusd".to_string(),
+        base_denom: "uasset".to_string(),
     };
 
     let info = mock_info("addr0000", &[]);
@@ -167,7 +167,7 @@ fn test_update_config() {
         distribution_contract: ("gov0000".to_string()),
         nebula_token: ("nebula0000".to_string()),
         owner: ("owner0000".to_string()),
-        base_denom: "uusd".to_string(),
+        base_denom: "uasset".to_string(),
     };
 
     let info = mock_info("addr0000", &[]);
@@ -178,7 +178,7 @@ fn test_update_config() {
         astroport_factory: Some("astroportfactory1".to_string()),
         distribution_contract: Some("gov0001".to_string()),
         nebula_token: Some("nebula0001".to_string()),
-        base_denom: Some("uusd1".to_string()),
+        base_denom: Some("uasset1".to_string()),
         owner: Some("owner0001".to_string()),
     };
 
@@ -189,7 +189,7 @@ fn test_update_config() {
     assert_eq!("astroportfactory1", config.astroport_factory.as_str());
     assert_eq!("gov0001", config.distribution_contract.as_str());
     assert_eq!("nebula0001", config.nebula_token.as_str());
-    assert_eq!("uusd1", config.base_denom.as_str());
+    assert_eq!("uasset1", config.base_denom.as_str());
     assert_eq!("owner0001", config.owner.as_str());
 
     // failed unauthorized
@@ -198,7 +198,7 @@ fn test_update_config() {
         astroport_factory: Some("astroportfactory1".to_string()),
         distribution_contract: Some("gov0001".to_string()),
         nebula_token: Some("nebula0001".to_string()),
-        base_denom: Some("uusd1".to_string()),
+        base_denom: Some("uasset1".to_string()),
     };
 
     let info = mock_info("owner0000", &[]);
@@ -215,7 +215,7 @@ fn migration() {
         distribution_contract: ("gov0000".to_string()),
         nebula_token: ("nebula0000".to_string()),
         owner: ("owner0000".to_string()),
-        base_denom: "uusd".to_string(),
+        base_denom: "uasset".to_string(),
     };
 
     let info = mock_info("addr0000", &[]);

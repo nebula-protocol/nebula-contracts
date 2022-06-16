@@ -105,7 +105,7 @@ pub fn execute(
 /// - **oracle_addr** is an object of type [`Option<String>`] which is an address
 ///     of a TeFi oracle hub contract.
 ///
-/// - **base_denom** is an object of type [`Option<String>`] which is a base denom, UST.
+/// - **base_denom** is an object of type [`Option<String>`] which is a base denom.
 ///
 /// ## Executor
 /// Only the owner can execute this.
@@ -201,9 +201,9 @@ fn query_price(
     base_asset: AssetInfo,
     quote_asset: AssetInfo,
 ) -> StdResult<PriceResponse> {
-    // Get latest price of `base_asset` in uusd
+    // Get latest price of `base_asset`
     let (price_base, last_updated_base) = query_asset_price(deps, base_asset)?;
-    // Get latest price of `quote_asset` in uusd
+    // Get latest price of `quote_asset`
     let (price_quote, last_updated_quote) = query_asset_price(deps, quote_asset)?;
 
     // Compute the price
@@ -218,7 +218,7 @@ fn query_price(
 }
 
 /// ## Description
-/// Returns the latest price of an asset in uusd.
+/// Returns the latest price of an asset in TODO.
 ///
 /// ## Params
 /// - **deps** is an object of type [`Deps`].
@@ -235,7 +235,7 @@ fn query_asset_price(deps: Deps, asset: AssetInfo) -> StdResult<(Decimal, u64)> 
     };
 
     let res: TeFiOraclePriceResponse =
-    // Get the price of a CW20 asset in uusd (from TeFi oracle hub contract)
+    // Get the price of a CW20 asset in TODO (from TeFi oracle hub contract)
     deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: config.oracle_addr.to_string(),
         msg: to_binary(&TeFiOracleQueryMsg::Price {

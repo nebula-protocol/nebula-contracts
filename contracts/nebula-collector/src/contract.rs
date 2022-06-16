@@ -83,7 +83,7 @@ pub fn instantiate(
 ///
 /// - **ExecuteMsg::Convert {
 ///             asset_token,
-///         }** Swaps UST to NEB or any cluster token to UST.
+///         }** Swaps BASE_DENOM to NEB or any cluster token to BASE_DENOM.
 ///
 /// - **ExecuteMsg::Distribute {}** sends all collected fee to the Governance contract.
 #[cfg_attr(not(feature = "library"), entry_point)]
@@ -132,7 +132,7 @@ pub fn execute(
 ///     Nebula token contract.
 ///
 /// - **base_denom** is an object of type [`Option<String>`] which is the base denom
-///     for all operations, supposedly UST.
+///     for all operations.
 ///
 /// - **owner** is an object of type [`Option<String>`] which is an owner address to update.
 ///
@@ -185,8 +185,8 @@ pub fn update_config(
 
 /// ## Description
 /// Swaps the given asset to another. If `asset_token` is
-/// - Nebula token contract, trade all UST in the contract to Nebula tokens.
-/// - Other CT tokens, trade all of those tokens in the contract to UST.
+/// - Nebula token contract, trade all BASE_DENOM in the contract to Nebula tokens.
+/// - Other CT tokens, trade all of those tokens in the contract to BASE_DENOM.
 ///
 /// ## Params
 /// - **deps** is an object of type [`DepsMut`].
@@ -200,7 +200,7 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> Result<Response,
     let config: Config = read_config(deps.storage)?;
     let astroport_factory_raw = config.astroport_factory;
 
-    // Get a pair info in Astroport between UST and the given CW20 token
+    // Get a pair info in Astroport between BASE_DENOM and the given CW20 token
     let pair_info: PairInfo = query_pair_info(
         &deps.querier,
         astroport_factory_raw,
@@ -216,15 +216,15 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> Result<Response,
 
     let messages: Vec<CosmosMsg>;
     if config.nebula_token == validated_asset_token {
-        // If the given asset if Nebula, trade UST => Nebula
+        // If the given asset if Nebula, trade BASE_DENOM => Nebula
 
-        // Query the current UST balance of the collector contract
+        // Query the current BASE_DENOM balance of the collector contract
         let amount = query_balance(
             &deps.querier,
             env.contract.address,
             config.base_denom.to_string(),
         )?;
-        // Determine UST to be the trade offer
+        // Determine BASE_DENOM to be the trade offer
         let swap_asset = Asset {
             info: AssetInfo::NativeToken {
                 denom: config.base_denom.clone(),
@@ -232,7 +232,7 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> Result<Response,
             amount,
         };
 
-        // Execute swap from UST to NEB on Astroport UST-NEB pair contract
+        // Execute swap from BASE_DENOM to NEB on Astroport BASE_DENOM-NEB pair contract
         messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: pair_info.contract_addr.to_string(),
             msg: to_binary(&AstroportExecuteMsg::Swap {
@@ -250,7 +250,7 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> Result<Response,
             }],
         })];
     } else {
-        // If the given asset is a CT token, trade the given CT token => UST
+        // If the given asset is a CT token, trade the given CT token => BASE_DENOM
 
         // Query the given CT token balance of the collector contract
         let amount = query_token_balance(
@@ -260,7 +260,7 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> Result<Response,
         )?;
 
         // Execute send on the given CT token contract from the collector contract
-        // to Astroport asset-UST pair contract to trigger swap on Astroport
+        // to Astroport asset-BASE_DENOM pair contract to trigger swap on Astroport
         messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: validated_asset_token.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Send {

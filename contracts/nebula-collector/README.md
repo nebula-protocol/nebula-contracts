@@ -1,6 +1,6 @@
 # Nebula Collector
 
-The Collector accumulates Nebula protocol fees and swaps them to NEB through the NEB <> UST Aastroport pair. Swapped NEB tokens are distributed to NEB stakers (sent to the [`gov`](../nebula-gov/)) contract).
+The Collector accumulates Nebula protocol fees and swaps them to NEB through the NEB <> BASE_DENOM Aastroport pair. Swapped NEB tokens are distributed to NEB stakers (sent to the [`gov`](../nebula-gov/)) contract).
 
 - [Nebula Collector](#nebula-collector)
   - [InstantiateMsg](#instantiatemsg)
@@ -26,7 +26,7 @@ The Collector accumulates Nebula protocol fees and swaps them to NEB through the
 - `distribution_contract`: address at which to distribute the protocol fee rewards to (the [`gov`](../nebula-gov/) contract usually)
 - `astroport_factory`: address of the [Astroport](https://astroport.fi) [`factory`](https://github.com/astroport-fi/astroport-core/tree/main/contracts/factory) contract
 - `nebula_token`: contract address of Nebula Token (NEB)
-- `base_denom`: base denom for all swap operations (UST)
+- `base_denom`: base denom for all swap operations (TODO)
 - `owner`: address of the owner of the `collector` contract
 
 ## ExecuteMsg
@@ -35,8 +35,8 @@ The Collector accumulates Nebula protocol fees and swaps them to NEB through the
 
 Converts/swap either:
 
-- Cluster tokens accrued through protocol fees to UST
-- UST accrued from converting the cluster tokens to NEB
+- Cluster tokens accrued through protocol fees to BASE_DENOM
+- BASE_DENOM accrued from converting the cluster tokens to NEB
 
 ```json
 {

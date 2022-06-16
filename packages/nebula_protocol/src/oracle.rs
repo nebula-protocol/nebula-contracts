@@ -12,7 +12,7 @@ pub struct InstantiateMsg {
     pub owner: String,
     /// TeFi oracle hub contract
     pub oracle_addr: String,
-    /// Default denom, UST (uusd)
+    /// Default denom
     pub base_denom: String,
 }
 
@@ -72,7 +72,7 @@ pub struct ConfigResponse {
     pub owner: String,
     /// TeFi Oracle Hub contract
     pub oracle_addr: String,
-    /// Base denom, UST
+    /// Base denom
     pub base_denom: String,
 }
 

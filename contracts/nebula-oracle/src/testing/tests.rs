@@ -15,7 +15,7 @@ fn init_msg() -> InstantiateMsg {
     InstantiateMsg {
         owner: "owner0000".to_string(),
         oracle_addr: "oracle0000".to_string(),
-        base_denom: "uusd".to_string(),
+        base_denom: "uasset".to_string(),
     }
 }
 
@@ -33,7 +33,7 @@ fn proper_initialization() {
         Config {
             owner: Addr::unchecked("owner0000"),
             oracle_addr: Addr::unchecked("oracle0000"),
-            base_denom: "uusd".to_string(),
+            base_denom: "uasset".to_string(),
         }
     );
 }
@@ -61,7 +61,7 @@ fn update_config() {
     let msg = ExecuteMsg::UpdateConfig {
         owner: Some("owner0001".to_string()),
         oracle_addr: Some("oracle0001".to_string()),
-        base_denom: Some("uusd".to_string()),
+        base_denom: Some("uasset".to_string()),
     };
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
     let config = read_config(&deps.storage).unwrap();
@@ -70,7 +70,7 @@ fn update_config() {
         Config {
             owner: Addr::unchecked("owner0001"),
             oracle_addr: Addr::unchecked("oracle0001"),
-            base_denom: "uusd".to_string()
+            base_denom: "uasset".to_string()
         }
     )
 }
@@ -92,7 +92,7 @@ fn query_config() {
         ConfigResponse {
             owner: "owner0000".to_string(),
             oracle_addr: "oracle0000".to_string(),
-            base_denom: "uusd".to_string(),
+            base_denom: "uasset".to_string(),
         }
     )
 }
@@ -109,7 +109,7 @@ fn query_price() {
         ("token0001", Decimal::from_str("765.52").unwrap()),
         ("token0002", Decimal::from_str("1.9234").unwrap()),
         ("uluna", Decimal::from_str("66.435110305004678719").unwrap()),
-        ("uusd", Decimal::from_str("1.00").unwrap()),
+        ("uasset", Decimal::from_str("1.00").unwrap()),
     ]);
 
     // no cw20 oracle price exists
@@ -118,7 +118,7 @@ fn query_price() {
             contract_addr: Addr::unchecked("nebulatoken"),
         },
         quote_asset: AssetInfo::NativeToken {
-            denom: "uusd".to_string(),
+            denom: "uasset".to_string(),
         },
     };
     let res = query(deps.as_ref(), mock_env(), msg).unwrap_err();
@@ -135,7 +135,7 @@ fn query_price() {
             denom: "ukrw".to_string(),
         },
         quote_asset: AssetInfo::NativeToken {
-            denom: "uusd".to_string(),
+            denom: "uasset".to_string(),
         },
     };
     let res = query(deps.as_ref(), mock_env(), msg).unwrap_err();
@@ -152,7 +152,7 @@ fn query_price() {
             contract_addr: Addr::unchecked("token0001"),
         },
         quote_asset: AssetInfo::NativeToken {
-            denom: "uusd".to_string(),
+            denom: "uasset".to_string(),
         },
     };
     let res = query(deps.as_ref(), mock_env(), msg).unwrap();
@@ -161,7 +161,7 @@ fn query_price() {
 
     let msg = QueryMsg::Price {
         base_asset: AssetInfo::NativeToken {
-            denom: "uusd".to_string(),
+            denom: "uasset".to_string(),
         },
         quote_asset: AssetInfo::NativeToken {
             denom: "uluna".to_string(),
