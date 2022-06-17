@@ -137,7 +137,7 @@ pub fn try_update_owner(
 
     Ok(Response::new().add_attributes(vec![
         attr("action", "update_owner"),
-        attr("new_owner", owner),
+        attr("new_owner", config.owner.to_string()),
     ]))
 }
 
