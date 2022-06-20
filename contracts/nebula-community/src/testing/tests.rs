@@ -100,7 +100,7 @@ fn test_spend() {
     let msg = ExecuteMsg::Spend {
         asset: Asset {
             info: AssetInfo::NativeToken {
-                denom: "uusd".to_string(),
+                denom: "uasset".to_string(),
             },
             amount: Uint128::from(1000000u128),
         },
@@ -113,7 +113,7 @@ fn test_spend() {
         res.messages,
         vec![SubMsg::new(CosmosMsg::Bank(BankMsg::Send {
             to_address: "addr0000".to_string(),
-            amount: coins(1000000u128, "uusd"),
+            amount: coins(1000000u128, "uasset"),
         }))],
     );
 
@@ -187,7 +187,7 @@ fn test_pass_command() {
         wasm_msg: WasmMsg::Execute {
             contract_addr: "contract0001".to_string(),
             msg: Binary::default(),
-            funds: coins(100000000u128, "uusd"),
+            funds: coins(100000000u128, "uasset"),
         },
     };
     let info = mock_info("owner0000", &[]);
@@ -196,7 +196,7 @@ fn test_pass_command() {
         res.messages,
         vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: "contract0001".to_string(),
-            funds: coins(100000000u128, "uusd"),
+            funds: coins(100000000u128, "uasset"),
             msg: Binary::default(),
         }))]
     );

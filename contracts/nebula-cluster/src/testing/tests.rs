@@ -131,13 +131,13 @@ fn bad_initialization() {
         target: vec![
             Asset {
                 info: AssetInfo::NativeToken {
-                    denom: "uusd".to_string(),
+                    denom: "uasset".to_string(),
                 },
                 amount: Uint128::new(60),
             },
             Asset {
                 info: AssetInfo::NativeToken {
-                    denom: "uusd".to_string(),
+                    denom: "uasset".to_string(),
                 },
                 amount: Uint128::new(40),
             },
@@ -166,7 +166,7 @@ fn bad_initialization() {
             },
             Asset {
                 info: AssetInfo::NativeToken {
-                    denom: "uusd".to_string(),
+                    denom: "uasset".to_string(),
                 },
                 amount: Uint128::new(100),
             },
@@ -257,10 +257,10 @@ fn initialize_cluster() {
             consts::cluster_token(),
             token_data::<Vec<(&str, u128)>, &str>("Cluster Token", "CLUSTER", 6, 0, vec![]),
         )
-        .set_native_balance("uusd", MOCK_CONTRACT_ADDR, 1_000_000u128)
+        .set_native_balance("uasset", MOCK_CONTRACT_ADDR, 1_000_000u128)
         .set_native_balance("uluna", MOCK_CONTRACT_ADDR, 1_000_000u128)
         .set_oracle_prices(vec![
-            ("uusd", Decimal::one()),
+            ("uasset", Decimal::one()),
             ("uluna", Decimal::from_str("62.5").unwrap()),
         ]);
 
@@ -272,7 +272,7 @@ fn initialize_cluster() {
         target: vec![
             Asset {
                 info: AssetInfo::NativeToken {
-                    denom: "uusd".to_string(),
+                    denom: "uasset".to_string(),
                 },
                 amount: Uint128::new(50),
             },
@@ -316,7 +316,7 @@ fn initialize_cluster() {
         asset_amounts: vec![
             Asset {
                 info: AssetInfo::NativeToken {
-                    denom: "uusd".to_string(),
+                    denom: "uasset".to_string(),
                 },
                 amount: Uint128::new(1_500_000u128),
             },
@@ -331,7 +331,7 @@ fn initialize_cluster() {
     };
     let info = mock_info(
         "addr0000",
-        &[coin(1_500_000u128, "uusd"), coin(1_000_000u128, "uluna")],
+        &[coin(1_500_000u128, "uasset"), coin(1_000_000u128, "uluna")],
     );
     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
     assert_eq!(
@@ -344,7 +344,7 @@ fn initialize_cluster() {
     let asset_amounts = vec![
         Asset {
             info: AssetInfo::NativeToken {
-                denom: "uusd".to_string(),
+                denom: "uasset".to_string(),
             },
             amount: Uint128::new(1_000_000u128),
         },
@@ -363,7 +363,7 @@ fn initialize_cluster() {
     };
     let info = mock_info(
         "addr0000",
-        &[coin(1_000_000u128, "uusd"), coin(1_000_000u128, "uluna")],
+        &[coin(1_000_000u128, "uasset"), coin(1_000_000u128, "uluna")],
     );
     let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
     assert_eq!(res, ContractError::Generic("Cluster is uninitialized. To initialize it with your mint cluster, provide min_tokens as the amount of cluster tokens you want to start with.".to_string()));
@@ -392,7 +392,7 @@ fn initialize_cluster() {
 fn mint() {
     let (mut deps, _) = mock_init();
     deps = mock_querier_setup(deps);
-    // Asset :: UST Price :: Balance (µ)     (+ proposed   ) :: %
+    // Asset :: BASE_DENOM Price :: Balance (µ)     (+ proposed   ) :: %
     // ---
     // mAAPL ::  135.18   ::  7_290_053_159  (+ 125_000_000) :: 0.20367359382 -> 0.20391741720
     // mGOOG :: 1780.03   ::    319_710_128                  :: 0.11761841035 -> 0.11577407690
@@ -450,7 +450,7 @@ fn mint() {
     };
 
     // unsupported assets sent along with the tx
-    let info = mock_info(addr, &[coin(1_000_000u128, "uusd")]);
+    let info = mock_info(addr, &[coin(1_000_000u128, "uasset")]);
     let res = execute(deps.as_mut(), mock_env(), info, mint_msg.clone()).unwrap_err();
     assert_eq!(
         res,

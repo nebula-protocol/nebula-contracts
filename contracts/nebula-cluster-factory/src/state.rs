@@ -48,7 +48,7 @@ pub struct Config {
     pub token_code_id: u64,
     /// Code ID of the uploaded cluster contract
     pub cluster_code_id: u64,
-    /// Base denom, UST
+    /// Base denom
     pub base_denom: String,
     // Genesis time of the contract
     pub genesis_time: u64,

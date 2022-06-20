@@ -35,7 +35,7 @@ pub struct Config {
     pub astroport_factory: Addr,
     /// Nebula token contract
     pub nebula_token: Addr,
-    /// Base denom, UST
+    /// Base denom
     pub base_denom: String,
 }
 

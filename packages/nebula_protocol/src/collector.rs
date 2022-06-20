@@ -11,7 +11,7 @@ pub struct InstantiateMsg {
     pub astroport_factory: String,
     /// Nebula token contract address
     pub nebula_token: String,
-    /// Base denom, UST
+    /// Base denom
     pub base_denom: String,
     /// Owner of the collector contract
     pub owner: String,
@@ -39,7 +39,7 @@ pub enum ExecuteMsg {
     /// USER CALLABLE
     /////////////////////
 
-    /// Convert swaps UST to NEB or any CT token to UST.
+    /// Convert swaps BASE_DENOM to NEB or any CT token to BASE_DENOM.
     Convert { asset_token: String },
     /// Send collected fee/rewards to Governance contract.
     Distribute {},
@@ -64,7 +64,7 @@ pub struct ConfigResponse {
     pub astroport_factory: String,
     /// Nebula token contract address
     pub nebula_token: String,
-    /// Base denom, UST
+    /// Base denom
     pub base_denom: String,
     /// Owner of the collector contract
     pub owner: String,

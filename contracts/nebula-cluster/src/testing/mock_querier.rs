@@ -96,7 +96,7 @@ pub mod consts {
             astroport_factory: h("ts_factory"),
             token_code_id: 1,
             cluster_code_id: 1,
-            base_denom: "uusd".to_string(),
+            base_denom: "uasset".to_string(),
             genesis_time: 1,
             distribution_schedule: vec![(1, 2, Uint128::from(123u128))],
         }
@@ -576,10 +576,10 @@ pub fn mock_querier_setup(
             ),
         )
         .set_native_balance("uluna", MOCK_CONTRACT_ADDR, 1_000_000)
-        .set_native_balance("uusd", MOCK_CONTRACT_ADDR, 1_000_000);
+        .set_native_balance("uasset", MOCK_CONTRACT_ADDR, 1_000_000);
 
     deps.querier.set_oracle_prices(vec![
-        ("uusd", Decimal::one()),
+        ("uasset", Decimal::one()),
         ("mAAPL", Decimal::from_str("1.0").unwrap()),
         ("mGOOG", Decimal::from_str("1.0").unwrap()),
         ("mMSFT", Decimal::from_str("1.0").unwrap()),

@@ -126,7 +126,7 @@ impl WasmMockQuerier {
             pool_assets: [
                 Asset {
                     info: AssetInfo::NativeToken {
-                        denom: "uusd".to_string(),
+                        denom: "uasset".to_string(),
                     },
                     amount: Uint128::zero(),
                 },

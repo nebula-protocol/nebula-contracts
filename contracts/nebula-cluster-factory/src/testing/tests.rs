@@ -80,14 +80,14 @@ pub fn get_input_params() -> Params {
 
 static TOKEN_CODE_ID: u64 = 8u64;
 static CLUSTER_CODE_ID: u64 = 1u64;
-static BASE_DENOM: &str = "uusd";
+static BASE_DENOM: &str = "uasset";
 static PROTOCOL_FEE_RATE: &str = "0.01";
 
 #[test]
 fn proper_initialization() {
     let mut deps = mock_dependencies(&[]);
     deps.querier
-        .with_astroport_pairs(&[(&"uusdnebula0000".to_string(), &"NEBLP0000".to_string())]);
+        .with_astroport_pairs(&[(&"uassetnebula0000".to_string(), &"NEBLP0000".to_string())]);
 
     let msg = InstantiateMsg {
         base_denom: BASE_DENOM.to_string(),
@@ -150,7 +150,7 @@ fn proper_initialization() {
 fn test_update_config() {
     let mut deps = mock_dependencies(&[]);
     deps.querier
-        .with_astroport_pairs(&[(&"uusdnebula0000".to_string(), &"NEBLP0000".to_string())]);
+        .with_astroport_pairs(&[(&"uassetnebula0000".to_string(), &"NEBLP0000".to_string())]);
 
     let msg = InstantiateMsg {
         base_denom: BASE_DENOM.to_string(),
@@ -247,7 +247,7 @@ fn test_update_config() {
 fn test_update_weight() {
     let mut deps = mock_dependencies(&[]);
     deps.querier
-        .with_astroport_pairs(&[(&"uusdnebula0000".to_string(), &"NEBLP0000".to_string())]);
+        .with_astroport_pairs(&[(&"uassetnebula0000".to_string(), &"NEBLP0000".to_string())]);
     let msg = InstantiateMsg {
         base_denom: BASE_DENOM.to_string(),
         token_code_id: TOKEN_CODE_ID,
@@ -303,7 +303,7 @@ fn test_update_weight() {
 fn test_create_cluster() {
     let mut deps = mock_dependencies(&[]);
     deps.querier
-        .with_astroport_pairs(&[(&"uusdnebula0000".to_string(), &"NEBLP0000".to_string())]);
+        .with_astroport_pairs(&[(&"uassetnebula0000".to_string(), &"NEBLP0000".to_string())]);
 
     let msg = InstantiateMsg {
         base_denom: BASE_DENOM.to_string(),
@@ -390,7 +390,7 @@ fn test_create_cluster() {
 fn test_token_creation_hook() {
     let mut deps = mock_dependencies(&[]);
     deps.querier
-        .with_astroport_pairs(&[(&"uusdnebula0000".to_string(), &"NEBLP0000".to_string())]);
+        .with_astroport_pairs(&[(&"uassetnebula0000".to_string(), &"NEBLP0000".to_string())]);
 
     let msg = InstantiateMsg {
         base_denom: BASE_DENOM.to_string(),
@@ -500,7 +500,7 @@ fn test_token_creation_hook() {
 fn test_set_cluster_token_hook() {
     let mut deps = mock_dependencies(&[]);
     deps.querier
-        .with_astroport_pairs(&[(&"uusdnebula0000".to_string(), &"NEBLP0000".to_string())]);
+        .with_astroport_pairs(&[(&"uassetnebula0000".to_string(), &"NEBLP0000".to_string())]);
 
     let msg = InstantiateMsg {
         base_denom: BASE_DENOM.to_string(),
@@ -637,7 +637,7 @@ fn test_set_cluster_token_hook() {
 fn test_set_cluster_token_hook_without_weight() {
     let mut deps = mock_dependencies(&[]);
     deps.querier
-        .with_astroport_pairs(&[(&"uusdnebula0000".to_string(), &"NEBLP0000".to_string())]);
+        .with_astroport_pairs(&[(&"uassetnebula0000".to_string(), &"NEBLP0000".to_string())]);
 
     let msg = InstantiateMsg {
         base_denom: BASE_DENOM.to_string(),
@@ -772,8 +772,11 @@ fn test_set_cluster_token_hook_without_weight() {
 fn test_astroport_creation_hook() {
     let mut deps = mock_dependencies(&[]);
     deps.querier.with_astroport_pairs(&[
-        (&"uusdnebula0000".to_string(), &"NEBLP000".to_string()),
-        (&"uusdcluster_token0000".to_string(), &"LP0000".to_string()),
+        (&"uassetnebula0000".to_string(), &"NEBLP000".to_string()),
+        (
+            &"uassetcluster_token0000".to_string(),
+            &"LP0000".to_string(),
+        ),
     ]);
 
     let msg = InstantiateMsg {
@@ -864,9 +867,9 @@ fn test_astroport_creation_hook() {
 fn test_distribute() {
     let mut deps = mock_dependencies(&[]);
     deps.querier.with_astroport_pairs(&[
-        (&"uusdnebula0000".to_string(), &"NEBLP000".to_string()),
-        (&"uusdcluster_token0000".to_string(), &h("LP0000")),
-        (&"uusdcluster_token0001".to_string(), &h("LP0001")),
+        (&"uassetnebula0000".to_string(), &"NEBLP000".to_string()),
+        (&"uassetcluster_token0000".to_string(), &h("LP0000")),
+        (&"uassetcluster_token0001".to_string(), &h("LP0001")),
     ]);
 
     let msg = InstantiateMsg {
@@ -1050,9 +1053,9 @@ fn test_distribute() {
 fn test_decommission_cluster() {
     let mut deps = mock_dependencies(&[]);
     deps.querier.with_astroport_pairs(&[
-        (&"uusdnebula0000".to_string(), &"NEBLP000".to_string()),
-        (&"uusdcluster_token0000".to_string(), &h("LP0000")),
-        (&"uusdcluster_token0001".to_string(), &h("LP0001")),
+        (&"uassetnebula0000".to_string(), &"NEBLP000".to_string()),
+        (&"uassetcluster_token0000".to_string(), &h("LP0000")),
+        (&"uassetcluster_token0001".to_string(), &h("LP0001")),
     ]);
 
     let msg = InstantiateMsg {
@@ -1183,9 +1186,9 @@ fn test_decommission_cluster() {
 fn test_pass_command() {
     let mut deps = mock_dependencies(&[]);
     deps.querier.with_astroport_pairs(&[
-        (&"uusdnebula0000".to_string(), &"NEBLP000".to_string()),
-        (&"uusdcluster_token0000".to_string(), &h("LP0000")),
-        (&"uusdcluster_token0001".to_string(), &h("LP0001")),
+        (&"uassetnebula0000".to_string(), &"NEBLP000".to_string()),
+        (&"uassetcluster_token0000".to_string(), &h("LP0000")),
+        (&"uassetcluster_token0001".to_string(), &h("LP0001")),
     ]);
 
     let msg = InstantiateMsg {

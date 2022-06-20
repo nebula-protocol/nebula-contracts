@@ -252,7 +252,7 @@ mod tests {
         deps.querier.with_pool_assets([
             Asset {
                 info: AssetInfo::NativeToken {
-                    denom: "uusd".to_string(),
+                    denom: "uasset".to_string(),
                 },
                 amount: Uint128::from(100u128),
             },
@@ -286,13 +286,13 @@ mod tests {
             assets: [
                 Asset {
                     info: AssetInfo::NativeToken {
-                        denom: "uusd".to_string(),
+                        denom: "uasset".to_string(),
                     },
                     amount: Uint128::new(100u128),
                 },
                 Asset {
                     info: AssetInfo::NativeToken {
-                        denom: "uusd".to_string(),
+                        denom: "uasset".to_string(),
                     },
                     amount: Uint128::new(100u128),
                 },
@@ -302,7 +302,7 @@ mod tests {
         let info = mock_info(
             "addr0000",
             &[Coin {
-                denom: "uusd".to_string(),
+                denom: "uasset".to_string(),
                 amount: Uint128::new(100u128),
             }],
         );
@@ -335,7 +335,7 @@ mod tests {
             assets: [
                 Asset {
                     info: AssetInfo::NativeToken {
-                        denom: "uusd".to_string(),
+                        denom: "uasset".to_string(),
                     },
                     amount: Uint128::new(100u128),
                 },
@@ -362,7 +362,7 @@ mod tests {
         let info = mock_info(
             "addr0000",
             &[Coin {
-                denom: "uusd".to_string(),
+                denom: "uasset".to_string(),
                 amount: Uint128::new(100u128),
             }],
         );
@@ -396,7 +396,7 @@ mod tests {
                         assets: [
                             Asset {
                                 info: AssetInfo::NativeToken {
-                                    denom: "uusd".to_string()
+                                    denom: "uasset".to_string()
                                 },
                                 amount: Uint128::new(100u128),
                             },
@@ -413,7 +413,7 @@ mod tests {
                     })
                     .unwrap(),
                     funds: vec![Coin {
-                        denom: "uusd".to_string(),
+                        denom: "uasset".to_string(),
                         amount: Uint128::new(100u128), // 1% tax
                     }],
                 })),
