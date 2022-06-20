@@ -12,8 +12,6 @@ pub struct InstantiateMsg {
     pub owner: String,
     /// TeFi oracle hub contract
     pub oracle_addr: String,
-    /// Default denom
-    pub base_denom: String,
 }
 
 /// ## Description
@@ -31,9 +29,9 @@ pub enum ExecuteMsg {
         owner: Option<String>,
         /// new TeFi oracle hub contract
         oracle_addr: Option<String>,
-        /// new default denom
-        base_denom: Option<String>,
     },
+    /// Registers new symbol for the corresponding native token denom.
+    RegisterNewSymbol { denom: String, symbol: String },
 }
 
 /// ## Description
@@ -72,8 +70,6 @@ pub struct ConfigResponse {
     pub owner: String,
     /// TeFi Oracle Hub contract
     pub oracle_addr: String,
-    /// Base denom
-    pub base_denom: String,
 }
 
 /// ## Description
