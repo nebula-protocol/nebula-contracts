@@ -27,7 +27,7 @@ pub enum HubExecuteMsg {
         proxy_addr: String,
         priority: u8,
     },
-    /// Remves an already whitelisted proxy
+    /// Removes an already whitelisted proxy
     RemoveProxy {
         asset_token: String,
         proxy_addr: String,
@@ -41,10 +41,16 @@ pub enum HubQueryMsg {
     Config {},
     /// Queries the information of all registered proxies for the provided asset_token
     ProxyList { asset_token: String },
-    /// Queries the highes priority available price within the timeframe
+    /// Queries the highest priority available price within the timeframe
     /// If timeframe is not provided, it will ignore the price age
     Price {
         asset_token: String,
+        timeframe: Option<u64>,
+    },
+    /// Queries the highest priority available price within the timeframe by the asset symbol
+    /// If timeframe is not provided, it will ignore the price age
+    PriceBySymbol {
+        symbol: String,
         timeframe: Option<u64>,
     },
     /// Queries all registered proxy prices for the provied asset_token

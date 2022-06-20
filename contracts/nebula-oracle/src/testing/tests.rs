@@ -15,7 +15,6 @@ fn init_msg() -> InstantiateMsg {
     InstantiateMsg {
         owner: "owner0000".to_string(),
         oracle_addr: "oracle0000".to_string(),
-        base_denom: "uusd".to_string(),
     }
 }
 
@@ -33,7 +32,6 @@ fn proper_initialization() {
         Config {
             owner: Addr::unchecked("owner0000"),
             oracle_addr: Addr::unchecked("oracle0000"),
-            base_denom: "uusd".to_string(),
         }
     );
 }
@@ -51,7 +49,6 @@ fn update_config() {
     let msg = ExecuteMsg::UpdateConfig {
         owner: Some("imposter0000".to_string()),
         oracle_addr: Some("oracle0001".to_string()),
-        base_denom: None,
     };
     let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
     assert_eq!(res, ContractError::Unauthorized {});
@@ -61,7 +58,6 @@ fn update_config() {
     let msg = ExecuteMsg::UpdateConfig {
         owner: Some("owner0001".to_string()),
         oracle_addr: Some("oracle0001".to_string()),
-        base_denom: Some("uusd".to_string()),
     };
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
     let config = read_config(&deps.storage).unwrap();
@@ -70,7 +66,6 @@ fn update_config() {
         Config {
             owner: Addr::unchecked("owner0001"),
             oracle_addr: Addr::unchecked("oracle0001"),
-            base_denom: "uusd".to_string()
         }
     )
 }
@@ -92,7 +87,6 @@ fn query_config() {
         ConfigResponse {
             owner: "owner0000".to_string(),
             oracle_addr: "oracle0000".to_string(),
-            base_denom: "uusd".to_string(),
         }
     )
 }
@@ -108,8 +102,7 @@ fn query_price() {
     deps.querier.set_tefi_oracle_prices(vec![
         ("token0001", Decimal::from_str("765.52").unwrap()),
         ("token0002", Decimal::from_str("1.9234").unwrap()),
-        ("uluna", Decimal::from_str("66.435110305004678719").unwrap()),
-        ("uusd", Decimal::from_str("1.00").unwrap()),
+        ("LUNA", Decimal::from_str("66.435110305004678719").unwrap()),
     ]);
 
     // no cw20 oracle price exists
@@ -118,7 +111,7 @@ fn query_price() {
             contract_addr: Addr::unchecked("nebulatoken"),
         },
         quote_asset: AssetInfo::NativeToken {
-            denom: "uusd".to_string(),
+            denom: "uluna".to_string(),
         },
     };
     let res = query(deps.as_ref(), mock_env(), msg).unwrap_err();
@@ -131,37 +124,33 @@ fn query_price() {
 
     // no native oracle price exists
     let msg = QueryMsg::Price {
-        base_asset: AssetInfo::NativeToken {
-            denom: "ukrw".to_string(),
+        base_asset: AssetInfo::Token {
+            contract_addr: Addr::unchecked("token0001"),
         },
         quote_asset: AssetInfo::NativeToken {
-            denom: "uusd".to_string(),
+            denom: "uluna".to_string(),
         },
     };
     let res = query(deps.as_ref(), mock_env(), msg).unwrap_err();
-    assert_eq!(
-        res,
-        StdError::generic_err(
-            "Querier system error: Cannot parse request: No oracle price exists in: {\"price\":{\"asset_token\":\"ukrw\",\"timeframe\":null}}"
-        )
-    );
+    assert_eq!(res, StdError::generic_err("No native map stored"));
+
+    let msg = ExecuteMsg::RegisterNewSymbol {
+        denom: "uluna".to_string(),
+        symbol: "LUNA".to_string(),
+    };
+    let res = execute(deps.as_mut(), mock_env(), mock_info("sender0000", &[]), msg).unwrap_err();
+    assert_eq!(res, ContractError::Unauthorized {});
+
+    let msg = ExecuteMsg::RegisterNewSymbol {
+        denom: "uluna".to_string(),
+        symbol: "LUNA".to_string(),
+    };
+    let _res = execute(deps.as_mut(), mock_env(), mock_info("owner0000", &[]), msg).unwrap();
 
     // successful queries
     let msg = QueryMsg::Price {
         base_asset: AssetInfo::Token {
             contract_addr: Addr::unchecked("token0001"),
-        },
-        quote_asset: AssetInfo::NativeToken {
-            denom: "uusd".to_string(),
-        },
-    };
-    let res = query(deps.as_ref(), mock_env(), msg).unwrap();
-    let price: PriceResponse = from_binary(&res).unwrap();
-    assert_eq!(price.rate, Decimal::from_str("765.52").unwrap());
-
-    let msg = QueryMsg::Price {
-        base_asset: AssetInfo::NativeToken {
-            denom: "uusd".to_string(),
         },
         quote_asset: AssetInfo::NativeToken {
             denom: "uluna".to_string(),
@@ -171,7 +160,22 @@ fn query_price() {
     let price: PriceResponse = from_binary(&res).unwrap();
     assert_eq!(
         price.rate,
-        Decimal::from_str("0.015052281774034597").unwrap()
+        Decimal::from_str("11.522822743658965133").unwrap()
+    );
+
+    let msg = QueryMsg::Price {
+        base_asset: AssetInfo::Token {
+            contract_addr: Addr::unchecked("token0002"),
+        },
+        quote_asset: AssetInfo::NativeToken {
+            denom: "uluna".to_string(),
+        },
+    };
+    let res = query(deps.as_ref(), mock_env(), msg).unwrap();
+    let price: PriceResponse = from_binary(&res).unwrap();
+    assert_eq!(
+        price.rate,
+        Decimal::from_str("0.028951558764178144").unwrap()
     );
 }
 

@@ -5,7 +5,7 @@ use cosmwasm_std::{
     StdResult, WasmQuery,
 };
 
-use crate::state::{read_config, store_config, Config};
+use crate::state::{read_config, read_native_map, store_config, store_native_map, Config};
 
 use crate::error::ContractError;
 use astroport::asset::AssetInfo;
@@ -48,7 +48,6 @@ pub fn instantiate(
         // Validate address format
         owner: deps.api.addr_validate(msg.owner.as_str())?,
         oracle_addr: deps.api.addr_validate(msg.oracle_addr.as_str())?,
-        base_denom: msg.base_denom,
     };
 
     store_config(deps.storage, &cfg)?;
@@ -76,6 +75,10 @@ pub fn instantiate(
 ///             oracle_addr,
 ///             base_denom,
 ///         }** Updates general oracle contract parameters.
+/// - **ExecuteMsg::RegisterNewSymbol {
+///             denom,
+///             symbol,
+///         }** Registers new symbol for the corresponding native token denom.
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn execute(
     deps: DepsMut,
@@ -84,11 +87,12 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::UpdateConfig {
-            owner,
-            oracle_addr,
-            base_denom,
-        } => update_config(deps, info, owner, oracle_addr, base_denom),
+        ExecuteMsg::UpdateConfig { owner, oracle_addr } => {
+            update_config(deps, info, owner, oracle_addr)
+        }
+        ExecuteMsg::RegisterNewSymbol { denom, symbol } => {
+            register_new_symbol(deps, info, denom, symbol)
+        }
     }
 }
 
@@ -114,7 +118,6 @@ pub fn update_config(
     info: MessageInfo,
     owner: Option<String>,
     oracle_addr: Option<String>,
-    base_denom: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut config: Config = read_config(deps.storage)?;
 
@@ -133,12 +136,39 @@ pub fn update_config(
         config.oracle_addr = deps.api.addr_validate(oracle_addr.as_str())?;
     }
 
-    if let Some(base_denom) = base_denom {
-        config.base_denom = base_denom;
-    }
-
     store_config(deps.storage, &config)?;
     Ok(Response::new().add_attributes(vec![attr("action", "update_config")]))
+}
+
+/// ## Description
+/// Registers new symbol for the corresponding native token denom. Returns a [`ContractError`] on failure.
+///
+/// ## Params
+/// - **deps** is an object of type [`DepsMut`].
+///
+/// - **info** is an object of type [`MessageInfo`].
+///
+/// - **denom** is an object of type [`String`] which is the native token denom.
+///
+/// - **symbol** is an object of type [`String`] which is the symbol of the native token.
+///
+/// ## Executor
+/// Only the owner can execute this.
+pub fn register_new_symbol(
+    deps: DepsMut,
+    info: MessageInfo,
+    denom: String,
+    symbol: String,
+) -> Result<Response, ContractError> {
+    let config = read_config(deps.storage)?;
+
+    // Permission check
+    if config.owner != info.sender {
+        return Err(ContractError::Unauthorized {});
+    }
+
+    store_native_map(deps.storage, &denom, symbol)?;
+    Ok(Response::new().add_attributes(vec![attr("action", "register_new_symbol")]))
 }
 
 /// ## Description
@@ -179,7 +209,6 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     let resp = ConfigResponse {
         owner: state.owner.to_string(),
         oracle_addr: state.oracle_addr.to_string(),
-        base_denom: state.base_denom,
     };
 
     Ok(resp)
@@ -201,9 +230,9 @@ fn query_price(
     base_asset: AssetInfo,
     quote_asset: AssetInfo,
 ) -> StdResult<PriceResponse> {
-    // Get latest price of `base_asset` in uusd
+    // Get latest price of `base_asset`
     let (price_base, last_updated_base) = query_asset_price(deps, base_asset)?;
-    // Get latest price of `quote_asset` in uusd
+    // Get latest price of `quote_asset`
     let (price_quote, last_updated_quote) = query_asset_price(deps, quote_asset)?;
 
     // Compute the price
@@ -227,25 +256,40 @@ fn query_price(
 fn query_asset_price(deps: Deps, asset: AssetInfo) -> StdResult<(Decimal, u64)> {
     let config: Config = read_config(deps.storage)?;
 
-    let asset_token = match asset {
-        // If native, query with denom
-        AssetInfo::NativeToken { denom } => denom,
+    match asset {
+        // If native, query with symbol
+        AssetInfo::NativeToken { denom } => {
+            let symbol = read_native_map(deps.storage, &denom)?;
+            let res: TeFiOraclePriceResponse =
+                // Get the price of a Native asset (from TeFi oracle hub contract)
+                deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+                    contract_addr: config.oracle_addr.to_string(),
+                    msg: to_binary(&TeFiOracleQueryMsg::PriceBySymbol {
+                        symbol,
+                        timeframe: None,
+                    })
+                        .unwrap(),
+                }))?;
+
+            Ok((res.rate, res.last_updated))
+        }
         // Otherwise, query with cw20 address
-        AssetInfo::Token { contract_addr } => contract_addr.to_string(),
-    };
+        AssetInfo::Token { contract_addr } => {
+            let asset_token = contract_addr.to_string();
+            let res: TeFiOraclePriceResponse =
+                // Get the price of a CW20 asset (from TeFi oracle hub contract)
+                deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+                    contract_addr: config.oracle_addr.to_string(),
+                    msg: to_binary(&TeFiOracleQueryMsg::Price {
+                        asset_token,
+                        timeframe: None,
+                    })
+                        .unwrap(),
+                }))?;
 
-    let res: TeFiOraclePriceResponse =
-    // Get the price of a CW20 asset in uusd (from TeFi oracle hub contract)
-    deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: config.oracle_addr.to_string(),
-        msg: to_binary(&TeFiOracleQueryMsg::Price {
-            asset_token,
-            timeframe: None,
-        })
-        .unwrap(),
-    }))?;
-
-    Ok((res.rate, res.last_updated))
+            Ok((res.rate, res.last_updated))
+        }
+    }
 }
 
 /// ## Description

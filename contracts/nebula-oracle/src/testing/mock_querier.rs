@@ -64,6 +64,10 @@ pub enum QueryMsg {
         asset_token: String,
         timeframe: Option<u64>,
     },
+    PriceBySymbol {
+        symbol: String,
+        timeframe: Option<u64>,
+    },
 }
 
 impl WasmMockQuerier {
@@ -89,6 +93,20 @@ impl WasmMockQuerier {
                         request: msg.as_slice().into(),
                     }),
                 },
+                QueryMsg::PriceBySymbol { symbol, .. } => {
+                    match self.tefi_oracle_querier.assets.get(&symbol.to_string()) {
+                        Some(price) => {
+                            SystemResult::Ok(ContractResult::from(to_binary(&PriceResponse {
+                                rate: price.clone(),
+                                last_updated: u64::MAX,
+                            })))
+                        }
+                        None => SystemResult::Err(SystemError::InvalidRequest {
+                            error: "No oracle price exists".to_string(),
+                            request: msg.as_slice().into(),
+                        }),
+                    }
+                }
             },
             _ => self.base.handle_query(request),
         }
