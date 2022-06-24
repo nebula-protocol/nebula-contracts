@@ -640,7 +640,7 @@ pub fn end_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, Contr
     let tallied_weight = yes + no + abstain;
 
     let mut poll_status = PollStatus::Rejected;
-    let mut rejected_reason = "";
+    let mut rejected_reason = "None";
     let mut passed = false;
 
     let mut messages: Vec<CosmosMsg> = vec![];
@@ -651,7 +651,7 @@ pub fn end_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, Contr
         // If there is no staked, `quorum` and `staked_weight` are 0
         (Decimal::zero(), Uint128::zero())
     } else if let Some(staked_amount) = a_poll.staked_amount {
-        // If a snapshot is made, find `quorom` and `stake_weight` from the total stake at snapshot
+        // If a snapshot is made, find `quorum` and `stake_weight` from the total stake at snapshot
         (
             Decimal::from_ratio(tallied_weight, staked_amount),
             staked_amount,
