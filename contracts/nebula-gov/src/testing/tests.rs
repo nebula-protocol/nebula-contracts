@@ -648,7 +648,7 @@ fn happy_days_end_poll() {
         vec![
             attr("action", "end_poll"),
             attr("poll_id", "1"),
-            attr("rejected_reason", ""),
+            attr("rejected_reason", "None"),
             attr("passed", "true"),
         ]
     );
@@ -863,7 +863,7 @@ fn failed_execute_poll_no_data() {
         vec![
             attr("action", "end_poll"),
             attr("poll_id", "1"),
-            attr("rejected_reason", ""),
+            attr("rejected_reason", "None"),
             attr("passed", "true"),
         ]
     );
@@ -991,7 +991,7 @@ fn failed_execute_poll() {
         vec![
             attr("action", "end_poll"),
             attr("poll_id", "1"),
-            attr("rejected_reason", ""),
+            attr("rejected_reason", "None"),
             attr("passed", "true"),
         ]
     );
@@ -3413,7 +3413,7 @@ fn test_abstain_votes_threshold() {
         vec![
             attr("action", "end_poll"),
             attr("poll_id", "1"),
-            attr("rejected_reason", ""),
+            attr("rejected_reason", "None"),
             attr("passed", "true"),
         ]
     );
@@ -3535,7 +3535,7 @@ fn test_abstain_votes_quorum() {
         vec![
             attr("action", "end_poll"),
             attr("poll_id", "1"),
-            attr("rejected_reason", ""),
+            attr("rejected_reason", "None"),
             attr("passed", "true"),
         ]
     );
@@ -4287,7 +4287,7 @@ fn happy_days_end_poll_with_controlled_quorum() {
         vec![
             attr("action", "end_poll"),
             attr("poll_id", "1"),
-            attr("rejected_reason", ""),
+            attr("rejected_reason", "None"),
             attr("passed", "true"),
         ]
     );
