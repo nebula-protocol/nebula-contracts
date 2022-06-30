@@ -351,7 +351,7 @@ fn test_create_cluster() {
                 admin: None,
                 code_id: CLUSTER_CODE_ID,
                 funds: vec![],
-                label: "".to_string(),
+                label: "Nebula TEST Cluster".to_string(),
                 msg: to_binary(&ClusterInstantiateMsg {
                     name: input_params.name.clone(),
                     description: input_params.description.clone(),
@@ -453,7 +453,7 @@ fn test_token_creation_hook() {
                     admin: None,
                     code_id: TOKEN_CODE_ID,
                     funds: vec![],
-                    label: "".to_string(),
+                    label: "Nebula TEST Cluster Token".to_string(),
                     msg: to_binary(&TokenInstantiateMsg {
                         name: input_params.name.clone(),
                         symbol: input_params.symbol.clone(),

@@ -439,7 +439,7 @@ pub fn create_cluster(
                 admin: None,
                 code_id: config.cluster_code_id,
                 funds: vec![],
-                label: "".to_string(),
+                label: format!("Nebula {} Cluster", params.symbol.clone()),
                 msg: to_binary(&ClusterInstantiateMsg {
                     name: params.name.clone(),
                     description: params.description.clone(),
@@ -585,7 +585,7 @@ pub fn cluster_creation_hook(
                 admin: None,
                 code_id: config.token_code_id,
                 funds: vec![],
-                label: "".to_string(),
+                label: format!("Nebula {} Cluster Token", params.symbol.clone()),
                 msg: to_binary(&TokenInstantiateMsg {
                     name: params.name.clone(),
                     symbol: params.symbol,
