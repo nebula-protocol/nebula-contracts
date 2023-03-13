@@ -254,7 +254,7 @@ pub fn receive_cw20(
             execute_msgs,
         ),
         // If `DepositReward`, deposits a reward to stakers and in-progress polls
-        Ok(Cw20HookMsg::DepositReward {}) => deposit_reward(deps, cw20_msg.amount),
+        Ok(Cw20HookMsg::Distribute {}) => deposit_reward(deps, cw20_msg.amount),
         Err(_) => Err(ContractError::Generic(
             "invalid cw20 hook message".to_string(),
         )),

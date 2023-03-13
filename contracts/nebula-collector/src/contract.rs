@@ -307,7 +307,7 @@ pub fn distribute(deps: DepsMut, env: Env) -> Result<Response, ContractError> {
             msg: to_binary(&Cw20ExecuteMsg::Send {
                 contract: config.distribution_contract.to_string(),
                 amount,
-                msg: to_binary(&GovCw20HookMsg::DepositReward {})?,
+                msg: to_binary(&GovCw20HookMsg::Distribute {})?,
             })?,
             funds: vec![],
         })])

@@ -125,7 +125,7 @@ pub enum Cw20HookMsg {
         execute_msgs: Option<Vec<PollExecuteMsg>>,
     },
     /// DepositReward adds rewards to be distributed among stakers and voters.
-    DepositReward {},
+    Distribute {},
 }
 
 /// ## Description
