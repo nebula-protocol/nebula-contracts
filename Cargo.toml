@@ -1,16 +1,6 @@
 [workspace]
 members = [
-  "contracts/nebula-airdrop",
-  "contracts/nebula-cluster",
-  "contracts/nebula-cluster-factory",
-  "contracts/nebula-collector",
-  "contracts/nebula-community",
-  "contracts/nebula-oracle",
-  "contracts/nebula-gov",
-  "contracts/nebula-incentives",
-  "contracts/nebula-incentives-custody",
-  "contracts/nebula-lp-staking",
-  "contracts/nebula-penalty",
+  "contracts/*",
   "libraries/*",
   "packages/*"
 ]
