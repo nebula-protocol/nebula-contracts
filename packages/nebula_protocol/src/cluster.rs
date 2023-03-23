@@ -1,6 +1,6 @@
 use astroport::asset::Asset;
-use cosmwasm_std::{Addr, Uint128};
 use cosmwasm_schema::cw_serde;
+use cosmwasm_std::{Addr, Uint128};
 
 /// This structure stores the basic settings for creating a new cluster contract.
 #[cw_serde]
