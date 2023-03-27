@@ -302,7 +302,7 @@ fn initialize_cluster() {
         min_tokens: Some(Uint128::new(1_000_000)),
     };
     let info = mock_info("addr0000", &[coin(1_000_000u128, "uluna")]);
-    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
     assert_eq!(
         res,
         ContractError::Generic(
@@ -333,7 +333,7 @@ fn initialize_cluster() {
         "addr0000",
         &[coin(1_500_000u128, "uasset"), coin(1_000_000u128, "uluna")],
     );
-    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
     assert_eq!(
         res,
         ContractError::Generic(
@@ -445,7 +445,7 @@ fn mint() {
 
     // correct create msg
     let mint_msg = ExecuteMsg::RebalanceCreate {
-        asset_amounts: asset_amounts.clone(),
+        asset_amounts,
         min_tokens: None,
     };
 
@@ -665,14 +665,14 @@ fn burn() {
     deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
 
     let mint_msg = ExecuteMsg::RebalanceCreate {
-        asset_amounts: asset_amounts.clone(),
+        asset_amounts,
         min_tokens: None,
     };
 
     let addr = "addr0000";
     let info = mock_info(addr, &[coin(42_000_000u128, "uluna")]);
     let env = mock_env();
-    let _res = execute(deps.as_mut(), env.clone(), info, mint_msg).unwrap();
+    let _res = execute(deps.as_mut(), env, info, mint_msg).unwrap();
 
     let asset_amounts = Some(vec![
         Asset {
@@ -903,7 +903,7 @@ fn update_target() {
 
     let msg = ExecuteMsg::Decommission {};
     let info = mock_info(consts::factory().as_str(), &[]);
-    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap_err();
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
     assert_eq!(res, ContractError::ClusterTokenNotSet {});
 
     let (mut deps, _init_res) = mock_init();
@@ -918,14 +918,14 @@ fn update_target() {
     deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
 
     let mint_msg = ExecuteMsg::RebalanceCreate {
-        asset_amounts: asset_amounts.clone(),
+        asset_amounts,
         min_tokens: None,
     };
 
     let addr = "addr0000";
     let info = mock_info(addr, &[coin(42_000_000u128, "uluna")]);
     let env = mock_env();
-    let _res = execute(deps.as_mut(), env.clone(), info, mint_msg).unwrap();
+    let _res = execute(deps.as_mut(), env, info, mint_msg).unwrap();
 
     // invalid assets update
     let msg = ExecuteMsg::UpdateTarget {
@@ -981,7 +981,7 @@ fn update_target() {
     assert_eq!(
         res,
         ContractError::Generic(
-            format!("Cannot call create with non-zero asset amount when target weight is zero for asset mNFLX"),
+            "Cannot call create with non-zero asset amount when target weight is zero for asset mNFLX".to_string(),
         )
     );
 }
@@ -1004,14 +1004,14 @@ fn decommission_cluster() {
     deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
 
     let mint_msg = ExecuteMsg::RebalanceCreate {
-        asset_amounts: asset_amounts.clone(),
+        asset_amounts,
         min_tokens: None,
     };
 
     let addr = "addr0000";
     let info = mock_info(addr, &[coin(42_000_000u128, "uluna")]);
     let env = mock_env();
-    let _res = execute(deps.as_mut(), env.clone(), info, mint_msg).unwrap();
+    let _res = execute(deps.as_mut(), env, info, mint_msg).unwrap();
 
     let msg = ExecuteMsg::Decommission {};
 
@@ -1063,7 +1063,7 @@ fn decommission_cluster() {
         asset_amounts: None,
     };
 
-    let res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
     assert_eq!(
         res.attributes,
         vec![

@@ -36,7 +36,7 @@ pub fn query_price(
     // Prices from before < stale_threshold are considered stale
     // and result in an error
     stale_threshold: u64,
-    quote_denom: &String,
+    quote_denom: &str,
 ) -> StdResult<String> {
     // Perform query
     let res: PriceResponse = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {

@@ -3,7 +3,6 @@ use cosmwasm_std::{Addr, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// ## Description
 /// This structure stores the basic settings for creating a new cluster contract.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
@@ -35,7 +34,6 @@ pub struct InstantiateMsg {
     pub penalty: String,
 }
 
-/// ## Description
 /// This structure describes the execute messages of the contract.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -100,13 +98,11 @@ pub enum ExecuteMsg {
     },
 }
 
-/// ## Description
 /// This structure describes the possible hook messages for CW20 contract.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Cw20HookMsg {}
 
-/// ## Description
 /// This structure describes the available query messages for the cluster contract.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -121,7 +117,6 @@ pub enum QueryMsg {
     ClusterInfo {},
 }
 
-/// ## Description
 /// A custom struct for each query response that returns general contract settings/configs.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ConfigResponse {
@@ -129,7 +124,6 @@ pub struct ConfigResponse {
     pub config: ClusterConfig,
 }
 
-/// ## Description
 /// A custom struct for each query response that returns the current target weights.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TargetResponse {
@@ -137,7 +131,6 @@ pub struct TargetResponse {
     pub target: Vec<Asset>,
 }
 
-/// ## Description
 /// A custom struct for each query response that returns the current cluster state.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ClusterStateResponse {
@@ -159,7 +152,6 @@ pub struct ClusterStateResponse {
     pub active: bool,
 }
 
-/// ## Description
 /// A custom struct for each query response that returns the cluster info.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ClusterInfoResponse {
@@ -169,7 +161,6 @@ pub struct ClusterInfoResponse {
     pub description: String,
 }
 
-/// ## Description
 /// A custom struct for storing cluster setting.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ClusterConfig {
@@ -193,7 +184,6 @@ pub struct ClusterConfig {
     pub active: bool,
 }
 
-/// ## Description
 /// A struct used for migrating contracts.
 /// Currently take no arguments for migrations.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]

@@ -31,7 +31,7 @@ mod tests {
         };
 
         let info = mock_info("owner", &[]);
-        let _res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+        let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // bond 100 tokens
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
@@ -56,7 +56,7 @@ mod tests {
             .unwrap(),
         });
         let info = mock_info("reward", &[]);
-        let _res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+        let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // Check pool state
         let res: PoolInfoResponse = from_binary(
@@ -99,7 +99,7 @@ mod tests {
         };
 
         let info = mock_info("owner", &[]);
-        let _res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+        let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // factory deposit 100 reward tokens
         // premium is 0, so rewards distributed 80:20
@@ -112,7 +112,7 @@ mod tests {
             .unwrap(),
         });
         let info = mock_info("reward", &[]);
-        let _res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+        let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // Check pool state
         let res: PoolInfoResponse = from_binary(
@@ -155,7 +155,7 @@ mod tests {
         };
 
         let info = mock_info("owner", &[]);
-        let _res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+        let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // bond 100 tokens
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
@@ -271,7 +271,7 @@ mod tests {
         };
 
         let info = mock_info("owner", &[]);
-        let _res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+        let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // bond 100 tokens
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
@@ -336,7 +336,7 @@ mod tests {
         };
 
         let info = mock_info("owner", &[]);
-        let _res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+        let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         let msg = ExecuteMsg::RegisterAsset {
             asset_token: "asset2".to_string(),
@@ -344,7 +344,7 @@ mod tests {
         };
 
         let info = mock_info("owner", &[]);
-        let _res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+        let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // bond 100 tokens
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {

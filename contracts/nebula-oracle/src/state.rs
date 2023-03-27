@@ -36,16 +36,12 @@ pub fn read_config(storage: &dyn Storage) -> StdResult<Config> {
 /// A map storing denom and symbol for supported native token.
 //////////////////////////////////////////////////////////////////////
 
-pub fn store_native_map(
-    storage: &mut dyn Storage,
-    denom: &String,
-    symbol: String,
-) -> StdResult<()> {
+pub fn store_native_map(storage: &mut dyn Storage, denom: &str, symbol: String) -> StdResult<()> {
     let mut native_map_bucket: Bucket<String> = Bucket::new(storage, KEY_NATIVE_MAP);
     native_map_bucket.save(denom.as_bytes(), &symbol)
 }
 
-pub fn read_native_map(storage: &dyn Storage, denom: &String) -> StdResult<String> {
+pub fn read_native_map(storage: &dyn Storage, denom: &str) -> StdResult<String> {
     let native_map_bucket: ReadonlyBucket<String> = ReadonlyBucket::new(storage, KEY_NATIVE_MAP);
     match native_map_bucket.load(denom.as_bytes()) {
         Ok(v) => Ok(v),

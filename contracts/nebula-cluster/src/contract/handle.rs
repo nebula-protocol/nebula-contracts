@@ -324,12 +324,7 @@ pub fn create(
                     }));
 
                     // Update asset inventory balance in the cluster
-                    update_asset_balance(
-                        deps.storage,
-                        contract_addr.as_ref(),
-                        asset.amount,
-                        true,
-                    )?;
+                    update_asset_balance(deps.storage, contract_addr.as_ref(), asset.amount, true)?;
                 } else if let AssetInfo::NativeToken { denom } = &asset.info {
                     // Validate that native token balance is correct
                     asset.assert_sent_native_token_balance(&info)?;
