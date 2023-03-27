@@ -257,30 +257,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cosmwasm-schema"
-version = "1.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe5ad2e23a971b9e4cd57b20cee3e2e79c33799bed4b128e473aca3702bfe5dd"
-dependencies = [
- "cosmwasm-schema-derive",
- "schemars",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
-name = "cosmwasm-schema-derive"
-version = "1.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2926d159a9bb1a716a592b40280f1663f2491a9de3b6da77c0933cee2a2655b8"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "cosmwasm-std"
 version = "0.16.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -805,7 +781,7 @@ dependencies = [
 name = "nebula-airdrop"
 version = "1.0.0"
 dependencies = [
- "cosmwasm-schema 0.16.6",
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw2",
@@ -826,7 +802,7 @@ dependencies = [
  "astroport",
  "base64",
  "cluster-math",
- "cosmwasm-schema 1.2.3",
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw2",
@@ -847,7 +823,7 @@ version = "1.0.0"
 dependencies = [
  "astroport",
  "cluster-math",
- "cosmwasm-schema 0.16.6",
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw2",
@@ -865,7 +841,7 @@ name = "nebula-collector"
 version = "1.0.0"
 dependencies = [
  "astroport",
- "cosmwasm-schema 0.16.6",
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw2",
@@ -882,7 +858,7 @@ name = "nebula-community"
 version = "1.0.0"
 dependencies = [
  "astroport",
- "cosmwasm-schema 0.16.6",
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw2",
@@ -899,7 +875,7 @@ dependencies = [
 name = "nebula-gov"
 version = "1.0.0"
 dependencies = [
- "cosmwasm-schema 0.16.6",
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw2",
@@ -917,7 +893,7 @@ version = "1.0.0"
 dependencies = [
  "astroport",
  "cluster-math",
- "cosmwasm-schema 0.16.6",
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw2",
@@ -933,7 +909,7 @@ dependencies = [
 name = "nebula-incentives-custody"
 version = "1.0.0"
 dependencies = [
- "cosmwasm-schema 0.16.6",
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw2",
@@ -950,7 +926,7 @@ name = "nebula-lp-staking"
 version = "1.0.0"
 dependencies = [
  "astroport",
- "cosmwasm-schema 0.16.6",
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw2",
@@ -967,7 +943,7 @@ name = "nebula-oracle"
 version = "1.0.0"
 dependencies = [
  "astroport",
- "cosmwasm-schema 0.16.6",
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw2",
@@ -985,7 +961,7 @@ name = "nebula-penalty"
 version = "1.0.0"
 dependencies = [
  "cluster-math",
- "cosmwasm-schema 0.16.6",
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw2",
@@ -1002,7 +978,7 @@ version = "1.0.0"
 dependencies = [
  "astroport",
  "cluster-math",
- "cosmwasm-schema 1.2.3",
+ "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw20",

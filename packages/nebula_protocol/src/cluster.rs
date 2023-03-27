@@ -1,9 +1,10 @@
 use astroport::asset::Asset;
-use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Uint128};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// This structure stores the basic settings for creating a new cluster contract.
-#[cw_serde]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
     /// Cluster's permissioned owner
     pub owner: String,
@@ -34,7 +35,8 @@ pub struct InstantiateMsg {
 }
 
 /// This structure describes the execute messages of the contract.
-#[cw_serde]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
     /////////////////////
     /// OWNER CALLABLE
@@ -97,11 +99,13 @@ pub enum ExecuteMsg {
 }
 
 /// This structure describes the possible hook messages for CW20 contract.
-#[cw_serde]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum Cw20HookMsg {}
 
 /// This structure describes the available query messages for the cluster contract.
-#[cw_serde]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     /// Config returns contract settings specified in the custom [`ConfigResponse`] structure.
     Config {},
@@ -114,21 +118,21 @@ pub enum QueryMsg {
 }
 
 /// A custom struct for each query response that returns general contract settings/configs.
-#[cw_serde]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ConfigResponse {
     /// The config of the cluster
     pub config: ClusterConfig,
 }
 
 /// A custom struct for each query response that returns the current target weights.
-#[cw_serde]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct TargetResponse {
     /// The vector of `Asset` in which `amount` is the target weight
     pub target: Vec<Asset>,
 }
 
 /// A custom struct for each query response that returns the current cluster state.
-#[cw_serde]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ClusterStateResponse {
     /// The current total supply of the cluster token
     pub outstanding_balance_tokens: Uint128,
@@ -149,7 +153,7 @@ pub struct ClusterStateResponse {
 }
 
 /// A custom struct for each query response that returns the cluster info.
-#[cw_serde]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ClusterInfoResponse {
     /// Cluster name
     pub name: String,
@@ -158,7 +162,7 @@ pub struct ClusterInfoResponse {
 }
 
 /// A custom struct for storing cluster setting.
-#[cw_serde]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct ClusterConfig {
     /// Cluster name
     pub name: String,
@@ -182,5 +186,5 @@ pub struct ClusterConfig {
 
 /// A struct used for migrating contracts.
 /// Currently take no arguments for migrations.
-#[cw_serde]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct MigrateMsg {}
