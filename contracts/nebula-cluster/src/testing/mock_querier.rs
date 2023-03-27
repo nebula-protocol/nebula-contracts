@@ -179,13 +179,13 @@ impl WasmMockQuerier {
                     Some(v) => v,
                     None => {
                         return SystemResult::Err(SystemError::InvalidRequest {
-                            error: format!("Denom not found in balances"),
+                            error: "Denom not found in balances".to_string(),
                             request: Binary(vec![]),
                         })
                     }
                 };
                 let balance = match denom_data.get(address) {
-                    Some(v) => v.clone(),
+                    Some(v) => *v,
                     None => Uint128::zero(),
                 };
                 SystemResult::Ok(ContractResult::from(to_binary(&BalanceResponse {
@@ -193,7 +193,7 @@ impl WasmMockQuerier {
                 })))
             }
             QueryRequest::Wasm(WasmQuery::Smart { contract_addr, msg }) => {
-                match from_binary(&msg) {
+                match from_binary(msg) {
                     Ok(OracleQueryMsg::Price {
                         base_asset,
                         quote_asset,
@@ -218,7 +218,7 @@ impl WasmMockQuerier {
                             request: msg.as_slice().into(),
                         }),
                     },
-                    _ => match from_binary(&msg) {
+                    _ => match from_binary(msg) {
                         Ok(Cw20QueryMsg::Balance { address }) => {
                             let token_data = match self.token_querier.tokens.get(contract_addr) {
                                 Some(v) => v,
@@ -260,12 +260,12 @@ impl WasmMockQuerier {
                             };
                             SystemResult::Ok(ContractResult::from(to_binary(&token_data.info)))
                         }
-                        _ => match from_binary(&msg) {
+                        _ => match from_binary(msg) {
                             Ok(ClusterQueryMsg::Config {}) => {
                                 let config = consts::factory_config();
                                 SystemResult::Ok(ContractResult::from(to_binary(&config)))
                             }
-                            _ => match from_binary(&msg) {
+                            _ => match from_binary(msg) {
                                 Ok(PenaltyQueryMsg::PenaltyQueryCreate {
                                     block_height: _,
                                     cluster_token_supply: _,

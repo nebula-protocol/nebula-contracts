@@ -244,7 +244,7 @@ fn test_mint_actions() {
 
     let res = query(
         deps.as_ref(),
-        env.clone(),
+        env,
         QueryMsg::PenaltyQueryCreate {
             block_height: 120,
             cluster_token_supply: Uint128::new(1000000),
@@ -331,7 +331,7 @@ fn test_redeem_actions() {
 
     let res = query(
         deps.as_ref(),
-        env.clone(),
+        env,
         QueryMsg::PenaltyQueryRedeem {
             block_height: 120,
             cluster_token_supply: Uint128::new(1000000),
@@ -440,7 +440,7 @@ fn test_query_penalty() {
     let inv1 = &[Uint128::new(102), Uint128::new(100), Uint128::new(96)];
     let res = query(
         deps.as_ref(),
-        env.clone(),
+        env,
         QueryMsg::PenaltyQueryNotional {
             block_height: 160,
             inventory0: inv0.to_vec(),
@@ -481,7 +481,7 @@ fn test_update_config() {
 
     // successful update
     let info = mock_info("creator", &[]);
-    let _res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
     let query_msg = QueryMsg::Params {};
     let query_res: ParamsResponse =

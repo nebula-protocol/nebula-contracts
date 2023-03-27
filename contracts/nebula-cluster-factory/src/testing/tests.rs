@@ -419,7 +419,7 @@ fn test_token_creation_hook() {
         params: input_params.clone(),
     };
     let info = mock_info("owner0000", &[]);
-    let _res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
     let mut token_inst_res = MsgInstantiateContractResponse::new();
     token_inst_res.set_contract_address("asset0000".to_string());
@@ -456,7 +456,7 @@ fn test_token_creation_hook() {
                     label: "Nebula TEST Cluster Token".to_string(),
                     msg: to_binary(&TokenInstantiateMsg {
                         name: input_params.name.clone(),
-                        symbol: input_params.symbol.clone(),
+                        symbol: input_params.symbol,
                         decimals: 6u8,
                         initial_balances: vec![],
                         mint: Some(MinterResponse {
@@ -527,10 +527,10 @@ fn test_set_cluster_token_hook() {
 
     let input_params: Params = get_input_params();
     let msg = ExecuteMsg::CreateCluster {
-        params: input_params.clone(),
+        params: input_params,
     };
     let info = mock_info("owner0000", &[]);
-    let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
+    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
     let mut token_inst_res = MsgInstantiateContractResponse::new();
     token_inst_res.set_contract_address("asset0000".to_string());
@@ -665,10 +665,10 @@ fn test_set_cluster_token_hook_without_weight() {
     let mut input_params: Params = get_input_params();
     input_params.weight = None;
     let msg = ExecuteMsg::CreateCluster {
-        params: input_params.clone(),
+        params: input_params,
     };
     let info = mock_info("owner0000", &[]);
-    let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
+    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
     let mut token_inst_res = MsgInstantiateContractResponse::new();
     token_inst_res.set_contract_address("asset0000".to_string());
@@ -803,11 +803,11 @@ fn test_astroport_creation_hook() {
 
     let input_params: Params = get_input_params();
     let msg = ExecuteMsg::CreateCluster {
-        params: input_params.clone(),
+        params: input_params,
     };
 
     let info = mock_info("owner0000", &[]);
-    let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg.clone()).unwrap();
+    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
     let mut token_inst_res = MsgInstantiateContractResponse::new();
     token_inst_res.set_contract_address("asset0000".to_string());
@@ -898,11 +898,11 @@ fn test_distribute() {
     // create first cluster with weight 100
     let input_params: Params = get_input_params();
     let msg = ExecuteMsg::CreateCluster {
-        params: input_params.clone(),
+        params: input_params,
     };
 
     let info = mock_info("owner0000", &[]);
-    let _res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
     let mut token_inst_res = MsgInstantiateContractResponse::new();
     token_inst_res.set_contract_address("asset0000".to_string());
@@ -950,10 +950,10 @@ fn test_distribute() {
     input_params.symbol = "TEST2".to_string();
 
     let msg = ExecuteMsg::CreateCluster {
-        params: input_params.clone(),
+        params: input_params,
     };
     let info = mock_info("owner0000", &[]);
-    let _res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
     let mut token_inst_res = MsgInstantiateContractResponse::new();
     token_inst_res.set_contract_address("asset0001".to_string());
@@ -1003,7 +1003,7 @@ fn test_distribute() {
     // one height increase
     let msg = ExecuteMsg::Distribute {};
     let env = mock_env_time(1_571_797_419u64 + 5400u64);
-    let info = mock_info(&"addr0000".to_string(), &[]);
+    let info = mock_info("addr0000", &[]);
     let res = execute(deps.as_mut(), env, info, msg).unwrap();
     assert_eq!(
         res.attributes,
@@ -1084,10 +1084,10 @@ fn test_decommission_cluster() {
     // Create a test cluster
     let input_params: Params = get_input_params();
     let msg = ExecuteMsg::CreateCluster {
-        params: input_params.clone(),
+        params: input_params,
     };
     let info = mock_info("owner0000", &[]);
-    let _res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
     let mut token_inst_res = MsgInstantiateContractResponse::new();
     token_inst_res.set_contract_address("asset0000".to_string());
@@ -1140,7 +1140,7 @@ fn test_decommission_cluster() {
     assert_eq!(res, ContractError::Unauthorized {});
 
     let info = mock_info("owner0000", &[]);
-    let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+    let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
     assert_eq!(
         res.messages,
@@ -1257,7 +1257,7 @@ fn migration() {
     };
 
     let info = mock_info("addr0000", &[]);
-    let _res = instantiate(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+    let _res = instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
 
     // assert contract infos
     assert_eq!(

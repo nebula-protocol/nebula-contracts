@@ -238,7 +238,7 @@ mod tests {
             .is_claimed
         );
 
-        let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap_err();
+        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
         assert_eq!(res, ContractError::AlreadyClaimed {});
 
         // claim next airdrop
@@ -254,7 +254,7 @@ mod tests {
         };
 
         let info = mock_info("terra1qfqa2eu9wp272ha93lj4yhcenrc6ymng079nu8", &[]);
-        let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(
             res.messages,
             vec![SubMsg::new(CosmosMsg::Wasm(WasmMsg::Execute {

@@ -35,7 +35,7 @@ mod tests {
         };
 
         let info = mock_info("owner", &[]);
-        let _res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+        let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
             sender: "addr".to_string(),
@@ -158,7 +158,7 @@ mod tests {
         };
 
         let info = mock_info("owner", &[]);
-        let _res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+        let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // bond 100 tokens
         let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
@@ -279,7 +279,7 @@ mod tests {
         };
 
         let info = mock_info("owner", &[]);
-        let _res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+        let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
 
         // no token asset
         let msg = ExecuteMsg::AutoStake {
@@ -366,7 +366,7 @@ mod tests {
                 amount: Uint128::new(100u128),
             }],
         );
-        let res = execute(deps.as_mut(), mock_env(), info, msg.clone()).unwrap();
+        let res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
         assert_eq!(
             res.messages,
             vec![

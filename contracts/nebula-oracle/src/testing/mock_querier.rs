@@ -76,15 +76,15 @@ impl WasmMockQuerier {
             QueryRequest::Wasm(WasmQuery::Smart {
                 contract_addr: _,
                 msg,
-            }) => match from_binary(&msg).unwrap() {
+            }) => match from_binary(msg).unwrap() {
                 QueryMsg::Price { asset_token, .. } => match self
                     .tefi_oracle_querier
                     .assets
-                    .get(&asset_token.to_string())
+                    .get(&asset_token)
                 {
                     Some(price) => {
                         SystemResult::Ok(ContractResult::from(to_binary(&PriceResponse {
-                            rate: price.clone(),
+                            rate: *price,
                             last_updated: u64::MAX,
                         })))
                     }
@@ -94,10 +94,10 @@ impl WasmMockQuerier {
                     }),
                 },
                 QueryMsg::PriceBySymbol { symbol, .. } => {
-                    match self.tefi_oracle_querier.assets.get(&symbol.to_string()) {
+                    match self.tefi_oracle_querier.assets.get(&symbol) {
                         Some(price) => {
                             SystemResult::Ok(ContractResult::from(to_binary(&PriceResponse {
-                                rate: price.clone(),
+                                rate: *price,
                                 last_updated: u64::MAX,
                             })))
                         }
