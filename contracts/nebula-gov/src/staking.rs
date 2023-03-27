@@ -508,7 +508,7 @@ fn send_tokens(
     let attributes = vec![
         attr("action", action),
         attr("recipient", recipient.to_string().as_str()),
-        attr("amount", &amount.to_string()),
+        attr("amount", amount.to_string()),
     ];
 
     // Transfer the asset

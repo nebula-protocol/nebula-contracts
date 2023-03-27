@@ -2234,7 +2234,7 @@ fn share_calculation_with_voter_rewards() {
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: TEST_COLLECTOR.to_string(),
         amount: Uint128::from(400u128),
-        msg: to_binary(&Cw20HookMsg::DepositReward {}).unwrap(),
+        msg: to_binary(&Cw20HookMsg::Distribute {}).unwrap(),
     });
     let info = mock_info(VOTING_TOKEN, &[]);
     let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
@@ -2542,7 +2542,7 @@ fn distribute_voting_rewards() {
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: TEST_COLLECTOR.to_string(),
         amount: Uint128::from(100u128),
-        msg: to_binary(&Cw20HookMsg::DepositReward {}).unwrap(),
+        msg: to_binary(&Cw20HookMsg::Distribute {}).unwrap(),
     });
 
     let info = mock_info(VOTING_TOKEN, &[]);
@@ -2665,7 +2665,7 @@ fn stake_voting_rewards() {
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: TEST_COLLECTOR.to_string(),
         amount: Uint128::from(100u128),
-        msg: to_binary(&Cw20HookMsg::DepositReward {}).unwrap(),
+        msg: to_binary(&Cw20HookMsg::Distribute {}).unwrap(),
     });
 
     let info = mock_info(VOTING_TOKEN, &[]);
@@ -2875,7 +2875,7 @@ fn distribute_voting_rewards_with_multiple_active_polls_and_voters() {
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: TEST_COLLECTOR.to_string(),
         amount: Uint128::from(2000000000u128),
-        msg: to_binary(&Cw20HookMsg::DepositReward {}).unwrap(),
+        msg: to_binary(&Cw20HookMsg::Distribute {}).unwrap(),
     });
 
     let info = mock_info(VOTING_TOKEN, &[]);
@@ -3006,7 +3006,7 @@ fn distribute_voting_rewards_only_to_polls_in_progress() {
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: TEST_COLLECTOR.to_string(),
         amount: Uint128::from(2000000000u128),
-        msg: to_binary(&Cw20HookMsg::DepositReward {}).unwrap(),
+        msg: to_binary(&Cw20HookMsg::Distribute {}).unwrap(),
     });
 
     let info = mock_info(VOTING_TOKEN, &[]);
@@ -3157,7 +3157,7 @@ fn test_staking_and_voting_rewards() {
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: TEST_COLLECTOR.to_string(),
         amount: Uint128::from(2_000_000_000u128),
-        msg: to_binary(&Cw20HookMsg::DepositReward {}).unwrap(),
+        msg: to_binary(&Cw20HookMsg::Distribute {}).unwrap(),
     });
 
     let info = mock_info(VOTING_TOKEN, &[]);
@@ -4388,7 +4388,7 @@ fn test_unstake_before_claiming_voting_rewards() {
     let msg = ExecuteMsg::Receive(Cw20ReceiveMsg {
         sender: TEST_COLLECTOR.to_string(),
         amount: Uint128::from(100u128),
-        msg: to_binary(&Cw20HookMsg::DepositReward {}).unwrap(),
+        msg: to_binary(&Cw20HookMsg::Distribute {}).unwrap(),
     });
 
     let info = mock_info(VOTING_TOKEN, &[]);

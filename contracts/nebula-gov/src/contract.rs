@@ -600,7 +600,7 @@ pub fn create_poll(
     let r = Response::new().add_attributes(vec![
         attr("action", "create_poll"),
         attr("creator", sender_address.to_string()),
-        attr("poll_id", &poll_id.to_string()),
+        attr("poll_id", poll_id.to_string()),
         attr("end_height", new_poll.end_height.to_string()),
     ]);
     Ok(r)
@@ -714,9 +714,9 @@ pub fn end_poll(deps: DepsMut, env: Env, poll_id: u64) -> Result<Response, Contr
 
     Ok(Response::new().add_messages(messages).add_attributes(vec![
         attr("action", "end_poll"),
-        attr("poll_id", &poll_id.to_string()),
+        attr("poll_id", poll_id.to_string()),
         attr("rejected_reason", rejected_reason),
-        attr("passed", &passed.to_string()),
+        attr("passed", passed.to_string()),
     ]))
 }
 
@@ -912,8 +912,8 @@ pub fn cast_vote(
 
     Ok(Response::new().add_attributes(vec![
         attr("action", "cast_vote"),
-        attr("poll_id", &poll_id.to_string()),
-        attr("amount", &amount.to_string()),
+        attr("poll_id", poll_id.to_string()),
+        attr("amount", amount.to_string()),
         attr("voter", sender_address.to_string()),
         attr("vote_option", vote_info.vote.to_string()),
     ]))

@@ -254,7 +254,7 @@ pub fn create(
     // Retrieve the cluster state
     let cluster_state = query_cluster_state(
         deps.as_ref(),
-        &env.contract.address.to_string(),
+        env.contract.address.as_ref(),
         env.block.time.seconds() - FRESH_TIMESPAN,
     )?;
 
@@ -304,7 +304,7 @@ pub fn create(
                 // Verify the provided non-zero asset amount does not have target of zero
                 if target_weights[i] == Uint128::zero() && asset.amount > Uint128::zero() {
                     return Err(ContractError::Generic(
-                        format!("Cannot call create with non-zero asset amount when target weight is zero for asset {}", asset.info.to_string()),
+                        format!("Cannot call create with non-zero asset amount when target weight is zero for asset {}", asset.info),
                     ));
                 };
 
@@ -326,7 +326,7 @@ pub fn create(
                     // Update asset inventory balance in the cluster
                     update_asset_balance(
                         deps.storage,
-                        &contract_addr.to_string(),
+                        contract_addr.as_ref(),
                         asset.amount,
                         true,
                     )?;
@@ -469,7 +469,7 @@ pub fn create(
 
     let mut logs = vec![
         attr("action", "mint"),
-        attr("sender", &info.sender.to_string()),
+        attr("sender", info.sender.to_string()),
         attr("mint_to_sender", mint_amount_to_sender),
     ];
     logs.extend(extra_logs);
@@ -531,7 +531,7 @@ pub fn receive_redeem(
     // Retrieve the cluster state
     let cluster_state = query_cluster_state(
         deps.as_ref(),
-        &env.contract.address.to_string(),
+        env.contract.address.as_ref(),
         stale_threshold,
     )?;
 
@@ -605,7 +605,7 @@ pub fn receive_redeem(
         .filter(|(amt, _asset)| !amt.is_zero()) // remove 0 amounts
         .map(|(amt, asset_info)| {
             if let AssetInfo::Token { contract_addr, .. } = &asset_info {
-                update_asset_balance(deps.storage, &contract_addr.to_string(), *amt, false)?;
+                update_asset_balance(deps.storage, contract_addr.as_ref(), *amt, false)?;
             } else if let AssetInfo::NativeToken { denom } = &asset_info {
                 update_asset_balance(deps.storage, denom, *amt, false)?;
             }
@@ -788,7 +788,7 @@ pub fn update_target(
     for prev_asset in prev_assets.iter() {
         let inv_balance = match prev_asset {
             AssetInfo::Token { contract_addr } => {
-                read_asset_balance(deps.storage, &contract_addr.to_string())
+                read_asset_balance(deps.storage, contract_addr.as_ref())
             }
             AssetInfo::NativeToken { denom } => read_asset_balance(deps.storage, denom),
         }?;

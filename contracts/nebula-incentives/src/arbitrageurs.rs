@@ -360,7 +360,7 @@ pub fn record_astroport_impact(
     let mut fair_value = FPDecimal::zero();
     for i in 0..contract_state.prices.len() {
         fair_value = fair_value
-            + FPDecimal::from_str(&*contract_state.prices[i])?
+            + FPDecimal::from_str(&contract_state.prices[i])?
                 * FPDecimal::from(contract_state.inv[i].u128());
     }
     fair_value = fair_value / FPDecimal::from(contract_state.outstanding_balance_tokens.u128());
@@ -396,9 +396,9 @@ pub fn record_astroport_impact(
     }
 
     // Calculate the Astrport pool imbalance before the arbitrage
-    let imb0 = astroport_imbalance(&pool_before.assets.to_vec(), fair_value);
+    let imb0 = astroport_imbalance(pool_before.assets.as_ref(), fair_value);
     // Calculate the Astrport pool imbalance after the arbitrage
-    let imb1 = astroport_imbalance(&pool_now.assets.to_vec(), fair_value);
+    let imb1 = astroport_imbalance(pool_now.assets.as_ref(), fair_value);
 
     // If positive, this arbitrage moved the market price closer to fair value (NAV)
     let imbalance_fixed = imb0 - imb1;
@@ -415,11 +415,11 @@ pub fn record_astroport_impact(
 
     Ok(Response::new().add_attributes(vec![
         attr("action", "record_astroport_arbitrageur_rewards"),
-        attr("fair_value", &format!("{}", fair_value)),
-        attr("arbitrage_imbalance_fixed", &format!("{}", imbalance_fixed)),
+        attr("fair_value", format!("{}", fair_value)),
+        attr("arbitrage_imbalance_fixed", format!("{}", imbalance_fixed)),
         attr("arbitrage_imbalance_sign", imbalance_fixed.sign.to_string()),
-        attr("imb0", &format!("{}", imb0)),
-        attr("imb1", &format!("{}", imb1)),
+        attr("imb0", format!("{}", imb0)),
+        attr("imb1", format!("{}", imb1)),
     ]))
 }
 

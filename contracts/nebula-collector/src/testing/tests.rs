@@ -10,7 +10,7 @@ use cw20::Cw20ExecuteMsg;
 use nebula_protocol::collector::{
     ConfigResponse, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg,
 };
-use nebula_protocol::gov::Cw20HookMsg::DepositReward;
+use nebula_protocol::gov::Cw20HookMsg::Distribute;
 
 #[test]
 fn proper_initialization() {
@@ -150,7 +150,7 @@ fn test_distribute() {
             msg: to_binary(&Cw20ExecuteMsg::Send {
                 contract: "gov0000".to_string(),
                 amount: Uint128::new(100u128),
-                msg: to_binary(&DepositReward {}).unwrap(),
+                msg: to_binary(&Distribute {}).unwrap(),
             })
             .unwrap(),
             funds: vec![],

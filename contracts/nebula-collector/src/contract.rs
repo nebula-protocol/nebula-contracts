@@ -214,8 +214,7 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> Result<Response,
         ],
     )?;
 
-    let messages: Vec<CosmosMsg>;
-    if config.nebula_token == validated_asset_token {
+    let messages: Vec<CosmosMsg> = if config.nebula_token == validated_asset_token {
         // If the given asset if Nebula, trade BASE_DENOM => Nebula
 
         // Query the current BASE_DENOM balance of the collector contract
@@ -233,7 +232,7 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> Result<Response,
         };
 
         // Execute swap from BASE_DENOM to NEB on Astroport BASE_DENOM-NEB pair contract
-        messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
+        vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: pair_info.contract_addr.to_string(),
             msg: to_binary(&AstroportExecuteMsg::Swap {
                 offer_asset: Asset {
@@ -248,7 +247,7 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> Result<Response,
                 denom: config.base_denom,
                 amount,
             }],
-        })];
+        })]
     } else {
         // If the given asset is a CT token, trade the given CT token => BASE_DENOM
 
@@ -261,7 +260,7 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> Result<Response,
 
         // Execute send on the given CT token contract from the collector contract
         // to Astroport asset-BASE_DENOM pair contract to trigger swap on Astroport
-        messages = vec![CosmosMsg::Wasm(WasmMsg::Execute {
+        vec![CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: validated_asset_token.to_string(),
             msg: to_binary(&Cw20ExecuteMsg::Send {
                 contract: pair_info.contract_addr.to_string(),
@@ -273,8 +272,8 @@ pub fn convert(deps: DepsMut, env: Env, asset_token: String) -> Result<Response,
                 })?,
             })?,
             funds: vec![],
-        })];
-    }
+        })]
+    };
 
     Ok(Response::new().add_messages(messages).add_attributes(vec![
         attr("action", "convert"),

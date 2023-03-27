@@ -532,7 +532,7 @@ pub fn compute_mint(
             })
             .into(),
         ),
-        attributes: vec![attr("penalty", &format!("{}", penalty))],
+        attributes: vec![attr("penalty", format!("{}", penalty))],
     })
 }
 
@@ -638,7 +638,7 @@ pub fn compute_redeem(
                 .iter()
                 .map(|&x| Uint128::new(x.into()))
                 .collect::<Vec<Uint128>>(),
-            attributes: vec![attr("penalty", &format!("{}", penalty))],
+            attributes: vec![attr("penalty", format!("{}", penalty))],
         })
     };
 }
@@ -695,7 +695,7 @@ pub fn compute_notional_penalty(
         ),
         imbalance0: Uint128::new(imb0.into()),
         imbalance1: Uint128::new(imb1.into()),
-        attributes: vec![attr("penalty", &format!("{}", penalty))],
+        attributes: vec![attr("penalty", format!("{}", penalty))],
     })
 }
 

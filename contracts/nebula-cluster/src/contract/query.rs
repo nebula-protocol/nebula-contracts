@@ -44,7 +44,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
         QueryMsg::Target {} => to_binary(&query_target(deps)?),
         QueryMsg::ClusterState {} => to_binary(&query_cluster_state(
             deps,
-            &env.contract.address.to_string(),
+            env.contract.address.as_ref(),
             0,
         )?),
         QueryMsg::ClusterInfo {} => to_binary(&query_cluster_info(deps)?),
@@ -135,7 +135,7 @@ pub fn query_cluster_state(
         .iter()
         .map(|asset| match asset {
             AssetInfo::Token { contract_addr } => {
-                read_asset_balance(deps.storage, &contract_addr.to_string())
+                read_asset_balance(deps.storage, contract_addr.as_ref())
             }
             AssetInfo::NativeToken { denom } => read_asset_balance(deps.storage, denom),
         })

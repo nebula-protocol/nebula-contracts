@@ -170,7 +170,7 @@ pub fn query_collector_contract_address(
     querier: &QuerierWrapper,
     factory_address: &Addr,
 ) -> StdResult<(String, String)> {
-    let res = query_factory_config(&querier, &factory_address)?;
+    let res = query_factory_config(querier, factory_address)?;
     Ok((res.commission_collector, res.protocol_fee_rate))
 }
 
@@ -182,7 +182,7 @@ pub fn query_collector_contract_address(
 ///
 /// - **factory_address** is a reference to an object of type [`Addr`].
 pub fn query_base_denom(querier: &QuerierWrapper, factory_address: &Addr) -> StdResult<String> {
-    Ok(query_factory_config(&querier, &factory_address)?.base_denom)
+    Ok(query_factory_config(querier, factory_address)?.base_denom)
 }
 
 /// ## Description
