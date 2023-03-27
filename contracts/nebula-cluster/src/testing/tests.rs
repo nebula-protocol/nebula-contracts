@@ -445,7 +445,7 @@ fn mint() {
 
     // correct create msg
     let mint_msg = ExecuteMsg::RebalanceCreate {
-        asset_amounts: asset_amounts,
+        asset_amounts,
         min_tokens: None,
     };
 
@@ -665,7 +665,7 @@ fn burn() {
     deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
 
     let mint_msg = ExecuteMsg::RebalanceCreate {
-        asset_amounts: asset_amounts,
+        asset_amounts,
         min_tokens: None,
     };
 
@@ -918,7 +918,7 @@ fn update_target() {
     deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
 
     let mint_msg = ExecuteMsg::RebalanceCreate {
-        asset_amounts: asset_amounts,
+        asset_amounts,
         min_tokens: None,
     };
 
@@ -1004,7 +1004,7 @@ fn decommission_cluster() {
     deps.querier.set_mint_amount(Uint128::from(1_000_000u128));
 
     let mint_msg = ExecuteMsg::RebalanceCreate {
-        asset_amounts: asset_amounts,
+        asset_amounts,
         min_tokens: None,
     };
 

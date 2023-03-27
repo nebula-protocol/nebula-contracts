@@ -75,7 +75,7 @@ impl WasmMockQuerier {
             }) => match from_binary(msg).unwrap() {
                 MockQueryMsg::Pair { asset_infos } => {
                     SystemResult::Ok(ContractResult::from(to_binary(&PairInfo {
-                        asset_infos: asset_infos,
+                        asset_infos,
                         contract_addr: Addr::unchecked(self.pair_addr.clone()),
                         liquidity_token: Addr::unchecked("lptoken"),
                         pair_type: PairType::Xyk {},
